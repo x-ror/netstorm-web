@@ -104,10 +104,11 @@ function hasEnergy(world: WorldView, player: number, def: UnitDef, x: number, y:
 
     // The Sun Generator is "sun-only"; every other source also feeds Sun units.
     const feeds = def.theme === 'sun' || source.theme === def.theme;
-    const dx = Math.max(b.x - (x + def.footX - 1), 0, x - (b.x + b.fx - 1));
-    const dy = Math.max(b.y - (y + def.footY - 1), 0, y - (b.y + b.fy - 1));
+    // Centre to centre; which point of the unit the original tests against the circle is unknown.
+    const dx = b.x + b.fx / 2 - (x + def.footX / 2);
+    const dy = b.y + b.fy / 2 - (y + def.footY / 2);
 
-    if (feeds && Math.max(dx, dy) <= ENERGY_RANGE) {
+    if (feeds && dx * dx + dy * dy <= ENERGY_RANGE * ENERGY_RANGE) {
       return true;
     }
   }

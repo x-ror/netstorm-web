@@ -212,7 +212,7 @@ test("energy must come from a nearby source of the unit's own alignment", () => 
   p.tech.add('thundercannon');
   bridge(w, 51, 90);
   const far = { player: 1, x: 70, y: 41 } as const;
-  // Too far from the Wind Temple for anything.
+  // More than 30 cells from the centre of the Wind Temple: too far for anything.
   assert.equal(w.apply({ t: 'build', type: 'suncannon', ...far }), 'no energy');
   // A Sun Generator feeds only Sun units.
   w.spawnBuilding('sunbattery', 1, 64, 41);
@@ -262,8 +262,6 @@ test('a piece hardens in the window; explosions and salvage crack solid bridge a
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 53, y: 40, rot: 0 }), null);
   assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [2, 2, 3, 3]);
   // A cannon off the bridge, touching one solid cell (52) and two cracked cells (53, 54).
-  assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 52, y: 41 }), 'no energy');
-  w.spawnBuilding('sunbattery', 1, 46, 44);
   assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 52, y: 41 }), null);
   const cannon = w.buildingsOf(1).find((b) => b.type === 'suncannon')!;
   const rider = w.spawnTransport('sunwalker', 1, 53, 40);

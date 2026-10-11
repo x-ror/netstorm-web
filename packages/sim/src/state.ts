@@ -8,7 +8,7 @@ export const PIECE_INTERVAL = PIECE_INTERVAL_SECONDS * TPS; // temple emits a br
 // Invented: a new piece is cracked and "becomes more solid" after "a few seconds" in the window.
 const PIECE_HARDEN_SECONDS = 3;
 export const PIECE_HARDEN = PIECE_HARDEN_SECONDS * TPS;
-export const HAND_SIZE = 3; // pieces a player can hold                   TODO verify
+export const HAND_SIZE = 6; // bridge slots in the Production Window, as seen in the campaign // pieces a player can hold                   TODO verify
 // The official help gives neither number (the stock is the "Money per Geyser" battle option);
 // both come from the .type files and are unconfirmed. See docs/game-rules.md.
 export const CRYSTAL_VALUE = 200; // Storm Power per crystal
@@ -16,9 +16,10 @@ export const GEYSER_STOCK = 2000; // Storm Power a geyser holds before it is dep
 export const PRIEST_HP = 100;
 /** Share of a unit's cost paid for destroying an enemy unit and, at full health, for salvaging your own. */
 export const REFUND_SHARE = 0.25;
-// Cells a Temple or Generator spreads its Energy. The help only says "nearby" and that the range is
-// the Generator Range battle option; this value is unconfirmed.
-export const ENERGY_RANGE = 8;
+// Radius, in cells, of the circle a Temple or Generator spreads its Energy over. Measured in the
+// original (campaign defaults): the 12 range markers of a Rain Temple and of a Rain Generator both
+// lie on a circle of radius 30.0 around the building's centre. See docs/game-rules.md.
+export const ENERGY_RANGE = 30;
 export const RUNES = 5; // runes the sacrificing priest must ward
 const RUNE_SECONDS = 2; // invented: the official help does not say how long the ritual takes
 export const RUNE_INTERVAL = RUNE_SECONDS * TPS;
