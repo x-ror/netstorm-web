@@ -133,6 +133,7 @@ export class World {
       tech: new Set(tech.map((t) => t.toLowerCase())),
       hand: [],
       pieceTimer: PIECE_INTERVAL,
+      refresh: [],
       alive: true,
     };
     this.players.set(id, p);

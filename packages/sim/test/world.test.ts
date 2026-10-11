@@ -10,6 +10,7 @@ import {
   PIECE_HARDEN,
   CRYSTAL_VALUE,
   type Transport,
+  UNIT_REFRESH,
 } from '../src/index.js';
 
 const defs = loadDefs(
@@ -83,6 +84,14 @@ test('build: needs tech, storm power, energy and own ground', () => {
     'not connected'); // open sky, not off a bridge
   assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 32, y: 36 }), null);
   assert.equal(p.storm, 2000 - 400);
+  // Unit Rate: the same unit stays dimmed for UNIT_REFRESH ticks after it is laid.
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 36, y: 44 }), 'not ready');
+
+  for (let i = 0; i < UNIT_REFRESH; i++) {
+    w.step();
+  }
+
+  assert.deepEqual(p.refresh, []);
   assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 32, y: 36 }), 'blocked'); // occupied
 });
 

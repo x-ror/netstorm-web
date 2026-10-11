@@ -28,6 +28,7 @@ export type CommandError =
   | 'no altar'
   | 'no workshop'
   | 'cannot build'
+  | 'not ready'
   | 'no path'
   | 'priest unavailable'
   | 'target not incapacitated';

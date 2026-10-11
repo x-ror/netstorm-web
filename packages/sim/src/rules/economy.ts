@@ -6,6 +6,12 @@ export function tickPlayer(world: World, player: Player): void {
     return;
   }
 
+  for (const entry of player.refresh) {
+    entry.ticks--;
+  }
+
+  player.refresh = player.refresh.filter((entry) => entry.ticks > 0);
+
   for (const entry of player.hand) {
     entry.age = Math.min(PIECE_HARDEN, entry.age + 1);
   }

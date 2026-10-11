@@ -184,15 +184,26 @@ function unitButtons(world: WorldView, me: number, ui: UiState): string {
 
   return defs.map((def) => {
     const active = ui.tool.kind === 'build' && ui.tool.type === def.id;
-    const poor = player.storm < def.cost;
+    const cooling = player.refresh.find((entry) => entry.type === def.id);
+    const poor = player.storm < def.cost || cooling !== undefined;
     const facing = active && hasFacing(def) ? ` · ${FACING_NAMES[ui.facing]}` : '';
+    let warning = '';
+
+    if (cooling) {
+      warning = ' — щойно встановлено, ще недоступний';
+    } else if (player.storm < def.cost) {
+      warning = ' — бракує Storm Power';
+    }
+
     return `<button data-action="build" data-value="${def.id}" class="unit${active ? ' on' : ''}${
       poor ? ' poor' : ''
     }" aria-label="${escapeHtml(def.name)}" title="${
       escapeHtml(def.name)
-    }: ${def.cls}, рівень ${def.level}, ${def.footX}×${def.footY}${
-      poor ? ' — бракує Storm Power' : ''
-    }"><span>${escapeHtml(def.name)}${facing}</span><small>${def.cost}</small></button>`;
+    }: ${def.cls}, рівень ${def.level}, ${def.footX}×${def.footY}${warning}"><span>${
+      escapeHtml(def.name)
+    }${facing}</span><small>${
+      cooling ? `${Math.ceil(cooling.ticks / TPS)} с` : def.cost
+    }</small></button>`;
   }).join('');
 }
 
