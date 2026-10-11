@@ -36,10 +36,9 @@ export function createUiState(): UiState {
   };
 }
 
-/** Classes the Production Window cannot place yet. Building a transport in the simulation makes a
- * static building, and aerial units and spells have no rules yet; see docs/game-rules.md. */
+/** Classes the Production Window cannot place yet: the simulation refuses them ('cannot build')
+ * because aerial units and spells have no rules yet; see docs/game-rules.md. */
 const NOT_PLACEABLE = new Set<string>([
-  'Ground Transport',
   'Aerial Transport',
   'Aerial Attack',
   'High Priest',
@@ -49,6 +48,8 @@ const NOT_PLACEABLE = new Set<string>([
   'Defensive Spell',
   'Summons Spell',
   'World Event',
+  'Source of Storm Power',
+  'Bridge',
   '',
 ]);
 

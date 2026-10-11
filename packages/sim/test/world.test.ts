@@ -9,6 +9,7 @@ import {
   GEYSER_STOCK,
   PIECE_HARDEN,
   CRYSTAL_VALUE,
+  type Transport,
 } from '../src/index.js';
 
 const defs = loadDefs(
@@ -221,6 +222,7 @@ test("energy must come from a nearby source of the unit's own alignment", () => 
   const w = mk();
   const p = w.players.get(1)!;
   p.tech.add('thundercannon');
+  w.spawnBuilding('thunderfactory', 1, 100, 100); // so only energy can be missing
   bridge(w, 51, 90);
   const far = { player: 1, x: 70, y: 41 } as const;
   // More than 30 cells from the centre of the Wind Temple: too far for anything.
@@ -320,4 +322,41 @@ test('a priest left without ground hangs in place until bridge is laid under him
   p.hand = [{ piece: 7, age: PIECE_HARDEN }];
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null);
   assert.equal(w.apply({ t: 'movePriest', player: 1, x: 45, y: 40 }), null);
+});
+
+test('Temple makes Golems and a Workshop of their Fury makes other transports', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  const golem = { t: 'build', player: 1, type: 'sunwalker' } as const;
+  const transports = () =>
+    [...w.entities.values()].filter((e): e is Transport => e.kind === 'transport' && e.owner === 1);
+  const before = transports().length;
+  // A transport stands on a free cell of the player's own island, never on a bridge or in the sky.
+  bridge(w, 51, 60);
+  assert.equal(w.apply({ ...golem, x: 52, y: 40 }), 'blocked');
+  assert.equal(w.apply({ ...golem, x: 52, y: 44 }), 'blocked');
+  assert.equal(w.apply({ ...golem, x: 38, y: 38 }), 'blocked'); // under the Temple
+  assert.equal(w.apply({ ...golem, x: 46, y: 46 }), null);
+  const made = transports().at(-1)!;
+  assert.equal(transports().length, before + 1);
+  assert.deepEqual([made.kind, made.type, made.x, made.y], ['transport', 'sunwalker', 46, 46]);
+  assert.equal(p.storm, 2000 - 400);
+  assert.equal(w.occupant[46 * 256 + 46], 0); // transports do not block cells
+  // The Sail Skater (level 2) comes from the Wind Workshop and needs a second energy source.
+  w.spawnBuilding('windbattery', 1, 44, 43);
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'windwalker', x: 47, y: 46 }), null);
+  const workshop = w.buildingsOf(1).find((b) => b.type === 'windfactory')!;
+  w.entities.delete(workshop.id);
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'windwalker', x: 48, y: 46 }), 'no workshop');
+  const temple = w.buildingsOf(1).find((b) => b.type === 'windvortex')!;
+  w.entities.delete(temple.id);
+  assert.equal(w.apply({ ...golem, x: 48, y: 46 }), 'no temple');
+});
+
+test('units without rules yet cannot be built', () => {
+  const w = mk();
+  w.players.get(1)!.storm = 100_000;
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'sunballoon', x: 46, y: 46 }),
+    'cannot build');
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'geyser', x: 46, y: 44 }), 'cannot build');
 });

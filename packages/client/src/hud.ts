@@ -200,7 +200,7 @@ function info(world: WorldView, me: number, ui: UiState): string {
   const entity = ui.selected === null ? undefined : world.entities.get(ui.selected);
 
   if (!entity) {
-    return `<p class="muted">${hint(ui)}</p>`;
+    return `<p class="muted">${hint(world, ui)}</p>`;
   }
 
   const lines = [`<b>${escapeHtml(entityName(world, entity))}</b>`];
@@ -248,12 +248,14 @@ function info(world: WorldView, me: number, ui: UiState): string {
   return lines.map((line) => `<div>${line}</div>`).join('');
 }
 
-function hint(ui: UiState): string {
+function hint(world: WorldView, ui: UiState): string {
   switch (ui.tool.kind) {
     case 'piece':
       return 'ЛКМ — покласти сегмент поруч зі своєю землею. Права кнопка — скасувати.';
     case 'build':
-      return 'ЛКМ — поставити на своєму острові або впритул до свого мосту, поруч з енергією.';
+      return world.defs.get(ui.tool.type)?.cls === 'Ground Transport'
+        ? 'ЛКМ — поставити на вільну клітинку свого острова, поруч з енергією. Golem робить Храм, інші транспорти — Майстерня їхньої стихії.'
+        : 'ЛКМ — поставити на своєму острові або впритул до свого мосту, поруч з енергією.';
     case 'salvage':
       return 'ЛКМ по своїй споруді чи транспорту — розібрати за частину вартості.';
     case 'select':
