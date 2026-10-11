@@ -174,12 +174,17 @@ test('priest: immobilized at half HP, carried by a transport, sacrificed with fi
   assert.equal(w.apply({ t: 'movePriest', player: 1, x: altar.x - 1, y: altar.y }), null);
   w.drainEvents();
 
+  const started = w.tick;
+
   for (let i = 0; i < 100 * TPS && w.winner === null; i++) {
     w.step();
   }
 
   assert.equal(w.winner, 1);
+  // five runes of 15 s each, plus the priest's walk to the altar
+  assert.ok(w.tick - started >= 75 * TPS && w.tick - started < 95 * TPS);
   assert.equal(w.drainEvents().filter((e) => e.what === 'rune').length, 5);
+  assert.ok(!w.entities.has(altar.id), 'the altar is consumed by the sacrifice');
   assert.ok(!w.entities.has(red.id));
 });
 

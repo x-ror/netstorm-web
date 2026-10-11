@@ -1,5 +1,7 @@
 import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
+import { shakeBridges } from './bridges.js';
+import { removeBuilding } from './combat.js';
 import {
   RUNES,
   RUNE_INTERVAL,
@@ -219,11 +221,12 @@ export function tickRitual(world: World, p: Priest): void {
   world.emit({ what: 'rune', who: altar.owner, data: { priest: p.id, runes: p.runes } });
 
   if (p.runes >= RUNES) {
-    completeSacrifice(world, p, altar.owner);
+    completeSacrifice(world, p, altar);
   }
 }
 
-function completeSacrifice(world: World, victim: Priest, by: number): void {
+function completeSacrifice(world: World, victim: Priest, altar: Building): void {
+  const by = altar.owner;
   const loser = world.players.get(victim.owner);
 
   if (!loser) {
@@ -233,6 +236,10 @@ function completeSacrifice(world: World, victim: Priest, by: number): void {
   loser.alive = false;
   world.entities.delete(victim.id);
   world.emit({ what: 'sacrifice', who: by, data: { victim: victim.owner } });
+
+  // The altar is consumed: in the original it blows up a few seconds after the last rune.
+  removeBuilding(world, altar);
+  shakeBridges(world, altar);
   const alive = [...world.players.values()].filter((player) => player.alive);
 
   if (alive.length === 1) {

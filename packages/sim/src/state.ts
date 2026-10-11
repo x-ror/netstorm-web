@@ -21,7 +21,9 @@ export const REFUND_SHARE = 0.25;
 // lie on a circle of radius 30.0 around the building's centre. See docs/game-rules.md.
 export const ENERGY_RANGE = 30;
 export const RUNES = 5; // runes the sacrificing priest must ward
-const RUNE_SECONDS = 2; // invented: the official help does not say how long the ritual takes
+// Measured in the original (campaign, The War Begins!): the runes were warded 14, 29, 44, 59 and
+// 75 s after the Sacrifice was ordered, the priest walking to a new spot by the altar for each.
+const RUNE_SECONDS = 15;
 export const RUNE_INTERVAL = RUNE_SECONDS * TPS;
 export const MAX_PLAYERS = 8;
 export const MAX_ID = 0x7fffffff; // ids fit a signed 32-bit integer

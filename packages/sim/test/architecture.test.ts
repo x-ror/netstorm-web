@@ -24,7 +24,7 @@ const mk = () =>
   ], [[80, 40]]);
 const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
-// Pins the current rules (RULES_VERSION 10). Re-pin deliberately whenever state shape or rules change.
+// Pins the current rules (RULES_VERSION 11). Re-pin deliberately whenever state shape or rules change.
 test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
@@ -219,7 +219,7 @@ test('snapshots preserve a chained priest through the ritual and victory', () =>
   assert.equal(victim.runes, 2);
   const restored = World.fromSnapshot(json(world.snapshot()));
 
-  for (let index = 0; index < 200 && world.winner === null; index++) {
+  for (let index = 0; index < 600 && world.winner === null; index++) {
     world.step();
     restored.step();
     assert.equal(restored.hash(), world.hash());
