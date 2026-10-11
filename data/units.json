@@ -1,2765 +1,2765 @@
 [
- {
-  "id": "fenceShield",
-  "flags": [
-   "not_real",
-   "not_selectable",
-   "dontSave"
-  ],
-  "description": "Force Field",
-  "class": "Defense",
-  "zorder": "zoFLARES",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "sfence2.gif"
-  ]
- },
- {
-  "id": "Altar",
-  "flags": [
-   "dontSave",
-   "altar"
-  ],
-  "description": "Altar",
-  "class": "Altar",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 7,
-  "foot_y": 7,
-  "maxHitPoints": 1500,
-  "damageEffect": 1,
-  "cost": 500,
-  "sprites": [
-   "altar01.gif",
-   "altar21.gif",
-   "altar22.gif",
-   "altar23.gif",
-   "b_altar.gif",
-   "blank.gif"
-  ]
- },
- {
-  "id": "Flare",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "zorder": "zoFLARES",
-  "foot_x": 4,
-  "foot_y": 4,
-  "sprites": [
-   "kaboom.gif",
-   "xlarge.gif",
-   "xsmall.gif"
-  ]
- },
- {
-  "id": "banner",
-  "flags": [
-   "default_hotspot",
-   "notreal"
-  ],
-  "description": "Banner",
-  "zorder": "zoISLAND",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "banner1.gif",
-   "banner2.gif"
-  ]
- },
- {
-  "id": "battleIsland",
-  "flags": [
-   "opaquecollide",
-   "ship"
-  ],
-  "description": "Challenge Ring",
-  "zorder": "zoISLAND",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "ring.gif"
-  ]
- },
- {
-  "id": "Bird",
-  "flags": [
-   "dontSave"
-  ],
-  "description": "Bird",
-  "class": "World Event",
-  "maxHitPoints": 10,
-  "theme": "sun",
-  "zorder": "zoFLYERS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "constructionRate": 5,
-  "range": 30,
-  "speed": 2,
-  "sprites": [
-   "b_sflyer.gif"
-  ]
- },
- {
-  "id": "blankMissile",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "impactSound": "impact.wav",
-  "sprites": [
-   "arrow.gif"
-  ]
- },
- {
-  "id": "bolt",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "orientations": 20,
-  "zorder": "zoMISSILES",
-  "fireSound": "fireCrossbow.wav",
-  "sprites": [
-   "warch2.gif"
-  ]
- },
- {
-  "id": "bombExplodeLarge",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Decimation",
-  "class": "Offensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 1,
-  "range": 7,
-  "cost": 800,
-  "activeSound": "decimationGet.wav",
-  "fireSound": "decimationCast.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombExplodeMedium",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Devastation",
-  "class": "Offensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 3,
-  "range": 3,
-  "cost": 400,
-  "activeSound": "devastationGet.wav",
-  "fireSound": "devastationCast.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombExplodeSmall",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Point Blast",
-  "class": "Offensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 1,
-  "range": 1,
-  "cost": 300,
-  "activeSound": "pointBlastGet.wav",
-  "fireSound": "pointBlastCast.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombgraviton",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Graviton",
-  "class": "Offensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 3,
-  "range": 5,
-  "cost": 500,
-  "activeSound": "70GravitationPickup1.wav",
-  "fireSound": "70GravitateCast1.wav",
-  "casttime": 1,
-  "praytime": 60,
-  "manacost": 10,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombHardener",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Bridge Harden",
-  "class": "Defensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 2,
-  "range": 7,
-  "cost": 150,
-  "activeSound": "bridgeHardenGet.wav",
-  "fireSound": "bridgeHardenCast.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombHeal",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Heal",
-  "class": "Defensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 2,
-  "range": 9,
-  "cost": 200,
-  "activeSound": "healGet.wav",
-  "fireSound": "healCast.wav",
-  "casttime": 2,
-  "praytime": 10,
-  "manacost": 10,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombIIIMano",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Hydra Flood",
-  "class": "Summons Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 1,
-  "range": 28,
-  "cost": 1500,
-  "activeSound": "70HydraFloodPickup1.wav",
-  "fireSound": "70HydraFloodCast1.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "spawns": 3,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombIIITwister",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Vortex",
-  "class": "Summons Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 1,
-  "range": 30,
-  "cost": 1650,
-  "activeSound": "70VortexPickup1.wav",
-  "fireSound": "70VortexCast1.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "spawns": 6,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombIIMano",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Hydra Wave",
-  "class": "Summons Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 2,
-  "range": 28,
-  "cost": 1000,
-  "activeSound": "70HydraWavePickup1.wav",
-  "fireSound": "70HydraWaveCast1.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "spawns": 2,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombIITwister",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Twister",
-  "class": "Summons Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 2,
-  "range": 30,
-  "cost": 1100,
-  "activeSound": "70TwisterPickup1.wav",
-  "fireSound": "70TwisterCast1.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "spawns": 4,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombIMano",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Hydra",
-  "class": "Summons Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 3,
-  "range": 28,
-  "cost": 500,
-  "activeSound": "70HydraPickup1.wav",
-  "fireSound": "70HydraCast1.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "spawns": 1,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombInvisible",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Invisibility",
-  "class": "Defensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 1,
-  "range": 7,
-  "cost": 1000,
-  "activeSound": "invisibilityGet.wav",
-  "fireSound": "invisibilityCast.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "effecttime": 40,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombLightingwave",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Thunderstorm",
-  "class": "Offensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 1,
-  "range": 15,
-  "cost": 2500,
-  "activeSound": "70ThunderStormPickup1.wav",
-  "fireSound": "70ThunderStormCast1.wav",
-  "casttime": 5,
-  "praytime": 5,
-  "manacost": 10,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombLightingZap",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Thunder Strike",
-  "class": "Offensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 2,
-  "range": 15,
-  "cost": 1800,
-  "activeSound": "70ThunderStrikePickup1.wav",
-  "fireSound": "70ThunderStrikeCast1.wav",
-  "casttime": 5,
-  "praytime": 5,
-  "manacost": 10,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombmeteor",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Bombardment",
-  "class": "Offensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 2,
-  "range": 15,
-  "cost": 1100,
-  "activeSound": "70BombardmentPickup1.wav",
-  "fireSound": "70BombardCast1.wav",
-  "casttime": 5,
-  "praytime": 5,
-  "manacost": 10,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombParalyze",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Paralysis",
-  "class": "Defensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 2,
-  "range": 7,
-  "cost": 1000,
-  "activeSound": "paralysisGet.wav",
-  "fireSound": "paralysisCast.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "effecttime": 120,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombSpecialOne",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Devastation",
-  "class": "Offensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 99,
-  "range": 3,
-  "cost": 100,
-  "activeSound": "devastationGet.wav",
-  "fireSound": "devastationCast.wav",
-  "casttime": 5,
-  "praytime": 40,
-  "manacost": 10,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombTreason",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Treason",
-  "class": "Offsensive Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 1,
-  "range": 7,
-  "cost": 2000,
-  "activeSound": "treasonGet.wav",
-  "fireSound": "treasonCast.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bombTwister",
-  "flags": [
-   "default_hotspot",
-   "bomb",
-   "mayDropOnRim"
-  ],
-  "description": "Whirlwind",
-  "class": "Summons Spell",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "level": 3,
-  "range": 30,
-  "cost": 550,
-  "activeSound": "70WhirlwindPickup1.wav",
-  "fireSound": "70WhirlwindCast1.wav",
-  "casttime": 5,
-  "praytime": 60,
-  "manacost": 10,
-  "spawns": 2,
-  "sprites": [
-   "b_obelisk.gif",
-   "blank.gif",
-   "spells.gif"
-  ]
- },
- {
-  "id": "bridge",
-  "flags": [
-   "surface",
-   "bridge"
-  ],
-  "description": "Bridge",
-  "class": "Bridge",
-  "zorder": "zoBRIDGE",
-  "foot_x": 1,
-  "threat": 1,
-  "foot_y": 1,
-  "hotfootRatioX": 0,
-  "hotfootRatioY": 0.27,
-  "sprites": [
-   "bridge.gif"
-  ]
- },
- {
-  "id": "bridgeConnector",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "description": "Bridge",
-  "zorder": "zoBRIDGE_CONNECTOR",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "bridge.gif"
-  ]
- },
- {
-  "id": "bulf",
-  "flags": [
-   "walker",
-   "shadow"
-  ],
-  "description": "Bulf",
-  "class": "Ground Transport",
-  "maxHitPoints": 800,
-  "theme": "thunder",
-  "level": 1,
-  "cost": 400,
-  "threat": 15,
-  "damageEffect": 1,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "pickupSound": "bulfPickup.wav",
-  "moveSound": "bulfMove.wav",
-  "dropSound": "bulfDrop.wav",
-  "group": "walker",
-  "height": 1,
-  "speed": 1.8,
-  "turningSpeed": 180.0,
-  "techBit": 20,
-  "sprites": [
-   "bulftrnl.gif",
-   "bulfturn.gif",
-   "bulfwalk.gif",
-   "s_bulfbeauty.gif"
-  ]
- },
- {
-  "id": "Buried",
-  "flags": [
-   "buried",
-   "shadow"
-  ],
-  "description": "Obelisk",
-  "class": "Spell",
-  "zorder": "zoARTIFACT",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "obelisk.gif"
-  ]
- },
- {
-  "id": "challengeIsland",
-  "flags": [
-   "opaquecollide"
-  ],
-  "zorder": "zoISLAND",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "ring.gif"
-  ]
- },
- {
-  "id": "Dais",
-  "flags": [
-   "dais",
-   "saveFrame",
-   "mayDropOnRim"
-  ],
-  "description": "Altar",
-  "class": "Altar",
-  "zorder": "zoBRIDGE",
-  "foot_x": 7,
-  "foot_y": 7,
-  "cost": 500,
-  "sprites": [
-   "altar01.gif",
-   "altar02.gif",
-   "altar03.gif",
-   "altar04.gif",
-   "altar05.gif",
-   "altar06.gif",
-   "altar07.gif",
-   "altar08.gif",
-   "altar09.gif",
-   "altar10.gif",
-   "altar11.gif",
-   "altar12.gif",
-   "altar13.gif",
-   "altar14.gif",
-   "altar15.gif",
-   "altar16.gif",
-   "altar17.gif",
-   "altar24.gif",
-   "blank.gif"
-  ]
- },
- {
-  "id": "DaisExtraFrames",
-  "flags": [
-   "dais",
-   "saveFrame"
-  ],
-  "description": "Altar",
-  "zorder": "zoBRIDGE",
-  "foot_x": 7,
-  "foot_y": 7,
-  "maxHitPoints": 100,
-  "cost": 500,
-  "sprites": [
-   "altar18.gif",
-   "altar19.gif"
-  ]
- },
- {
-  "id": "Man",
-  "flags": [
-   "guy",
-   "shadow",
-   "not_selectable",
-   "not_real"
-  ],
-  "description": "Nimbian",
-  "zorder": "zoEMPLACEMENT",
-  "foot_x": 0,
-  "foot_y": 0,
-  "maxHitPoints": 20,
-  "hotFootRatioX": 0.5,
-  "hotFootRatioY": 0.2,
-  "speed": 1.5,
-  "turningSpeed": 999999.0,
-  "sprites": [
-   "blank.gif",
-   "walk0.gif",
-   "walk2.gif"
-  ]
- },
- {
-  "id": "efarm",
-  "flags": [
-   "edgefarm",
-   "matchframe",
-   "dropBlocking",
-   "walkBlocking",
-   "mayDropOnRim"
-  ],
-  "description": "Edge Farm",
-  "class": "Defense",
-  "theme": "sun",
-  "level": 1,
-  "zorder": "zoEDGEFARM",
-  "foot_x": 1,
-  "foot_y": 1,
-  "damageEffect": 1,
-  "sprites": [
-   "THGRASS.gif",
-   "WIGRASS.gif",
-   "efarm.gif",
-   "raefarm.gif",
-   "rgrass.gif",
-   "wefarm.gif"
-  ]
- },
- {
-  "id": "emptyGeyser",
-  "flags": [
-   "dropBlocking",
-   "shadow",
-   "createsisland"
-  ],
-  "description": "Empty Storm Geyser",
-  "class": "Source of Storm Power",
-  "theme": "sun",
-  "cost": 0,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotFootRatioX": 0.22,
-  "hotFootRatioY": 0.22,
-  "sprites": [
-   "b_strmgysr.gif",
-   "geyser.gif"
-  ]
- },
- {
-  "id": "fakeThreeByThreeSurface",
-  "flags": [
-   "surface",
-   "dontSave",
-   "island",
-   "islandThreeByThree"
-  ],
-  "description": "fake3x3Surface",
-  "zorder": "zoNONE",
-  "foot_x": 3,
-  "foot_y": 3,
-  "sprites": [
-   "null.gif"
-  ]
- },
- {
-  "id": "fencemark",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "zorder": "zoNONE",
-  "sprites": [
-   "fence.gif"
-  ]
- },
- {
-  "id": "fenceShield",
-  "flags": [
-   "not_real",
-   "not_selectable",
-   "dontSave"
-  ],
-  "description": "Force Field",
-  "class": "Defense",
-  "zorder": "zoFLARES",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "sfence2.gif"
-  ]
- },
- {
-  "id": "fireVortex",
-  "flags": [
-   "vortex",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking",
-   "mayDropOnRim",
-   "mayDropOnIsle"
-  ],
-  "description": "Fire Temple",
-  "class": "Energy",
-  "maxHitPoints": 5000,
-  "theme": "Fire",
-  "cost": 5000,
-  "threat": 20,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 8,
-  "foot_y": 6,
-  "damageEffect": 1,
-  "constructionRate": 10,
-  "hotFootRatioX": 0.5,
-  "hotFootRatioY": 0.8,
-  "crew": 30,
-  "buildDoneSound": "templeComplete.wav",
-  "sprites": [
-   "FireTempPlaceholder.gif",
-   "s_rainbeauty.gif"
-  ]
- },
- {
-  "id": "fireWalker",
-  "flags": [
-   "walker"
-  ],
-  "description": "Fire Ant",
-  "class": "Ground Transport",
-  "maxHitPoints": 50,
-  "theme": "Fire",
-  "level": 1,
-  "height": 1,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "moveSound": "golemMove1.wav",
-  "pickupSound": "golemPickup.wav",
-  "dropSound": "golemDrop.wav",
-  "group": "walker",
-  "speed": 2.0,
-  "turningSpeed": 99999.0,
-  "hotFootRatioX": 0.5,
-  "hotFootRatioY": 0.2,
-  "sprites": [
-   "blank.gif"
-  ]
- },
- {
-  "id": "flag",
-  "flags": [
-   "default_hotspot",
-   "notreal"
-  ],
-  "zorder": "zoBRIDGE",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "flag.gif"
-  ]
- },
- {
-  "id": "Flare",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "zorder": "zoFLARES",
-  "foot_x": 4,
-  "foot_y": 4,
-  "sprites": [
-   "flare.gif",
-   "manabolt.gif"
-  ]
- },
- {
-  "id": "ForceField",
-  "flags": [
-   "notreal"
-  ],
-  "description": "High Priest",
-  "zorder": "zoEMPLACEMENT",
-  "foot_x": 1,
-  "foot_y": 1,
-  "hotFootRatioX": 0.5,
-  "hotFootRatioY": 0.2,
-  "sprites": [
-   "ffield.gif"
-  ]
- },
- {
-  "id": "fortGump",
-  "flags": [],
-  "description": "fortGump",
-  "sprites": [
-   "TRUMP.gif",
-   "TRUMP3.gif",
-   "TRUMP4.gif",
-   "TRUMP5.gif",
-   "TRUMP6.gif",
-   "accept.gif",
-   "buttons.gif",
-   "chat.gif",
-   "gumpbox.gif",
-   "mog.gif",
-   "no_cd.gif",
-   "startmen.gif",
-   "stufgump.gif"
-  ]
- },
- {
-  "id": "Fringe",
-  "flags": [
-   "fringe",
-   "predictable",
-   "not_selectable",
-   "not_real"
-  ],
-  "description": "",
-  "zorder": "zoSTALAG",
-  "sprites": [
-   "fringe.gif"
-  ]
- },
- {
-  "id": "geyser",
-  "flags": [
-   "geyser",
-   "dropBlocking",
-   "shadow",
-   "createsisland"
-  ],
-  "description": "Storm Geyser",
-  "class": "Source of Storm Power",
-  "theme": "sun",
-  "cost": 2000,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotFootRatioX": 0.22,
-  "hotFootRatioY": 0.22,
-  "sprites": [
-   "b_strmgysr.gif",
-   "geyser.gif",
-   "geyser2.gif"
-  ]
- },
- {
-  "id": "geyserBrightener",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "zorder": "zoFLARES",
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotFootRatioX": 0.22,
-  "hotFootRatioY": 0.22,
-  "sprites": [
-   "geyser.gif"
-  ]
- },
- {
-  "id": "GravitationEffect",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "zorder": "zoMISSILES",
-  "orientations": 1,
-  "sprites": []
- },
- {
-  "id": "growingRainBlocker",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Growing Ice Tower",
-  "theme": "rain",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "threat": 5,
-  "hotFootRatioX": 0.25,
-  "hotFootRatioY": 0.25,
-  "constructionRate": 10,
-  "sprites": [
-   "b_rblocker.gif",
-   "rblock.gif"
-  ]
- },
- {
-  "id": "guildFactory",
-  "flags": [
-   "factory",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking"
-  ],
-  "description": "Guild Workshop",
-  "class": "Production",
-  "maxHitPoints": 3000,
-  "theme": "Sun",
-  "cost": 800,
-  "threat": 10,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 6,
-  "foot_y": 6,
-  "damageEffect": 1,
-  "buildDoneSound": "workshopComplete.wav",
-  "sprites": [
-   "mansion.gif",
-   "s_villabeauty.gif"
-  ]
- },
- {
-  "id": "HealEffect",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "zorder": "zoMISSILES",
-  "orientations": 1,
-  "sprites": []
- },
- {
-  "id": "icon",
-  "flags": [
-   "default_hotspot"
-  ],
-  "zorder": "zoISLAND",
-  "sprites": [
-   "icons.gif",
-   "icons3.gif",
-   "icons4.gif",
-   "icons5.gif"
-  ]
- },
- {
-  "id": "island",
-  "flags": [
-   "rim",
-   "default_hotspot",
-   "not_selectable",
-   "islandThreeByThree",
-   "dontSave"
-  ],
-  "description": "Island",
-  "zorder": "zoISLAND",
-  "foot_x": 3,
-  "foot_y": 3,
-  "sprites": [
-   "island.gif",
-   "playcolr.gif"
-  ]
- },
- {
-  "id": "islandstalag",
-  "flags": [
-   "not_selectable",
-   "dontSave"
-  ],
-  "description": "IslandStalag",
-  "zorder": "zoSTALAG",
-  "foot_x": 3,
-  "foot_y": 3,
-  "sprites": [
-   "island.gif",
-   "playcolr.gif"
-  ]
- },
- {
-  "id": "Isle",
-  "flags": [
-   "surface",
-   "default_hotspot",
-   "island",
-   "predictable",
-   "not_selectable",
-   "dontSave"
-  ],
-  "zorder": "zoISLAND",
-  "sprites": [
-   "THGRASS.gif",
-   "THISLE.gif",
-   "rgrass.gif",
-   "risle.gif"
-  ]
- },
- {
-  "id": "IsleBig",
-  "flags": [
-   "surface",
-   "rim",
-   "default_hotspot",
-   "island",
-   "islandThreeByThree",
-   "predictable",
-   "not_selectable"
-  ],
-  "foot_x": 3,
-  "foot_y": 3,
-  "zorder": "zoISLAND",
-  "sprites": [
-   "THGRASS.gif",
-   "rgrass.gif"
-  ]
- },
- {
-  "id": "lightning",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "orientations": 1,
-  "zorder": "zoMISSILES",
-  "sprites": [
-   "litngtst.gif"
-  ]
- },
- {
-  "id": "Mana",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "zorder": "zoMANAICON",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "mana.gif"
-  ]
- },
- {
-  "id": "Manabolt",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "zorder": "zoFLARES",
-  "foot_x": 1,
-  "foot_y": 1,
-  "speed": 18.0,
-  "turningSpeed": 1000.0,
-  "sprites": [
-   "MANA.gif"
-  ]
- },
- {
-  "id": "mcloud",
-  "flags": [
-   "default_hotspot"
-  ],
-  "sprites": [
-   "kelcloud.gif"
-  ]
- },
- {
-  "id": "MeteorEffect",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "zorder": "zoMISSILES",
-  "orientations": 1,
-  "sprites": []
- },
- {
-  "id": "mog",
-  "flags": [
-   "mog",
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "sprites": [
-   "b_mog.gif",
-   "mog.gif"
-  ]
- },
- {
-  "id": "Monument",
-  "flags": [
-   "tree",
-   "randframe",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking"
-  ],
-  "description": "Monument",
-  "maxHitPoints": 400,
-  "theme": "sun",
-  "level": 2,
-  "cost": 500,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 2,
-  "foot_y": 2,
-  "damageEffect": 1,
-  "sprites": []
- },
- {
-  "id": "noIsland",
-  "flags": [
-   "rim",
-   "default_hotspot",
-   "island",
-   "islandThreeByThree",
-   "not_selectable",
-   "surface",
-   "islandThreeByThree"
-  ],
-  "description": "noIsland",
-  "zorder": "zoISLAND",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "null.gif"
-  ]
- },
- {
-  "id": "nugget",
-  "flags": [
-   "nugget",
-   "shadow"
-  ],
-  "description": "Storm Crystal",
-  "class": "Source of Storm Power",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "cost": 200,
-  "sprites": [
-   "b_nugget.gif",
-   "nugget.gif"
-  ]
- },
- {
-  "id": "outpost",
-  "flags": [
-   "factory",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking",
-   "mayDropOnIsle",
-   "mayDropOnRim",
-   "shadow"
-  ],
-  "description": "Outpost",
-  "class": "Production",
-  "maxHitPoints": 2000,
-  "theme": "sun",
-  "cost": 600,
-  "mana": "s",
-  "threat": 20,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 5,
-  "foot_y": 4,
-  "damageEffect": 1,
-  "constructionRate": 10,
-  "sprites": [
-   "b_embassy.gif",
-   "embassy.gif"
-  ]
- },
- {
-  "id": "particlePlaceHolder",
-  "flags": [
-   "default_hotspot",
-   "dontSave"
-  ],
-  "zorder": "zoNONE",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "plachold.gif"
-  ]
- },
- {
-  "id": "platform",
-  "flags": [
-   "default_hotspot",
-   "not_selectable"
-  ],
-  "description": "Platform",
-  "zorder": "zoBRIDGE",
-  "foot_x": 3,
-  "foot_y": 3,
-  "sprites": [
-   "platform.gif"
-  ]
- },
- {
-  "id": "player",
-  "flags": [
-   "predictable"
-  ],
-  "description": "Player Stub",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "blank.gif"
-  ]
- },
- {
-  "id": "playerbanner",
-  "flags": [
-   "not_selectable"
-  ],
-  "description": "PlayerBanner",
-  "zorder": "zoEMPLACEMENTS-1",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "dots.gif",
-   "playflag.gif"
-  ]
- },
- {
-  "id": "playerisland",
-  "flags": [
-   "ship"
-  ],
-  "zorder": "zoBRIDGE",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "player.gif"
-  ]
- },
- {
-  "id": "Priest",
-  "flags": [
-   "walker",
-   "priest",
-   "shadow",
-   "saveQa"
-  ],
-  "description": "High Priest",
-  "class": "High Priest",
-  "zorder": "zoEMPLACEMENT",
-  "foot_x": 1,
-  "foot_y": 1,
-  "height": 1,
-  "threat": 25,
-  "maxHitPoints": 100,
-  "group": "walker",
-  "speed": 1.8,
-  "turningSpeed": 999999.0,
-  "hotFootRatioX": 0.5,
-  "hotFootRatioY": 0.2,
-  "pickupSound": "priestPickup.wav",
-  "moveSound": "priestMove1.wav",
-  "dropSound": "priestDrop.wav",
-  "sprites": [
-   "b_priest.gif",
-   "blank.gif",
-   "pchant.gif",
-   "priest.gif",
-   "priestfloat.gif",
-   "s_priest.gif"
-  ]
- },
- {
-  "id": "puzzlepiece",
-  "flags": [],
-  "zorder": "zoBRIDGE",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "null.gif",
-   "puzzlepiece.gif"
-  ]
- },
- {
-  "id": "rainaviary",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Man o'War Pool",
-  "class": "Air Attack Base",
-  "maxHitPoints": 400,
-  "theme": "rain",
-  "level": 3,
-  "cost": 600,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "threat": 5,
-  "range": 40,
-  "constructionRate": 10,
-  "hotfootratiox": 0.25,
-  "hotfootratioy": 0.1,
-  "damageEffect": 1,
-  "group": "aviary",
-  "techBit": 12,
-  "sprites": [
-   "b_raviary.gif",
-   "rflyer.gif"
-  ]
- },
- {
-  "id": "rainBalloon",
-  "flags": [
-   "balloon",
-   "flyershadow"
-  ],
-  "description": "Cloud Floater",
-  "class": "Aerial Transport",
-  "maxHitPoints": 300,
-  "theme": "rain",
-  "level": 3,
-  "cost": 1000,
-  "threat": 15,
-  "zorder": "zoFLYERS",
-  "foot_x": 2,
-  "foot_y": 2,
-  "group": "balloon",
-  "hotFootRatioX": 1.0,
-  "hotFootRatioY": 0.7,
-  "speed": 3.2,
-  "turningSpeed": 99999.0,
-  "pickupSound": "cloudDrop.wav",
-  "moveSound": "cloudMove.wav",
-  "dropSound": "cloudDrop.wav",
-  "techBit": 14,
-  "sprites": [
-   "b_rballoon.gif",
-   "rballoon.gif"
-  ]
- },
- {
-  "id": "rainBattery",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Rain Generator",
-  "class": "Source of Energy",
-  "maxHitPoints": 700,
-  "theme": "rain",
-  "level": 1,
-  "cost": 400,
-  "mana": "s",
-  "threat": 5,
-  "zorder": "zoEMPLACEMENTS",
-  "minUsage": -100,
-  "maxUsage": -100,
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotFootRatioX": 0.5,
-  "hotFootRatioY": 0.4,
-  "damageEffect": 1,
-  "activeSound": "waterBattery.wav",
-  "group": "battery",
-  "techBit": 10,
-  "sprites": [
-   "b_focusers.gif",
-   "focus.gif"
-  ]
- },
- {
-  "id": "rainBlocker",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Ice Tower",
-  "class": "Defense",
-  "maxHitPoints": 1200,
-  "theme": "rain",
-  "level": 2,
-  "cost": 800,
-  "threat": 5,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "height": 3,
-  "hotFootRatioX": 0.25,
-  "hotFootRatioY": 0.25,
-  "constructionRate": 10,
-  "group": "blocker",
-  "techBit": 15,
-  "sprites": [
-   "b_rblocker.gif",
-   "rblock.gif"
-  ]
- },
- {
-  "id": "raincannon",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "saveFrame",
-   "shadow"
-  ],
-  "description": "Ice Cannon",
-  "class": "Shooter",
-  "maxHitPoints": 600,
-  "theme": "rain",
-  "level": 2,
-  "cost": 600,
-  "threat": 5,
-  "zorder": "zoEMPLACEMENTS",
-  "range": 32,
-  "hpPerSec": 20,
-  "foot_x": 3,
-  "foot_y": 3,
-  "minUsage": 20,
-  "maxUsage": 200,
-  "hotFootRatioY": 0.625,
-  "group": "cannon",
-  "damageEffect": 1,
-  "techBit": 11,
-  "sprites": [
-   "b_rcannon.gif",
-   "rcannon.gif"
-  ]
- },
- {
-  "id": "rainCannonMissile",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "orientations": 28,
-  "range": 5,
-  "zorder": "zoMISSILES",
-  "impactSound": "iceCannonImpact.wav",
-  "sprites": [
-   "rcannon.gif"
-  ]
- },
- {
-  "id": "rainFactory",
-  "flags": [
-   "factory",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking",
-   "shadow"
-  ],
-  "description": "Rain Workshop",
-  "class": "Production",
-  "maxHitPoints": 3200,
-  "theme": "rain",
-  "cost": 800,
-  "threat": 20,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 8,
-  "foot_y": 6,
-  "damageEffect": 1,
-  "buildDoneSound": "workshopComplete.wav",
-  "sprites": [
-   "b_rfactory.gif",
-   "rfactory.gif"
-  ]
- },
- {
-  "id": "rainFence",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow",
-   "fence",
-   "fencePost"
-  ],
-  "description": "Acid Barricade",
-  "class": "Defense",
-  "zorder": "zoEMPLACEMENTS",
-  "range": 40,
-  "minUsage": 20,
-  "threat": 5,
-  "maxUsage": 20,
-  "constructionRate": 10,
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotFootRatioY": 0.375,
-  "damageEffect": 1,
-  "group": "fence",
-  "maxHitPoints": 850,
-  "theme": "rain",
-  "cost": 400,
-  "level": 1,
-  "techBit": 13,
-  "sprites": [
-   "sfence.gif"
-  ]
- },
- {
-  "id": "rainFlyer",
-  "flags": [
-   "flyer",
-   "dontSave",
-   "flyershadow"
-  ],
-  "description": "Man o'War",
-  "class": "Aerial Attack",
-  "maxHitPoints": 180,
-  "theme": "rain",
-  "zorder": "zoFLYERS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "constructionRate": 5,
-  "range": 40,
-  "speed": 2.0,
-  "lifeSpan": 60.0,
-  "hpPerSec": 20,
-  "fireSound": "manOWarFire.wav",
-  "sprites": [
-   "b_rflyer.gif",
-   "rflyer.gif",
-   "s_rflyer.gif"
-  ]
- },
- {
-  "id": "rainVortex",
-  "flags": [
-   "vortex",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking",
-   "mayDropOnRim",
-   "mayDropOnIsle",
-   "shadow"
-  ],
-  "description": "Rain Temple",
-  "class": "Energy",
-  "maxHitPoints": 5000,
-  "theme": "rain",
-  "cost": 5000,
-  "threat": 20,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 8,
-  "foot_y": 6,
-  "damageEffect": 1,
-  "constructionRate": 10,
-  "hotFootRatioX": 0.5,
-  "hotFootRatioY": 0.8,
-  "crew": 30,
-  "buildDoneSound": "templeComplete.wav",
-  "sprites": [
-   "rvortex.gif",
-   "rvrev.gif",
-   "s_rainbeauty.gif"
-  ]
- },
- {
-  "id": "rainwalker",
-  "flags": [
-   "walker",
-   "shadow"
-  ],
-  "description": "Crystal Crab",
-  "class": "Ground Transport",
-  "maxHitPoints": 240,
-  "theme": "rain",
-  "level": 2,
-  "threat": 15,
-  "cost": 600,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "activeSound": "moveBeetle.wav",
-  "pickupSound": "moveBeetle.wav",
-  "moveSound": "moveBeetle.wav",
-  "dropSound": "moveBeetle.wav",
-  "group": "walker",
-  "speed": 3.6,
-  "turningSpeed": 1800000.0,
-  "techBit": 16,
-  "sprites": [
-   "b_rwalker.gif",
-   "rcrab.gif"
-  ]
- },
- {
-  "id": "range",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "zorder": "zoMANAICON",
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "fenceanm.gif",
-   "range.gif",
-   "sfence2.gif"
-  ]
- },
- {
-  "id": "Residence",
-  "flags": [
-   "residence",
-   "randframe",
-   "yuckWalk",
-   "dropBlocking"
-  ],
-  "description": "Residence",
-  "class": "Residence",
-  "zorder": "zoBRIDGE",
-  "foot_x": 4,
-  "foot_y": 4,
-  "sprites": [
-   "residence.gif"
-  ]
- },
- {
-  "id": "RUIN",
-  "flags": [
-   "tree",
-   "randframe",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking",
-   "shadow"
-  ],
-  "description": "Ruins",
-  "maxHitPoints": 400,
-  "theme": "sun",
-  "level": 2,
-  "cost": 500,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 2,
-  "foot_y": 2,
-  "damageEffect": 1,
-  "sprites": []
- },
- {
-  "id": "rune",
-  "flags": [
-   "dontSave",
-   "not_selectable"
-  ],
-  "description": "Altar",
-  "zorder": "zoARTIFACTS",
-  "maxHitPoints": 20,
-  "foot_x": 1,
-  "foot_y": 1,
-  "sprites": [
-   "altar01.gif"
-  ]
- },
- {
-  "id": "sunArcher",
-  "flags": [
-   "createsisland",
-   "emplacement"
-  ],
-  "description": "Sun Disc Thrower",
-  "class": "Shooter",
-  "maxHitPoints": 400,
-  "theme": "sun",
-  "level": 1,
-  "cost": 250,
-  "threat": 5,
-  "zorder": "zoEMPLACEMENTS",
-  "range": 8,
-  "hpPerSec": 12,
-  "useairdamage": 1,
-  "airrange": 12,
-  "airdamage": 24,
-  "minUsage": 20,
-  "maxUsage": 200,
-  "constructionRate": 10,
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotFootRatioX": 0.0625,
-  "hotFootRatioY": 0.5,
-  "damageEffect": 1,
-  "group": "archer",
-  "sprites": [
-   "b_sarcher.gif",
-   "sarcher.gif"
-  ]
- },
- {
-  "id": "sunaviary",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Whirlibase",
-  "class": "Air Attack Base",
-  "maxHitPoints": 400,
-  "cost": 400,
-  "theme": "sun",
-  "level": 2,
-  "threat": 5,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "constructionRate": 10,
-  "range": 35,
-  "hotfootratiox": 0,
-  "hotfootratioy": 0.625,
-  "damageEffect": 1,
-  "group": "aviary",
-  "techBit": 0,
-  "sprites": [
-   "b_saviary.gif",
-   "sflyer.gif"
-  ]
- },
- {
-  "id": "sunBalloon",
-  "flags": [
-   "balloon",
-   "flyershadow"
-  ],
-  "description": "Balloon",
-  "class": "Aerial Transport",
-  "maxHitPoints": 150,
-  "theme": "sun",
-  "level": 2,
-  "cost": 600,
-  "threat": 15,
-  "zorder": "zoFLYERS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "group": "balloon",
-  "speed": 2.0,
-  "turningSpeed": 90000.0,
-  "pickupSound": "balloonPickup.wav",
-  "moveSound": "balloonMove.wav",
-  "dropSound": "balloonDrop.wav",
-  "techBit": 2,
-  "sprites": [
-   "b_sballoon.gif",
-   "sunbaloo.gif"
-  ]
- },
- {
-  "id": "sunBattery",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Sun Generator",
-  "class": "Source of Energy",
-  "maxHitPoints": 600,
-  "theme": "sun",
-  "level": 1,
-  "cost": 300,
-  "mana": "s",
-  "threat": 5,
-  "zorder": "zoEMPLACEMENTS",
-  "minUsage": -100,
-  "maxUsage": -100,
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotFootRatioX": 0.125,
-  "hotFootRatioY": 0.625,
-  "damageEffect": 1,
-  "activeSound": "jacoblad.wav",
-  "group": "battery",
-  "sprites": [
-   "b_sbattery.gif",
-   "sbattery.gif"
-  ]
- },
- {
-  "id": "sunBlocker",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Stone Tower",
-  "class": "Defense",
-  "maxHitPoints": 2200,
-  "cost": 400,
-  "theme": "sun",
-  "threat": 5,
-  "level": 1,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "height": 2,
-  "hotFootRatioX": 0.25,
-  "hotFootRatioY": 0.3125,
-  "damageEffect": 1,
-  "constructionRate": 10,
-  "group": "blocker",
-  "sprites": [
-   "sunblock.gif"
-  ]
- },
- {
-  "id": "suncannon",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Sun Cannon",
-  "class": "Shooter",
-  "maxHitPoints": 600,
-  "theme": "sun",
-  "level": 1,
-  "threat": 5,
-  "cost": 400,
-  "zorder": "zoEMPLACEMENTS",
-  "range": 22,
-  "hpPerSec": 16,
-  "foot_x": 3,
-  "foot_y": 3,
-  "minUsage": 20,
-  "maxUsage": 200,
-  "hotFootRatioY": 0.625,
-  "delayBetweenShots": 5.0,
-  "group": "cannon",
-  "damageEffect": 1,
-  "constructionRate": 10,
-  "fireSound": "sunCannonFire.wav",
-  "sprites": [
-   "b_scannon.gif",
-   "s_scannon.gif",
-   "scannon.gif"
-  ]
- },
- {
-  "id": "sunDisc",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "zorder": "zoMISSILES",
-  "fireSound": "fireBow.wav",
-  "impactSound": "sunDiscThrowerImpact.wav",
-  "orientations": 1,
-  "sprites": [
-   "sarcher.gif"
-  ]
- },
- {
-  "id": "sunFactory",
-  "flags": [
-   "factory",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking",
-   "shadow"
-  ],
-  "description": "Sun Workshop",
-  "class": "Production",
-  "maxHitPoints": 2400,
-  "theme": "sun",
-  "cost": 600,
-  "threat": 10,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 7,
-  "foot_y": 6,
-  "damageEffect": 1,
-  "buildDoneSound": "workshopComplete.wav",
-  "sprites": [
-   "b_sfactory.gif",
-   "sfactory.gif"
-  ]
- },
- {
-  "id": "sunFence",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "fence",
-   "shadow"
-  ],
-  "description": "Sun Barricade",
-  "class": "Defense",
-  "zorder": "zoEMPLACEMENTS",
-  "range": 45,
-  "minUsage": 20,
-  "maxUsage": 20,
-  "cost": 250,
-  "threat": 5,
-  "constructionRate": 10,
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotFootRatioX": 0.4,
-  "hotFootRatioY": 0.4375,
-  "damageEffect": 1,
-  "group": "fence",
-  "impactSound": "sunFenceImpact.wav",
-  "maxHitPoints": 750,
-  "theme": "sun",
-  "level": 1,
-  "techBit": 3,
-  "sprites": [
-   "b_sfence.gif",
-   "sfence.gif"
-  ]
- },
- {
-  "id": "sunFlyer",
-  "flags": [
-   "flyer",
-   "dontSave",
-   "flyershadow"
-  ],
-  "description": "Whirligig",
-  "class": "Aerial Attack",
-  "maxHitPoints": 50,
-  "theme": "sun",
-  "zorder": "zoFLYERS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "constructionRate": 5,
-  "range": 35,
-  "lifeSpan": 75.0,
-  "speed": 2.0,
-  "hpPerSec": 15,
-  "activeSound": "whirligigSpin.wav",
-  "impactSound": "whirligigSpinSlow.wav",
-  "fireSound": "whirligigFire.wav",
-  "sprites": [
-   "b_sflyer.gif",
-   "sflyer.gif"
-  ]
- },
- {
-  "id": "sunFlyerBomb",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "zorder": "zoMISSILES",
-  "fireSound": "whirligigFire.wav",
-  "orientations": 1,
-  "sprites": [
-   "sflyerb.gif"
-  ]
- },
- {
-  "id": "sunwalker",
-  "flags": [
-   "walker",
-   "shadow"
-  ],
-  "description": "Golem",
-  "class": "Ground Transport",
-  "maxHitPoints": 50,
-  "theme": "sun",
-  "level": 1,
-  "height": 1,
-  "threat": 10,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "moveSound": "golemMove1.wav",
-  "pickupSound": "golemPickup.wav",
-  "dropSound": "golemDrop.wav",
-  "group": "walker",
-  "speed": 1.8,
-  "turningSpeed": 99999.0,
-  "hotFootRatioX": 0.5,
-  "hotFootRatioY": 0.2,
-  "sprites": [
-   "blank.gif",
-   "golem.gif",
-   "s_golem.gif"
-  ]
- },
- {
-  "id": "teleportEffect",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "description": "teleport effect",
-  "zorder": "zoNONE",
-  "foot_x": 1,
-  "foot_y": 1,
-  "artifactFrame": 1,
-  "speed": 12.0,
-  "turningSpeed": 10000.0,
-  "activeSound": "teleportEffect.wav",
-  "sprites": [
-   "plachold.gif"
-  ]
- },
- {
-  "id": "thunderArcher",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Vander Tower",
-  "class": "Anti-Air",
-  "maxHitPoints": 1000,
-  "theme": "thunder",
-  "level": 3,
-  "cost": 600,
-  "zorder": "zoEMPLACEMENTS",
-  "threat": 5,
-  "minUsage": 20,
-  "maxUsage": 200,
-  "height": 1,
-  "delayBetweenShots": 1.0,
-  "constructionRate": 10,
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotFootRatioX": 0.0625,
-  "hotFootRatioY": 0.5,
-  "damageEffect": 1,
-  "group": "anti-air",
-  "useairdamage": 0,
-  "airdamage": 35,
-  "airrange": 18,
-  "hpPerSec": 35,
-  "range": 18,
-  "techBit": 21,
-  "sprites": [
-   "b_tarcher.gif",
-   "tarcher.gif"
-  ]
- },
- {
-  "id": "thunderaviary",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Thunder Spire",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "sprites": [
-   "B_TAVIARY.gif",
-   "tflyer.gif"
-  ]
- },
- {
-  "id": "thunderBattery",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Thunder Generator",
-  "class": "Source of Energy",
-  "maxHitPoints": 700,
-  "theme": "thunder",
-  "level": 1,
-  "cost": 400,
-  "mana": "s",
-  "threat": 5,
-  "zorder": "zoEMPLACEMENTS",
-  "minUsage": -100,
-  "maxUsage": -100,
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotFootRatioX": 0.5,
-  "hotFootRatioY": 0.4,
-  "constructionRate": 10,
-  "damageEffect": 1,
-  "activeSound": "thunderBattery.wav",
-  "group": "battery",
-  "techBit": 17,
-  "sprites": [
-   "b_focusers.gif",
-   "focus.gif"
-  ]
- },
- {
-  "id": "thunderBlocker",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "container",
-   "shadow"
-  ],
-  "description": "Bulwark",
-  "class": "Defense",
-  "maxHitPoints": 3600,
-  "theme": "thunder",
-  "level": 2,
-  "cost": 800,
-  "threat": 5,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "height": 3,
-  "damageEffect": 1,
-  "hotFootRatioY": 0.25,
-  "constructionRate": 10,
-  "group": "blocker",
-  "techBit": 18,
-  "sprites": [
-   "b_tblocker.gif",
-   "thblock.gif"
-  ]
- },
- {
-  "id": "thundercannon",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "saveFrame"
-  ],
-  "description": "Thunder Cannon",
-  "class": "Shooter",
-  "maxHitPoints": 1000,
-  "theme": "thunder",
-  "level": 2,
-  "cost": 1200,
-  "threat": 5,
-  "zorder": "zoEMPLACEMENTS",
-  "range": 44,
-  "hpPerSec": 40,
-  "foot_x": 3,
-  "foot_y": 3,
-  "height": 2,
-  "minUsage": 20,
-  "maxUsage": 200,
-  "hotFootRatioX": 0.125,
-  "hotFootRatioY": 0.375,
-  "group": "cannon",
-  "damageEffect": 1,
-  "constructionRate": 10,
-  "fireSound": "thunderCannon.wav",
-  "techBit": 19,
-  "sprites": [
-   "b_tcannon.gif",
-   "tcannon.gif"
-  ]
- },
- {
-  "id": "thunderCannonMissile",
-  "flags": [
-   "dontSave",
-   "not_real"
-  ],
-  "orientations": 4,
-  "zorder": "zoMISSILES",
-  "fireSound": "fireBow.wav",
-  "impactSound": "thunderCannonImpact.wav",
-  "sprites": [
-   "tcannon.gif"
-  ]
- },
- {
-  "id": "thunderFactory",
-  "flags": [
-   "factory",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking",
-   "shadow"
-  ],
-  "description": "Thunder Workshop",
-  "class": "Production",
-  "maxHitPoints": 3200,
-  "theme": "thunder",
-  "cost": 800,
-  "threat": 10,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 8,
-  "foot_y": 6,
-  "damageEffect": 1,
-  "helpText": "~3~wThunder Factory\\n~0Specializing in thunder aligned weapons, this factory...",
-  "buildDoneSound": "workshopComplete.wav",
-  "sprites": [
-   "s_tfacbeauty.gif",
-   "tfactory.gif"
-  ]
- },
- {
-  "id": "thunderFence",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "fence",
-   "fencePost"
-  ],
-  "description": "Arc Spire",
-  "class": "Defense",
-  "zorder": "zoEMPLACEMENTS",
-  "hpPerSec": 50,
-  "range": 50,
-  "minUsage": 20,
-  "maxUsage": 20,
-  "constructionRate": 10,
-  "foot_x": 3,
-  "foot_y": 3,
-  "threat": 5,
-  "hotFootRatioY": 0.375,
-  "damageEffect": 1,
-  "group": "fence",
-  "cost": 400,
-  "maxHitPoints": 1600,
-  "theme": "thunder",
-  "level": 1,
-  "techBit": 22,
-  "sprites": [
-   "b_tfence.gif",
-   "tfence.gif"
-  ]
- },
- {
-  "id": "thunderVortex",
-  "flags": [
-   "vortex",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking",
-   "mayDropOnRim",
-   "mayDropOnIsle",
-   "shadow"
-  ],
-  "description": "Thunder Temple",
-  "class": "Energy",
-  "maxHitPoints": 5000,
-  "theme": "thunder",
-  "cost": 5000,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 8,
-  "foot_y": 6,
-  "threat": 20,
-  "damageEffect": 1,
-  "constructionRate": 10,
-  "impactSound": "tVortexReady.wav",
-  "activeSound": "jacoblad.wav",
-  "crew": 30,
-  "buildDoneSound": "templeComplete.wav",
-  "sprites": [
-   "tvortex2.gif"
-  ]
- },
- {
-  "id": "TreeThree",
-  "flags": [
-   "tree",
-   "randframe",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking"
-  ],
-  "description": "Trees",
-  "maxHitPoints": 400,
-  "theme": "sun",
-  "level": 3,
-  "cost": 500,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "damageEffect": 1,
-  "sprites": [
-   "tree.gif"
-  ]
- },
- {
-  "id": "TreeTwo",
-  "flags": [
-   "tree",
-   "randframe",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking"
-  ],
-  "description": "Trees",
-  "maxHitPoints": 400,
-  "theme": "sun",
-  "level": 2,
-  "cost": 500,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 2,
-  "foot_y": 2,
-  "damageEffect": 1,
-  "sprites": [
-   "tree.gif"
-  ]
- },
- {
-  "id": "windArcher",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow",
-   "saveFrame"
-  ],
-  "description": "Crossbow",
-  "class": "Shooter",
-  "maxHitPoints": 480,
-  "theme": "wind",
-  "level": 2,
-  "zorder": "zoEMPLACEMENTS",
-  "range": 16,
-  "hpPerSec": 25,
-  "airrange": 16,
-  "airdamage": 25,
-  "minUsage": 20,
-  "maxUsage": 200,
-  "threat": 5,
-  "cost": 600,
-  "constructionRate": 10,
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotFootRatioX": 0.0625,
-  "hotFootRatioY": 0.5,
-  "damageEffect": 1,
-  "group": "archer",
-  "orientations": 20,
-  "techBit": 7,
-  "sprites": [
-   "b_warcher.gif",
-   "warch1.gif",
-   "warch1a.gif",
-   "warch1b.gif",
-   "warch2.gif",
-   "warch2a.gif"
-  ]
- },
- {
-  "id": "windaviary",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Devil Maker",
-  "class": "Air Attack Base",
-  "maxHitPoints": 400,
-  "theme": "wind",
-  "level": 3,
-  "cost": 800,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "threat": 5,
-  "constructionRate": 10,
-  "range": 45,
-  "delayBetweenShots": 29.0,
-  "hotfootratiox": 0.5,
-  "hotfootratioy": 0.625,
-  "damageEffect": 1,
-  "group": "aviary",
-  "techBit": 6,
-  "sprites": [
-   "b_waviary.gif",
-   "wflyer.gif"
-  ]
- },
- {
-  "id": "windBalloon",
-  "flags": [
-   "balloon",
-   "flyershadow"
-  ],
-  "description": "Air Ship",
-  "class": "Aerial Transport",
-  "maxHitPoints": 600,
-  "theme": "wind",
-  "level": 3,
-  "threat": 15,
-  "cost": 1200,
-  "zorder": "zoFLYERS",
-  "foot_x": 4,
-  "foot_y": 4,
-  "group": "balloon",
-  "speed": 3.8,
-  "turningSpeed": 90000.0,
-  "pickupSound": "windBalloonPickup.wav",
-  "moveSound": "windBalloonMove.wav",
-  "dropSound": "windBalloonDrop.wav",
-  "techBit": 8,
-  "sprites": [
-   "s_shipbeauty.gif",
-   "ship.gif"
-  ]
- },
- {
-  "id": "windBattery",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Wind Generator",
-  "class": "Source of Energy",
-  "maxHitPoints": 700,
-  "theme": "wind",
-  "level": 1,
-  "cost": 400,
-  "mana": "s",
-  "threat": 5,
-  "zorder": "zoEMPLACEMENTS",
-  "minUsage": -100,
-  "maxUsage": -100,
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotFootRatioX": 0.5,
-  "hotFootRatioY": 0.4,
-  "damageEffect": 1,
-  "activeSound": "jacoblad.wav",
-  "group": "battery",
-  "techBit": 4,
-  "sprites": [
-   "b_focusers.gif",
-   "focus.gif"
-  ]
- },
- {
-  "id": "windBlocker",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow",
-   "saveFrame"
-  ],
-  "description": "Wind Tower",
-  "class": "Defense",
-  "maxHitPoints": 1200,
-  "theme": "wind",
-  "level": 2,
-  "cost": 800,
-  "threat": 5,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "height": 3,
-  "hotFootRatioX": 0.25,
-  "hotFootRatioY": 0.3125,
-  "damageEffect": 1,
-  "constructionRate": 10,
-  "group": "blocker",
-  "techBit": 9,
-  "sprites": [
-   "b_wblocker.gif",
-   "wblocker.gif"
-  ]
- },
- {
-  "id": "windFactory",
-  "flags": [
-   "factory",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking",
-   "shadow"
-  ],
-  "description": "Wind Workshop",
-  "class": "Production",
-  "maxHitPoints": 3200,
-  "theme": "wind",
-  "cost": 800,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 8,
-  "foot_y": 6,
-  "threat": 20,
-  "damageEffect": 1,
-  "buildDoneSound": "workshopComplete.wav",
-  "sprites": [
-   "b_wfactory.gif",
-   "wfactory.gif"
-  ]
- },
- {
-  "id": "windFlyer",
-  "flags": [
-   "flyer",
-   "dontSave",
-   "flyershadow"
-  ],
-  "description": "Dust Devil",
-  "class": "Aerial Attack",
-  "theme": "wind",
-  "zorder": "zoFLYERS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "constructionRate": 5,
-  "range": 45,
-  "speed": 3.0,
-  "lifeSpan": 30.0,
-  "hpPerSec": 16,
-  "activeSound": "dustDevilSpin.wav",
-  "sprites": [
-   "b_wflyer.gif",
-   "s_wflyer.gif",
-   "wflyer.gif"
-  ]
- },
- {
-  "id": "windVortex",
-  "flags": [
-   "vortex",
-   "yuckWalk",
-   "dropBlocking",
-   "shotblocking",
-   "mayDropOnRim",
-   "mayDropOnIsle",
-   "shadow"
-  ],
-  "description": "Wind Temple",
-  "class": "Energy",
-  "maxHitPoints": 5000,
-  "theme": "wind",
-  "cost": 5000,
-  "threat": 20,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 8,
-  "foot_y": 6,
-  "damageEffect": 1,
-  "constructionRate": 10,
-  "crew": 30,
-  "buildDoneSound": "templeComplete.wav",
-  "sprites": [
-   "wvortex.gif",
-   "wvortpow.gif"
-  ]
- },
- {
-  "id": "windwalker",
-  "flags": [
-   "walker",
-   "shadow"
-  ],
-  "description": "Sail Skater",
-  "class": "Ground Transport",
-  "maxHitPoints": 180,
-  "theme": "wind",
-  "level": 2,
-  "cost": 600,
-  "threat": 15,
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 1,
-  "foot_y": 1,
-  "activeSound": "sailSkaterMove.wav",
-  "group": "walker",
-  "height": 1,
-  "speed": 4.2,
-  "turningSpeed": 360.0,
-  "pickupSound": "sailDrop.wav",
-  "moveSound": "sailMove.wav",
-  "dropSound": "sailDrop.wav",
-  "techBit": 5,
-  "sprites": [
-   "b_sailskate.gif",
-   "s_wwalker.gif",
-   "wwalker.gif"
-  ]
- },
- {
-  "id": "windWhirl",
-  "flags": [
-   "createsisland",
-   "emplacement",
-   "shadow"
-  ],
-  "description": "Wind Whirl ",
-  "zorder": "zoEMPLACEMENTS",
-  "foot_x": 3,
-  "foot_y": 3,
-  "hotfootratiox": 0,
-  "hotfootratioy": 0.625,
-  "sprites": []
- }
+    {
+        "id": "fenceShield",
+        "flags": [
+            "not_real",
+            "not_selectable",
+            "dontSave"
+        ],
+        "description": "Force Field",
+        "class": "Defense",
+        "zorder": "zoFLARES",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "sfence2.gif"
+        ]
+    },
+    {
+        "id": "Altar",
+        "flags": [
+            "dontSave",
+            "altar"
+        ],
+        "description": "Altar",
+        "class": "Altar",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 7,
+        "foot_y": 7,
+        "maxHitPoints": 1500,
+        "damageEffect": 1,
+        "cost": 500,
+        "sprites": [
+            "altar01.gif",
+            "altar21.gif",
+            "altar22.gif",
+            "altar23.gif",
+            "b_altar.gif",
+            "blank.gif"
+        ]
+    },
+    {
+        "id": "Flare",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "zorder": "zoFLARES",
+        "foot_x": 4,
+        "foot_y": 4,
+        "sprites": [
+            "kaboom.gif",
+            "xlarge.gif",
+            "xsmall.gif"
+        ]
+    },
+    {
+        "id": "banner",
+        "flags": [
+            "default_hotspot",
+            "notreal"
+        ],
+        "description": "Banner",
+        "zorder": "zoISLAND",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "banner1.gif",
+            "banner2.gif"
+        ]
+    },
+    {
+        "id": "battleIsland",
+        "flags": [
+            "opaquecollide",
+            "ship"
+        ],
+        "description": "Challenge Ring",
+        "zorder": "zoISLAND",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "ring.gif"
+        ]
+    },
+    {
+        "id": "Bird",
+        "flags": [
+            "dontSave"
+        ],
+        "description": "Bird",
+        "class": "World Event",
+        "maxHitPoints": 10,
+        "theme": "sun",
+        "zorder": "zoFLYERS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "constructionRate": 5,
+        "range": 30,
+        "speed": 2,
+        "sprites": [
+            "b_sflyer.gif"
+        ]
+    },
+    {
+        "id": "blankMissile",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "impactSound": "impact.wav",
+        "sprites": [
+            "arrow.gif"
+        ]
+    },
+    {
+        "id": "bolt",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "orientations": 20,
+        "zorder": "zoMISSILES",
+        "fireSound": "fireCrossbow.wav",
+        "sprites": [
+            "warch2.gif"
+        ]
+    },
+    {
+        "id": "bombExplodeLarge",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Decimation",
+        "class": "Offensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 1,
+        "range": 7,
+        "cost": 800,
+        "activeSound": "decimationGet.wav",
+        "fireSound": "decimationCast.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombExplodeMedium",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Devastation",
+        "class": "Offensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 3,
+        "range": 3,
+        "cost": 400,
+        "activeSound": "devastationGet.wav",
+        "fireSound": "devastationCast.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombExplodeSmall",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Point Blast",
+        "class": "Offensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 1,
+        "range": 1,
+        "cost": 300,
+        "activeSound": "pointBlastGet.wav",
+        "fireSound": "pointBlastCast.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombgraviton",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Graviton",
+        "class": "Offensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 3,
+        "range": 5,
+        "cost": 500,
+        "activeSound": "70GravitationPickup1.wav",
+        "fireSound": "70GravitateCast1.wav",
+        "casttime": 1,
+        "praytime": 60,
+        "manacost": 10,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombHardener",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Bridge Harden",
+        "class": "Defensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 2,
+        "range": 7,
+        "cost": 150,
+        "activeSound": "bridgeHardenGet.wav",
+        "fireSound": "bridgeHardenCast.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombHeal",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Heal",
+        "class": "Defensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 2,
+        "range": 9,
+        "cost": 200,
+        "activeSound": "healGet.wav",
+        "fireSound": "healCast.wav",
+        "casttime": 2,
+        "praytime": 10,
+        "manacost": 10,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombIIIMano",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Hydra Flood",
+        "class": "Summons Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 1,
+        "range": 28,
+        "cost": 1500,
+        "activeSound": "70HydraFloodPickup1.wav",
+        "fireSound": "70HydraFloodCast1.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "spawns": 3,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombIIITwister",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Vortex",
+        "class": "Summons Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 1,
+        "range": 30,
+        "cost": 1650,
+        "activeSound": "70VortexPickup1.wav",
+        "fireSound": "70VortexCast1.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "spawns": 6,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombIIMano",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Hydra Wave",
+        "class": "Summons Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 2,
+        "range": 28,
+        "cost": 1000,
+        "activeSound": "70HydraWavePickup1.wav",
+        "fireSound": "70HydraWaveCast1.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "spawns": 2,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombIITwister",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Twister",
+        "class": "Summons Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 2,
+        "range": 30,
+        "cost": 1100,
+        "activeSound": "70TwisterPickup1.wav",
+        "fireSound": "70TwisterCast1.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "spawns": 4,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombIMano",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Hydra",
+        "class": "Summons Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 3,
+        "range": 28,
+        "cost": 500,
+        "activeSound": "70HydraPickup1.wav",
+        "fireSound": "70HydraCast1.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "spawns": 1,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombInvisible",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Invisibility",
+        "class": "Defensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 1,
+        "range": 7,
+        "cost": 1000,
+        "activeSound": "invisibilityGet.wav",
+        "fireSound": "invisibilityCast.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "effecttime": 40,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombLightingwave",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Thunderstorm",
+        "class": "Offensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 1,
+        "range": 15,
+        "cost": 2500,
+        "activeSound": "70ThunderStormPickup1.wav",
+        "fireSound": "70ThunderStormCast1.wav",
+        "casttime": 5,
+        "praytime": 5,
+        "manacost": 10,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombLightingZap",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Thunder Strike",
+        "class": "Offensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 2,
+        "range": 15,
+        "cost": 1800,
+        "activeSound": "70ThunderStrikePickup1.wav",
+        "fireSound": "70ThunderStrikeCast1.wav",
+        "casttime": 5,
+        "praytime": 5,
+        "manacost": 10,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombmeteor",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Bombardment",
+        "class": "Offensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 2,
+        "range": 15,
+        "cost": 1100,
+        "activeSound": "70BombardmentPickup1.wav",
+        "fireSound": "70BombardCast1.wav",
+        "casttime": 5,
+        "praytime": 5,
+        "manacost": 10,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombParalyze",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Paralysis",
+        "class": "Defensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 2,
+        "range": 7,
+        "cost": 1000,
+        "activeSound": "paralysisGet.wav",
+        "fireSound": "paralysisCast.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "effecttime": 120,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombSpecialOne",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Devastation",
+        "class": "Offensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 99,
+        "range": 3,
+        "cost": 100,
+        "activeSound": "devastationGet.wav",
+        "fireSound": "devastationCast.wav",
+        "casttime": 5,
+        "praytime": 40,
+        "manacost": 10,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombTreason",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Treason",
+        "class": "Offsensive Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 1,
+        "range": 7,
+        "cost": 2000,
+        "activeSound": "treasonGet.wav",
+        "fireSound": "treasonCast.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bombTwister",
+        "flags": [
+            "default_hotspot",
+            "bomb",
+            "mayDropOnRim"
+        ],
+        "description": "Whirlwind",
+        "class": "Summons Spell",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "level": 3,
+        "range": 30,
+        "cost": 550,
+        "activeSound": "70WhirlwindPickup1.wav",
+        "fireSound": "70WhirlwindCast1.wav",
+        "casttime": 5,
+        "praytime": 60,
+        "manacost": 10,
+        "spawns": 2,
+        "sprites": [
+            "b_obelisk.gif",
+            "blank.gif",
+            "spells.gif"
+        ]
+    },
+    {
+        "id": "bridge",
+        "flags": [
+            "surface",
+            "bridge"
+        ],
+        "description": "Bridge",
+        "class": "Bridge",
+        "zorder": "zoBRIDGE",
+        "foot_x": 1,
+        "threat": 1,
+        "foot_y": 1,
+        "hotfootRatioX": 0,
+        "hotfootRatioY": 0.27,
+        "sprites": [
+            "bridge.gif"
+        ]
+    },
+    {
+        "id": "bridgeConnector",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "description": "Bridge",
+        "zorder": "zoBRIDGE_CONNECTOR",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "bridge.gif"
+        ]
+    },
+    {
+        "id": "bulf",
+        "flags": [
+            "walker",
+            "shadow"
+        ],
+        "description": "Bulf",
+        "class": "Ground Transport",
+        "maxHitPoints": 800,
+        "theme": "thunder",
+        "level": 1,
+        "cost": 400,
+        "threat": 15,
+        "damageEffect": 1,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "pickupSound": "bulfPickup.wav",
+        "moveSound": "bulfMove.wav",
+        "dropSound": "bulfDrop.wav",
+        "group": "walker",
+        "height": 1,
+        "speed": 1.8,
+        "turningSpeed": 180.0,
+        "techBit": 20,
+        "sprites": [
+            "bulftrnl.gif",
+            "bulfturn.gif",
+            "bulfwalk.gif",
+            "s_bulfbeauty.gif"
+        ]
+    },
+    {
+        "id": "Buried",
+        "flags": [
+            "buried",
+            "shadow"
+        ],
+        "description": "Obelisk",
+        "class": "Spell",
+        "zorder": "zoARTIFACT",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "obelisk.gif"
+        ]
+    },
+    {
+        "id": "challengeIsland",
+        "flags": [
+            "opaquecollide"
+        ],
+        "zorder": "zoISLAND",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "ring.gif"
+        ]
+    },
+    {
+        "id": "Dais",
+        "flags": [
+            "dais",
+            "saveFrame",
+            "mayDropOnRim"
+        ],
+        "description": "Altar",
+        "class": "Altar",
+        "zorder": "zoBRIDGE",
+        "foot_x": 7,
+        "foot_y": 7,
+        "cost": 500,
+        "sprites": [
+            "altar01.gif",
+            "altar02.gif",
+            "altar03.gif",
+            "altar04.gif",
+            "altar05.gif",
+            "altar06.gif",
+            "altar07.gif",
+            "altar08.gif",
+            "altar09.gif",
+            "altar10.gif",
+            "altar11.gif",
+            "altar12.gif",
+            "altar13.gif",
+            "altar14.gif",
+            "altar15.gif",
+            "altar16.gif",
+            "altar17.gif",
+            "altar24.gif",
+            "blank.gif"
+        ]
+    },
+    {
+        "id": "DaisExtraFrames",
+        "flags": [
+            "dais",
+            "saveFrame"
+        ],
+        "description": "Altar",
+        "zorder": "zoBRIDGE",
+        "foot_x": 7,
+        "foot_y": 7,
+        "maxHitPoints": 100,
+        "cost": 500,
+        "sprites": [
+            "altar18.gif",
+            "altar19.gif"
+        ]
+    },
+    {
+        "id": "Man",
+        "flags": [
+            "guy",
+            "shadow",
+            "not_selectable",
+            "not_real"
+        ],
+        "description": "Nimbian",
+        "zorder": "zoEMPLACEMENT",
+        "foot_x": 0,
+        "foot_y": 0,
+        "maxHitPoints": 20,
+        "hotFootRatioX": 0.5,
+        "hotFootRatioY": 0.2,
+        "speed": 1.5,
+        "turningSpeed": 999999.0,
+        "sprites": [
+            "blank.gif",
+            "walk0.gif",
+            "walk2.gif"
+        ]
+    },
+    {
+        "id": "efarm",
+        "flags": [
+            "edgefarm",
+            "matchframe",
+            "dropBlocking",
+            "walkBlocking",
+            "mayDropOnRim"
+        ],
+        "description": "Edge Farm",
+        "class": "Defense",
+        "theme": "sun",
+        "level": 1,
+        "zorder": "zoEDGEFARM",
+        "foot_x": 1,
+        "foot_y": 1,
+        "damageEffect": 1,
+        "sprites": [
+            "THGRASS.gif",
+            "WIGRASS.gif",
+            "efarm.gif",
+            "raefarm.gif",
+            "rgrass.gif",
+            "wefarm.gif"
+        ]
+    },
+    {
+        "id": "emptyGeyser",
+        "flags": [
+            "dropBlocking",
+            "shadow",
+            "createsisland"
+        ],
+        "description": "Empty Storm Geyser",
+        "class": "Source of Storm Power",
+        "theme": "sun",
+        "cost": 0,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotFootRatioX": 0.22,
+        "hotFootRatioY": 0.22,
+        "sprites": [
+            "b_strmgysr.gif",
+            "geyser.gif"
+        ]
+    },
+    {
+        "id": "fakeThreeByThreeSurface",
+        "flags": [
+            "surface",
+            "dontSave",
+            "island",
+            "islandThreeByThree"
+        ],
+        "description": "fake3x3Surface",
+        "zorder": "zoNONE",
+        "foot_x": 3,
+        "foot_y": 3,
+        "sprites": [
+            "null.gif"
+        ]
+    },
+    {
+        "id": "fencemark",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "zorder": "zoNONE",
+        "sprites": [
+            "fence.gif"
+        ]
+    },
+    {
+        "id": "fenceShield",
+        "flags": [
+            "not_real",
+            "not_selectable",
+            "dontSave"
+        ],
+        "description": "Force Field",
+        "class": "Defense",
+        "zorder": "zoFLARES",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "sfence2.gif"
+        ]
+    },
+    {
+        "id": "fireVortex",
+        "flags": [
+            "vortex",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking",
+            "mayDropOnRim",
+            "mayDropOnIsle"
+        ],
+        "description": "Fire Temple",
+        "class": "Energy",
+        "maxHitPoints": 5000,
+        "theme": "Fire",
+        "cost": 5000,
+        "threat": 20,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 8,
+        "foot_y": 6,
+        "damageEffect": 1,
+        "constructionRate": 10,
+        "hotFootRatioX": 0.5,
+        "hotFootRatioY": 0.8,
+        "crew": 30,
+        "buildDoneSound": "templeComplete.wav",
+        "sprites": [
+            "FireTempPlaceholder.gif",
+            "s_rainbeauty.gif"
+        ]
+    },
+    {
+        "id": "fireWalker",
+        "flags": [
+            "walker"
+        ],
+        "description": "Fire Ant",
+        "class": "Ground Transport",
+        "maxHitPoints": 50,
+        "theme": "Fire",
+        "level": 1,
+        "height": 1,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "moveSound": "golemMove1.wav",
+        "pickupSound": "golemPickup.wav",
+        "dropSound": "golemDrop.wav",
+        "group": "walker",
+        "speed": 2.0,
+        "turningSpeed": 99999.0,
+        "hotFootRatioX": 0.5,
+        "hotFootRatioY": 0.2,
+        "sprites": [
+            "blank.gif"
+        ]
+    },
+    {
+        "id": "flag",
+        "flags": [
+            "default_hotspot",
+            "notreal"
+        ],
+        "zorder": "zoBRIDGE",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "flag.gif"
+        ]
+    },
+    {
+        "id": "Flare",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "zorder": "zoFLARES",
+        "foot_x": 4,
+        "foot_y": 4,
+        "sprites": [
+            "flare.gif",
+            "manabolt.gif"
+        ]
+    },
+    {
+        "id": "ForceField",
+        "flags": [
+            "notreal"
+        ],
+        "description": "High Priest",
+        "zorder": "zoEMPLACEMENT",
+        "foot_x": 1,
+        "foot_y": 1,
+        "hotFootRatioX": 0.5,
+        "hotFootRatioY": 0.2,
+        "sprites": [
+            "ffield.gif"
+        ]
+    },
+    {
+        "id": "fortGump",
+        "flags": [],
+        "description": "fortGump",
+        "sprites": [
+            "TRUMP.gif",
+            "TRUMP3.gif",
+            "TRUMP4.gif",
+            "TRUMP5.gif",
+            "TRUMP6.gif",
+            "accept.gif",
+            "buttons.gif",
+            "chat.gif",
+            "gumpbox.gif",
+            "mog.gif",
+            "no_cd.gif",
+            "startmen.gif",
+            "stufgump.gif"
+        ]
+    },
+    {
+        "id": "Fringe",
+        "flags": [
+            "fringe",
+            "predictable",
+            "not_selectable",
+            "not_real"
+        ],
+        "description": "",
+        "zorder": "zoSTALAG",
+        "sprites": [
+            "fringe.gif"
+        ]
+    },
+    {
+        "id": "geyser",
+        "flags": [
+            "geyser",
+            "dropBlocking",
+            "shadow",
+            "createsisland"
+        ],
+        "description": "Storm Geyser",
+        "class": "Source of Storm Power",
+        "theme": "sun",
+        "cost": 2000,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotFootRatioX": 0.22,
+        "hotFootRatioY": 0.22,
+        "sprites": [
+            "b_strmgysr.gif",
+            "geyser.gif",
+            "geyser2.gif"
+        ]
+    },
+    {
+        "id": "geyserBrightener",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "zorder": "zoFLARES",
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotFootRatioX": 0.22,
+        "hotFootRatioY": 0.22,
+        "sprites": [
+            "geyser.gif"
+        ]
+    },
+    {
+        "id": "GravitationEffect",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "zorder": "zoMISSILES",
+        "orientations": 1,
+        "sprites": []
+    },
+    {
+        "id": "growingRainBlocker",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Growing Ice Tower",
+        "theme": "rain",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "threat": 5,
+        "hotFootRatioX": 0.25,
+        "hotFootRatioY": 0.25,
+        "constructionRate": 10,
+        "sprites": [
+            "b_rblocker.gif",
+            "rblock.gif"
+        ]
+    },
+    {
+        "id": "guildFactory",
+        "flags": [
+            "factory",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking"
+        ],
+        "description": "Guild Workshop",
+        "class": "Production",
+        "maxHitPoints": 3000,
+        "theme": "Sun",
+        "cost": 800,
+        "threat": 10,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 6,
+        "foot_y": 6,
+        "damageEffect": 1,
+        "buildDoneSound": "workshopComplete.wav",
+        "sprites": [
+            "mansion.gif",
+            "s_villabeauty.gif"
+        ]
+    },
+    {
+        "id": "HealEffect",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "zorder": "zoMISSILES",
+        "orientations": 1,
+        "sprites": []
+    },
+    {
+        "id": "icon",
+        "flags": [
+            "default_hotspot"
+        ],
+        "zorder": "zoISLAND",
+        "sprites": [
+            "icons.gif",
+            "icons3.gif",
+            "icons4.gif",
+            "icons5.gif"
+        ]
+    },
+    {
+        "id": "island",
+        "flags": [
+            "rim",
+            "default_hotspot",
+            "not_selectable",
+            "islandThreeByThree",
+            "dontSave"
+        ],
+        "description": "Island",
+        "zorder": "zoISLAND",
+        "foot_x": 3,
+        "foot_y": 3,
+        "sprites": [
+            "island.gif",
+            "playcolr.gif"
+        ]
+    },
+    {
+        "id": "islandstalag",
+        "flags": [
+            "not_selectable",
+            "dontSave"
+        ],
+        "description": "IslandStalag",
+        "zorder": "zoSTALAG",
+        "foot_x": 3,
+        "foot_y": 3,
+        "sprites": [
+            "island.gif",
+            "playcolr.gif"
+        ]
+    },
+    {
+        "id": "Isle",
+        "flags": [
+            "surface",
+            "default_hotspot",
+            "island",
+            "predictable",
+            "not_selectable",
+            "dontSave"
+        ],
+        "zorder": "zoISLAND",
+        "sprites": [
+            "THGRASS.gif",
+            "THISLE.gif",
+            "rgrass.gif",
+            "risle.gif"
+        ]
+    },
+    {
+        "id": "IsleBig",
+        "flags": [
+            "surface",
+            "rim",
+            "default_hotspot",
+            "island",
+            "islandThreeByThree",
+            "predictable",
+            "not_selectable"
+        ],
+        "foot_x": 3,
+        "foot_y": 3,
+        "zorder": "zoISLAND",
+        "sprites": [
+            "THGRASS.gif",
+            "rgrass.gif"
+        ]
+    },
+    {
+        "id": "lightning",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "orientations": 1,
+        "zorder": "zoMISSILES",
+        "sprites": [
+            "litngtst.gif"
+        ]
+    },
+    {
+        "id": "Mana",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "zorder": "zoMANAICON",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "mana.gif"
+        ]
+    },
+    {
+        "id": "Manabolt",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "zorder": "zoFLARES",
+        "foot_x": 1,
+        "foot_y": 1,
+        "speed": 18.0,
+        "turningSpeed": 1000.0,
+        "sprites": [
+            "MANA.gif"
+        ]
+    },
+    {
+        "id": "mcloud",
+        "flags": [
+            "default_hotspot"
+        ],
+        "sprites": [
+            "kelcloud.gif"
+        ]
+    },
+    {
+        "id": "MeteorEffect",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "zorder": "zoMISSILES",
+        "orientations": 1,
+        "sprites": []
+    },
+    {
+        "id": "mog",
+        "flags": [
+            "mog",
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "sprites": [
+            "b_mog.gif",
+            "mog.gif"
+        ]
+    },
+    {
+        "id": "Monument",
+        "flags": [
+            "tree",
+            "randframe",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking"
+        ],
+        "description": "Monument",
+        "maxHitPoints": 400,
+        "theme": "sun",
+        "level": 2,
+        "cost": 500,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 2,
+        "foot_y": 2,
+        "damageEffect": 1,
+        "sprites": []
+    },
+    {
+        "id": "noIsland",
+        "flags": [
+            "rim",
+            "default_hotspot",
+            "island",
+            "islandThreeByThree",
+            "not_selectable",
+            "surface",
+            "islandThreeByThree"
+        ],
+        "description": "noIsland",
+        "zorder": "zoISLAND",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "null.gif"
+        ]
+    },
+    {
+        "id": "nugget",
+        "flags": [
+            "nugget",
+            "shadow"
+        ],
+        "description": "Storm Crystal",
+        "class": "Source of Storm Power",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "cost": 200,
+        "sprites": [
+            "b_nugget.gif",
+            "nugget.gif"
+        ]
+    },
+    {
+        "id": "outpost",
+        "flags": [
+            "factory",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking",
+            "mayDropOnIsle",
+            "mayDropOnRim",
+            "shadow"
+        ],
+        "description": "Outpost",
+        "class": "Production",
+        "maxHitPoints": 2000,
+        "theme": "sun",
+        "cost": 600,
+        "mana": "s",
+        "threat": 20,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 5,
+        "foot_y": 4,
+        "damageEffect": 1,
+        "constructionRate": 10,
+        "sprites": [
+            "b_embassy.gif",
+            "embassy.gif"
+        ]
+    },
+    {
+        "id": "particlePlaceHolder",
+        "flags": [
+            "default_hotspot",
+            "dontSave"
+        ],
+        "zorder": "zoNONE",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "plachold.gif"
+        ]
+    },
+    {
+        "id": "platform",
+        "flags": [
+            "default_hotspot",
+            "not_selectable"
+        ],
+        "description": "Platform",
+        "zorder": "zoBRIDGE",
+        "foot_x": 3,
+        "foot_y": 3,
+        "sprites": [
+            "platform.gif"
+        ]
+    },
+    {
+        "id": "player",
+        "flags": [
+            "predictable"
+        ],
+        "description": "Player Stub",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "blank.gif"
+        ]
+    },
+    {
+        "id": "playerbanner",
+        "flags": [
+            "not_selectable"
+        ],
+        "description": "PlayerBanner",
+        "zorder": "zoEMPLACEMENTS-1",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "dots.gif",
+            "playflag.gif"
+        ]
+    },
+    {
+        "id": "playerisland",
+        "flags": [
+            "ship"
+        ],
+        "zorder": "zoBRIDGE",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "player.gif"
+        ]
+    },
+    {
+        "id": "Priest",
+        "flags": [
+            "walker",
+            "priest",
+            "shadow",
+            "saveQa"
+        ],
+        "description": "High Priest",
+        "class": "High Priest",
+        "zorder": "zoEMPLACEMENT",
+        "foot_x": 1,
+        "foot_y": 1,
+        "height": 1,
+        "threat": 25,
+        "maxHitPoints": 100,
+        "group": "walker",
+        "speed": 1.8,
+        "turningSpeed": 999999.0,
+        "hotFootRatioX": 0.5,
+        "hotFootRatioY": 0.2,
+        "pickupSound": "priestPickup.wav",
+        "moveSound": "priestMove1.wav",
+        "dropSound": "priestDrop.wav",
+        "sprites": [
+            "b_priest.gif",
+            "blank.gif",
+            "pchant.gif",
+            "priest.gif",
+            "priestfloat.gif",
+            "s_priest.gif"
+        ]
+    },
+    {
+        "id": "puzzlepiece",
+        "flags": [],
+        "zorder": "zoBRIDGE",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "null.gif",
+            "puzzlepiece.gif"
+        ]
+    },
+    {
+        "id": "rainaviary",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Man o'War Pool",
+        "class": "Air Attack Base",
+        "maxHitPoints": 400,
+        "theme": "rain",
+        "level": 3,
+        "cost": 600,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "threat": 5,
+        "range": 40,
+        "constructionRate": 10,
+        "hotfootratiox": 0.25,
+        "hotfootratioy": 0.1,
+        "damageEffect": 1,
+        "group": "aviary",
+        "techBit": 12,
+        "sprites": [
+            "b_raviary.gif",
+            "rflyer.gif"
+        ]
+    },
+    {
+        "id": "rainBalloon",
+        "flags": [
+            "balloon",
+            "flyershadow"
+        ],
+        "description": "Cloud Floater",
+        "class": "Aerial Transport",
+        "maxHitPoints": 300,
+        "theme": "rain",
+        "level": 3,
+        "cost": 1000,
+        "threat": 15,
+        "zorder": "zoFLYERS",
+        "foot_x": 2,
+        "foot_y": 2,
+        "group": "balloon",
+        "hotFootRatioX": 1.0,
+        "hotFootRatioY": 0.7,
+        "speed": 3.2,
+        "turningSpeed": 99999.0,
+        "pickupSound": "cloudDrop.wav",
+        "moveSound": "cloudMove.wav",
+        "dropSound": "cloudDrop.wav",
+        "techBit": 14,
+        "sprites": [
+            "b_rballoon.gif",
+            "rballoon.gif"
+        ]
+    },
+    {
+        "id": "rainBattery",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Rain Generator",
+        "class": "Source of Energy",
+        "maxHitPoints": 700,
+        "theme": "rain",
+        "level": 1,
+        "cost": 400,
+        "mana": "s",
+        "threat": 5,
+        "zorder": "zoEMPLACEMENTS",
+        "minUsage": -100,
+        "maxUsage": -100,
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotFootRatioX": 0.5,
+        "hotFootRatioY": 0.4,
+        "damageEffect": 1,
+        "activeSound": "waterBattery.wav",
+        "group": "battery",
+        "techBit": 10,
+        "sprites": [
+            "b_focusers.gif",
+            "focus.gif"
+        ]
+    },
+    {
+        "id": "rainBlocker",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Ice Tower",
+        "class": "Defense",
+        "maxHitPoints": 1200,
+        "theme": "rain",
+        "level": 2,
+        "cost": 800,
+        "threat": 5,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "height": 3,
+        "hotFootRatioX": 0.25,
+        "hotFootRatioY": 0.25,
+        "constructionRate": 10,
+        "group": "blocker",
+        "techBit": 15,
+        "sprites": [
+            "b_rblocker.gif",
+            "rblock.gif"
+        ]
+    },
+    {
+        "id": "raincannon",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "saveFrame",
+            "shadow"
+        ],
+        "description": "Ice Cannon",
+        "class": "Shooter",
+        "maxHitPoints": 600,
+        "theme": "rain",
+        "level": 2,
+        "cost": 600,
+        "threat": 5,
+        "zorder": "zoEMPLACEMENTS",
+        "range": 32,
+        "hpPerSec": 20,
+        "foot_x": 3,
+        "foot_y": 3,
+        "minUsage": 20,
+        "maxUsage": 200,
+        "hotFootRatioY": 0.625,
+        "group": "cannon",
+        "damageEffect": 1,
+        "techBit": 11,
+        "sprites": [
+            "b_rcannon.gif",
+            "rcannon.gif"
+        ]
+    },
+    {
+        "id": "rainCannonMissile",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "orientations": 28,
+        "range": 5,
+        "zorder": "zoMISSILES",
+        "impactSound": "iceCannonImpact.wav",
+        "sprites": [
+            "rcannon.gif"
+        ]
+    },
+    {
+        "id": "rainFactory",
+        "flags": [
+            "factory",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking",
+            "shadow"
+        ],
+        "description": "Rain Workshop",
+        "class": "Production",
+        "maxHitPoints": 3200,
+        "theme": "rain",
+        "cost": 800,
+        "threat": 20,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 8,
+        "foot_y": 6,
+        "damageEffect": 1,
+        "buildDoneSound": "workshopComplete.wav",
+        "sprites": [
+            "b_rfactory.gif",
+            "rfactory.gif"
+        ]
+    },
+    {
+        "id": "rainFence",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow",
+            "fence",
+            "fencePost"
+        ],
+        "description": "Acid Barricade",
+        "class": "Defense",
+        "zorder": "zoEMPLACEMENTS",
+        "range": 40,
+        "minUsage": 20,
+        "threat": 5,
+        "maxUsage": 20,
+        "constructionRate": 10,
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotFootRatioY": 0.375,
+        "damageEffect": 1,
+        "group": "fence",
+        "maxHitPoints": 850,
+        "theme": "rain",
+        "cost": 400,
+        "level": 1,
+        "techBit": 13,
+        "sprites": [
+            "sfence.gif"
+        ]
+    },
+    {
+        "id": "rainFlyer",
+        "flags": [
+            "flyer",
+            "dontSave",
+            "flyershadow"
+        ],
+        "description": "Man o'War",
+        "class": "Aerial Attack",
+        "maxHitPoints": 180,
+        "theme": "rain",
+        "zorder": "zoFLYERS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "constructionRate": 5,
+        "range": 40,
+        "speed": 2.0,
+        "lifeSpan": 60.0,
+        "hpPerSec": 20,
+        "fireSound": "manOWarFire.wav",
+        "sprites": [
+            "b_rflyer.gif",
+            "rflyer.gif",
+            "s_rflyer.gif"
+        ]
+    },
+    {
+        "id": "rainVortex",
+        "flags": [
+            "vortex",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking",
+            "mayDropOnRim",
+            "mayDropOnIsle",
+            "shadow"
+        ],
+        "description": "Rain Temple",
+        "class": "Energy",
+        "maxHitPoints": 5000,
+        "theme": "rain",
+        "cost": 5000,
+        "threat": 20,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 8,
+        "foot_y": 6,
+        "damageEffect": 1,
+        "constructionRate": 10,
+        "hotFootRatioX": 0.5,
+        "hotFootRatioY": 0.8,
+        "crew": 30,
+        "buildDoneSound": "templeComplete.wav",
+        "sprites": [
+            "rvortex.gif",
+            "rvrev.gif",
+            "s_rainbeauty.gif"
+        ]
+    },
+    {
+        "id": "rainwalker",
+        "flags": [
+            "walker",
+            "shadow"
+        ],
+        "description": "Crystal Crab",
+        "class": "Ground Transport",
+        "maxHitPoints": 240,
+        "theme": "rain",
+        "level": 2,
+        "threat": 15,
+        "cost": 600,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "activeSound": "moveBeetle.wav",
+        "pickupSound": "moveBeetle.wav",
+        "moveSound": "moveBeetle.wav",
+        "dropSound": "moveBeetle.wav",
+        "group": "walker",
+        "speed": 3.6,
+        "turningSpeed": 1800000.0,
+        "techBit": 16,
+        "sprites": [
+            "b_rwalker.gif",
+            "rcrab.gif"
+        ]
+    },
+    {
+        "id": "range",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "zorder": "zoMANAICON",
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "fenceanm.gif",
+            "range.gif",
+            "sfence2.gif"
+        ]
+    },
+    {
+        "id": "Residence",
+        "flags": [
+            "residence",
+            "randframe",
+            "yuckWalk",
+            "dropBlocking"
+        ],
+        "description": "Residence",
+        "class": "Residence",
+        "zorder": "zoBRIDGE",
+        "foot_x": 4,
+        "foot_y": 4,
+        "sprites": [
+            "residence.gif"
+        ]
+    },
+    {
+        "id": "RUIN",
+        "flags": [
+            "tree",
+            "randframe",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking",
+            "shadow"
+        ],
+        "description": "Ruins",
+        "maxHitPoints": 400,
+        "theme": "sun",
+        "level": 2,
+        "cost": 500,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 2,
+        "foot_y": 2,
+        "damageEffect": 1,
+        "sprites": []
+    },
+    {
+        "id": "rune",
+        "flags": [
+            "dontSave",
+            "not_selectable"
+        ],
+        "description": "Altar",
+        "zorder": "zoARTIFACTS",
+        "maxHitPoints": 20,
+        "foot_x": 1,
+        "foot_y": 1,
+        "sprites": [
+            "altar01.gif"
+        ]
+    },
+    {
+        "id": "sunArcher",
+        "flags": [
+            "createsisland",
+            "emplacement"
+        ],
+        "description": "Sun Disc Thrower",
+        "class": "Shooter",
+        "maxHitPoints": 400,
+        "theme": "sun",
+        "level": 1,
+        "cost": 250,
+        "threat": 5,
+        "zorder": "zoEMPLACEMENTS",
+        "range": 8,
+        "hpPerSec": 12,
+        "useairdamage": 1,
+        "airrange": 12,
+        "airdamage": 24,
+        "minUsage": 20,
+        "maxUsage": 200,
+        "constructionRate": 10,
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotFootRatioX": 0.0625,
+        "hotFootRatioY": 0.5,
+        "damageEffect": 1,
+        "group": "archer",
+        "sprites": [
+            "b_sarcher.gif",
+            "sarcher.gif"
+        ]
+    },
+    {
+        "id": "sunaviary",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Whirlibase",
+        "class": "Air Attack Base",
+        "maxHitPoints": 400,
+        "cost": 400,
+        "theme": "sun",
+        "level": 2,
+        "threat": 5,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "constructionRate": 10,
+        "range": 35,
+        "hotfootratiox": 0,
+        "hotfootratioy": 0.625,
+        "damageEffect": 1,
+        "group": "aviary",
+        "techBit": 0,
+        "sprites": [
+            "b_saviary.gif",
+            "sflyer.gif"
+        ]
+    },
+    {
+        "id": "sunBalloon",
+        "flags": [
+            "balloon",
+            "flyershadow"
+        ],
+        "description": "Balloon",
+        "class": "Aerial Transport",
+        "maxHitPoints": 150,
+        "theme": "sun",
+        "level": 2,
+        "cost": 600,
+        "threat": 15,
+        "zorder": "zoFLYERS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "group": "balloon",
+        "speed": 2.0,
+        "turningSpeed": 90000.0,
+        "pickupSound": "balloonPickup.wav",
+        "moveSound": "balloonMove.wav",
+        "dropSound": "balloonDrop.wav",
+        "techBit": 2,
+        "sprites": [
+            "b_sballoon.gif",
+            "sunbaloo.gif"
+        ]
+    },
+    {
+        "id": "sunBattery",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Sun Generator",
+        "class": "Source of Energy",
+        "maxHitPoints": 600,
+        "theme": "sun",
+        "level": 1,
+        "cost": 300,
+        "mana": "s",
+        "threat": 5,
+        "zorder": "zoEMPLACEMENTS",
+        "minUsage": -100,
+        "maxUsage": -100,
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotFootRatioX": 0.125,
+        "hotFootRatioY": 0.625,
+        "damageEffect": 1,
+        "activeSound": "jacoblad.wav",
+        "group": "battery",
+        "sprites": [
+            "b_sbattery.gif",
+            "sbattery.gif"
+        ]
+    },
+    {
+        "id": "sunBlocker",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Stone Tower",
+        "class": "Defense",
+        "maxHitPoints": 2200,
+        "cost": 400,
+        "theme": "sun",
+        "threat": 5,
+        "level": 1,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "height": 2,
+        "hotFootRatioX": 0.25,
+        "hotFootRatioY": 0.3125,
+        "damageEffect": 1,
+        "constructionRate": 10,
+        "group": "blocker",
+        "sprites": [
+            "sunblock.gif"
+        ]
+    },
+    {
+        "id": "suncannon",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Sun Cannon",
+        "class": "Shooter",
+        "maxHitPoints": 600,
+        "theme": "sun",
+        "level": 1,
+        "threat": 5,
+        "cost": 400,
+        "zorder": "zoEMPLACEMENTS",
+        "range": 22,
+        "hpPerSec": 16,
+        "foot_x": 3,
+        "foot_y": 3,
+        "minUsage": 20,
+        "maxUsage": 200,
+        "hotFootRatioY": 0.625,
+        "delayBetweenShots": 5.0,
+        "group": "cannon",
+        "damageEffect": 1,
+        "constructionRate": 10,
+        "fireSound": "sunCannonFire.wav",
+        "sprites": [
+            "b_scannon.gif",
+            "s_scannon.gif",
+            "scannon.gif"
+        ]
+    },
+    {
+        "id": "sunDisc",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "zorder": "zoMISSILES",
+        "fireSound": "fireBow.wav",
+        "impactSound": "sunDiscThrowerImpact.wav",
+        "orientations": 1,
+        "sprites": [
+            "sarcher.gif"
+        ]
+    },
+    {
+        "id": "sunFactory",
+        "flags": [
+            "factory",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking",
+            "shadow"
+        ],
+        "description": "Sun Workshop",
+        "class": "Production",
+        "maxHitPoints": 2400,
+        "theme": "sun",
+        "cost": 600,
+        "threat": 10,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 7,
+        "foot_y": 6,
+        "damageEffect": 1,
+        "buildDoneSound": "workshopComplete.wav",
+        "sprites": [
+            "b_sfactory.gif",
+            "sfactory.gif"
+        ]
+    },
+    {
+        "id": "sunFence",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "fence",
+            "shadow"
+        ],
+        "description": "Sun Barricade",
+        "class": "Defense",
+        "zorder": "zoEMPLACEMENTS",
+        "range": 45,
+        "minUsage": 20,
+        "maxUsage": 20,
+        "cost": 250,
+        "threat": 5,
+        "constructionRate": 10,
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotFootRatioX": 0.4,
+        "hotFootRatioY": 0.4375,
+        "damageEffect": 1,
+        "group": "fence",
+        "impactSound": "sunFenceImpact.wav",
+        "maxHitPoints": 750,
+        "theme": "sun",
+        "level": 1,
+        "techBit": 3,
+        "sprites": [
+            "b_sfence.gif",
+            "sfence.gif"
+        ]
+    },
+    {
+        "id": "sunFlyer",
+        "flags": [
+            "flyer",
+            "dontSave",
+            "flyershadow"
+        ],
+        "description": "Whirligig",
+        "class": "Aerial Attack",
+        "maxHitPoints": 50,
+        "theme": "sun",
+        "zorder": "zoFLYERS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "constructionRate": 5,
+        "range": 35,
+        "lifeSpan": 75.0,
+        "speed": 2.0,
+        "hpPerSec": 15,
+        "activeSound": "whirligigSpin.wav",
+        "impactSound": "whirligigSpinSlow.wav",
+        "fireSound": "whirligigFire.wav",
+        "sprites": [
+            "b_sflyer.gif",
+            "sflyer.gif"
+        ]
+    },
+    {
+        "id": "sunFlyerBomb",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "zorder": "zoMISSILES",
+        "fireSound": "whirligigFire.wav",
+        "orientations": 1,
+        "sprites": [
+            "sflyerb.gif"
+        ]
+    },
+    {
+        "id": "sunwalker",
+        "flags": [
+            "walker",
+            "shadow"
+        ],
+        "description": "Golem",
+        "class": "Ground Transport",
+        "maxHitPoints": 50,
+        "theme": "sun",
+        "level": 1,
+        "height": 1,
+        "threat": 10,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "moveSound": "golemMove1.wav",
+        "pickupSound": "golemPickup.wav",
+        "dropSound": "golemDrop.wav",
+        "group": "walker",
+        "speed": 1.8,
+        "turningSpeed": 99999.0,
+        "hotFootRatioX": 0.5,
+        "hotFootRatioY": 0.2,
+        "sprites": [
+            "blank.gif",
+            "golem.gif",
+            "s_golem.gif"
+        ]
+    },
+    {
+        "id": "teleportEffect",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "description": "teleport effect",
+        "zorder": "zoNONE",
+        "foot_x": 1,
+        "foot_y": 1,
+        "artifactFrame": 1,
+        "speed": 12.0,
+        "turningSpeed": 10000.0,
+        "activeSound": "teleportEffect.wav",
+        "sprites": [
+            "plachold.gif"
+        ]
+    },
+    {
+        "id": "thunderArcher",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Vander Tower",
+        "class": "Anti-Air",
+        "maxHitPoints": 1000,
+        "theme": "thunder",
+        "level": 3,
+        "cost": 600,
+        "zorder": "zoEMPLACEMENTS",
+        "threat": 5,
+        "minUsage": 20,
+        "maxUsage": 200,
+        "height": 1,
+        "delayBetweenShots": 1.0,
+        "constructionRate": 10,
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotFootRatioX": 0.0625,
+        "hotFootRatioY": 0.5,
+        "damageEffect": 1,
+        "group": "anti-air",
+        "useairdamage": 0,
+        "airdamage": 35,
+        "airrange": 18,
+        "hpPerSec": 35,
+        "range": 18,
+        "techBit": 21,
+        "sprites": [
+            "b_tarcher.gif",
+            "tarcher.gif"
+        ]
+    },
+    {
+        "id": "thunderaviary",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Thunder Spire",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "sprites": [
+            "B_TAVIARY.gif",
+            "tflyer.gif"
+        ]
+    },
+    {
+        "id": "thunderBattery",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Thunder Generator",
+        "class": "Source of Energy",
+        "maxHitPoints": 700,
+        "theme": "thunder",
+        "level": 1,
+        "cost": 400,
+        "mana": "s",
+        "threat": 5,
+        "zorder": "zoEMPLACEMENTS",
+        "minUsage": -100,
+        "maxUsage": -100,
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotFootRatioX": 0.5,
+        "hotFootRatioY": 0.4,
+        "constructionRate": 10,
+        "damageEffect": 1,
+        "activeSound": "thunderBattery.wav",
+        "group": "battery",
+        "techBit": 17,
+        "sprites": [
+            "b_focusers.gif",
+            "focus.gif"
+        ]
+    },
+    {
+        "id": "thunderBlocker",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "container",
+            "shadow"
+        ],
+        "description": "Bulwark",
+        "class": "Defense",
+        "maxHitPoints": 3600,
+        "theme": "thunder",
+        "level": 2,
+        "cost": 800,
+        "threat": 5,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "height": 3,
+        "damageEffect": 1,
+        "hotFootRatioY": 0.25,
+        "constructionRate": 10,
+        "group": "blocker",
+        "techBit": 18,
+        "sprites": [
+            "b_tblocker.gif",
+            "thblock.gif"
+        ]
+    },
+    {
+        "id": "thundercannon",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "saveFrame"
+        ],
+        "description": "Thunder Cannon",
+        "class": "Shooter",
+        "maxHitPoints": 1000,
+        "theme": "thunder",
+        "level": 2,
+        "cost": 1200,
+        "threat": 5,
+        "zorder": "zoEMPLACEMENTS",
+        "range": 44,
+        "hpPerSec": 40,
+        "foot_x": 3,
+        "foot_y": 3,
+        "height": 2,
+        "minUsage": 20,
+        "maxUsage": 200,
+        "hotFootRatioX": 0.125,
+        "hotFootRatioY": 0.375,
+        "group": "cannon",
+        "damageEffect": 1,
+        "constructionRate": 10,
+        "fireSound": "thunderCannon.wav",
+        "techBit": 19,
+        "sprites": [
+            "b_tcannon.gif",
+            "tcannon.gif"
+        ]
+    },
+    {
+        "id": "thunderCannonMissile",
+        "flags": [
+            "dontSave",
+            "not_real"
+        ],
+        "orientations": 4,
+        "zorder": "zoMISSILES",
+        "fireSound": "fireBow.wav",
+        "impactSound": "thunderCannonImpact.wav",
+        "sprites": [
+            "tcannon.gif"
+        ]
+    },
+    {
+        "id": "thunderFactory",
+        "flags": [
+            "factory",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking",
+            "shadow"
+        ],
+        "description": "Thunder Workshop",
+        "class": "Production",
+        "maxHitPoints": 3200,
+        "theme": "thunder",
+        "cost": 800,
+        "threat": 10,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 8,
+        "foot_y": 6,
+        "damageEffect": 1,
+        "helpText": "~3~wThunder Factory\\n~0Specializing in thunder aligned weapons, this factory...",
+        "buildDoneSound": "workshopComplete.wav",
+        "sprites": [
+            "s_tfacbeauty.gif",
+            "tfactory.gif"
+        ]
+    },
+    {
+        "id": "thunderFence",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "fence",
+            "fencePost"
+        ],
+        "description": "Arc Spire",
+        "class": "Defense",
+        "zorder": "zoEMPLACEMENTS",
+        "hpPerSec": 50,
+        "range": 50,
+        "minUsage": 20,
+        "maxUsage": 20,
+        "constructionRate": 10,
+        "foot_x": 3,
+        "foot_y": 3,
+        "threat": 5,
+        "hotFootRatioY": 0.375,
+        "damageEffect": 1,
+        "group": "fence",
+        "cost": 400,
+        "maxHitPoints": 1600,
+        "theme": "thunder",
+        "level": 1,
+        "techBit": 22,
+        "sprites": [
+            "b_tfence.gif",
+            "tfence.gif"
+        ]
+    },
+    {
+        "id": "thunderVortex",
+        "flags": [
+            "vortex",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking",
+            "mayDropOnRim",
+            "mayDropOnIsle",
+            "shadow"
+        ],
+        "description": "Thunder Temple",
+        "class": "Energy",
+        "maxHitPoints": 5000,
+        "theme": "thunder",
+        "cost": 5000,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 8,
+        "foot_y": 6,
+        "threat": 20,
+        "damageEffect": 1,
+        "constructionRate": 10,
+        "impactSound": "tVortexReady.wav",
+        "activeSound": "jacoblad.wav",
+        "crew": 30,
+        "buildDoneSound": "templeComplete.wav",
+        "sprites": [
+            "tvortex2.gif"
+        ]
+    },
+    {
+        "id": "TreeThree",
+        "flags": [
+            "tree",
+            "randframe",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking"
+        ],
+        "description": "Trees",
+        "maxHitPoints": 400,
+        "theme": "sun",
+        "level": 3,
+        "cost": 500,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "damageEffect": 1,
+        "sprites": [
+            "tree.gif"
+        ]
+    },
+    {
+        "id": "TreeTwo",
+        "flags": [
+            "tree",
+            "randframe",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking"
+        ],
+        "description": "Trees",
+        "maxHitPoints": 400,
+        "theme": "sun",
+        "level": 2,
+        "cost": 500,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 2,
+        "foot_y": 2,
+        "damageEffect": 1,
+        "sprites": [
+            "tree.gif"
+        ]
+    },
+    {
+        "id": "windArcher",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow",
+            "saveFrame"
+        ],
+        "description": "Crossbow",
+        "class": "Shooter",
+        "maxHitPoints": 480,
+        "theme": "wind",
+        "level": 2,
+        "zorder": "zoEMPLACEMENTS",
+        "range": 16,
+        "hpPerSec": 25,
+        "airrange": 16,
+        "airdamage": 25,
+        "minUsage": 20,
+        "maxUsage": 200,
+        "threat": 5,
+        "cost": 600,
+        "constructionRate": 10,
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotFootRatioX": 0.0625,
+        "hotFootRatioY": 0.5,
+        "damageEffect": 1,
+        "group": "archer",
+        "orientations": 20,
+        "techBit": 7,
+        "sprites": [
+            "b_warcher.gif",
+            "warch1.gif",
+            "warch1a.gif",
+            "warch1b.gif",
+            "warch2.gif",
+            "warch2a.gif"
+        ]
+    },
+    {
+        "id": "windaviary",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Devil Maker",
+        "class": "Air Attack Base",
+        "maxHitPoints": 400,
+        "theme": "wind",
+        "level": 3,
+        "cost": 800,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "threat": 5,
+        "constructionRate": 10,
+        "range": 45,
+        "delayBetweenShots": 29.0,
+        "hotfootratiox": 0.5,
+        "hotfootratioy": 0.625,
+        "damageEffect": 1,
+        "group": "aviary",
+        "techBit": 6,
+        "sprites": [
+            "b_waviary.gif",
+            "wflyer.gif"
+        ]
+    },
+    {
+        "id": "windBalloon",
+        "flags": [
+            "balloon",
+            "flyershadow"
+        ],
+        "description": "Air Ship",
+        "class": "Aerial Transport",
+        "maxHitPoints": 600,
+        "theme": "wind",
+        "level": 3,
+        "threat": 15,
+        "cost": 1200,
+        "zorder": "zoFLYERS",
+        "foot_x": 4,
+        "foot_y": 4,
+        "group": "balloon",
+        "speed": 3.8,
+        "turningSpeed": 90000.0,
+        "pickupSound": "windBalloonPickup.wav",
+        "moveSound": "windBalloonMove.wav",
+        "dropSound": "windBalloonDrop.wav",
+        "techBit": 8,
+        "sprites": [
+            "s_shipbeauty.gif",
+            "ship.gif"
+        ]
+    },
+    {
+        "id": "windBattery",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Wind Generator",
+        "class": "Source of Energy",
+        "maxHitPoints": 700,
+        "theme": "wind",
+        "level": 1,
+        "cost": 400,
+        "mana": "s",
+        "threat": 5,
+        "zorder": "zoEMPLACEMENTS",
+        "minUsage": -100,
+        "maxUsage": -100,
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotFootRatioX": 0.5,
+        "hotFootRatioY": 0.4,
+        "damageEffect": 1,
+        "activeSound": "jacoblad.wav",
+        "group": "battery",
+        "techBit": 4,
+        "sprites": [
+            "b_focusers.gif",
+            "focus.gif"
+        ]
+    },
+    {
+        "id": "windBlocker",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow",
+            "saveFrame"
+        ],
+        "description": "Wind Tower",
+        "class": "Defense",
+        "maxHitPoints": 1200,
+        "theme": "wind",
+        "level": 2,
+        "cost": 800,
+        "threat": 5,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "height": 3,
+        "hotFootRatioX": 0.25,
+        "hotFootRatioY": 0.3125,
+        "damageEffect": 1,
+        "constructionRate": 10,
+        "group": "blocker",
+        "techBit": 9,
+        "sprites": [
+            "b_wblocker.gif",
+            "wblocker.gif"
+        ]
+    },
+    {
+        "id": "windFactory",
+        "flags": [
+            "factory",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking",
+            "shadow"
+        ],
+        "description": "Wind Workshop",
+        "class": "Production",
+        "maxHitPoints": 3200,
+        "theme": "wind",
+        "cost": 800,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 8,
+        "foot_y": 6,
+        "threat": 20,
+        "damageEffect": 1,
+        "buildDoneSound": "workshopComplete.wav",
+        "sprites": [
+            "b_wfactory.gif",
+            "wfactory.gif"
+        ]
+    },
+    {
+        "id": "windFlyer",
+        "flags": [
+            "flyer",
+            "dontSave",
+            "flyershadow"
+        ],
+        "description": "Dust Devil",
+        "class": "Aerial Attack",
+        "theme": "wind",
+        "zorder": "zoFLYERS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "constructionRate": 5,
+        "range": 45,
+        "speed": 3.0,
+        "lifeSpan": 30.0,
+        "hpPerSec": 16,
+        "activeSound": "dustDevilSpin.wav",
+        "sprites": [
+            "b_wflyer.gif",
+            "s_wflyer.gif",
+            "wflyer.gif"
+        ]
+    },
+    {
+        "id": "windVortex",
+        "flags": [
+            "vortex",
+            "yuckWalk",
+            "dropBlocking",
+            "shotblocking",
+            "mayDropOnRim",
+            "mayDropOnIsle",
+            "shadow"
+        ],
+        "description": "Wind Temple",
+        "class": "Energy",
+        "maxHitPoints": 5000,
+        "theme": "wind",
+        "cost": 5000,
+        "threat": 20,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 8,
+        "foot_y": 6,
+        "damageEffect": 1,
+        "constructionRate": 10,
+        "crew": 30,
+        "buildDoneSound": "templeComplete.wav",
+        "sprites": [
+            "wvortex.gif",
+            "wvortpow.gif"
+        ]
+    },
+    {
+        "id": "windwalker",
+        "flags": [
+            "walker",
+            "shadow"
+        ],
+        "description": "Sail Skater",
+        "class": "Ground Transport",
+        "maxHitPoints": 180,
+        "theme": "wind",
+        "level": 2,
+        "cost": 600,
+        "threat": 15,
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 1,
+        "foot_y": 1,
+        "activeSound": "sailSkaterMove.wav",
+        "group": "walker",
+        "height": 1,
+        "speed": 4.2,
+        "turningSpeed": 360.0,
+        "pickupSound": "sailDrop.wav",
+        "moveSound": "sailMove.wav",
+        "dropSound": "sailDrop.wav",
+        "techBit": 5,
+        "sprites": [
+            "b_sailskate.gif",
+            "s_wwalker.gif",
+            "wwalker.gif"
+        ]
+    },
+    {
+        "id": "windWhirl",
+        "flags": [
+            "createsisland",
+            "emplacement",
+            "shadow"
+        ],
+        "description": "Wind Whirl ",
+        "zorder": "zoEMPLACEMENTS",
+        "foot_x": 3,
+        "foot_y": 3,
+        "hotfootratiox": 0,
+        "hotfootratioy": 0.625,
+        "sprites": []
+    }
 ]
