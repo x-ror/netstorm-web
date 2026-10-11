@@ -1,9 +1,10 @@
 import type { World } from '../world.js';
+import type { WorldView } from '../view.js';
 import type { Command, CommandError } from '../commands.js';
 import { W, H, Terrain, DIRS, PIECES, PIECE_HARDEN, rotatePiece, type Building } from '../state.js';
 
 /** Cells of the player's ground joined to the Temple by an unbroken run of own island and bridge. */
-function connectedToTemple(world: World, player: number): Uint8Array | null {
+function connectedToTemple(world: WorldView, player: number): Uint8Array | null {
   const temple = world.buildingsOf(player).find((b) => world.def(b.type).cls === 'Energy');
 
   if (!temple) {
@@ -64,16 +65,21 @@ function claimIsland(world: World, player: number, x: number, y: number): void {
   }
 }
 
-export function dropPiece(
-  world: World,
-  c: Extract<Command, { t: 'dropPiece'; }>,
-): CommandError | null {
-  const pl = world.players.get(c.player)!;
+export type PieceCommand = Pick<
+  Extract<Command, { t: 'dropPiece'; }>,
+  'player' | 'hand' | 'x' | 'y' | 'rot'
+>;
 
-  const entry = pl.hand[c.hand];
+/** The cells a piece from the hand would cover, or why it cannot be laid there. Shared by the
+ * command and by previews, so both always agree. */
+export function pieceSite(
+  world: WorldView,
+  c: PieceCommand,
+): { cells: [number, number][]; } | { error: CommandError; } {
+  const entry = world.players.get(c.player)?.hand[c.hand];
 
   if (entry === undefined) {
-    return 'no piece';
+    return { error: 'no piece' };
   }
 
   const cells = rotatePiece(PIECES[entry.piece]!, c.rot).map(([dx, dy]) =>
@@ -82,7 +88,7 @@ export function dropPiece(
 
   for (const [x, y] of cells) {
     if (!world.inside(x, y) || world.terrain[world.at(x, y)] !== Terrain.Sky) {
-      return 'blocked';
+      return { error: 'blocked' };
     }
   }
 
@@ -96,9 +102,22 @@ export function dropPiece(
       )
     );
 
-  if (!touches) {
-    return 'not connected';
+  return touches ? { cells } : { error: 'not connected' };
+}
+
+export function dropPiece(
+  world: World,
+  c: Extract<Command, { t: 'dropPiece'; }>,
+): CommandError | null {
+  const pl = world.players.get(c.player)!;
+  const site = pieceSite(world, c);
+
+  if ('error' in site) {
+    return site.error;
   }
+
+  const { cells } = site;
+  const entry = pl.hand[c.hand]!;
 
   for (const [x, y] of cells) {
     // A piece laid before it hardened in the window makes a cracked bridge.

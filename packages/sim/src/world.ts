@@ -21,7 +21,7 @@
  *    not consume it permanently (original: "once built units don't consume energy")
  */
 import { hashWorld } from './checksum.js';
-import { dropPiece } from './rules/bridges.js';
+import { dropPiece, pieceSite, type PieceCommand } from './rules/bridges.js';
 import { tickBuilding } from './rules/combat.js';
 import { tickPlayer } from './rules/economy.js';
 import { energy, canBuild, build, salvage } from './rules/building.js';
@@ -334,6 +334,19 @@ export class World {
     facing?: number;
   }): CommandError | null {
     return canBuild(this, command);
+  }
+
+  canDropPiece(command: PieceCommand): CommandError | null {
+    if (!this.players.get(command.player)?.alive) {
+      return 'no player';
+    }
+
+    if (this.winner !== null) {
+      return 'game over';
+    }
+
+    const site = pieceSite(this, command);
+    return 'error' in site ? site.error : null;
   }
 
   /** Internal rule hook; gameplay callers must use commands. */

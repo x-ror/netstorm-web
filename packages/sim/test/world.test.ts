@@ -58,6 +58,12 @@ test('temple hands out bridge pieces; pieces must touch own ground', () => {
 
   const p = w.players.get(1)!;
   assert.equal(p.hand.length, 1);
+  // The preview check agrees with the command and changes nothing.
+  assert.equal(w.canDropPiece({ player: 1, hand: 0, x: 60, y: 60, rot: 0 }), 'not connected');
+  assert.equal(w.canDropPiece({ player: 1, hand: 0, x: 50, y: 40, rot: 0 }), 'blocked');
+  assert.equal(w.canDropPiece({ player: 1, hand: 1, x: 51, y: 40, rot: 0 }), 'no piece');
+  assert.equal(w.canDropPiece({ player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null);
+  assert.equal(p.hand.length, 1);
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 60, y: 60, rot: 0 }),
     'not connected');
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null); // right edge of island is x=50

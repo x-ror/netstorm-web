@@ -5,7 +5,6 @@ import {
   HAND_SIZE,
   PIECES,
   ROTATION_MASK,
-  Terrain,
   rotatePiece,
   type Command,
   type DeepReadonly,
@@ -347,10 +346,8 @@ export function createControls(options: {
       cells = piece
         ? rotatePiece(PIECES[piece.piece]!, ui.rot).map(([dx, dy]) => [x + dx, y + dy])
         : [];
-      // Only the open-sky part of the rule; the link to the Temple is checked when the piece lands.
-      error = cells.some(([cx, cy]) =>
-        !world.inside(cx, cy) || world.terrain[world.at(cx, cy)] !== Terrain.Sky
-      );
+      error = piece !== undefined
+        && world.canDropPiece({ player: me, hand: handIndex(tool), x, y, rot: ui.rot }) !== null;
     } else if (tool.kind === 'build') {
       const def = world.def(tool.type);
       const anchor = anchorFor(def, x, y);

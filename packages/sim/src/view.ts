@@ -30,6 +30,14 @@ export interface WorldView {
   ) => ReadonlyArray<DeepReadonly<Building>>;
   /** `own` counts generators of the player's theme (and Sun); `total` counts all generators. */
   readonly energy: (player: number) => { own: number; total: number; };
+  /** Why a piece from the hand cannot be laid at (x, y) with rotation `rot`, or null. */
+  readonly canDropPiece: (command: {
+    player: number;
+    hand: number;
+    x: number;
+    y: number;
+    rot: number;
+  }) => CommandError | null;
   readonly canBuild: (command: {
     player: number;
     type: string;
