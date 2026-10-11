@@ -1,6 +1,7 @@
 import { UNIT_CLASSES, UNIT_GROUPS, type UnitDef } from './defs.js';
 import type { Entity, Player } from './state.js';
 import {
+  LINK_ALL,
   W,
   H,
   PIECES,
@@ -23,8 +24,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 10;
-export const RULES_VERSION = 19;
+export const SNAPSHOT_VERSION = 11;
+export const RULES_VERSION = 20;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -38,6 +39,7 @@ export interface WorldSnapshot {
   winner: number | null;
   terrain: number[];
   owner: number[];
+  links: number[];
   occupant: number[];
   defs: UnitDef[];
   entities: Entity[];
@@ -285,6 +287,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     'winner',
     'terrain',
     'owner',
+    'links',
     'occupant',
     'defs',
     'entities',
@@ -316,6 +319,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     winner: nullableId(value.winner, 'snapshot.winner'),
     terrain: grid(value.terrain, 'terrain', Terrain.HardBridge),
     owner: grid(value.owner, 'owner', MAX_PLAYERS),
+    links: grid(value.links, 'links', LINK_ALL),
     occupant: grid(value.occupant, 'occupant', MAX_ID),
     defs,
     entities,

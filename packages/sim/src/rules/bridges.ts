@@ -6,12 +6,25 @@ import {
   H,
   Terrain,
   DIRS,
+  LINK_ALL,
   PIECES,
   PIECE_HARD,
   PIECE_HARDEN,
+  oppositeDir,
+  rotateLinks,
   rotatePiece,
   type Building,
 } from '../state.js';
+
+/** Sides a ground cell joins on: every side for island, and for bridge laid without a piece. */
+function linksAt(world: WorldView, i: number): number {
+  return world.terrain[i] === Terrain.Island ? LINK_ALL : world.links[i] || LINK_ALL;
+}
+
+/** Whether the ground cell joins on the side `dir`, an index into DIRS. */
+export function joins(world: WorldView, i: number, dir: number): boolean {
+  return (linksAt(world, i) & (1 << dir)) !== 0;
+}
 
 /** Cells of the player's ground joined to the Temple by an unbroken run of own island and bridge. */
 function connectedToTemple(world: WorldView, player: number): Uint8Array | null {
@@ -38,11 +51,17 @@ function connectedToTemple(world: WorldView, player: number): Uint8Array | null 
     const x = i % W;
     const y = (i / W) | 0;
 
-    for (const [dx, dy] of DIRS) {
+    // Bridge carries the attachment on only through the sides its cells join on.
+    for (const [dir, [dx, dy]] of DIRS.entries()) {
       const nx = x + dx;
       const ny = y + dy;
 
-      if (world.isOwnGround(player, nx, ny) && !connected[world.at(nx, ny)]) {
+      if (
+        world.isOwnGround(player, nx, ny)
+        && !connected[world.at(nx, ny)]
+        && joins(world, i, dir)
+        && joins(world, world.at(nx, ny), oppositeDir(dir))
+      ) {
         connected[world.at(nx, ny)] = 1;
         queue.push(world.at(nx, ny));
       }
@@ -85,7 +104,7 @@ export type PieceCommand = Pick<
 export function pieceSite(
   world: WorldView,
   c: PieceCommand,
-): { cells: [number, number][]; } | { error: CommandError; } {
+): { cells: [number, number][]; links: number[]; } | { error: CommandError; } {
   const entry = world.players.get(c.player)?.hand[c.hand];
 
   if (entry === undefined) {
@@ -103,16 +122,21 @@ export function pieceSite(
   }
 
   // "There must be a continuous attachment from the Temple on your island to the bridge you are
-  // laying down."
+  // laying down." A piece attaches only by its open ends: a side one of its cells joins on must
+  // meet attached ground, and if that ground is bridge, a side that bridge cell joins on.
   const connected = connectedToTemple(world, c.player);
+  const links = rotateLinks(entry.piece, c.rot);
   const touches = connected !== null
-    && cells.some(([x, y]) =>
-      DIRS.some(([dx, dy]) =>
-        world.inside(x + dx, y + dy) && connected[world.at(x + dx, y + dy)] === 1
+    && cells.some(([x, y], index) =>
+      DIRS.some(([dx, dy], dir) =>
+        (links[index]! & (1 << dir)) !== 0
+        && world.inside(x + dx, y + dy)
+        && connected[world.at(x + dx, y + dy)] === 1
+        && joins(world, world.at(x + dx, y + dy), oppositeDir(dir))
       )
     );
 
-  return touches ? { cells } : { error: 'not connected' };
+  return touches ? { cells, links } : { error: 'not connected' };
 }
 
 export function dropPiece(
@@ -126,7 +150,7 @@ export function dropPiece(
     return site.error;
   }
 
-  const { cells } = site;
+  const { cells, links } = site;
   const entry = pl.hand[c.hand]!;
 
   // The bridge keeps the strength the piece had reached in the window.
@@ -138,14 +162,18 @@ export function dropPiece(
     strength = Terrain.Bridge;
   }
 
-  for (const [x, y] of cells) {
+  for (const [index, [x, y]] of cells.entries()) {
     world.terrain[world.at(x, y)] = strength;
     world.owner[world.at(x, y)] = c.player;
+    world.links[world.at(x, y)] = links[index]!;
   }
 
-  for (const [x, y] of cells) {
-    for (const [dx, dy] of DIRS) {
-      claimIsland(world, c.player, x + dx, y + dy);
+  // An island is attached to, and so claimed, only through an open end of the piece.
+  for (const [index, [x, y]] of cells.entries()) {
+    for (const [dir, [dx, dy]] of DIRS.entries()) {
+      if (links[index]! & (1 << dir)) {
+        claimIsland(world, c.player, x + dx, y + dy);
+      }
     }
   }
 
@@ -200,6 +228,7 @@ function collapse(world: World, x: number, y: number): void {
   const i = world.at(x, y);
   world.terrain[i] = Terrain.Sky;
   world.owner[i] = 0;
+  world.links[i] = 0;
 
   for (const e of world.entities.values()) {
     if (e.x !== x || e.y !== y) {

@@ -4,6 +4,7 @@ import {
   ENERGY_RANGE,
   HAND_SIZE,
   PIECES,
+  pieceEnds,
   ROTATION_MASK,
   rotatePiece,
   type Command,
@@ -21,6 +22,10 @@ const ZOOM_IN = 1.1;
 const ZOOM_OUT = 0.9;
 const PAN_STEP = 48; // screen pixels per arrow key press
 const DRAG_THRESHOLD = 6; // screen pixels a press may move and still count as a click
+const CELL_HALF = 0.5;
+// Size, in cells, of the mark at an open end of a piece: across the edge and along it.
+const END_DEPTH = 0.3;
+const END_WIDTH = 0.6;
 const COLOR = {
   valid: 0xffd166,
   invalid: 0xff4444,
@@ -376,6 +381,29 @@ export function createControls(options: {
     for (const [cx, cy] of cells) {
       // oxlint-disable-next-line unicorn/no-array-fill-with-reference-type -- Pixi fills geometry with a paint style, not an array.
       overlay.poly(cellPoly(cx, cy)).fill(style);
+    }
+
+    if (tool.kind === 'piece') {
+      drawEnds(x, y, handIndex(tool));
+    }
+  }
+
+  /** Mark the open ends of the piece under the cursor: it attaches by these and nowhere else. */
+  function drawEnds(x: number, y: number, hand: number): void {
+    const piece = world.players.get(me)!.hand[hand];
+
+    if (!piece) {
+      return;
+    }
+
+    for (const [cx, cy, dir] of pieceEnds(piece.piece, ui.rot)) {
+      const [dx, dy] = DIRS[dir]!;
+      const centreX = x + cx + CELL_HALF + dx * CELL_HALF;
+      const centreY = y + cy + CELL_HALF + dy * CELL_HALF;
+      // A bar across the edge the end points through.
+      const w = dx ? END_DEPTH : END_WIDTH;
+      const h = dx ? END_WIDTH : END_DEPTH;
+      overlay.poly(rectPoly(centreX - w / 2, centreY - h / 2, w, h)).fill(COLOR.selection);
     }
   }
 

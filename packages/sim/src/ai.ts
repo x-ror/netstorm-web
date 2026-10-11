@@ -19,9 +19,11 @@ import {
   W,
   H,
   isBridge,
+  pieceEnds,
   rotatePiece,
   type Facing,
 } from './state.js';
+import { joins } from './rules/bridges.js';
 import type { DeepReadonly, WorldView } from './view.js';
 import type { Building, Entity, Geyser, Priest, Transport } from './state.js';
 
@@ -476,8 +478,12 @@ function bridgeHead(world: WorldView, me: number, field: Int32Array, bounds: Bou
         continue;
       }
 
-      for (const [dx, dy] of DIRS) {
-        const step = world.inside(x + dx, y + dy) ? field[world.at(x + dx, y + dy)]! : -1;
+      // Bridge goes on only from a side the cell joins on: any side of island ground, the open
+      // ends of a bridge cell.
+      for (const [dir, [dx, dy]] of DIRS.entries()) {
+        const step = world.inside(x + dx, y + dy) && joins(world, world.at(x, y), dir)
+          ? field[world.at(x + dx, y + dy)]!
+          : -1;
 
         if (step >= 0 && (!best || step + 1 < best.need)) {
           best = { x, y, need: step + 1 };
@@ -503,15 +509,10 @@ function bestPiece(
   for (let index = 0; index < hand.length; index++) {
     for (let rot = 0; rot < ROTATIONS; rot++) {
       const cells = rotatePiece(PIECES[hand[index]!.piece]!, rot);
+      const ends = pieceEnds(hand[index]!.piece, rot);
 
       for (const [x, y] of nearby(head, SEARCH_RADIUS)) {
-        const need = Math.min(
-          ...cells.map(([dx, dy]) =>
-            world.inside(x + dx, y + dy) && field[world.at(x + dx, y + dy)]! >= 0
-              ? field[world.at(x + dx, y + dy)]!
-              : Infinity
-          ),
-        );
+        const need = needAfter(world, field, cells, ends, x, y);
 
         if (
           need < bestNeed
@@ -526,6 +527,37 @@ function bestPiece(
   }
 
   return best;
+}
+
+/** Bridge still needed once the piece lies at (x, y): none if it reaches the target's surroundings,
+ * otherwise the least from the sky beyond one of its open ends, where the next piece can attach. */
+function needAfter(
+  world: WorldView,
+  field: Int32Array,
+  cells: [number, number][],
+  ends: [number, number, number][],
+  x: number,
+  y: number,
+): number {
+  const at = (cx: number, cy: number): number =>
+    world.inside(cx, cy) ? field[world.at(cx, cy)]! : -1;
+
+  if (cells.some(([dx, dy]) => at(x + dx, y + dy) === 0)) {
+    return 0;
+  }
+
+  let need = Infinity;
+
+  for (const [ex, ey, dir] of ends) {
+    const [dx, dy] = DIRS[dir]!;
+    const beyond = at(x + ex + dx, y + ey + dy);
+
+    if (beyond >= 0) {
+      need = Math.min(need, beyond + 1);
+    }
+  }
+
+  return need;
 }
 
 function touchesWalkable(

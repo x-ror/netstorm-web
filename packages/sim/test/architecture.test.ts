@@ -24,15 +24,15 @@ const mk = () =>
   ], [[80, 40]]);
 const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
-// Pins the current rules (RULES_VERSION 19). Re-pin deliberately whenever state shape or rules change.
+// Pins the current rules (RULES_VERSION 20). Re-pin deliberately whenever state shape or rules change.
 test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
-    [1, 2887674013],
-    [60, 127905077],
-    [101, 2791170296],
-    [200, 2954941433],
-    [400, 1150153274],
+    [1, 880832043],
+    [60, 3773492751],
+    [101, 3915334826],
+    [200, 4193503943],
+    [400, 1683415428],
   ]);
 
   for (let index = 0; index < 400; index++) {

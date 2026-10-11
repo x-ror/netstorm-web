@@ -74,7 +74,7 @@ try {
     const before = ground.children.length;
     match.step([
       { t: 'dropPiece', player: 1, hand: 0, x: 10, y: 10, rot: 0 },
-      { t: 'dropPiece', player: 1, hand: 0, x: 81, y: 150, rot: 0 },
+      { t: 'dropPiece', player: 1, hand: 0, x: 81, y: 150, rot: 1 },
     ]);
     const events = match.drainEvents();
     const rejected = events.find((event) => event.what === 'rejected')?.data.err;

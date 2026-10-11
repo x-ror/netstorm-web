@@ -29,6 +29,7 @@ export function hashWorld(world: WorldView, rngState: number, nextId: number): n
   for (let i = 0; i < W * H; i++) {
     byte(world.terrain[i]!);
     byte(world.owner[i]!);
+    byte(world.links[i]!);
     uint(world.occupant[i]!);
   }
 

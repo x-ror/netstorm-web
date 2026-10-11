@@ -9,7 +9,7 @@ export const REJECTIONS: Record<string, string> = {
   'bad piece': 'такого сегмента немає',
   'no piece': 'немає сегмента мосту',
   blocked: 'місце зайняте або не ваше',
-  'not connected': 'не з’єднано з вашою землею',
+  'not connected': 'не з’єднано з вашою землею (сегмент приєднується лише кінцями)',
   'unknown unit': 'невідомий юніт',
   'unknown tech': 'ви ще не знаєте цього юніта',
   'no storm power': 'бракує Storm Power',

@@ -66,6 +66,9 @@ export class World {
   terrainRevision = 0;
   readonly terrain = new Uint8Array(W * H);
   readonly owner = new Uint8Array(W * H); // island/bridge owner
+  /** Sides each bridge cell joins on (bits as in DIRS). 0 on bridge means it was laid without a
+   * piece and joins on every side. */
+  readonly links = new Uint8Array(W * H);
   readonly occupant = new Int32Array(W * H); // entity id occupying the cell, 0 = none
   readonly entities = new Map<number, Entity>();
   readonly players = new Map<number, Player>();
@@ -95,6 +98,7 @@ export class World {
     world.winner = snapshot.winner;
     world.terrain.set(snapshot.terrain);
     world.owner.set(snapshot.owner);
+    world.links.set(snapshot.links);
     world.occupant.set(snapshot.occupant);
 
     for (const entity of snapshot.entities) {
@@ -120,6 +124,7 @@ export class World {
       winner: this.winner,
       terrain: Array.from(this.terrain),
       owner: Array.from(this.owner),
+      links: Array.from(this.links),
       occupant: Array.from(this.occupant),
       defs: [...this.defs.values()],
       entities: [...this.entities.values()],

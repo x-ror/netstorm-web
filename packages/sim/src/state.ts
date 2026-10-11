@@ -74,74 +74,128 @@ export const DIRS: ReadonlyArray<readonly [number, number]> = [
 
 /**
  * The 46 bridge pieces of the original (netstorm.game 10.82), in its own order: the weight of the
- * piece in the "Standard" bridge set, then the rows of its shape, '#' being a bridge cell. Mirror
+ * piece in the "Standard" bridge set, then the rows of its shape. A letter is a bridge cell and
+ * names, as in the original, the sides the cell joins on (see LETTER_LINKS); '.' is empty. Mirror
  * images are separate pieces; a few shapes appear twice and differ only in artwork. The weights of
  * the other bridge sets (Traditional, Simplified, Crazy) are listed in docs/game-rules.md.
  */
-/* oxlint-disable no-magic-numbers -- the weights are data of the original */
+/* oxlint-disable no-magic-numbers -- the weights and link masks are data of the original */
 const CANONS: ReadonlyArray<readonly [weight: number, ...rows: string[]]> = [
-  [0, '#'],
-  [600, '#', '#'],
-  [200, '#', '#', '#'],
-  [40, '#', '#', '#', '#'],
-  [160, '##', '.#'],
-  [1950, '#.', '##', '#.'],
-  [50, '#.', '##', '#.'],
-  [10, '##.', '.##'],
-  [10, '.##', '##.'],
-  [80, '#.', '#.', '##'],
-  [80, '.#', '.#', '##'],
-  [850, '#..', '###', '.#.'],
-  [50, '#..', '###', '.#.'],
-  [850, '..#', '###', '.#.'],
-  [50, '..#', '###', '.#.'],
-  [10, '#.', '#.', '#.', '##'],
-  [10, '.#', '.#', '.#', '##'],
-  [0, '##..', '.###'],
-  [0, '..##', '###.'],
-  [300, '#..', '###', '#..'],
-  [40, '.##', '##.', '.##'],
-  [0, '..#', '..#', '###'],
-  [0, '..#', '.##', '##.'],
-  [1, '.#.', '###', '.#.'],
-  [300, '#.', '##', '#.', '#.'],
-  [300, '#.', '#.', '##', '#.'],
-  [60, '.##', '.#.', '##.'],
-  [60, '##.', '.#.', '.##'],
-  [1, '##', '#.', '##', '#.'],
-  [1, '#.', '##', '#.', '##'],
-  [20, '.##', '.#.', '.#.', '##.'],
-  [20, '##.', '.#.', '.#.', '.##'],
-  [40, '..#', '###', '.#.', '.#.'],
-  [40, '#..', '###', '.#.', '.#.'],
-  [40, '#..', '#..', '###', '.#.'],
-  [40, '..#', '..#', '###', '.#.'],
-  [0, '##', '#.', '##'],
-  [0, '###', '.#.', '.##'],
-  [0, '.##', '.#.', '###'],
-  [10, '.#.', '.##', '##.', '.#.'],
-  [10, '.#.', '##.', '.##', '.#.'],
-  [5, '.#.', '##.', '.#.', '.##'],
-  [5, '.#.', '.##', '.#.', '##.'],
-  [5, '.#.', '.#.', '##.', '.##'],
-  [5, '.#.', '.#.', '.##', '##.'],
-  [0, '#.#', '###', '#.#'],
+  [0, 'J'],
+  [600, 'J', 'J'],
+  [200, 'J', 'J', 'J'],
+  [40, 'J', 'J', 'J', 'J'],
+  [160, 'KG', '.J'],
+  [1950, 'J.', 'BK', 'J.'],
+  [50, 'J.', 'BK', 'J.'],
+  [10, 'KG.', '.IK'],
+  [10, '.FK', 'KH.'],
+  [80, 'J.', 'J.', 'IK'],
+  [80, '.J', '.J', 'KH'],
+  [850, 'J..', 'ICK', '.J.'],
+  [50, 'J..', 'ICK', '.J.'],
+  [850, '..J', 'KCH', '.J.'],
+  [50, '..J', 'KCH', '.J.'],
+  [10, 'J.', 'J.', 'J.', 'IK'],
+  [10, '.J', '.J', '.J', 'KH'],
+  [0, 'KG..', '.IKK'],
+  [0, '..FK', 'KKH.'],
+  [300, 'J..', 'BKK', 'J..'],
+  [40, '.FK', 'KD.', '.IK'],
+  [0, '..J', '..J', 'KKH'],
+  [0, '..J', '.FH', 'KH.'],
+  [1, '.J.', 'KAK', '.J.'],
+  [300, 'J.', 'BK', 'J.', 'J.'],
+  [300, 'J.', 'J.', 'BK', 'J.'],
+  [60, '.FK', '.J.', 'KH.'],
+  [60, 'KG.', '.J.', '.IK'],
+  [1, 'FK', 'J.', 'BK', 'J.'],
+  [1, 'J.', 'BK', 'J.', 'IK'],
+  [20, '.FK', '.J.', '.J.', 'KH.'],
+  [20, 'KG.', '.J.', '.J.', '.IK'],
+  [40, '..J', 'KCH', '.J.', '.J.'],
+  [40, 'J..', 'ICK', '.J.', '.J.'],
+  [40, 'J..', 'J..', 'ICK', '.J.'],
+  [40, '..J', '..J', 'KCH', '.J.'],
+  [0, 'FK', 'J.', 'IK'],
+  [0, 'KCK', '.J.', '.IK'],
+  [0, '.FK', '.J.', 'KEK'],
+  [10, '.J.', '.BK', 'KD.', '.J.'],
+  [10, '.J.', 'KD.', '.BK', '.J.'],
+  [5, '.J.', 'KD.', '.J.', '.IK'],
+  [5, '.J.', '.BK', '.J.', 'KH.'],
+  [5, '.J.', '.J.', 'KD.', '.IK'],
+  [5, '.J.', '.J.', '.BK', 'KH.'],
+  [0, 'J.J', 'BKD', 'J.J'],
 ];
+/** Sides a cell joins on, by its letter: bit 0 north, 1 east, 2 south, 3 west, as in DIRS. */
+const LETTER_LINKS: Readonly<Record<string, number>> = {
+  A: 15,
+  B: 7,
+  C: 14,
+  D: 13,
+  E: 11,
+  F: 6,
+  G: 12,
+  H: 9,
+  I: 3,
+  J: 5,
+  K: 10,
+};
+/** A cell that joins on every side: island ground, and bridge laid without a piece. */
+export const LINK_ALL = 15;
 /* oxlint-enable no-magic-numbers */
+const EMPTY_CELL = '.';
+
+function canonCells<T>(
+  rows: readonly string[],
+  pick: (letter: string, x: number, y: number) => T,
+): T[] {
+  return rows.flatMap((row, y) =>
+    [...row].flatMap((letter, x) => letter === EMPTY_CELL ? [] : [pick(letter, x, y)])
+  );
+}
 
 /** Bridge pieces as cell offsets. Rotations are generated. */
 export const PIECES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = CANONS.map((
   [, ...rows],
-) =>
-  rows.flatMap((row, y) =>
-    [...row].flatMap((cell, x): (readonly [number, number])[] => cell === '#' ? [[x, y]] : [])
-  )
+) => canonCells(rows, (_letter, x, y): readonly [number, number] => [x, y]));
+/** Link mask of every cell of every piece, in the order of PIECES. */
+const PIECE_LINKS: ReadonlyArray<readonly number[]> = CANONS.map(([, ...rows]) =>
+  canonCells(rows, (letter) => LETTER_LINKS[letter]!)
 );
 /** Chance of each piece relative to the others when the Temple draws one. */
 export const PIECE_WEIGHTS: readonly number[] = CANONS.map(([weight]) => weight);
 // The two pieces the Temple hands out on a schedule when the window lacks them (rules/economy.ts).
 export const SINGLE_PIECE = 0;
 export const DOMINO_PIECE = 1;
+
+/** Link masks of a piece's cells after `rot` quarter turns, in the order rotatePiece gives. */
+export function rotateLinks(piece: number, rot: number): number[] {
+  const turns = rot & ROTATION_MASK;
+  return PIECE_LINKS[piece]!.map((mask) =>
+    ((mask << turns) | (mask >> (DIRS.length - turns))) & LINK_ALL
+  );
+}
+
+/** The open ends of a piece after `rot` quarter turns: the cell, as rotatePiece places it, and the
+ * side (an index into DIRS) on which it joins something outside the piece. A piece attaches to
+ * ground and to other bridge by these ends only. */
+export function pieceEnds(piece: number, rot: number): [x: number, y: number, dir: number][] {
+  const cells = rotatePiece(PIECES[piece]!, rot);
+  const links = rotateLinks(piece, rot);
+  const inside = (x: number, y: number): boolean => cells.some(([cx, cy]) => cx === x && cy === y);
+  return cells.flatMap(([x, y], index) =>
+    DIRS.flatMap(([dx, dy], dir): [number, number, number][] =>
+      links[index]! & (1 << dir) && !inside(x + dx, y + dy) ? [[x, y, dir]] : []
+    )
+  );
+}
+
+/** The direction opposite to `dir`, both as indices into DIRS. */
+export function oppositeDir(dir: number): number {
+  return (dir + DIRS.length / 2) & ROTATION_MASK;
+}
 
 export function rotatePiece(
   cells: ReadonlyArray<readonly [number, number]>,

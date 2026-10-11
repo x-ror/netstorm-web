@@ -14,6 +14,7 @@ export interface WorldView {
   readonly winner: number | null;
   readonly terrain: ArrayLike<number>;
   readonly owner: ArrayLike<number>;
+  readonly links: ArrayLike<number>;
   readonly occupant: ArrayLike<number>;
   readonly entities: ReadonlyMap<number, DeepReadonly<Entity>>;
   readonly players: ReadonlyMap<number, DeepReadonly<Player>>;

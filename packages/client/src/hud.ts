@@ -1,5 +1,6 @@
 import {
   PIECES,
+  pieceEnds,
   PIECE_HARD,
   PIECE_HARDEN,
   RUNES,
@@ -52,7 +53,7 @@ export function createHud(
   root.innerHTML = `
     <header id="topbar"></header>
     <aside id="panel">
-      <h3>Мости <span class="muted">1–6, R — поворот</span></h3>
+      <h3 title="Сегмент приєднується лише кінцями, позначеними жовтим">Мости <span class="muted">1–6, R — поворот</span></h3>
       <div id="hand"></div>
       <h3>Виробництво <span class="muted">F — напрям гармати</span></h3>
       <div id="units"></div>
@@ -125,14 +126,15 @@ export function createHud(
     const handTool = ui.tool.kind === 'piece' ? ui.tool.hand : -1;
     set(panels.hand, player.hand.length
       ? player.hand.map((h, index) => {
-        const cells = rotatePiece(PIECES[h.piece]!, index === handTool ? ui.rot : 0);
+        const rot = index === handTool ? ui.rot : 0;
+        const cells = rotatePiece(PIECES[h.piece]!, rot);
         const cracked = h.age < PIECE_HARDEN;
         const hard = h.age >= PIECE_HARD;
         return `<button data-action="hand" data-value="${index}" class="piece${
           index === handTool ? ' on' : ''
         }${cracked ? ' cracked' : ''}${hard ? ' hard' : ''}" title="${pieceTitle(cracked, hard)} (${
           index + 1
-        })">${pieceGrid(cells)}</button>`;
+        })">${pieceGrid(cells, pieceEnds(h.piece, rot))}</button>`;
       }).join('')
       : '<span class="muted">Храм ще не видав сегментів</span>');
 
@@ -166,11 +168,20 @@ function pieceTitle(cracked: boolean, hard: boolean): string {
   return hard ? 'Твердий сегмент: вибухи поруч його не тріскають' : 'Звичайний сегмент';
 }
 
-function pieceGrid(cells: [number, number][]): string {
-  const filled = new Set(cells.map(([x, y]) => y * PIECE_GRID + x));
+const END_CLASSES = ['n', 'e', 's', 'w']; // by direction, as in DIRS
+
+/** A piece in its 4×4 box; the edges it attaches by are marked. */
+function pieceGrid(cells: [number, number][], ends: [number, number, number][]): string {
+  const classes = new Map(cells.map(([x, y]) => [y * PIECE_GRID + x, 'f']));
+
+  for (const [x, y, dir] of ends) {
+    const cell = y * PIECE_GRID + x;
+    classes.set(cell, `${classes.get(cell)} ${END_CLASSES[dir]}`);
+  }
+
   return `<span class="grid">${
     Array.from({ length: PIECE_GRID * PIECE_GRID }, (_, i) =>
-      `<i${filled.has(i) ? ' class="f"' : ''}></i>`)
+      `<i${classes.has(i) ? ` class="${classes.get(i)}"` : ''}></i>`)
       .join('')
   }</span>`;
 }
@@ -299,7 +310,7 @@ function combatLines(def: Readonly<UnitDef> | undefined, hpMax: number): string[
 function hint(world: WorldView, ui: UiState): string {
   switch (ui.tool.kind) {
     case 'piece':
-      return 'ЛКМ — покласти сегмент поруч зі своєю землею. Права кнопка — скасувати.';
+      return "ЛКМ — покласти сегмент кінцем до своєї землі або до кінця свого мосту. Боком сегменти не з'єднуються. R — поворот, права кнопка — скасувати.";
     case 'build':
       return world.defs.get(ui.tool.type)?.cls === 'Ground Transport'
         ? 'ЛКМ — поставити на вільну клітинку свого острова, поруч з енергією. Golem робить Храм, інші транспорти — Майстерня їхньої стихії.'

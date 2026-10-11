@@ -68,7 +68,10 @@ test('temple hands out bridge pieces; pieces must touch own ground', () => {
   assert.equal(w.canDropPiece({ player: 1, hand: 0, x: 60, y: 60, rot: 0 }), 'not connected');
   assert.equal(w.canDropPiece({ player: 1, hand: 0, x: 50, y: 40, rot: 0 }), 'blocked');
   assert.equal(w.canDropPiece({ player: 1, hand: 1, x: 51, y: 40, rot: 0 }), 'no piece');
-  assert.equal(w.canDropPiece({ player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null);
+  // The first piece is a single block. It joins on two opposite sides only, so side-on to the
+  // island it does not attach, and turned a quarter it does.
+  assert.equal(w.canDropPiece({ player: 1, hand: 0, x: 51, y: 40, rot: 0 }), 'not connected');
+  assert.equal(w.canDropPiece({ player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null);
   assert.equal(p.hand.length, 1);
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 60, y: 60, rot: 1 }),
     'not connected');
@@ -228,7 +231,10 @@ test('units go off a bridge onto their own island, never on the bridge itself', 
   assert.equal(w.terrain[42 * 256 + 53], 1);
   assert.equal(w.owner[42 * 256 + 53], 1);
   w.players.get(1)!.hand.push({ piece: 1, age: PIECE_HARDEN });
-  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 52, y: 44, rot: 1 }), null);
+  // Lying flat under the islet the domino has no end towards it; standing up it attaches.
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 52, y: 44, rot: 1 }),
+    'not connected');
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 52, y: 44, rot: 0 }), null);
 });
 
 test('the Temple fills the window with the original pieces, small ones guaranteed', () => {
@@ -314,6 +320,28 @@ test('bridge needs an unbroken attachment to the Temple; attaching to a geyser c
   // The geyser islet (79..81 × 39..41) now belongs to the player and carries the connection on.
   assert.equal(w.owner[39 * 256 + 80], 1);
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 82, y: 40, rot: 1 }), null);
+});
+
+test('pieces join end to end, never side to side', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  const flat = { t: 'dropPiece', player: 1, hand: 0, rot: 1 } as const;
+  // A domino along the edge of the island (x = 50): its ends point east and west.
+  p.hand = [{ piece: 1, age: 0 }];
+  assert.equal(w.apply({ ...flat, x: 51, y: 40 }), null);
+  // A second one beside it, a row below, touches it only with its long side.
+  p.hand = [{ piece: 1, age: 0 }];
+  assert.equal(w.apply({ ...flat, x: 53, y: 41 }), 'not connected');
+  assert.equal(w.apply({ ...flat, x: 52, y: 41 }), 'not connected');
+  // Standing up against the side of the first it has an end towards it, but the first has none.
+  assert.equal(w.apply({ ...flat, x: 52, y: 41, rot: 0 }), 'not connected');
+  // End to end it attaches, and the attachment carries on from there.
+  assert.equal(w.apply({ ...flat, x: 53, y: 40 }), null);
+  // A corner piece (east and south) turns the bridge: its west end meets the east end.
+  p.hand = [{ piece: 4, age: 0 }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 55, y: 40, rot: 0 }), null);
+  p.hand = [{ piece: 1, age: 0 }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 56, y: 42, rot: 0 }), null);
 });
 
 test('a piece hardens in the window; explosions and salvage crack solid bridge and collapse cracked', () => {
