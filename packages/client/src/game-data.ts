@@ -55,7 +55,7 @@ export function slimMissions(raw: unknown, maps: Maps): Mission[] {
       title: header.title,
       storm: Number(header.myStartMoney) || 0,
       enemy: typeof header.aiName === 'string' ? header.aiName : '',
-      briefing: section(sections, 'A.'),
+      briefing: section(sections, 'A.', header.title),
       succeeded: section(sections, 'Succeeded') || section(sections, 'succeeded'),
       failed: section(sections, 'Failed'),
     });
@@ -64,9 +64,21 @@ export function slimMissions(raw: unknown, maps: Maps): Mission[] {
   return missions.sort((a, b) => a.title.localeCompare(b.title));
 }
 
-function section(sections: Record<string, unknown>, name: string): string {
+/** A text section, reflowed: the original breaks lines to fit its 640 px windows, so single line
+ * breaks inside a paragraph become spaces. Blank lines and attributions ("--Name") stay. */
+function section(sections: Record<string, unknown>, name: string, title = ''): string {
   const value = sections[name];
-  return typeof value === 'string' ? value.trim() : '';
+  // The briefing repeats the mission title as its first line; the menu shows it as a heading.
+  const lines = typeof value === 'string' ? value.trim().split('\n') : [];
+
+  if (title && lines[0]?.trim().toLowerCase() === title.toLowerCase()) {
+    lines.shift();
+  }
+
+  return lines.length
+    ? lines.join('\n').trim().replace(/[ \t]*\n(?!\n|--)(?<!\n\n)[ \t]*/g, ' ').replace(/ {2,}/g,
+      ' ')
+    : '';
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

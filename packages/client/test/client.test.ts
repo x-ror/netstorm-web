@@ -21,7 +21,10 @@ test('shipped data keeps geysers and the campaign briefings only', () => {
   assert.equal(mission.title, 'The War Begins!');
   assert.equal(mission.enemy, 'The Jailer');
   assert.equal(mission.storm, 3000);
-  assert.match(mission.briefing, /Lords of Darkness/);
+  // The title line is dropped and the original's hard line breaks are reflowed.
+  assert.match(mission.briefing, /^"Darkness and tyranny/);
+  assert.match(mission.briefing, /Lords of Darkness are now/);
+  assert.match(mission.briefing, /\n--Lament of Light\n/);
   assert.match(mission.succeeded, /Success/);
   // Easy and hard variants and non-mission files are left out.
   assert.ok(missions.every((m) => !/easy$|hard$/.test(m.id) && maps[m.id]));

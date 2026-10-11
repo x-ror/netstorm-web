@@ -249,6 +249,10 @@
         cursor: crosshair;
       }
       @media (max-width: 760px) {
+        #units {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        }
         #panel {
           top: auto;
           right: 8px;
