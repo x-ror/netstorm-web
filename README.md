@@ -29,3 +29,15 @@ scripts/          — smoke-browser.mjs: автоматичний browser smoke;
 - `npm run test:browser` перевіряє production-сцену в Chromium. Потрібен браузер Playwright або Google Chrome.
 
 Межі модулів, цикл симуляції, робота з даними та обмеження описані в [архітектурі](docs/architecture.md).
+
+## Коміти
+
+Використовуємо Conventional Commits: `type(scope): description`. Scope необов'язковий. Приклади: `feat(sim): add priest rescue`, `fix(client): update bridge preview`, `perf(sim): index transports`.
+
+`npm ci` або `npm install` встановлює Husky hook через `prepare`. Hook `commit-msg` перевіряє повідомлення локальним commitlint з `@commitlint/config-conventional`. Налаштування відповідає [офіційному посібнику commitlint](https://commitlint.js.org/guides/local-setup).
+
+- `printf '%s\n' 'feat(sim): add priest rescue' | npm run lint:commit` перевіряє повідомлення вручну.
+- `npm run lint:commits -- --last` перевіряє останній коміт.
+- `npm run lint:commits -- --from <base-sha> --to HEAD` перевіряє нові коміти після вказаного SHA.
+
+CI перевіряє коміти pull request відносно базової гілки й останній коміт push. Історію до цих змін не потрібно переписувати.

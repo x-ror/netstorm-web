@@ -10,7 +10,10 @@
     "check": "npm run typecheck && npm test && npm run build && npm run check:size",
     "check:size": "node scripts/check-size.mjs",
     "test:browser": "node scripts/smoke-browser.mjs",
-    "benchmark": "node --import tsx scripts/benchmark-sim.ts"
+    "benchmark": "node --import tsx scripts/benchmark-sim.ts",
+    "prepare": "husky",
+    "lint:commit": "commitlint",
+    "lint:commits": "commitlint --verbose"
   },
   "keywords": [],
   "author": "",
@@ -21,7 +24,10 @@
     "packages/*"
   ],
   "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
     "@types/node": "^26.6.5",
+    "husky": "^9.1.7",
     "playwright": "^1.64.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

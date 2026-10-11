@@ -9,11 +9,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Check pull request commit messages
+        if: github.event_name == 'pull_request'
+        env:
+          COMMIT_BASE: ${{ github.event.pull_request.base.sha }}
+          COMMIT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: npm run lint:commits -- --from "$COMMIT_BASE" --to "$COMMIT_HEAD"
+      - name: Check latest push commit message
+        if: github.event_name == 'push'
+        run: npm run lint:commits -- --last
       - run: npm run check
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
