@@ -24,15 +24,16 @@ const mk = () =>
   ], [[80, 40]]);
 const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
-// Re-pinned when Transport gained `target`; without that field these equal the pre-refactor hashes.
+// Re-pinned when Transport gained `target` and when Crystal Crab's level followed the official help.
+// With both reverted these equal the pre-refactor hashes.
 test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
-    [1, 238646694],
-    [60, 2196105562],
-    [101, 459643884],
-    [200, 1792633689],
-    [400, 3623366358],
+    [1, 4211769341],
+    [60, 2167157105],
+    [101, 2969459431],
+    [200, 2053809426],
+    [400, 3856690405],
   ]);
 
   for (let index = 0; index < 400; index++) {

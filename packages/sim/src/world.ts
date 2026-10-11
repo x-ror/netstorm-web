@@ -8,8 +8,12 @@
  *  - combat units are buildings: placed on own island/bridge cells, never move; cannons fire along a line
  *    in their facing direction, disc throwers / anti-air in a radius; blockers absorb line fire
  *  - transports walk over own island/bridge cells to Storm Geysers, pick up crystals and bring them home
- *  - the High Priest builds, can be shot down to ≤50 % HP (incapacitated), carried by an enemy priest to the
- *    enemy altar and sacrificed → that player is defeated
+ *  - the High Priest can be shot down to ≤50 % HP (incapacitated), carried to the enemy altar and
+ *    sacrificed → that player is defeated
+ *
+ * docs/game-rules.md lists every rule of the original with its source and how this code differs.
+ * Known simplifications: an enemy priest carries the captive (original: a transport), the sacrifice
+ * is instant (original: a five-rune ritual), geysers grow crystals on a timer (original: finite stock).
  *
  * Approximations still to verify against the original (marked TODO):
  *  - energy: generators give 1 energy of their theme, a temple 2; a unit needs energy per its level but does
