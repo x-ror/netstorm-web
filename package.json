@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "npm run dev -w @netstorm/client",
     "build": "npm run build -w @netstorm/client",
-    "test": "npm test -w @netstorm/sim",
+    "test": "npm test --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build && npm run check:size",
     "check:size": "node scripts/check-size.mjs",
