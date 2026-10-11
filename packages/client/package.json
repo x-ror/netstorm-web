@@ -1,15 +1,15 @@
 {
-    "name": "@netstorm/client",
-    "version": "0.0.1",
-    "type": "module",
-    "private": true,
-    "scripts": {
-        "dev": "vite",
-        "build": "vite build",
-        "typecheck": "tsc --noEmit -p ."
-    },
-    "dependencies": {
-        "@netstorm/sim": "*",
-        "pixi.js": "^8.22.0"
-    }
+  "name": "@netstorm/client",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@netstorm/sim": "*",
+    "pixi.js": "^8.22.0"
+  }
 }

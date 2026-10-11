@@ -3,21 +3,21 @@
 export type Theme = 'sun' | 'wind' | 'rain' | 'thunder';
 
 export interface UnitDef {
-  id: string;            // original type name, e.g. "suncannon"
-  name: string;          // description, e.g. "Sun Cannon"
-  cls: string;           // original class: Shooter, Defense, Ground Transport, ...
+  id: string; // original type name, e.g. "suncannon"
+  name: string; // description, e.g. "Sun Cannon"
+  cls: string; // original class: Shooter, Defense, Ground Transport, ...
   theme: Theme | null;
-  level: number;         // 1..3, 0 = not researchable
-  cost: number;          // Storm Power
+  level: number; // 1..3, 0 = not researchable
+  cost: number; // Storm Power
   hp: number;
-  range: number;         // cells
-  dps: number;           // hpPerSec
+  range: number; // cells
+  dps: number; // hpPerSec
   footX: number;
   footY: number;
-  speed: number;         // cells per second (transports)
-  group: string;         // cannon | archer | blocker | fence | aviary | battery | walker | balloon | anti-air | ''
-  delay: number;         // delayBetweenShots (s)
-  lifeSpan: number;      // s, aerial attackers
+  speed: number; // cells per second (transports)
+  group: string; // cannon | archer | blocker | fence | aviary | battery | walker | balloon | anti-air | ''
+  delay: number; // delayBetweenShots (s)
+  lifeSpan: number; // s, aerial attackers
 }
 
 export type DefTable = Map<string, UnitDef>;
@@ -26,27 +26,44 @@ export function loadDefs(raw: unknown): DefTable {
   if (!Array.isArray(raw)) throw new TypeError('Unit definitions must be an array');
   const t: DefTable = new Map();
   for (const value of raw) {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Invalid unit definition');
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+      throw new TypeError('Invalid unit definition');
     const r = value as Record<string, unknown>;
-    if (typeof r.id !== 'string' || !r.id.trim()) throw new TypeError('Unit definition needs an id');
+    if (typeof r.id !== 'string' || !r.id.trim())
+      throw new TypeError('Unit definition needs an id');
     const id = r.id.toLowerCase();
     // Original extraction contains repeated ids. Later definitions override earlier ones.
     const theme = typeof r.theme === 'string' ? r.theme.toLowerCase() : null;
     t.set(id, {
-      id, name: str(r.description, id), cls: str(r.class),
-      theme: (['sun', 'wind', 'rain', 'thunder'].includes(theme ?? '') ? theme : null) as Theme | null,
-      level: num(r.level), cost: num(r.cost), hp: num(r.maxHitPoints), range: num(r.range), dps: num(r.hpPerSec),
-      footX: num(r.foot_x, 1), footY: num(r.foot_y, 1), speed: num(r.speed), group: str(r.group),
-      delay: num(r.delayBetweenShots), lifeSpan: num(r.lifeSpan),
+      id,
+      name: str(r.description, id),
+      cls: str(r.class),
+      theme: (['sun', 'wind', 'rain', 'thunder'].includes(theme ?? '')
+        ? theme
+        : null) as Theme | null,
+      level: num(r.level),
+      cost: num(r.cost),
+      hp: num(r.maxHitPoints),
+      range: num(r.range),
+      dps: num(r.hpPerSec),
+      footX: num(r.foot_x, 1),
+      footY: num(r.foot_y, 1),
+      speed: num(r.speed),
+      group: str(r.group),
+      delay: num(r.delayBetweenShots),
+      lifeSpan: num(r.lifeSpan),
     });
   }
   return t;
 }
 
-function str(v: unknown, fallback = ''): string { return typeof v === 'string' ? v : fallback; }
+function str(v: unknown, fallback = ''): string {
+  return typeof v === 'string' ? v : fallback;
+}
 function num(v: unknown, fallback = 0): number {
   if (v === undefined) return fallback;
-  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) throw new TypeError('Unit values must be finite non-negative numbers');
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0)
+    throw new TypeError('Unit values must be finite non-negative numbers');
   return v;
 }
 

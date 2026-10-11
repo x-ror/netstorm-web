@@ -10,14 +10,17 @@ function gameAssets(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const path = req.url?.split('?')[0];
-        const name = path === '/data/units.json' ? 'units' : path === '/data/forts.json' ? 'forts' : undefined;
+        const name =
+          path === '/data/units.json' ? 'units' : path === '/data/forts.json' ? 'forts' : undefined;
         if (!name) return next();
         res.setHeader('Content-Type', 'application/json');
         res.end(readFileSync(new URL(`../../data/${name}.json`, import.meta.url)));
       });
     },
     generateBundle() {
-      const manifest: Manifest = JSON.parse(readFileSync(new URL('./public/data/sprites.json', import.meta.url), 'utf8'));
+      const manifest: Manifest = JSON.parse(
+        readFileSync(new URL('./public/data/sprites.json', import.meta.url), 'utf8'),
+      );
       const selected: Manifest = {};
       const files = new Set<string>();
       for (const [, type, gif, frame] of TEXTURES) {
@@ -28,13 +31,28 @@ function gameAssets(): Plugin {
         files.add(file);
       }
       for (const file of files) {
-        if (!file.startsWith('sprites/') || file.split('/').includes('..')) throw new Error(`Invalid sprite path: ${file}`);
-        this.emitFile({ type: 'asset', fileName: file, source: readFileSync(new URL(`./public/${file}`, import.meta.url)) });
+        if (!file.startsWith('sprites/') || file.split('/').includes('..'))
+          throw new Error(`Invalid sprite path: ${file}`);
+        this.emitFile({
+          type: 'asset',
+          fileName: file,
+          source: readFileSync(new URL(`./public/${file}`, import.meta.url)),
+        });
       }
-      this.emitFile({ type: 'asset', fileName: 'data/sprites.json', source: JSON.stringify(selected) });
+      this.emitFile({
+        type: 'asset',
+        fileName: 'data/sprites.json',
+        source: JSON.stringify(selected),
+      });
       for (const name of ['units', 'forts']) {
-        const data = JSON.parse(readFileSync(new URL(`../../data/${name}.json`, import.meta.url), 'utf8'));
-        this.emitFile({ type: 'asset', fileName: `data/${name}.json`, source: JSON.stringify(data) });
+        const data = JSON.parse(
+          readFileSync(new URL(`../../data/${name}.json`, import.meta.url), 'utf8'),
+        );
+        this.emitFile({
+          type: 'asset',
+          fileName: `data/${name}.json`,
+          source: JSON.stringify(data),
+        });
       }
     },
   };

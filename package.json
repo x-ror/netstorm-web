@@ -1,33 +1,41 @@
 {
   "name": "netstorm-web",
   "version": "1.0.0",
+  "private": true,
   "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "workspaces": [
+    "packages/*"
+  ],
+  "type": "module",
   "scripts": {
     "dev": "npm run dev -w @netstorm/client",
     "build": "npm run build -w @netstorm/client",
     "test": "npm test -w @netstorm/sim",
     "typecheck": "npm run typecheck --workspaces",
-    "check": "npm run typecheck && npm test && npm run build && npm run check:size",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build && npm run check:size",
     "check:size": "node scripts/check-size.mjs",
     "test:browser": "node scripts/smoke-browser.mjs",
     "benchmark": "node --import tsx scripts/benchmark-sim.ts",
     "prepare": "husky",
     "lint:commit": "commitlint",
-    "lint:commits": "commitlint --verbose"
+    "lint:commits": "commitlint --verbose",
+    "lint": "oxlint --deny-warnings .",
+    "lint:fix": "oxlint --fix --deny-warnings .",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "lint:staged": "lint-staged"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "private": true,
-  "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@types/node": "^26.6.5",
     "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "oxfmt": "^0.72.0",
+    "oxlint": "^1.87.0",
     "playwright": "^1.64.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

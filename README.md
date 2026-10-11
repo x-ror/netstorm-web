@@ -41,3 +41,16 @@ scripts/          — smoke-browser.mjs: автоматичний browser smoke;
 - `npm run lint:commits -- --from <base-sha> --to HEAD` перевіряє нові коміти після вказаного SHA.
 
 CI перевіряє коміти pull request відносно базової гілки й останній коміт push. Історію до цих змін не потрібно переписувати.
+
+## Лінтинг і форматування
+
+[Oxlint](https://oxc.rs/docs/guide/usage/linter/quickstart) перевіряє JavaScript і TypeScript. [Oxfmt](https://oxc.rs/docs/guide/usage/formatter/quickstart) форматує код та конфігурацію. Стиль: два пробіли, одинарні лапки в JS/TS, крапки з комою, ширина рядка 100.
+
+- `npm run lint` перевіряє код; попередження теж завершують команду помилкою.
+- `npm run lint:fix` застосовує безпечні автоматичні виправлення Oxlint.
+- `npm run format` форматує файли.
+- `npm run format:check` перевіряє форматування без змін.
+
+Hook `pre-commit` через lint-staged запускає Oxlint і Oxfmt для підготовлених до коміту файлів. `npm run check` і CI перевіряють весь код. Експортовані ігрові дані, public-асети, збірки, lockfile та Markdown не форматуються.
+
+Правила `unicorn/no-array-sort` і `unicorn/no-array-reverse` вимкнені: симуляція сортує й розвертає власні тимчасові масиви на місці, щоб уникнути додаткового копіювання. TypeScript окремо перевіряє типи через `npm run typecheck`.

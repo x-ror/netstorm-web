@@ -6,8 +6,16 @@ export class FixedStepClock {
   private accumulator = 0;
   readonly stepMs: number;
 
-  constructor(ticksPerSecond: number, readonly maxSteps = 5) {
-    if (!Number.isFinite(ticksPerSecond) || ticksPerSecond <= 0 || !Number.isSafeInteger(maxSteps) || maxSteps < 1) {
+  constructor(
+    ticksPerSecond: number,
+    readonly maxSteps = 5,
+  ) {
+    if (
+      !Number.isFinite(ticksPerSecond) ||
+      ticksPerSecond <= 0 ||
+      !Number.isSafeInteger(maxSteps) ||
+      maxSteps < 1
+    ) {
       throw new RangeError('Invalid fixed-step clock configuration');
     }
     this.stepMs = 1000 / ticksPerSecond;
@@ -25,5 +33,7 @@ export class FixedStepClock {
     return steps;
   }
 
-  reset(): void { this.accumulator = 0; }
+  reset(): void {
+    this.accumulator = 0;
+  }
 }

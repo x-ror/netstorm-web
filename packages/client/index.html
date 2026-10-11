@@ -1,21 +1,65 @@
 <!doctype html>
 <html lang="uk">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NetStorm Web — spike</title>
-<style>
-  html, body { margin: 0; height: 100%; background: #0b1020; color: #cfd6e6; font: 13px/1.4 system-ui, sans-serif; overflow: hidden; }
-  #hud { position: fixed; left: 12px; top: 10px; z-index: 2; background: rgba(8,12,24,.8); padding: 10px 12px; border-radius: 8px; max-width: 340px; }
-  #hud b { color: #ffd166; }
-  #hud button { margin: 4px 4px 0 0; padding: 4px 8px; background: #22304f; color: #e6ecff; border: 1px solid #3b4d7a; border-radius: 5px; cursor: pointer; }
-  #hud button.on { background: #ffd166; color: #141a2e; }
-  #log { position: fixed; right: 12px; top: 10px; z-index: 2; background: rgba(8,12,24,.8); padding: 8px 12px; border-radius: 8px; width: 260px; max-height: 40vh; overflow: auto; font-size: 12px; }
-</style>
-</head>
-<body>
-<div id="hud"></div>
-<div id="log"></div>
-<script type="module" src="/src/main.ts"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NetStorm Web — spike</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b1020;
+        color: #cfd6e6;
+        font:
+          13px/1.4 system-ui,
+          sans-serif;
+        overflow: hidden;
+      }
+      #hud {
+        position: fixed;
+        left: 12px;
+        top: 10px;
+        z-index: 2;
+        background: rgba(8, 12, 24, 0.8);
+        padding: 10px 12px;
+        border-radius: 8px;
+        max-width: 340px;
+      }
+      #hud b {
+        color: #ffd166;
+      }
+      #hud button {
+        margin: 4px 4px 0 0;
+        padding: 4px 8px;
+        background: #22304f;
+        color: #e6ecff;
+        border: 1px solid #3b4d7a;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      #hud button.on {
+        background: #ffd166;
+        color: #141a2e;
+      }
+      #log {
+        position: fixed;
+        right: 12px;
+        top: 10px;
+        z-index: 2;
+        background: rgba(8, 12, 24, 0.8);
+        padding: 8px 12px;
+        border-radius: 8px;
+        width: 260px;
+        max-height: 40vh;
+        overflow: auto;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud"></div>
+    <div id="log"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>

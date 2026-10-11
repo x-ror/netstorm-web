@@ -5,7 +5,9 @@ import { World, loadDefs } from '../src/index.js';
 
 import { ScanWorld } from './reference-world.js';
 
-const defs = loadDefs(JSON.parse(readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8')));
+const defs = loadDefs(
+  JSON.parse(readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8')),
+);
 const mk = () => new World(defs, 42);
 
 test('stacked transports keep entity order after an earlier transport moves into their cell', () => {
@@ -13,7 +15,8 @@ test('stacked transports keep entity order after an earlier transport moves into
   world.addIsland(0, 0, 100, 100, 2);
   const first = world.spawnTransport('sunwalker', 2, 59, 40);
   const second = world.spawnTransport('sunwalker', 2, 60, 40);
-  first.path = [[60, 40]]; first.move = 100;
+  first.path = [[60, 40]];
+  first.move = 100;
   world.spawnBuilding('suncannon', 1, 48, 39, 1);
   world.step();
   assert.equal(first.x, 60);
@@ -25,7 +28,8 @@ test('a transport moves out of the firing line before a later cannon updates', (
   const world = mk();
   world.addIsland(0, 0, 100, 100, 2);
   const target = world.spawnTransport('sunwalker', 2, 60, 40);
-  target.path = [[60, 41]]; target.move = 100;
+  target.path = [[60, 41]];
+  target.move = 100;
   world.spawnBuilding('suncannon', 1, 48, 39, 1);
   world.step();
   assert.equal(target.hp, target.hpMax);
@@ -58,20 +62,31 @@ test('tick rebuild includes externally moved, removed and newly spawned transpor
 });
 
 test('indexed combat matches full scans through moving, stacked, blocked and destroyed targets', () => {
-  const indexed = mk(), scanned = new ScanWorld(defs);
+  const indexed = mk(),
+    scanned = new ScanWorld(defs);
   for (const world of [indexed, scanned]) {
     world.addIsland(0, 0, 256, 256, 2);
     for (let row = 0; row < 8; row++) {
       world.spawnBuilding(row % 2 ? 'sunarcher' : 'suncannon', 1, 30, 20 + row * 10, 1);
       for (let i = 0; i < 10; i++) {
-        const transport = world.spawnTransport('sunwalker', i % 3 === 0 ? 1 : 2, 35 + i, 21 + row * 10);
-        transport.path = [[transport.x, transport.y + 1], [transport.x + 1, transport.y + 1], [transport.x + 1, transport.y]];
+        const transport = world.spawnTransport(
+          'sunwalker',
+          i % 3 === 0 ? 1 : 2,
+          35 + i,
+          21 + row * 10,
+        );
+        transport.path = [
+          [transport.x, transport.y + 1],
+          [transport.x + 1, transport.y + 1],
+          [transport.x + 1, transport.y],
+        ];
       }
       if (row % 3 === 0) world.spawnBuilding('sunblocker', 2, 38, 19 + row * 10);
     }
   }
   for (let tick = 0; tick < 120; tick++) {
-    indexed.step(); scanned.step();
+    indexed.step();
+    scanned.step();
     assert.equal(indexed.hash(), scanned.hash(), `state diverged at tick ${tick}`);
     assert.deepEqual(indexed.drainEvents(), scanned.drainEvents());
   }
