@@ -76,11 +76,23 @@ export function canBuild(
     return 'unknown tech';
   }
 
+  if (!BUILDABLE.has(def.cls)) {
+    return 'cannot build';
+  }
+
+  const maker = makerError(world, command.player, def);
+
+  if (maker) {
+    return maker;
+  }
+
   if (player.storm < def.cost) {
     return 'no storm power';
   }
 
-  const site = siteError(world, command.player, def, command.x, command.y);
+  const site = def.cls === 'Ground Transport'
+    ? transportSiteError(world, command.player, command.x, command.y)
+    : siteError(world, command.player, def, command.x, command.y);
 
   if (site) {
     return site;
@@ -89,6 +101,68 @@ export function canBuild(
   return def.level > 0 && !hasEnergy(world, command.player, def, command.x, command.y)
     ? 'no energy'
     : null;
+}
+
+/** Classes a player can put down. Aerial units, spells, geysers and the High Priest have no rules
+ * here yet, so building them is refused rather than making a static building of them. */
+const BUILDABLE = new Set<string>([
+  'Shooter',
+  'Defense',
+  'Anti-Air',
+  'Source of Energy',
+  'Air Attack Base',
+  'Production',
+  'Energy',
+  'Altar',
+  'Residence',
+  'Ground Transport',
+]);
+
+/** "Temples allow you to create Golems"; every other unit comes from "a Workshop of the appropriate
+ * Fury alignment", and a destroyed Workshop takes that ability with it. Sun units would need a Sun
+ * Workshop, but no player starts with one and the help also puts the first Disc Throwers and Sun
+ * Cannons "into production with your first Workshop", so Sun units other than the Golem are not
+ * held to it yet (see docs/game-rules.md). Production slots are not modelled. */
+function makerError(world: WorldView, player: number, def: UnitDef): CommandError | null {
+  if (def.level === 0) {
+    return null;
+  }
+
+  if (def.id === GOLEM) {
+    return world.buildingsOf(player).some((b) => world.def(b.type).cls === 'Energy')
+      ? null
+      : 'no temple';
+  }
+
+  if (!def.theme || def.theme === 'sun') {
+    return null;
+  }
+
+  return world.buildingsOf(player).some((b) => {
+      const maker = world.def(b.type);
+      return maker.cls === 'Production' && maker.theme === def.theme;
+    })
+    ? null
+    : 'no workshop';
+}
+
+const GOLEM = 'sunwalker';
+
+/** A transport is laid on a cell of the player's own island that no building or priest takes up.
+ * Whether the original also lets one be laid on a bridge or off its end is unknown (`?`). */
+function transportSiteError(
+  world: WorldView,
+  player: number,
+  x: number,
+  y: number,
+): CommandError | null {
+  if (!world.inside(x, y) || world.occupant[world.at(x, y)]) {
+    return 'blocked';
+  }
+
+  return world.terrain[world.at(x, y)] === Terrain.Island && world.isOwnGround(player, x, y)
+    ? null
+    : 'blocked';
 }
 
 /** Energy icons on a unit's card, by level. Read from the game for Sun units of level 1 (Sun Cannon,
@@ -210,6 +284,14 @@ export function build(world: World, c: Extract<Command, { t: 'build'; }>): Comma
 
   const def = world.def(c.type);
   pl.storm -= def.cost;
+
+  // "When a Workshop creates a unit ... the unit will be created on the spot": a transport walks
+  // away from where it was laid.
+  if (def.cls === 'Ground Transport') {
+    const transport = world.spawnTransport(def.id, c.player, c.x, c.y);
+    world.emit({ what: 'build', who: c.player, data: { id: transport.id, type: def.id } });
+    return null;
+  }
 
   // A unit laid off a bridge stands on an island of its own, from which more bridge can be built.
   if (world.terrain[world.at(c.x, c.y)] === Terrain.Sky) {

@@ -17,6 +17,8 @@ export const REJECTIONS: Record<string, string> = {
   'bad target': 'невідповідна ціль',
   'no temple': 'немає Храму',
   'no altar': 'немає Вівтаря',
+  'no workshop': 'немає Майстерні цієї стихії',
+  'cannot build': 'цей юніт ще не можна будувати',
   'no path': 'туди не дійти',
   'priest unavailable': 'жрець недоступний',
   'target not incapacitated': 'жрець ще не знерухомлений',

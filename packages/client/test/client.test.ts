@@ -62,11 +62,13 @@ test('geysers that would cut into a home island are dropped', () => {
   assert.deepEqual(geysers.map((g) => [g.x, g.y]), [[110, 120]]);
 });
 
-test('the Production Window offers buildings, not transports', () => {
+test('the Production Window offers buildings and ground transports, not aerial units', () => {
   assert.ok(placeable(defs.get('suncannon')!));
   assert.ok(placeable(defs.get('windbattery')!));
-  assert.ok(!placeable(defs.get('windwalker')!));
+  assert.ok(placeable(defs.get('windwalker')!));
+  assert.ok(placeable(defs.get('sunwalker')!));
   assert.ok(!placeable(defs.get('sunballoon')!));
+  assert.ok(!placeable(defs.get('geyser')!));
 });
 
 test('a footprint is centred on the cursor', () => {
