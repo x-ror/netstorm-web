@@ -7,6 +7,7 @@ import {
   TPS,
   PIECE_INTERVAL,
   GEYSER_STOCK,
+  PIECE_HARDEN,
   CRYSTAL_VALUE,
 } from '../src/index.js';
 
@@ -62,7 +63,8 @@ test('temple hands out bridge pieces; pieces must touch own ground', () => {
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null); // right edge of island is x=50
   assert.equal(p.hand.length, 0);
   const cells = w.events.at(-1)!.data as [number, number][];
-  assert.ok(cells.every(([x, y]) => w.terrain[y * 256 + x] === 2 && w.owner[y * 256 + x] === 1));
+  // the piece spent no time in the window, so it is laid as cracked bridge
+  assert.ok(cells.every(([x, y]) => w.terrain[y * 256 + x] === 3 && w.owner[y * 256 + x] === 1));
 });
 
 test('build: needs tech, storm power, energy and own ground', () => {
@@ -200,7 +202,7 @@ test('units go off a bridge onto their own island, never on the bridge itself', 
   // The unit stands on an island of its own, and bridge can continue from it.
   assert.equal(w.terrain[42 * 256 + 53], 1);
   assert.equal(w.owner[42 * 256 + 53], 1);
-  w.players.get(1)!.hand.push(7);
+  w.players.get(1)!.hand.push({ piece: 7, age: PIECE_HARDEN });
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 52, y: 44, rot: 0 }), null);
 });
 
@@ -226,7 +228,7 @@ test('bridge needs an unbroken attachment to the Temple; attaching to a geyser c
   const w = mk();
   const p = w.players.get(1)!;
   bridge(w, 51, 76);
-  p.hand.push(7, 7); // dominoes
+  p.hand.push({ piece: 7, age: PIECE_HARDEN }, { piece: 7, age: PIECE_HARDEN }); // dominoes
   w.terrain[40 * 256 + 55] = 0; // cut the bridge
   w.owner[40 * 256 + 55] = 0;
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 77, y: 40, rot: 0 }),
@@ -237,4 +239,70 @@ test('bridge needs an unbroken attachment to the Temple; attaching to a geyser c
   // The geyser islet (79..81 × 39..41) now belongs to the player and carries the connection on.
   assert.equal(w.owner[39 * 256 + 80], 1);
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 82, y: 40, rot: 0 }), null);
+});
+
+test('a piece hardens in the window; explosions and salvage crack solid bridge and collapse cracked', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  const at = (x: number, y: number) => w.terrain[y * 256 + x];
+
+  for (let i = 0; i < PIECE_INTERVAL; i++) {
+    w.step();
+  }
+
+  assert.equal(p.hand[0]!.age, 0);
+
+  for (let i = 0; i < PIECE_HARDEN; i++) {
+    w.step();
+  }
+
+  assert.equal(p.hand[0]!.age, PIECE_HARDEN);
+  p.hand = [{ piece: 7, age: PIECE_HARDEN }, { piece: 7, age: 0 }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null);
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 53, y: 40, rot: 0 }), null);
+  assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [2, 2, 3, 3]);
+  // A cannon off the bridge, touching one solid cell (52) and two cracked cells (53, 54).
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 52, y: 41 }), 'no energy');
+  w.spawnBuilding('sunbattery', 1, 46, 44);
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 52, y: 41 }), null);
+  const cannon = w.buildingsOf(1).find((b) => b.type === 'suncannon')!;
+  const rider = w.spawnTransport('sunwalker', 1, 53, 40);
+  const stander = w.spawnTransport('sunwalker', 1, 52, 40);
+  const revision = w.terrainRevision;
+  assert.equal(w.apply({ t: 'salvage', player: 1, target: cannon.id }), null);
+  // Solid cracks; cracked falls, and so does whatever stood on it.
+  assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [2, 3, 0, 0]);
+  assert.equal(w.owner[40 * 256 + 53], 0);
+  assert.ok(w.terrainRevision > revision);
+  w.step();
+  assert.ok(!w.entities.has(rider.id));
+  assert.ok(w.entities.has(stander.id));
+  // Nothing can be laid beyond the gap: it would not be attached to the Temple.
+  p.hand = [{ piece: 7, age: PIECE_HARDEN }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 55, y: 40, rot: 0 }),
+    'not connected');
+});
+
+test('a priest left without ground hangs in place until bridge is laid under him', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  const priest = w.priestOf(1)!;
+  p.hand = [{ piece: 7, age: 0 }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null);
+  w.occupant[w.at(priest.x, priest.y)] = 0;
+  priest.x = 51;
+  priest.y = 40;
+  w.occupant[w.at(51, 40)] = priest.id;
+  // The islet of a destroyed unit next to the cracked bridge takes the bridge with it.
+  const tower = w.spawnBuilding('sunblocker', 2, 51, 41);
+  tower.hp = 0;
+  w.step();
+  assert.equal(w.terrain[40 * 256 + 51], 0);
+  assert.equal(priest.hp, priest.hpMax);
+  assert.equal(w.apply({ t: 'movePriest', player: 1, x: 45, y: 40 }), 'priest unavailable');
+  w.step();
+  assert.deepEqual([priest.x, priest.y], [51, 40]);
+  p.hand = [{ piece: 7, age: PIECE_HARDEN }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null);
+  assert.equal(w.apply({ t: 'movePriest', player: 1, x: 45, y: 40 }), null);
 });

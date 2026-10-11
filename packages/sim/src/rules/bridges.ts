@@ -1,6 +1,6 @@
 import type { World } from '../world.js';
 import type { Command, CommandError } from '../commands.js';
-import { W, H, Terrain, DIRS, PIECES, rotatePiece } from '../state.js';
+import { W, H, Terrain, DIRS, PIECES, PIECE_HARDEN, rotatePiece, type Building } from '../state.js';
 
 /** Cells of the player's ground joined to the Temple by an unbroken run of own island and bridge. */
 function connectedToTemple(world: World, player: number): Uint8Array | null {
@@ -70,13 +70,13 @@ export function dropPiece(
 ): CommandError | null {
   const pl = world.players.get(c.player)!;
 
-  const piece = pl.hand[c.hand];
+  const entry = pl.hand[c.hand];
 
-  if (piece === undefined) {
+  if (entry === undefined) {
     return 'no piece';
   }
 
-  const cells = rotatePiece(PIECES[piece]!, c.rot).map(([dx, dy]) =>
+  const cells = rotatePiece(PIECES[entry.piece]!, c.rot).map(([dx, dy]) =>
     [c.x + dx, c.y + dy] as [number, number]
   );
 
@@ -101,7 +101,10 @@ export function dropPiece(
   }
 
   for (const [x, y] of cells) {
-    world.terrain[world.at(x, y)] = Terrain.Bridge;
+    // A piece laid before it hardened in the window makes a cracked bridge.
+    world.terrain[world.at(x, y)] = entry.age < PIECE_HARDEN
+      ? Terrain.CrackedBridge
+      : Terrain.Bridge;
     world.owner[world.at(x, y)] = c.player;
   }
 
@@ -115,4 +118,61 @@ export function dropPiece(
   pl.hand.splice(c.hand, 1);
   world.emit({ what: 'bridge', who: c.player, data: cells });
   return null;
+}
+
+/** "When a unit explodes cracked bridge nearby will also crumble. Normal bridge that was adjacent to
+ * the unit will crack." Salvaging affects bridge "in the same way". Applies to the cells sharing an
+ * edge with the unit's footprint; how far "nearby" reaches in the original is unknown. */
+export function shakeBridges(world: World, b: Building): void {
+  let changed = false;
+
+  const shake = (x: number, y: number): void => {
+    if (!world.inside(x, y)) {
+      return;
+    }
+
+    const i = world.at(x, y);
+
+    if (world.terrain[i] === Terrain.Bridge) {
+      world.terrain[i] = Terrain.CrackedBridge;
+      changed = true;
+    } else if (world.terrain[i] === Terrain.CrackedBridge) {
+      collapse(world, x, y);
+      changed = true;
+    }
+  };
+
+  for (let x = b.x; x < b.x + b.fx; x++) {
+    shake(x, b.y - 1);
+    shake(x, b.y + b.fy);
+  }
+
+  for (let y = b.y; y < b.y + b.fy; y++) {
+    shake(b.x - 1, y);
+    shake(b.x + b.fx, y);
+  }
+
+  if (changed) {
+    world.invalidateTerrain();
+  }
+}
+
+/** A bridge cell falls away. Transports on it are lost with it; a priest cannot be killed, so he is
+ * left hanging in place and cannot move until bridge is laid under him again. */
+function collapse(world: World, x: number, y: number): void {
+  const i = world.at(x, y);
+  world.terrain[i] = Terrain.Sky;
+  world.owner[i] = 0;
+
+  for (const e of world.entities.values()) {
+    if (e.x !== x || e.y !== y) {
+      continue;
+    }
+
+    if (e.kind === 'transport') {
+      e.hp = 0;
+    } else if (e.kind === 'priest' && e.state !== 'carried' && e.state !== 'chained') {
+      e.path = [];
+    }
+  }
 }

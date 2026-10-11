@@ -1,6 +1,6 @@
 import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
-import { TPS, type Priest } from '../state.js';
+import { TPS, Terrain, type Priest } from '../state.js';
 import { advance } from './movement.js';
 import { tickRitual } from './capture.js';
 
@@ -48,6 +48,12 @@ export function tickPriest(world: World, p: Priest): void {
     return;
   }
 
+  // With no ground under him he hangs in place until bridge is laid there again.
+  if (world.terrain[world.at(p.x, p.y)] === Terrain.Sky) {
+    p.path = [];
+    return;
+  }
+
   advance(world, p, PRIEST_SPEED);
 }
 
@@ -57,7 +63,7 @@ export function movePriest(
 ): CommandError | null {
   const p = world.priestOf(c.player);
 
-  if (!p || p.state !== 'normal') {
+  if (!p || p.state !== 'normal' || world.terrain[world.at(p.x, p.y)] === Terrain.Sky) {
     return 'priest unavailable';
   }
 

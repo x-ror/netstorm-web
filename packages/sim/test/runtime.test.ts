@@ -50,7 +50,7 @@ test('equivalent frame timing gives the same simulation state', () => {
 test('hash detects future-affecting changes omitted by the original checksum', () => {
   const mutations: Array<(w: World) => void> = [
     (w) => {
-      w.players.get(1)!.hand.push(0);
+      w.players.get(1)!.hand.push({ piece: 0, age: 0 });
     },
     (w) => {
       w.players.get(1)!.pieceTimer--;
@@ -93,8 +93,8 @@ test('hash detects future-affecting changes omitted by the original checksum', (
 
   const a = mk();
   const b = mk();
-  a.players.get(1)!.hand = [0];
-  b.players.get(1)!.hand = [1];
+  a.players.get(1)!.hand = [{ piece: 0, age: 0 }];
+  b.players.get(1)!.hand = [{ piece: 1, age: 0 }];
   assert.notEqual(a.hash(), b.hash());
 });
 

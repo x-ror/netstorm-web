@@ -9,6 +9,7 @@ const CELL_CENTER = 0.5;
 const MIN_ALPHA = 0.5; // alpha of an entity at zero hp
 const COLOR = {
   bridge: 0x8a8f99,
+  crackedBridge: 0x5a5148,
   ownLand: 0x5c7a3a,
   enemyLand: 0x7a3a3a,
   neutralLand: 0x6b5a3a,
@@ -120,6 +121,10 @@ export function createWorldRenderer(
 function terrainColor(terrain: number, owner: number): number {
   if (terrain === Terrain.Bridge) {
     return COLOR.bridge;
+  }
+
+  if (terrain === Terrain.CrackedBridge) {
+    return COLOR.crackedBridge;
   }
 
   if (owner === 1) {

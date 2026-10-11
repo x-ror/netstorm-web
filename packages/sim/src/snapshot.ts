@@ -1,6 +1,16 @@
 import { UNIT_CLASSES, UNIT_GROUPS, type UnitDef } from './defs.js';
 import type { Entity, Player } from './state.js';
-import { W, H, PIECES, FACINGS, MAX_ID, MAX_PLAYERS, MAX_UINT32 } from './state.js';
+import {
+  W,
+  H,
+  PIECES,
+  PIECE_HARDEN,
+  FACINGS,
+  MAX_ID,
+  MAX_PLAYERS,
+  MAX_UINT32,
+  Terrain,
+} from './state.js';
 import {
   boolean,
   choice,
@@ -13,8 +23,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 5;
-export const RULES_VERSION = 7;
+export const SNAPSHOT_VERSION = 6;
+export const RULES_VERSION = 8;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -204,9 +214,14 @@ function parsePlayer(raw: unknown): SnapshotPlayer {
     theme: choice(value.theme, ['sun', 'wind', 'rain', 'thunder'], 'player.theme'),
     storm: finite(value.storm, 'player.storm'),
     tech,
-    hand: list(value.hand, 'player.hand').map((entry) =>
-      integer(entry, 'piece', 0, PIECES.length - 1)
-    ),
+    hand: list(value.hand, 'player.hand').map((rawPiece) => {
+      const entry = record(rawPiece, 'hand piece');
+      keys(entry, ['piece', 'age'], 'hand piece');
+      return {
+        piece: integer(entry.piece, 'piece', 0, PIECES.length - 1),
+        age: integer(entry.age, 'piece.age', 0, PIECE_HARDEN),
+      };
+    }),
     pieceTimer: integer(value.pieceTimer, 'player.pieceTimer', -Number.MAX_SAFE_INTEGER),
     alive: boolean(value.alive, 'player.alive'),
   };
@@ -277,7 +292,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     rngState: integer(value.rngState, 'snapshot.rngState', 0, MAX_UINT32),
     nextId,
     winner: nullableId(value.winner, 'snapshot.winner'),
-    terrain: grid(value.terrain, 'terrain', 2),
+    terrain: grid(value.terrain, 'terrain', Terrain.CrackedBridge),
     owner: grid(value.owner, 'owner', MAX_PLAYERS),
     occupant: grid(value.occupant, 'occupant', MAX_ID),
     defs,

@@ -1,5 +1,6 @@
 import type { World } from '../world.js';
 import type { UnitDef } from '../defs.js';
+import { shakeBridges } from './bridges.js';
 import {
   TPS,
   DIRS,
@@ -29,6 +30,7 @@ function selfAiming(def: UnitDef): boolean {
 export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void {
   if (b.hp <= 0) {
     removeBuilding(world, b);
+    shakeBridges(world, b);
     world.emit({ what: 'destroyed', who: b.owner, data: { id: b.id, type: b.type } });
     return;
   }

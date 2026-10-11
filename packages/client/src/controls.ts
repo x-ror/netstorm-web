@@ -2,6 +2,7 @@ import { type Application, type Container, type Graphics } from 'pixi.js';
 import {
   TPS,
   PIECES,
+  PIECE_HARDEN,
   ROTATION_MASK,
   rotatePiece,
   DIRS,
@@ -48,7 +49,7 @@ export function createControls(
     const en = world.energy(1);
     hud.innerHTML =
       `<b>NetStorm Web</b> · tick ${world.tick} · Storm Power <b>${p.storm}</b> · енергія ${en.own}/${en.total} · сегменти мостів: ${
-        p.hand.map((i) => 'IOTLJSZ-'[i]).join(' ') || '—'
+        p.hand.map((h) => 'IOTLJSZ-'[h.piece] + (h.age < PIECE_HARDEN ? '*' : '')).join(' ') || '—'
       }<br>`
       + `режим: <b>${mode}</b> &nbsp; R — повернути (${rot}) &nbsp; F — напрям гармати (${
         'ПСхЗ'[facing]
@@ -220,7 +221,9 @@ export function createControls(
     let cells: [number, number][];
 
     if (mode === 'piece' && p.hand.length) {
-      cells = rotatePiece(PIECES[p.hand[0]!]!, rot).map(([dx, dy]) => [hover.x + dx, hover.y + dy]);
+      cells = rotatePiece(PIECES[p.hand[0]!.piece]!, rot).map((
+        [dx, dy],
+      ) => [hover.x + dx, hover.y + dy]);
     } else if (definition) {
       cells = Array.from({ length: definition.footX * definition.footY }, (_, index) => [
         hover.x - 1 + (index % definition.footX),

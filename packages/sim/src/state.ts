@@ -5,6 +5,9 @@ export const W = 256;
 export const H = 256; // world size in cells
 const PIECE_INTERVAL_SECONDS = 6;
 export const PIECE_INTERVAL = PIECE_INTERVAL_SECONDS * TPS; // temple emits a bridge piece every 6 s      TODO verify
+// Invented: a new piece is cracked and "becomes more solid" after "a few seconds" in the window.
+const PIECE_HARDEN_SECONDS = 3;
+export const PIECE_HARDEN = PIECE_HARDEN_SECONDS * TPS;
 export const HAND_SIZE = 3; // pieces a player can hold                   TODO verify
 // The official help gives neither number (the stock is the "Money per Geyser" battle option);
 // both come from the .type files and are unconfirmed. See docs/game-rules.md.
@@ -30,6 +33,18 @@ export const enum Terrain {
   Sky = 0,
   Island = 1,
   Bridge = 2,
+  /** Laid from a piece that had not hardened yet: it crumbles where a solid bridge only cracks. */
+  CrackedBridge = 3,
+}
+
+export function isBridge(terrain: number | undefined): boolean {
+  return terrain === Terrain.Bridge || terrain === Terrain.CrackedBridge;
+}
+
+/** A bridge piece waiting in the Production Window. */
+export interface HandPiece {
+  piece: number; // index into PIECES
+  age: number; // ticks in the window, capped at PIECE_HARDEN
 }
 export type Facing = 0 | 1 | 2 | 3; // N, E, S, W
 export const DIRS: ReadonlyArray<readonly [number, number]> = [
@@ -110,7 +125,7 @@ export interface Player {
   theme: Theme;
   storm: number; // Storm Power
   tech: Set<string>; // unit ids the player knows
-  hand: number[]; // bridge piece indices
+  hand: HandPiece[];
   pieceTimer: number;
   alive: boolean;
 }

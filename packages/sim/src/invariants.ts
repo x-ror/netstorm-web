@@ -145,7 +145,7 @@ export function assertWorldInvariants(world: WorldView): void {
     const terrain = world.terrain[cell];
     const owner = world.owner[cell];
 
-    if (terrain !== Terrain.Sky && terrain !== Terrain.Island && terrain !== Terrain.Bridge) {
+    if (terrain === undefined || terrain > Terrain.CrackedBridge) {
       fail(`invalid terrain at ${cell}`);
     }
 

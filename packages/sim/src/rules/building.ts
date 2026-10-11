@@ -2,7 +2,8 @@ import type { World } from '../world.js';
 import type { Command, CommandError } from '../commands.js';
 import type { WorldView } from '../view.js';
 import type { UnitDef } from '../defs.js';
-import { DIRS, ENERGY_RANGE, MAX_FACING, REFUND_SHARE, Terrain } from '../state.js';
+import { DIRS, ENERGY_RANGE, MAX_FACING, REFUND_SHARE, Terrain, isBridge } from '../state.js';
+import { shakeBridges } from './bridges.js';
 import { removeBuilding } from './combat.js';
 import { removeTransport } from './movement.js';
 
@@ -136,7 +137,7 @@ function siteError(
       const terrain = world.terrain[world.at(x, y)];
 
       if (
-        terrain === Terrain.Bridge
+        isBridge(terrain)
         || (terrain === Terrain.Island && !world.isOwnGround(player, x, y))
       ) {
         return 'blocked';
@@ -153,7 +154,7 @@ function siteError(
         const ny = y + dy;
 
         if (
-          world.isOwnGround(player, nx, ny) && world.terrain[world.at(nx, ny)] === Terrain.Bridge
+          world.isOwnGround(player, nx, ny) && isBridge(world.terrain[world.at(nx, ny)])
         ) {
           offBridge = true;
         }
@@ -219,6 +220,7 @@ export function salvage(world: World, c: Extract<Command, { t: 'salvage'; }>): C
 
   if (unit.kind === 'building') {
     removeBuilding(world, unit);
+    shakeBridges(world, unit);
   } else {
     removeTransport(world, unit);
   }
