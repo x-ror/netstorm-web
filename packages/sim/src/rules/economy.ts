@@ -17,7 +17,7 @@ export function tickPlayer(world: World, player: Player): void {
   }
 
   if (
-    world.buildingsOf(player.id).some((building) => world.def(building.type).cls === 'Energy')
+    world.templeOf(player.id)
     && --player.pieceTimer <= 0
   ) {
     player.pieceTimer = PIECE_INTERVAL;

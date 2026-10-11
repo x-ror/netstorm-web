@@ -31,6 +31,7 @@ const mk = () =>
 test('the AI wins against an idle player, and its recorded commands replay exactly', () => {
   const match = new ReplayRecorder(mk());
   const seen = new Set<string>();
+  const refused: unknown[] = [];
 
   for (let i = 0; i < LIMIT && match.view().winner === null; i++) {
     const commands = i % MOVE === 0 ? aiMove(match.view(), { player: 2 }) : [];
@@ -40,9 +41,23 @@ test('the AI wins against an idle player, and its recorded commands replay exact
       seen.add(command.t);
     }
 
+    // A move never spends more Storm Power than the AI has.
+    const cost = commands.reduce(
+      (sum, command) => sum + (command.t === 'build' ? defs.get(command.type)!.cost : 0),
+      0,
+    );
+    assert.ok(cost <= match.view().players.get(2)!.storm);
     match.step(commands);
-    match.drainEvents();
+
+    for (const event of match.drainEvents()) {
+      if (event.what === 'rejected' && event.who === 2) {
+        refused.push(event.data);
+      }
+    }
   }
+
+  // Each command of a move holds against the others: none is refused.
+  assert.deepEqual(refused, []);
 
   const world = match.view();
   assert.equal(world.winner, 2);
@@ -79,4 +94,46 @@ test('an AI move reads the world without changing it', () => {
   assert.equal(world.hash(), hash);
   assert.deepEqual(aiMove(world.view(), { player: 2 }), first);
   assert.ok(first.length > 0);
+});
+
+test('one transport goes for a downed priest, and the others keep working', () => {
+  const world = mk();
+  world.spawnTransport('rainwalker', 2, 151, 97);
+  const priest = world.priestOf(1)!;
+  priest.state = 'down';
+  priest.hp = 1; // stays down while the transports walk over
+  // A strip of the AI's ground from under its home island to the idle player's, past the Workshop.
+  world.addIsland(70, 99, 85, 1, 2);
+  world.addIsland(70, 99, 5, 45, 2);
+  world.invalidateTerrain();
+  const sent = () =>
+    aiMove(world.view(), { player: 2 }).filter((command) => command.t === 'capturePriest');
+  assert.equal(sent().length, 1);
+  world.step(sent());
+  assert.ok(world.drainEvents().every((event) => event.what !== 'rejected'));
+  assert.deepEqual(sent(), []);
+});
+
+test('a beaten player is no target', () => {
+  const world = mk();
+  const ai = world.players.get(2)!;
+  ai.storm = 100_000; // rich enough to attack at once
+  world.players.get(1)!.alive = false;
+  world.entities.delete(world.priestOf(1)!.id);
+
+  for (let i = 0; i < 2 * MOVE; i++) {
+    world.step();
+  }
+
+  // With no free geyser worth taking and no live enemy, no bridge heads for the beaten Temple.
+  for (const geyser of world.entities.values()) {
+    if (geyser.kind === 'geyser') {
+      world.entities.delete(geyser.id);
+    }
+  }
+
+  assert.deepEqual(
+    aiMove(world.view(), { player: 2 }).filter((command) => command.t === 'dropPiece'),
+    [],
+  );
 });

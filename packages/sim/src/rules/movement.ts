@@ -1,14 +1,7 @@
 import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
 import { arriveAtAltar, arriveAtPriest, releasePriest } from './capture.js';
-import {
-  TPS,
-  CRYSTAL_VALUE,
-  type Building,
-  type Transport,
-  type Priest,
-  type Geyser,
-} from '../state.js';
+import { TPS, CRYSTAL_VALUE, type Transport, type Priest, type Geyser } from '../state.js';
 
 const MOVE_SCALE = 100; // fixed-point progress needed to enter the next cell
 
@@ -86,10 +79,6 @@ function nextTo(a: { x: number; y: number; }, b: { x: number; y: number; }): boo
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;
 }
 
-function temple(world: World, owner: number): Building | undefined {
-  return world.buildingsOf(owner).find((b) => world.def(b.type).cls === 'Energy');
-}
-
 function stop(t: Transport): void {
   t.goal = 'idle';
   t.target = null;
@@ -135,7 +124,7 @@ function arriveAtCrystal(world: World, t: Transport): void {
 
 /** Head for the Temple with the cargo. `target` is kept so the transport returns to the same geyser. */
 function goHome(world: World, t: Transport): void {
-  const home = temple(world, t.owner);
+  const home = world.templeOf(t.owner);
   const path = home
     ? world.findPath(t.owner, t.x, t.y, (cell) => world.adjacentTo(cell[0], cell[1], home))
     : null;
@@ -150,7 +139,7 @@ function goHome(world: World, t: Transport): void {
 }
 
 function deliver(world: World, t: Transport): void {
-  const home = temple(world, t.owner);
+  const home = world.templeOf(t.owner);
 
   if (t.carrying === null || !home || !world.adjacentTo(t.x, t.y, home)) {
     stop(t);
@@ -198,7 +187,7 @@ function sendToGeyser(world: World, t: Transport, g: Geyser): boolean {
 
 /** Pick the reachable non-depleted geyser closest to the owner's Temple, even in enemy territory. */
 function seekGeyser(world: World, t: Transport): void {
-  const home = temple(world, t.owner);
+  const home = world.templeOf(t.owner);
 
   if (!home) {
     stop(t);
@@ -261,7 +250,7 @@ export function collect(world: World, c: Extract<Command, { t: 'collect'; }>): C
   }
 
   // "Without a Temple you can't collect or process Storm Power."
-  if (!temple(world, c.player)) {
+  if (!world.templeOf(c.player)) {
     return 'no temple';
   }
 
@@ -279,7 +268,7 @@ export function pickupCrystal(
     return 'bad target';
   }
 
-  if (!temple(world, c.player)) {
+  if (!world.templeOf(c.player)) {
     return 'no temple';
   }
 

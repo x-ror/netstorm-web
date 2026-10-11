@@ -307,6 +307,11 @@ export class World {
     return undefined;
   }
 
+  /** The player's Temple: the building of class Energy. */
+  templeOf(p: number): Building | undefined {
+    return this.buildingsOf(p).find((b) => this.def(b.type).cls === 'Energy');
+  }
+
   buildingsOf(p: number, group?: UnitGroup): Building[] {
     const r: Building[] = [];
 

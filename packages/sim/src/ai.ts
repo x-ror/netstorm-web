@@ -46,6 +46,7 @@ const ATTACK_STORM = 4000;
  * keeps a Disc Thrower laid off the bridge's end within its range of 8. */
 const GEYSER_REACH = 2;
 const ENEMY_REACH = 6;
+const MAX_REACH = 32;
 /** Cells from the nearest own Energy source past which the AI puts a Generator by the bridge head,
  * well inside ENERGY_RANGE so the Generator itself can still be built (invented). */
 const GENERATOR_SPACING = 18;
@@ -63,120 +64,160 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
     return [];
   }
 
-  const commands: Command[] = [];
+  // The commands of one move are checked against the same world, so this move's own spending and
+  // cells are tracked here: later commands must not count on Storm Power or ground already used.
+  const move: Move = { me, budget: player.storm, planned: new Set(), commands: [] };
   const transports = owned<Transport>(world, me, 'transport');
-  const idle = transports.filter((t) => t.goal === 'idle' && t.carrying === null);
   const geysers = reachableGeysers(world, me);
-
-  for (const transport of idle) {
-    const geyser = geysers[0];
-
-    if (geyser) {
-      commands.push({ t: 'collect', player: me, transport: transport.id, geyser: geyser.id });
-    }
-  }
-
-  const captive = enemyPriest(world, me, 'down');
-  const free = transports.find((t) => t.carrying === null && t.goal !== 'capture');
-
-  if (captive && free) {
-    commands.push({ t: 'capturePriest', player: me, transport: free.id, target: captive.id });
-  }
-
+  collect(world, move, transports, geysers);
+  capture(world, move, transports);
   const ward = wardSpot(world, me);
 
   if (ward) {
-    commands.push({ t: 'movePriest', player: me, ...ward });
+    move.commands.push({ t: 'movePriest', player: me, ...ward });
   }
 
   const attack = geysers.length >= ENOUGH_GEYSERS || player.storm >= ATTACK_STORM;
-  const targets = bridgeTargets(world, me, attack);
-  // Grow toward the first target a piece can be laid toward; units go by the last one, the enemy.
-  let target = targets.at(-1);
-  let head = target ? bridgeHead(world, me, skyField(world, target)) : null;
-  let piece: Command | null = null;
+  const bounds = ownBounds(world, me);
+  let target: Target | undefined;
+  let head: Head | null = null;
+  let piece: Extract<Command, { t: 'dropPiece'; }> | null = null;
 
-  for (const candidate of targets) {
+  // Grow toward the first target a piece can be laid toward. When none can, the last target, the
+  // enemy, still decides where units go.
+  for (const candidate of bridgeTargets(world, me, attack)) {
     const field = skyField(world, candidate);
-    const from = bridgeHead(world, me, field);
-    piece = from ? bestPiece(world, me, from, field) : null;
+    target = candidate;
+    head = bounds ? bridgeHead(world, me, field, bounds) : null;
+    piece = head ? bestPiece(world, me, head, field) : null;
 
     if (piece) {
-      target = candidate;
-      head = from;
       break;
     }
   }
 
-  if (target && head) {
-    // Cells the piece will cover count as bridge when placing a unit in the same move.
-    const planned = new Set<number>();
+  if (piece) {
+    const shape = rotatePiece(PIECES[player.hand[piece.hand]!.piece]!, piece.rot);
 
-    if (piece?.t === 'dropPiece') {
-      const shape = rotatePiece(PIECES[world.players.get(me)!.hand[piece.hand]!.piece]!, piece.rot);
-
-      for (const [dx, dy] of shape) {
-        planned.add(world.at(piece.x + dx, piece.y + dy));
-      }
-
-      commands.push(piece);
+    for (const [dx, dy] of shape) {
+      move.planned.add(world.at(piece.x + dx, piece.y + dy));
     }
 
-    const shooters = world.buildingsOf(me).filter((b) => world.def(b.type).dps > 0).length;
-    let unit: Command | null = null;
+    move.commands.push(piece);
+  }
 
-    if (target.enemy && energyGap(world, me, head) > GENERATOR_SPACING) {
+  if (target && head && bounds) {
+    const shooters = world.buildingsOf(me).filter((b) => world.def(b.type).dps > 0).length;
+
+    if (target.enemy && !powered(world, me, head, GENERATOR_SPACING)) {
       // Carry Energy along the bridge: a Generator at the own ground nearest the target that is
       // still inside a circle to build in.
-      const powered = poweredHead(world, me, target);
-      unit = powered ? generator(world, me, powered, planned) : null;
+      const site = poweredHead(world, me, target, bounds);
+
+      if (site) {
+        generator(world, move, site);
+      }
     } else if (
       (target.enemy && distance(head.x, head.y, target.x, target.y) <= ATTACK_REACH)
       || shooters < DEFENCE_SHOOTERS
     ) {
-      unit = bestUnit(world, me, head, target, planned);
-    }
-
-    if (unit) {
-      commands.push(unit);
+      bestUnit(world, move, head, target);
     }
   }
 
-  const transport = transports.length < TRANSPORTS ? newTransport(world, me) : null;
-
-  if (transport) {
-    commands.push(transport);
+  if (transports.length < TRANSPORTS) {
+    newTransport(world, move);
   }
 
-  return commands;
+  return move.commands;
+}
+
+interface Move {
+  me: number;
+  /** Storm Power left after the builds already chosen this move. */
+  budget: number;
+  /** Cells taken by the piece and units already chosen this move. */
+  planned: Set<number>;
+  commands: Command[];
+}
+
+type Head = { x: number; y: number; need: number; };
+type Bounds = { x0: number; y0: number; x1: number; y1: number; };
+
+/** Send each idle transport to the reachable geyser the fewest transports work, nearest first. */
+function collect(
+  world: WorldView,
+  move: Move,
+  transports: View<Transport>[],
+  geysers: View<Geyser>[],
+): void {
+  if (!geysers.length) {
+    return;
+  }
+
+  const crews = new Map(geysers.map((g) => [g.id, 0]));
+
+  for (const t of transports) {
+    if (t.target !== null && crews.has(t.target) && (t.goal === 'collect' || t.goal === 'home')) {
+      crews.set(t.target, crews.get(t.target)! + 1);
+    }
+  }
+
+  for (const t of transports) {
+    if (t.goal !== 'idle' || t.carrying !== null) {
+      continue;
+    }
+
+    // Stable: geysers are already ordered nearest first, so a tie goes to the nearer one.
+    const geyser = geysers.reduce((best, g) => (crews.get(g.id)! < crews.get(best.id)! ? g : best));
+    crews.set(geyser.id, crews.get(geyser.id)! + 1);
+    move.commands.push({ t: 'collect', player: move.me, transport: t.id, geyser: geyser.id });
+  }
+}
+
+/** Send one transport for a downed enemy priest, unless one is already on its way to him. */
+function capture(world: WorldView, move: Move, transports: View<Transport>[]): void {
+  const captive = enemyPriest(world, move.me, 'down');
+
+  if (!captive || transports.some((t) => t.goal === 'capture' && t.target === captive.id)) {
+    return;
+  }
+
+  const free = transports.find((t) => t.carrying === null && t.goal === 'idle')
+    ?? transports.find((t) => t.carrying === null);
+
+  if (free) {
+    move.commands.push({
+      t: 'capturePriest',
+      player: move.me,
+      transport: free.id,
+      target: captive.id,
+    });
+  }
 }
 
 /** A transport of the AI's Fury, or a Golem, laid by its Temple when it can spare the cost. */
-function newTransport(world: WorldView, me: number): Command | null {
-  const player = world.players.get(me)!;
-  const home = temple(world, me);
+function newTransport(world: WorldView, move: Move): void {
+  const player = world.players.get(move.me)!;
+  const home = world.templeOf(move.me);
 
   if (!home) {
-    return null;
+    return;
   }
 
   const kinds = [...player.tech]
     .map((id) => world.defs.get(id))
     .filter((def): def is Readonly<UnitDef> =>
-      def?.cls === 'Ground Transport' && player.storm >= def.cost + TRANSPORT_SAVINGS
+      def?.cls === 'Ground Transport' && move.budget >= def.cost + TRANSPORT_SAVINGS
     )
     .sort((a, b) => b.speed - a.speed || a.id.localeCompare(b.id));
   const around = { x: home.x + home.fx, y: home.y + home.fy };
 
   for (const def of kinds) {
-    const spot = findSpot(world, me, def, around, new Set());
-
-    if (spot.command) {
-      return spot.command;
+    if (place(world, move, def, around).placed) {
+      return;
     }
   }
-
-  return null;
 }
 
 function owned<T extends Entity>(world: WorldView, me: number, kind: T['kind']): View<T>[] {
@@ -191,10 +232,6 @@ function owned<T extends Entity>(world: WorldView, me: number, kind: T['kind']):
   return out;
 }
 
-function temple(world: WorldView, me: number): View<Building> | undefined {
-  return world.buildingsOf(me).find((b) => world.def(b.type).cls === 'Energy');
-}
-
 function centre(b: View<Building>): { x: number; y: number; } {
   return { x: b.x + (b.fx >> 1), y: b.y + (b.fy >> 1) };
 }
@@ -202,20 +239,88 @@ function centre(b: View<Building>): { x: number; y: number; } {
 const distance = (ax: number, ay: number, bx: number, by: number) =>
   Math.abs(ax - bx) + Math.abs(ay - by);
 
-/** Geysers with stock standing on the AI's own ground, nearest to its Temple first. */
+/** Geysers with stock on the AI's own ground that a transport can walk to from the Temple,
+ * nearest to the Temple first. */
 function reachableGeysers(world: WorldView, me: number): View<Geyser>[] {
-  const home = temple(world, me);
+  const home = world.templeOf(me);
 
   if (!home) {
     return [];
   }
 
+  const reached = walkableFrom(world, me, home);
   const { x, y } = centre(home);
   return [...world.entities.values()]
     .filter((e): e is View<Geyser> =>
       e.kind === 'geyser' && e.stock > 0 && world.owner[world.at(e.x, e.y)] === me
+      && DIRS.some(([dx, dy]) =>
+        world.inside(e.x + dx, e.y + dy) && reached[world.at(e.x + dx, e.y + dy)] === 1
+      )
     )
     .sort((a, b) => distance(a.x, a.y, x, y) - distance(b.x, b.y, x, y) || a.id - b.id);
+}
+
+/** Cells a transport can walk to from beside a building, marked 1 in a scratch grid. */
+function walkableFrom(world: WorldView, me: number, from: View<Building>): Uint8Array {
+  const reached = scratch.reached.fill(0);
+  const queue = scratch.queue;
+  let tail = 0;
+
+  for (let y = from.y - 1; y <= from.y + from.fy; y++) {
+    for (let x = from.x - 1; x <= from.x + from.fx; x++) {
+      if (world.walkable(me, x, y) && !reached[world.at(x, y)]) {
+        reached[world.at(x, y)] = 1;
+        queue[tail++] = world.at(x, y);
+      }
+    }
+  }
+
+  for (let head = 0; head < tail; head++) {
+    const i = queue[head]!;
+    const x = i % W;
+    const y = (i / W) | 0;
+
+    for (const [dx, dy] of DIRS) {
+      if (world.walkable(me, x + dx, y + dy) && !reached[world.at(x + dx, y + dy)]) {
+        reached[world.at(x + dx, y + dy)] = 1;
+        queue[tail++] = world.at(x + dx, y + dy);
+      }
+    }
+  }
+
+  return reached;
+}
+
+/** Work grids reused between moves so a move allocates no 256×256 arrays. They carry nothing
+ * from one move to the next: each use overwrites them first. */
+const scratch = {
+  field: new Int32Array(W * H),
+  queue: new Int32Array(W * H),
+  reached: new Uint8Array(W * H),
+};
+
+/** The rectangle around the AI's own ground, which bounds where its bridge can grow from. */
+function ownBounds(world: WorldView, me: number): Bounds | null {
+  let bounds: Bounds | null = null;
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (world.owner[y * W + x] !== me) {
+        continue;
+      }
+
+      bounds = bounds
+        ? {
+          x0: Math.min(bounds.x0, x),
+          y0: Math.min(bounds.y0, y),
+          x1: Math.max(bounds.x1, x),
+          y1: Math.max(bounds.y1, y),
+        }
+        : { x0: x, y0: y, x1: x, y1: y };
+    }
+  }
+
+  return bounds;
 }
 
 function enemyPriest(
@@ -269,7 +374,7 @@ type Target = { x: number; y: number; enemy: boolean; };
  * attacking), then the nearest enemy's High Priest — knocking him down is how a battle is won —
  * or his Temple while the priest is carried. */
 function bridgeTargets(world: WorldView, me: number, attack: boolean): Target[] {
-  const home = temple(world, me);
+  const home = world.templeOf(me);
 
   if (!home) {
     return [];
@@ -290,8 +395,8 @@ function bridgeTargets(world: WorldView, me: number, attack: boolean): Target[] 
     }
   }
 
-  for (const [id] of world.players) {
-    const enemy = id === me ? undefined : temple(world, id);
+  for (const [id, other] of world.players) {
+    const enemy = id === me || !other.alive ? undefined : world.templeOf(id);
     const priest = world.priestOf(id);
 
     if (enemy) {
@@ -308,23 +413,35 @@ function bridgeTargets(world: WorldView, me: number, attack: boolean): Target[] 
  * Steps through open sky from each cell to the target's surroundings: the cells within `radius`
  * of the target (Chebyshev). Bridge can only be laid in the sky, so this is the length of bridge
  * still needed from there, going around islands rather than straight at the target. -1 where
- * the target cannot be reached through the sky, and on every cell that is not sky.
+ * the target cannot be reached through the sky, and on every cell that is not sky. The grid is
+ * scratch, valid until the next call.
  */
 function skyField(world: WorldView, target: Target): Int32Array {
-  const radius = target.enemy ? ENEMY_REACH : GEYSER_REACH;
-  const field = new Int32Array(W * H).fill(-1);
-  const queue: number[] = [];
+  const field = scratch.field.fill(-1);
+  const queue = scratch.queue;
+  let tail = 0;
 
-  for (let y = target.y - radius; y <= target.y + radius; y++) {
-    for (let x = target.x - radius; x <= target.x + radius; x++) {
-      if (world.inside(x, y) && world.terrain[world.at(x, y)] === Terrain.Sky) {
-        field[world.at(x, y)] = 0;
-        queue.push(world.at(x, y));
+  // A target deep inside an island (a Temple's centre) has no sky that close: widen the ring until
+  // there is some, so the bridge still heads for the island's nearest shore.
+  for (
+    let radius = target.enemy ? ENEMY_REACH : GEYSER_REACH;
+    tail === 0 && radius <= MAX_REACH;
+    radius++
+  ) {
+    for (let y = target.y - radius; y <= target.y + radius; y++) {
+      for (let x = target.x - radius; x <= target.x + radius; x++) {
+        if (
+          world.inside(x, y) && field[world.at(x, y)] === -1
+          && world.terrain[world.at(x, y)] === Terrain.Sky
+        ) {
+          field[world.at(x, y)] = 0;
+          queue[tail++] = world.at(x, y);
+        }
       }
     }
   }
 
-  for (let head = 0; head < queue.length; head++) {
+  for (let head = 0; head < tail; head++) {
     const i = queue[head]!;
     const x = i % W;
     const y = (i / W) | 0;
@@ -338,7 +455,7 @@ function skyField(world: WorldView, target: Target): Int32Array {
         && world.terrain[world.at(nx, ny)] === Terrain.Sky
       ) {
         field[world.at(nx, ny)] = field[i]! + 1;
-        queue.push(world.at(nx, ny));
+        queue[tail++] = world.at(nx, ny);
       }
     }
   }
@@ -348,15 +465,11 @@ function skyField(world: WorldView, target: Target): Int32Array {
 
 /** The own walkable ground cell that borders the sky closest (along the field) to the target:
  * the head the bridge grows from, with the bridge it still needs. */
-function bridgeHead(
-  world: WorldView,
-  me: number,
-  field: Int32Array,
-): { x: number; y: number; need: number; } | null {
-  let best: { x: number; y: number; need: number; } | null = null;
+function bridgeHead(world: WorldView, me: number, field: Int32Array, bounds: Bounds): Head | null {
+  let best: Head | null = null;
 
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
+  for (let y = bounds.y0; y <= bounds.y1; y++) {
+    for (let x = bounds.x0; x <= bounds.x1; x++) {
       // Only ground a transport can walk on: bridging off a unit's islet would leave a bridge
       // that cannot be reached past the unit.
       if (world.owner[y * W + x] !== me || !world.walkable(me, x, y)) {
@@ -380,11 +493,11 @@ function bridgeHead(
 function bestPiece(
   world: WorldView,
   me: number,
-  head: { x: number; y: number; need: number; },
+  head: Head,
   field: Int32Array,
-): Command | null {
+): Extract<Command, { t: 'dropPiece'; }> | null {
   const hand = world.players.get(me)!.hand;
-  let best: Command | null = null;
+  let best: Extract<Command, { t: 'dropPiece'; }> | null = null;
   let bestNeed = head.need;
 
   for (let index = 0; index < hand.length; index++) {
@@ -434,18 +547,19 @@ function touchesWalkable(
 /** A shooter by the bridge head, facing the target; or a Generator there when energy is short. */
 function bestUnit(
   world: WorldView,
-  me: number,
+  move: Move,
   head: { x: number; y: number; },
   target: { x: number; y: number; },
-  planned: ReadonlySet<number>,
-): Command | null {
-  const player = world.players.get(me)!;
+): void {
+  const player = world.players.get(move.me)!;
   const known = [...player.tech]
     .map((id) => world.defs.get(id))
     .filter((def): def is Readonly<UnitDef> => def !== undefined && def.level > 0);
   // Alternate cannons, which fire along a line, with shooters that cover a square around them, so
   // a priest standing off the cannons' lines is still hit.
-  const built = world.buildingsOf(me).map((b) => world.def(b.type)).filter((def) => def.dps > 0);
+  const built = world.buildingsOf(move.me).map((b) => world.def(b.type)).filter((def) =>
+    def.dps > 0
+  );
   const lines = built.filter((def) => def.group === 'cannon').length;
   const preferLine = lines < built.length - lines;
   const shooters = known.filter((def) => def.dps > 0 && def.range > 0)
@@ -454,31 +568,26 @@ function bestUnit(
       || b.cost - a.cost || a.id.localeCompare(b.id)
     );
   const facing = toward(head, target);
-
   let short = false;
 
   for (const def of shooters) {
-    const spot = findSpot(world, me, def, head, planned,
-      def.group === 'cannon' ? facing : undefined);
+    const spot = place(world, move, def, head, def.group === 'cannon' ? facing : undefined);
 
-    if (spot.command) {
-      return spot.command;
+    if (spot.placed) {
+      return;
     }
 
     short ||= spot.noEnergy;
   }
 
-  return short ? generator(world, me, head, planned) : null;
+  if (short) {
+    generator(world, move, head);
+  }
 }
 
 /** A Generator by the head, of the AI's own Fury first. */
-function generator(
-  world: WorldView,
-  me: number,
-  head: { x: number; y: number; },
-  planned: ReadonlySet<number>,
-): Command | null {
-  const player = world.players.get(me)!;
+function generator(world: WorldView, move: Move, head: { x: number; y: number; }): void {
+  const player = world.players.get(move.me)!;
   const generators = [...player.tech]
     .map((id) => world.defs.get(id))
     .filter((def): def is Readonly<UnitDef> => def?.group === 'battery')
@@ -488,32 +597,29 @@ function generator(
     );
 
   for (const def of generators) {
-    const spot = findSpot(world, me, def, head, planned);
-
-    if (spot.command) {
-      return spot.command;
+    if (place(world, move, def, head).placed) {
+      return;
     }
   }
-
-  return null;
 }
 
-/** The own ground nearest the target that lies within GENERATOR_SPACING of an Energy source. */
+/** The own walkable ground nearest the target that lies within GENERATOR_SPACING of Energy. */
 function poweredHead(
   world: WorldView,
   me: number,
   target: { x: number; y: number; },
+  bounds: Bounds,
 ): { x: number; y: number; } | null {
   let best: { x: number; y: number; } | null = null;
   let bestDistance = Infinity;
 
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
+  for (let y = bounds.y0; y <= bounds.y1; y++) {
+    for (let x = bounds.x0; x <= bounds.x1; x++) {
       const d = distance(x, y, target.x, target.y);
 
       if (
         d < bestDistance && world.owner[y * W + x] === me && world.walkable(me, x, y)
-        && energyGap(world, me, { x, y }) <= GENERATOR_SPACING
+        && powered(world, me, { x, y }, GENERATOR_SPACING)
       ) {
         best = { x, y };
         bestDistance = d;
@@ -524,39 +630,57 @@ function poweredHead(
   return best;
 }
 
-/** Distance from a cell to the centre of the nearest own Temple or Generator. */
-function energyGap(world: WorldView, me: number, at: { x: number; y: number; }): number {
-  let best = Infinity;
-
+/** Whether the centre of a cell lies within `range` cells of the centre of an own Temple or
+ * Generator. Measured as the energy rule measures it, centre to centre with squared distances,
+ * and in half cells so that every value is an integer and the result is the same everywhere. */
+function powered(
+  world: WorldView,
+  me: number,
+  at: { x: number; y: number; },
+  range: number,
+): boolean {
   for (const b of world.buildingsOf(me)) {
     const def = world.def(b.type);
 
-    if (def.cls === 'Energy' || def.group === 'battery') {
-      best = Math.min(best, Math.hypot(b.x + b.fx / 2 - at.x, b.y + b.fy / 2 - at.y));
+    if (def.cls !== 'Energy' && def.group !== 'battery') {
+      continue;
+    }
+
+    const dx = 2 * b.x + b.fx - (2 * at.x + 1);
+    const dy = 2 * b.y + b.fy - (2 * at.y + 1);
+
+    const reach = 2 * range; // in half cells, like dx and dy
+
+    if (dx * dx + dy * dy <= reach * reach) {
+      return true;
     }
   }
 
-  return best;
+  return false;
 }
 
-function findSpot(
+/** Lay a unit at the first good spot around a centre, if this move can still afford it. */
+function place(
   world: WorldView,
-  me: number,
+  move: Move,
   def: Readonly<UnitDef>,
   head: { x: number; y: number; },
-  planned: ReadonlySet<number>,
   facing?: Facing,
-): { command: Command | null; noEnergy: boolean; } {
+): { placed: boolean; noEnergy: boolean; } {
   let noEnergy = false;
 
+  if (def.cost > move.budget) {
+    return { placed: false, noEnergy };
+  }
+
   for (const [x, y] of nearby(head, UNIT_RADIUS)) {
-    if (!clearOfBridges(world, def, x, y, planned)) {
+    if (!clearOfBridges(world, def, x, y, move.planned)) {
       continue;
     }
 
     const command = {
       t: 'build',
-      player: me,
+      player: move.me,
       type: def.id,
       x,
       y,
@@ -565,17 +689,26 @@ function findSpot(
     const error = world.canBuild(command);
 
     if (error === null) {
-      return { command, noEnergy };
+      move.commands.push(command);
+      move.budget -= def.cost;
+
+      for (let fy = y; fy < y + def.footY; fy++) {
+        for (let fx = x; fx < x + def.footX; fx++) {
+          move.planned.add(world.at(fx, fy));
+        }
+      }
+
+      return { placed: true, noEnergy };
     }
 
     noEnergy ||= error === 'no energy';
 
     if (error === 'no storm power' || error === 'not ready' || error === 'no workshop') {
-      return { command: null, noEnergy };
+      return { placed: false, noEnergy };
     }
   }
 
-  return { command: null, noEnergy };
+  return { placed: false, noEnergy };
 }
 
 /** A unit must not stand next to a bridge on the island it grows from, or it would cut the only

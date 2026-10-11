@@ -9,7 +9,7 @@ import {
   type DefTable,
   type Event as SimEvent,
 } from '@netstorm/sim';
-import { type Maps, type Mission } from './game-data.js';
+import { DEFAULT_AI_DELAY, type Maps, type Mission } from './game-data.js';
 import { type MatchOptions } from './menu.js';
 import { createMatchWorld, ENEMY, ME } from './setup.js';
 import { createWorldRenderer } from './renderer.js';
@@ -22,7 +22,6 @@ import { ZOOM } from './projection.js';
 import { createUiState } from './ui-state.js';
 
 const HUD_REFRESH_TICKS = 5;
-const DEFAULT_AI_DELAY = 6; // seconds between AI moves when no mission gives them
 const LOG_MAX_ENTRIES = 60;
 
 export interface GameData {

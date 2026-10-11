@@ -141,7 +141,7 @@ function makerError(world: WorldView, player: number, def: UnitDef): CommandErro
   }
 
   if (def.id === GOLEM) {
-    return world.buildingsOf(player).some((b) => world.def(b.type).cls === 'Energy')
+    return world.templeOf(player)
       ? null
       : 'no temple';
   }

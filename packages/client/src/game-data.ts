@@ -19,7 +19,7 @@ export interface Mission {
 }
 
 /** aiTimeBetweenMoves of the campaign missions that leave it out; most set 6. */
-const DEFAULT_AI_DELAY = 6;
+export const DEFAULT_AI_DELAY = 6;
 
 /** Keep only the geysers: the client does not read island cells yet. */
 export function slimMaps(raw: unknown): Maps {
