@@ -24,7 +24,7 @@ const mk = () =>
   ], [[80, 40]]);
 const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
-// Pins the current rules (RULES_VERSION 18). Re-pin deliberately whenever state shape or rules change.
+// Pins the current rules (RULES_VERSION 19). Re-pin deliberately whenever state shape or rules change.
 test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
@@ -182,7 +182,7 @@ function chainedWorld() {
     world.owner[40 * 256 + x] = 1;
   }
 
-  victim.hp = 40;
+  victim.hp = 1;
   world.step();
   return { world, victim, transport, altar };
 }
@@ -196,7 +196,7 @@ function chain(setup: ReturnType<typeof chainedWorld>) {
 
   for (let index = 0; index < 1000 && victim.state !== 'chained'; index++) {
     if (victim.state === 'down') {
-      victim.hp = 40;
+      victim.hp = 1;
     }
 
     world.step();
@@ -440,7 +440,7 @@ test('a captive goes free, fully healed, when his carrier is destroyed', () => {
   world.step([{ t: 'capturePriest', player: 1, transport: transport.id, target: victim.id }]);
 
   for (let index = 0; index < 1000 && victim.state !== 'carried'; index++) {
-    victim.hp = 40;
+    victim.hp = 1;
     world.step();
   }
 
@@ -478,7 +478,7 @@ test('a chained priest escapes when the altar falls or the sacrificer is immobil
   chain(broken);
   const sacrificer = broken.world.priestOf(1)!;
   // Immobilized before the ritual starts: the captive stays chained.
-  sacrificer.hp = 40;
+  sacrificer.hp = 1;
   broken.world.step();
   broken.world.step();
   assert.equal(broken.victim.state, 'chained');
@@ -494,7 +494,7 @@ test('a chained priest escapes when the altar falls or the sacrificer is immobil
   }
 
   assert.equal(broken.victim.runes, 1);
-  sacrificer.hp = 40;
+  sacrificer.hp = 1;
   broken.world.step();
   broken.world.step();
   assert.equal(broken.victim.state, 'normal');

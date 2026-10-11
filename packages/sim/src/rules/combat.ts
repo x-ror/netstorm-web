@@ -156,7 +156,9 @@ function damage(world: World, by: number, entity: Entity, amount: number): void 
   }
 
   const before = entity.hp;
-  entity.hp = Math.max(0, +(before - amount).toFixed(HP_DECIMALS));
+  // A Priest cannot be destroyed: damage never takes him below one hit point.
+  const least = entity.kind === 'priest' ? Math.min(1, before) : 0;
+  entity.hp = Math.max(least, +(before - amount).toFixed(HP_DECIMALS));
 
   if (entity.kind === 'building' && before > 0 && entity.hp <= 0) {
     entity.killer = by;

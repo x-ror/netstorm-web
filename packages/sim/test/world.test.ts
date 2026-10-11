@@ -405,6 +405,45 @@ test('a priest left without ground hangs in place until bridge is laid under him
   assert.equal(w.apply({ t: 'movePriest', player: 1, x: 45, y: 40 }), null);
 });
 
+test('the Priest heals a sixth of his hit points every eight seconds and needs a Temple to rise', () => {
+  const w = mk();
+  const priest = w.priestOf(1)!;
+  const beat = 8 * TPS;
+  const toBeat = () => {
+    do {
+      w.step();
+    } while (w.tick % beat !== 0);
+  };
+  priest.hp = 20;
+  w.step();
+  assert.equal(priest.state, 'down');
+  toBeat();
+  assert.equal(priest.hp, 36);
+  assert.equal(priest.state, 'down');
+  // Half of his hit points is enough to stand up.
+  toBeat();
+  assert.equal(priest.hp, 52);
+  assert.equal(priest.state, 'normal');
+  // He heals on his feet too, up to the full hundred.
+  priest.hp = 90;
+  toBeat();
+  assert.equal(priest.hp, 100);
+  // Damage cannot take him below one hit point: a cannon blowing up beside him deals 301.
+  const cannon = w.spawnBuilding('suncannon', 2, priest.x + 1, priest.y - 1);
+  cannon.hp = 0;
+  w.step();
+  assert.equal(priest.hp, 1);
+  // Without a Temple he still heals, but not back to half.
+  w.entities.delete(w.templeOf(1)!.id);
+  toBeat();
+  toBeat();
+  toBeat();
+  assert.equal(priest.hp, 49);
+  toBeat();
+  assert.equal(priest.hp, 49);
+  assert.equal(priest.state, 'down');
+});
+
 test('Temple makes Golems and a Workshop of their Fury makes other transports', () => {
   const w = mk();
   const p = w.players.get(1)!;

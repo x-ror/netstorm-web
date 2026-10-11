@@ -5,6 +5,31 @@ import { advance } from './movement.js';
 import { tickRitual } from './capture.js';
 
 const PRIEST_SPEED = 1.8; // cells per second
+// Healing, from Priest.cpp in netstorm.game 10.82: a sixth of the full hit points at a time, at a
+// pace that would restore all of them in 50 s. For the Priest's 100 that is 16 every 8 s.
+const HEAL_PARTS = 6;
+const FULL_HEAL_SECONDS = 50;
+
+/** "Notice that the Priest is constantly regenerating Hit Points." He heals whatever his state,
+ * but without a Temple he cannot get back to half of his hit points, which is where he stops being
+ * paralysed. */
+function heal(world: World, p: Priest): void {
+  const part = Math.floor(p.hpMax / HEAL_PARTS);
+  const interval = Math.round(((part * FULL_HEAL_SECONDS) / p.hpMax) * TPS);
+
+  if (p.hp >= p.hpMax || world.tick % interval !== 0) {
+    return;
+  }
+
+  const half = p.hpMax / 2;
+  const healed = Math.min(p.hpMax, p.hp + part);
+
+  if (p.hp < half && healed >= half && !world.templeOf(p.owner)) {
+    return;
+  }
+
+  p.hp = healed;
+}
 
 export function tickPriest(world: World, p: Priest): void {
   if (p.state === 'carried') {
@@ -24,16 +49,11 @@ export function tickPriest(world: World, p: Priest): void {
     return;
   }
 
-  if (p.state === 'down') {
-    // regenerates while the player still has a temple
-    if (
-      world.templeOf(p.owner)
-      && world.tick % TPS === 0
-    ) {
-      p.hp = Math.min(p.hpMax, p.hp + 2);
-    }
+  heal(world, p);
 
-    if (p.hp > p.hpMax / 2) {
+  // He is paralysed while he has less than half of his hit points.
+  if (p.state === 'down') {
+    if (p.hp >= p.hpMax / 2) {
       p.state = 'normal';
       world.emit({ what: 'priest up', who: p.owner });
     }
@@ -41,7 +61,7 @@ export function tickPriest(world: World, p: Priest): void {
     return;
   }
 
-  if (p.hp <= p.hpMax / 2) {
+  if (p.hp < p.hpMax / 2) {
     p.state = 'down';
     p.path = [];
     world.emit({ what: 'priest down', who: p.owner });
