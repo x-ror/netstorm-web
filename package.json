@@ -6,10 +6,10 @@
   "keywords": [],
   "license": "ISC",
   "author": "",
+  "type": "module",
   "workspaces": [
     "packages/*"
   ],
-  "type": "module",
   "scripts": {
     "dev": "npm run dev -w @netstorm/client",
     "build": "npm run build -w @netstorm/client",
@@ -24,17 +24,18 @@
     "lint:commits": "commitlint --verbose",
     "lint": "oxlint --deny-warnings .",
     "lint:fix": "oxlint --fix --deny-warnings .",
-    "format": "oxfmt --write .",
-    "format:check": "oxfmt --check .",
+    "format": "dprint fmt",
+    "format:check": "dprint check",
     "lint:staged": "lint-staged"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
+    "@stylistic/eslint-plugin": "^5.10.0",
     "@types/node": "^26.6.5",
+    "dprint": "^0.62.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
-    "oxfmt": "^0.72.0",
     "oxlint": "^1.87.0",
     "playwright": "^1.64.0",
     "tsx": "^4.23.15",

@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "unicorn", "oxc"],
+  "jsPlugins": ["@stylistic/eslint-plugin"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
@@ -10,7 +11,58 @@
     "no-debugger": "error",
     "typescript/no-explicit-any": "error",
     "unicorn/no-array-reverse": "off",
-    "unicorn/no-array-sort": "off"
+    "unicorn/no-array-sort": "off",
+    "curly": ["error", "all"],
+    "one-var": ["error", "never"],
+    "unicorn/no-nested-ternary": "error",
+    "max-depth": ["error", 4],
+    "max-nested-callbacks": ["error", 3],
+    "no-else-return": "error",
+    "no-lonely-if": "error",
+    "prefer-const": "error",
+    "no-var": "error",
+    "no-multi-assign": "error",
+    "no-sequences": "error",
+    "no-param-reassign": [
+      "error",
+      {
+        "props": false
+      }
+    ],
+    "object-shorthand": ["error", "always"],
+    "typescript/consistent-type-imports": [
+      "error",
+      {
+        "prefer": "type-imports",
+        "fixStyle": "inline-type-imports"
+      }
+    ],
+    "no-duplicate-imports": [
+      "error",
+      {
+        "allowSeparateTypeImports": true
+      }
+    ],
+    "@stylistic/lines-between-class-members": [
+      "error",
+      "always",
+      {
+        "exceptAfterSingleLine": true
+      }
+    ],
+    "@stylistic/padding-line-between-statements": [
+      "error",
+      {
+        "blankLine": "always",
+        "prev": "*",
+        "next": ["if", "for", "while", "do", "switch", "try", "function", "class"]
+      },
+      {
+        "blankLine": "always",
+        "prev": ["if", "for", "while", "do", "switch", "try", "function", "class"],
+        "next": "*"
+      }
+    ]
   },
   "ignorePatterns": ["**/dist/**", "packages/client/public/**", "data/**"]
 }

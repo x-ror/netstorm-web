@@ -1,4 +1,4 @@
 export default {
-  '*.{js,mjs,cjs,ts,mts,cts,tsx,jsx}': ['oxlint --fix --deny-warnings', 'oxfmt'],
-  '*.{json,jsonc,yml,yaml,html,css}': 'oxfmt --no-error-on-unmatched-pattern',
+  '*.{js,mjs,cjs,ts,mts,cts,tsx,jsx}': ['oxlint --fix --deny-warnings', 'dprint fmt'],
+  '*.{json,jsonc,yml,yaml,html,css}': 'dprint fmt',
 };

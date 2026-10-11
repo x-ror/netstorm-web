@@ -44,13 +44,19 @@ CI перевіряє коміти pull request відносно базової 
 
 ## Лінтинг і форматування
 
-[Oxlint](https://oxc.rs/docs/guide/usage/linter/quickstart) перевіряє JavaScript і TypeScript. [Oxfmt](https://oxc.rs/docs/guide/usage/formatter/quickstart) форматує код та конфігурацію. Стиль: два пробіли, одинарні лапки в JS/TS, крапки з комою, ширина рядка 100.
+[Oxlint](https://oxc.rs/docs/guide/usage/linter/quickstart) перевіряє JavaScript і TypeScript. [dprint](https://dprint.dev/) форматує все: JS/TS, JSON, YAML, HTML і CSS. Стиль: два пробіли, одинарні лапки в JS/TS, крапки з комою, ширина рядка 100.
 
 - `npm run lint` перевіряє код; попередження теж завершують команду помилкою.
 - `npm run lint:fix` застосовує безпечні автоматичні виправлення Oxlint.
 - `npm run format` форматує файли.
 - `npm run format:check` перевіряє форматування без змін.
 
-Hook `pre-commit` через lint-staged запускає Oxlint і Oxfmt для підготовлених до коміту файлів. `npm run check` і CI перевіряють весь код. Експортовані ігрові дані, public-асети, збірки, lockfile та Markdown не форматуються.
+Hook `pre-commit` через lint-staged запускає Oxlint і dprint для підготовлених JS/TS файлів, а для JSON, YAML, HTML і CSS лише dprint. `npm run check` і CI перевіряють весь код. Експортовані ігрові дані, public-асети, збірки, lockfile та Markdown не форматуються.
 
 Правила `unicorn/no-array-sort` і `unicorn/no-array-reverse` вимкнені: симуляція сортує й розвертає власні тимчасові масиви на місці, щоб уникнути додаткового копіювання. TypeScript окремо перевіряє типи через `npm run typecheck`.
+
+Правила читабельності у `.oxlintrc.json` вимагають фігурних дужок у всіх умовах і циклах, окремого оголошення кожної змінної та `const` для незмінних значень. Тернарні вирази можна вкладати лише на один рівень і в дужках; присвоєння параметрам функцій і повторні імпорти заборонені. Між методами класу, а також перед і після `if`, циклів, `switch`, `try`, функцій і класів потрібен порожній рядок; ці правила надає `@stylistic/eslint-plugin`, підключений через `jsPlugins`. Максимальна вкладеність блоків становить 4 рівні, callback-функцій 3. Імпорти, які потрібні лише для типів, явно позначаються `type`.
+
+Ці правила не обмежують довжину функцій або кількість параметрів довільними лімітами. Форматування залишається відповідальністю форматерів, а продуктивність симуляції перевіряється окремо. Опис правил є в [довіднику Oxlint](https://oxc.rs/docs/guide/usage/linter/rules).
+
+Для JS/TS у `dprint.json` діють глобальні правила `arguments.preferHanging: "always"` і `arguments.preferSingleLine: true`. Вони зберігають початок виклику й callback на одному рядку, якщо він вкладається в `lineWidth: 100`, наприклад `hud.addEventListener('click', (event) => {`. Локальні ігнори для цього не потрібні. Плагіни dprint зафіксовані версіями в конфігурації й завантажуються при першому запуску форматера.

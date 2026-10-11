@@ -1,0 +1,43 @@
+{
+  "lineWidth": 100,
+  "indentWidth": 2,
+  "newLineKind": "lf",
+  "typescript": {
+    "quoteStyle": "preferSingle",
+    "semiColons": "always",
+    "arrowFunction.useParentheses": "force",
+    "useBraces": "always",
+    "singleBodyPosition": "nextLine",
+    "arguments.preferHanging": "always",
+    "arguments.preferSingleLine": true,
+    "bracePosition": "sameLine",
+    "module.sortImportDeclarations": "maintain",
+    "module.sortExportDeclarations": "maintain",
+    "importDeclaration.sortNamedImports": "maintain",
+    "exportDeclaration.sortNamedExports": "maintain"
+  },
+  "markup": {
+    "styleIndent": true,
+    "scriptIndent": true,
+    "doctypeKeywordCase": "lower"
+  },
+  "plugins": [
+    "https://plugins.dprint.dev/typescript-0.96.1.wasm",
+    "npm:@dprint/json@0.25.2",
+    "npm:dprint-plugin-yaml@0.6.0",
+    "npm:dprint-plugin-markup@0.27.5",
+    "npm:dprint-plugin-malva@0.16.0"
+  ],
+  "$schema": "https://dprint.dev/schemas/v0.json",
+  "includes": [
+    "**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+    "**/*.{json,jsonc,yml,yaml,html,css}"
+  ],
+  "excludes": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "data/**",
+    "packages/client/public/**",
+    "package-lock.json"
+  ]
+}
