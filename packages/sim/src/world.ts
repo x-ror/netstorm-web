@@ -56,7 +56,7 @@ import { parseSnapshot, SNAPSHOT_VERSION, RULES_VERSION, type WorldSnapshot } fr
 import { assertWorldInvariants } from './invariants.js';
 export * from './state.js';
 
-const GEYSER_ISLAND_SIZE = 3; // neutral island a geyser sits on
+export const GEYSER_ISLAND_SIZE = 3; // neutral island a geyser sits on
 export * from './commands.js';
 export * from './events.js';
 

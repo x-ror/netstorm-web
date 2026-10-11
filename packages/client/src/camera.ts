@@ -1,16 +1,16 @@
 import { type Container } from 'pixi.js';
-import { iso, unIso } from './projection.js';
+import { project, unproject } from './projection.js';
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 4;
 
 /** Put map cell (x, y) in the middle of the screen. */
 export function centerOn(camera: Container, x: number, y: number): void {
-  const { sx, sy } = iso(x, y);
+  const { sx, sy } = project(x, y);
   centerOnScreenPoint(camera, sx, sy);
 }
 
-/** Put an unscaled isometric point in the middle of the screen. */
+/** Put an unscaled screen point in the middle of the screen. */
 export function centerOnScreenPoint(camera: Container, sx: number, sy: number): void {
   camera.position.set(window.innerWidth / 2 - sx * camera.scale.x,
     window.innerHeight / 2 - sy * camera.scale.y);
@@ -27,10 +27,10 @@ export function zoomAt(camera: Container, px: number, py: number, factor: number
 
 /** The map cell under a screen point. */
 export function cellAt(camera: Container, px: number, py: number): { x: number; y: number; } {
-  return unIso((px - camera.x) / camera.scale.x, (py - camera.y) / camera.scale.y);
+  return unproject((px - camera.x) / camera.scale.x, (py - camera.y) / camera.scale.y);
 }
 
-/** Corners of the screen as unscaled isometric points, clockwise from the top left. */
+/** Corners of the screen as unscaled screen points, clockwise from the top left. */
 export function viewCorners(camera: Container): [number, number][] {
   const w = window.innerWidth;
   const h = window.innerHeight;

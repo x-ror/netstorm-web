@@ -51,11 +51,13 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   camera.scale.set(ZOOM);
   app.stage.addChild(camera);
   const terrainG = new Graphics();
+  const ground = new Container();
   const entityLayer = new Container();
   const bars = new Graphics();
   const overlay = new Graphics();
-  camera.addChild(terrainG, entityLayer, bars, overlay);
-  const renderer = createWorldRenderer(view, ME, terrainG, entityLayer, bars, data.textures);
+  camera.addChild(terrainG, ground, entityLayer, bars, overlay);
+  const renderer = createWorldRenderer(view, ME, terrainG, ground, entityLayer, bars,
+    data.textures);
 
   root.hidden = false;
   let leave: (() => void) | undefined;
@@ -119,6 +121,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     camera,
     app,
     terrainG,
+    ground,
     entityLayer,
     ui,
   };

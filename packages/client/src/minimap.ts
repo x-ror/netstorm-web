@@ -1,9 +1,9 @@
 import { type Container } from 'pixi.js';
 import { H, Terrain, W, type WorldView } from '@netstorm/sim';
-import { iso, TH, TW } from './projection.js';
+import { project, TH, TW } from './projection.js';
 import { centerOnScreenPoint, viewCorners } from './camera.js';
 
-/** Minimap pixels per isometric pixel of the map at 1×. */
+/** Minimap pixels per screen pixel of the map at 1×. */
 const SCALE = 0.05;
 const RGBA = 4;
 const OPAQUE = 255;
@@ -35,7 +35,7 @@ const DOT_COLOR = {
   view: '#ffffff',
 } as const;
 
-/** The whole map in the same isometric projection, scaled down. A click or drag moves the camera. */
+/** The whole map in the same projection, scaled down. A click or drag moves the camera. */
 export function createMinimap(
   canvas: HTMLCanvasElement,
   world: WorldView,
@@ -43,9 +43,8 @@ export function createMinimap(
   camera: Container,
 ) {
   // The map's isometric extent: x - y spans ±W cells, x + y spans 0..W + H cells.
-  const left = iso(0, H).sx;
-  canvas.width = Math.ceil((iso(W, 0).sx - left) * SCALE);
-  canvas.height = Math.ceil(iso(W, H).sy * SCALE);
+  canvas.width = Math.ceil(project(W, H).sx * SCALE);
+  canvas.height = Math.ceil(project(W, H).sy * SCALE);
   const ctx = canvas.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
   const cells = document.createElement('canvas');
@@ -57,7 +56,7 @@ export function createMinimap(
   let terrainRevision = -1;
 
   const toMinimap = (sx: number, sy: number): [number, number] => [
-    (sx - left) * SCALE,
+    sx * SCALE,
     sy * SCALE,
   ];
 
@@ -93,10 +92,8 @@ export function createMinimap(
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // A cell's unit vectors in isometric pixels are (TW/2, TH/2) along x and (-TW/2, TH/2) along y.
-    const a = (TW / 2) * SCALE;
-    const b = (TH / 2) * SCALE;
-    ctx.setTransform(a, b, -a, b, -left * SCALE, 0);
+    // One map cell is TW × TH screen pixels.
+    ctx.setTransform(TW * SCALE, 0, 0, TH * SCALE, 0, 0);
     ctx.drawImage(cells, 0, 0);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
@@ -111,7 +108,8 @@ export function createMinimap(
         color = entity.owner === me ? DOT_COLOR.own : DOT_COLOR.enemy;
       }
 
-      const [mx, my] = toMinimap(iso(entity.x, entity.y).sx, iso(entity.x, entity.y).sy);
+      const { sx, sy } = project(entity.x, entity.y);
+      const [mx, my] = toMinimap(sx, sy);
       ctx.fillStyle = color;
       ctx.fillRect(Math.round(mx) - 1, Math.round(my) - 1, DOT, DOT);
     }
@@ -133,7 +131,7 @@ export function createMinimap(
     const rect = canvas.getBoundingClientRect();
     const mx = ((ev.clientX - rect.left) / rect.width) * canvas.width;
     const my = ((ev.clientY - rect.top) / rect.height) * canvas.height;
-    centerOnScreenPoint(camera, mx / SCALE + left, my / SCALE);
+    centerOnScreenPoint(camera, mx / SCALE, my / SCALE);
     draw();
   };
   canvas.addEventListener('pointerdown', (ev) => {

@@ -1,15 +1,28 @@
 import { type Container, Graphics, Sprite, type Texture } from 'pixi.js';
-import { type WorldView, type DeepReadonly, type Entity, Terrain, W, H } from '@netstorm/sim';
-import { iso, TW, TH } from './projection.js';
+import {
+  type WorldView,
+  type DeepReadonly,
+  type Entity,
+  Terrain,
+  W,
+  H,
+  isBridge,
+  GEYSER_ISLAND_SIZE,
+} from '@netstorm/sim';
+import { GROUND_FRAMES } from './texture-selection.js';
+import { project, TW, TH } from './projection.js';
 
 const SPRITE_ANCHOR_X = 0.5;
-const SPRITE_ANCHOR_Y = 0.85;
+const UNIT_ANCHOR_Y = 0.85; // a unit's feet sit a little above the bottom of its frame
+const CLIFF_HEIGHT = 6; // rock face drawn under an island's southern rim
+const SCATTER_X = 7;
+const SCATTER_Y = 13;
+const BAR_GAP = 2; // pixels between a sprite's top and its health bar
 const MARKER_RADIUS = 4;
 const CELL_CENTER = 0.5;
 const MIN_ALPHA = 0.5; // alpha of an entity at zero hp
 const BAR_WIDTH = 14;
 const BAR_HEIGHT = 2;
-const BAR_LIFT = 26; // pixels above the entity's ground point
 const COLOR = {
   bridge: 0x8a8f99,
   crackedBridge: 0x5a5148,
@@ -21,6 +34,8 @@ const COLOR = {
   enemyPriestTint: 0xff9999,
   enemyBuildingTint: 0xffb0b0,
   noTint: 0xffffff,
+  cliff: 0x3a2a1c,
+  enemyGroundTint: 0xffc8c8,
   barBack: 0x1b1f2a,
   barGood: 0x7bd36b,
   barLow: 0xff5a4a,
@@ -31,13 +46,20 @@ export function createWorldRenderer(
   world: WorldView,
   me: number,
   terrainG: Graphics,
+  ground: Container,
   entityLayer: Container,
   bars: Graphics,
   textures: Map<string, Texture>,
 ) {
-  // --- terrain
+  // --- terrain: a tile per cell, a cliff face under each southern rim, colours where tiles are missing
+  const tiles: Sprite[] = [];
+
   function drawTerrain() {
     terrainG.clear();
+
+    for (const tile of tiles.splice(0)) {
+      tile.destroy();
+    }
 
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
@@ -48,14 +70,43 @@ export function createWorldRenderer(
         }
 
         const owner = world.owner[y * W + x]!;
-        const { sx, sy } = iso(x, y);
-        const color = terrainColor(terrain, owner, me);
-        terrainG
-          .poly([sx, sy, sx + TW / 2, sy + TH / 2, sx, sy + TH, sx - TW / 2, sy + TH / 2])
-          .fill(color)
-          .stroke({ color: 0x0b1020, width: 0.5 });
+        const { sx, sy } = project(x, y);
+        const texture = textures.get(tileKey(terrain, owner, x, y));
+
+        if (y + 1 < H && !world.terrain[(y + 1) * W + x]) {
+          terrainG.rect(sx, sy + TH, TW, CLIFF_HEIGHT).fill(COLOR.cliff);
+        }
+
+        if (!texture) {
+          terrainG.rect(sx, sy, TW, TH).fill(terrainColor(terrain, owner, me));
+          continue;
+        }
+
+        const tile = new Sprite(texture);
+        tile.position.set(sx, sy);
+        tile.tint = owner && owner !== me && !isBridge(terrain)
+          ? COLOR.enemyGroundTint
+          : COLOR.noTint;
+        ground.addChild(tile);
+        tiles.push(tile);
       }
     }
+  }
+
+  function tileKey(terrain: number, owner: number, x: number, y: number): string {
+    if (terrain === Terrain.Bridge) {
+      return 'bridge:solid';
+    }
+
+    if (terrain === Terrain.CrackedBridge) {
+      return 'bridge:cracked';
+    }
+
+    const theme = world.players.get(owner)?.theme;
+    const set = theme && theme !== 'sun' ? theme : 'neutral';
+    // A fixed scatter of the grass variants, so a redraw does not reshuffle the ground.
+    const frame = GROUND_FRAMES[((x * SCATTER_X) ^ (y * SCATTER_Y)) % GROUND_FRAMES.length]!;
+    return `ground:${set}:${frame}`;
   }
 
   // --- entities
@@ -73,7 +124,7 @@ export function createWorldRenderer(
       if (!sprite) {
         if (texture) {
           const newSprite = new Sprite(texture);
-          newSprite.anchor.set(SPRITE_ANCHOR_X, SPRITE_ANCHOR_Y);
+          newSprite.anchor.set(SPRITE_ANCHOR_X, footprintOf(entity) ? 1 : UNIT_ANCHOR_Y);
           sprite = newSprite;
         } else {
           const marker = new Graphics();
@@ -95,16 +146,19 @@ export function createWorldRenderer(
       }
 
       sprite.visible = true;
-      const cx = entity.kind === 'building' ? entity.x + entity.fx / 2 : entity.x + CELL_CENTER;
-      const cy = entity.kind === 'building' ? entity.y + entity.fy / 2 : entity.y + CELL_CENTER;
-      const { sx, sy } = iso(cx, cy);
-      sprite.position.set(sx, sy + TH / 2);
-      sprite.zIndex = depth(entity);
+      // Large things stand on the bottom edge of their footprint, units on the middle of their cell.
+      const foot = footprintOf(entity);
+      const { sx, sy } = foot
+        ? project(foot.x + foot.w / 2, foot.y + foot.h)
+        : project(entity.x + CELL_CENTER, entity.y + CELL_CENTER);
+      sprite.position.set(sx, sy);
+      sprite.zIndex = sy;
       sprite.tint = entityTint(entity, me);
       sprite.alpha = entityAlpha(entity);
 
       if ('hp' in entity && entity.hp < entity.hpMax) {
-        drawBar(sx, sy + TH / 2 - BAR_LIFT, entity.hp / entity.hpMax);
+        const top = sprite instanceof Sprite ? sy - sprite.height * sprite.anchor.y : sy;
+        drawBar(sx, top - BAR_GAP - BAR_HEIGHT, entity.hp / entity.hpMax);
       }
     }
 
@@ -140,14 +194,19 @@ export function createWorldRenderer(
   };
 }
 
-/** Draw order: what stands nearer the bottom of the screen covers what is behind it. A building
- * is ordered by its front corner, so a unit walking behind a large building stays hidden. */
-function depth(entity: DeepReadonly<Entity>): number {
+/** Cells a building or a geyser's islet covers; the sprite stands on their bottom edge, which
+ * also orders drawing so that nearer things cover those behind. */
+function footprintOf(
+  entity: DeepReadonly<Entity>,
+): { x: number; y: number; w: number; h: number; } | null {
   if (entity.kind === 'building') {
-    return iso(entity.x + entity.fx, entity.y + entity.fy).sy;
+    return { x: entity.x, y: entity.y, w: entity.fx, h: entity.fy };
   }
 
-  return iso(entity.x + 1, entity.y + 1).sy;
+  // A geyser stands in the middle of its 3×3 islet (World.addGeyser).
+  return entity.kind === 'geyser'
+    ? { x: entity.x - 1, y: entity.y - 1, w: GEYSER_ISLAND_SIZE, h: GEYSER_ISLAND_SIZE }
+    : null;
 }
 
 function terrainColor(terrain: number, owner: number, me: number): number {

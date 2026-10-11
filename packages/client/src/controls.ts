@@ -13,7 +13,7 @@ import {
   type Facing,
   type WorldView,
 } from '@netstorm/sim';
-import { iso, TW, TH } from './projection.js';
+import { project, TW, TH } from './projection.js';
 import { cellAt, zoomAt } from './camera.js';
 import { anchorFor, entityAt, hasFacing, type Tool, type UiState } from './ui-state.js';
 
@@ -38,17 +38,13 @@ const AIM_RADIUS = 2;
 type View = DeepReadonly<Entity>;
 
 function cellPoly(x: number, y: number): number[] {
-  const { sx, sy } = iso(x, y);
-  return [sx, sy, sx + TW / 2, sy + TH / 2, sx, sy + TH, sx - TW / 2, sy + TH / 2];
+  return rectPoly(x, y, 1, 1);
 }
 
 /** Outline of a rectangle of cells. */
 function rectPoly(x: number, y: number, w: number, h: number): number[] {
-  const top = iso(x, y);
-  const right = iso(x + w, y);
-  const bottom = iso(x + w, y + h);
-  const left = iso(x, y + h);
-  return [top.sx, top.sy, right.sx, right.sy, bottom.sx, bottom.sy, left.sx, left.sy];
+  const { sx, sy } = project(x, y);
+  return [sx, sy, sx + w * TW, sy, sx + w * TW, sy + h * TH, sx, sy + h * TH];
 }
 
 function footprint(entity: View): number[] {
@@ -361,8 +357,8 @@ export function createControls(options: {
 
       if (hasFacing(def)) {
         const [dx, dy] = DIRS[ui.facing]!;
-        const aim = iso(x + dx * AIM_DISTANCE, y + dy * AIM_DISTANCE);
-        overlay.circle(aim.sx, aim.sy + TH / 2, AIM_RADIUS).fill(COLOR.invalid);
+        const aim = project(x + dx * AIM_DISTANCE + 1 / 2, y + dy * AIM_DISTANCE + 1 / 2);
+        overlay.circle(aim.sx, aim.sy, AIM_RADIUS).fill(COLOR.invalid);
       }
     }
 
@@ -376,8 +372,8 @@ export function createControls(options: {
 
   /** The circles over which the player's Temple and Generators supply energy. */
   function drawEnergy(): void {
-    const rx = (ENERGY_RANGE * TW) / Math.SQRT2;
-    const ry = (ENERGY_RANGE * TH) / Math.SQRT2;
+    const rx = ENERGY_RANGE * TW;
+    const ry = ENERGY_RANGE * TH;
 
     for (const building of world.buildingsOf(me)) {
       const def = world.def(building.type);
@@ -386,7 +382,7 @@ export function createControls(options: {
         continue;
       }
 
-      const centre = iso(building.x + building.fx / 2, building.y + building.fy / 2);
+      const centre = project(building.x + building.fx / 2, building.y + building.fy / 2);
       overlay.ellipse(centre.sx, centre.sy, rx, ry)
         .stroke({ color: COLOR.energy, alpha: ENERGY_ALPHA, width: 1 });
     }
@@ -418,7 +414,7 @@ export function createControls(options: {
 
     if ('path' in selected) {
       for (const [px, py] of selected.path) {
-        const { sx, sy } = iso(px + 1 / 2, py + 1 / 2);
+        const { sx, sy } = project(px + 1 / 2, py + 1 / 2);
         // oxlint-disable-next-line unicorn/no-array-fill-with-reference-type -- Pixi fills geometry with a paint style, not an array.
         overlay.circle(sx, sy, PATH_DOT).fill({ color: COLOR.path, alpha: GHOST_ALPHA });
       }

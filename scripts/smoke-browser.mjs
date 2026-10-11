@@ -70,8 +70,8 @@ try {
   await page.getByRole('button', { name: 'Почати' }).click();
   await page.waitForFunction(() => window.ns?.world.players.get(1).hand.length > 0);
   const result = await page.evaluate(() => {
-    const { world, match, terrainG, entityLayer } = window.ns;
-    const before = terrainG.context.instructions.length;
+    const { world, match, ground, entityLayer } = window.ns;
+    const before = ground.children.length;
     match.step([
       { t: 'dropPiece', player: 1, hand: 0, x: 10, y: 10, rot: 0 },
       { t: 'dropPiece', player: 1, hand: 0, x: 81, y: 150, rot: 0 },
@@ -84,8 +84,7 @@ try {
   assert.equal(result.rejected, 'not connected');
   assert.equal(result.accepted, true);
   assert.ok(result.sprites > 0);
-  await page.waitForFunction((before) => window.ns.terrainG.context.instructions.length > before,
-    result.before);
+  await page.waitForFunction((before) => window.ns.ground.children.length > before, result.before);
 
   // Production Window: picking a unit arms the build tool, Escape returns to selection.
   const cannon = page.getByRole('button', { name: 'Sun Cannon', exact: true });
@@ -101,8 +100,8 @@ try {
     page.evaluate(([cx, cy]) => {
       const { camera } = window.ns;
       return {
-        x: camera.x + (cx - cy) * 8 * camera.scale.x,
-        y: camera.y + (cx + cy + 1) * 5.5 * camera.scale.y,
+        x: camera.x + (cx + 0.5) * 16 * camera.scale.x,
+        y: camera.y + (cy + 0.5) * 11 * camera.scale.y,
       };
     }, [x, y]);
   const transport = await page.evaluate(() => {
@@ -117,8 +116,8 @@ try {
   const geyser = await page.evaluate(() => {
     const { world, camera } = window.ns;
     const g = [...world.entities.values()].find((e) => e.kind === 'geyser');
-    camera.position.set(640 - (g.x - g.y) * 8 * camera.scale.x,
-      400 - (g.x + g.y + 1) * 5.5 * camera.scale.y);
+    camera.position.set(640 - (g.x + 0.5) * 16 * camera.scale.x,
+      400 - (g.y + 0.5) * 11 * camera.scale.y);
     return { x: g.x, y: g.y };
   });
   point = await screenOf(geyser.x, geyser.y);
