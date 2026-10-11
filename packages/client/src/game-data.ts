@@ -11,10 +11,15 @@ export interface Mission {
   /** Starting Storm Power of the human player in the original mission. */
   storm: number;
   enemy: string;
+  /** Seconds between the computer opponent's moves (aiTimeBetweenMoves). */
+  aiDelay: number;
   briefing: string;
   succeeded: string;
   failed: string;
 }
+
+/** aiTimeBetweenMoves of the campaign missions that leave it out; most set 6. */
+export const DEFAULT_AI_DELAY = 6;
 
 /** Keep only the geysers: the client does not read island cells yet. */
 export function slimMaps(raw: unknown): Maps {
@@ -55,6 +60,7 @@ export function slimMissions(raw: unknown, maps: Maps): Mission[] {
       title: header.title,
       storm: Number(header.myStartMoney) || 0,
       enemy: typeof header.aiName === 'string' ? header.aiName : '',
+      aiDelay: Number(header.aiTimeBetweenMoves) || DEFAULT_AI_DELAY,
       briefing: reflow(withoutTitle(text(sections, 'A.'), header.title)),
       succeeded: reflow(text(sections, 'Succeeded') || text(sections, 'succeeded')),
       failed: reflow(text(sections, 'Failed')),

@@ -27,7 +27,7 @@ export function tickPriest(world: World, p: Priest): void {
   if (p.state === 'down') {
     // regenerates while the player still has a temple
     if (
-      world.buildingsOf(p.owner).some((b) => world.def(b.type).cls === 'Energy')
+      world.templeOf(p.owner)
       && world.tick % TPS === 0
     ) {
       p.hp = Math.min(p.hpMax, p.hp + 2);

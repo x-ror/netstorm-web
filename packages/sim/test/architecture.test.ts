@@ -24,15 +24,15 @@ const mk = () =>
   ], [[80, 40]]);
 const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
-// Pins the current rules (RULES_VERSION 12). Re-pin deliberately whenever state shape or rules change.
+// Pins the current rules (RULES_VERSION 13). Re-pin deliberately whenever state shape or rules change.
 test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
-    [1, 1670604463],
-    [60, 2846241711],
-    [101, 2088780676],
-    [200, 61376545],
-    [400, 1936274032],
+    [1, 1015014493],
+    [60, 647552629],
+    [101, 1088987564],
+    [200, 3539693503],
+    [400, 239555574],
   ]);
 
   for (let index = 0; index < 400; index++) {
@@ -52,8 +52,10 @@ test('construction preview and execution share validation without preview mutati
   assert.equal(world.view().canBuild(command), null);
   assert.equal(world.hash(), hash);
   assert.deepEqual(world.execute(command), { ok: true });
-  assert.equal(world.view().canBuild(command), 'blocked');
-  assert.deepEqual(world.execute(command), { ok: false, error: 'blocked' });
+  // The same unit is dimmed for a while (Unit Rate), and the spot is now taken.
+  assert.equal(world.view().canBuild(command), 'not ready');
+  assert.deepEqual(world.execute(command), { ok: false, error: 'not ready' });
+  assert.equal(world.view().canBuild({ ...command, type: 'sunarcher' }), 'blocked');
   const invalid: Command = { ...command, x: -1 };
   assert.equal(world.canBuild(invalid), 'bad coordinates');
   assert.deepEqual(world.execute(invalid), { ok: false, error: 'bad coordinates' });
@@ -66,7 +68,7 @@ test('commands retain submission order and rejection events have typed payloads'
   const events = world.drainEvents();
   assert.deepEqual(events.map((event) => event.what), ['build', 'rejected']);
   const rejected = events.find((event) => event.what === 'rejected');
-  assert.deepEqual(rejected?.data, { cmd: 'build', err: 'blocked' });
+  assert.deepEqual(rejected?.data, { cmd: 'build', err: 'not ready' });
   assert.equal(world.players.get(1)!.storm, 1600);
 });
 

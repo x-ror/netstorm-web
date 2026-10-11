@@ -133,6 +133,7 @@ export class World {
       tech: new Set(tech.map((t) => t.toLowerCase())),
       hand: [],
       pieceTimer: PIECE_INTERVAL,
+      refresh: [],
       alive: true,
     };
     this.players.set(id, p);
@@ -304,6 +305,11 @@ export class World {
     }
 
     return undefined;
+  }
+
+  /** The player's Temple: the building of class Energy. */
+  templeOf(p: number): Building | undefined {
+    return this.buildingsOf(p).find((b) => this.def(b.type).cls === 'Energy');
   }
 
   buildingsOf(p: number, group?: UnitGroup): Building[] {

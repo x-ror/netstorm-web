@@ -2,7 +2,15 @@ import type { World } from '../world.js';
 import type { Command, CommandError } from '../commands.js';
 import type { WorldView } from '../view.js';
 import type { UnitDef } from '../defs.js';
-import { DIRS, ENERGY_RANGE, MAX_FACING, REFUND_SHARE, Terrain, isBridge } from '../state.js';
+import {
+  DIRS,
+  ENERGY_RANGE,
+  MAX_FACING,
+  REFUND_SHARE,
+  Terrain,
+  UNIT_REFRESH,
+  isBridge,
+} from '../state.js';
 import { shakeBridges } from './bridges.js';
 import { removeBuilding } from './combat.js';
 import { removeTransport } from './movement.js';
@@ -90,6 +98,10 @@ export function canBuild(
     return 'no storm power';
   }
 
+  if (player.refresh.some((entry) => entry.type === def.id)) {
+    return 'not ready';
+  }
+
   const site = def.cls === 'Ground Transport'
     ? transportSiteError(world, command.player, command.x, command.y)
     : siteError(world, command.player, def, command.x, command.y);
@@ -129,7 +141,7 @@ function makerError(world: WorldView, player: number, def: UnitDef): CommandErro
   }
 
   if (def.id === GOLEM) {
-    return world.buildingsOf(player).some((b) => world.def(b.type).cls === 'Energy')
+    return world.templeOf(player)
       ? null
       : 'no temple';
   }
@@ -284,6 +296,7 @@ export function build(world: World, c: Extract<Command, { t: 'build'; }>): Comma
 
   const def = world.def(c.type);
   pl.storm -= def.cost;
+  pl.refresh.push({ type: def.id, ticks: UNIT_REFRESH });
 
   // "When a Workshop creates a unit ... the unit will be created on the spot": a transport walks
   // away from where it was laid.

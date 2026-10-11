@@ -42,7 +42,8 @@
 - [x] 25 % вартості за знищений ворожий юніт; Salvage
 - [ ] Вибух стрільців і Храму зі шкодою сусідам — [?] радіус і шкода
 - [x] Юніти Wind/Rain/Thunder лише з Майстерні своєї стихії; Golem лише з Храмом; транспорт з'являється транспортом
-- [ ] Майстерні: слоти виробництва, апгрейд; Sun Workshop для Sun-юнітів [?]; затримка Unit Rate
+- [x] Затримка Unit Rate: тип юніта недоступний 4 с після встановлення
+- [ ] Майстерні: слоти виробництва, апгрейд; Sun Workshop для Sun-юнітів [?]
 - [ ] Блокери: Wind Tower невразлива зі спини; Ice Tower відроджується, поки цілий її острівець; Bulwark невразливий для повітря
 - [ ] Бар'єри з двох веж: Arc Spire (нелітаючі юніти, ×2 по великих спорудах), Acid Barricade (будь-який ворожий юніт, від пострілів не захищає), Sun Barricade (стіна від ворожих снарядів)
 - [ ] Стрільці: сектор Crossbow, шрапнель Ice Cannon, Vander Tower лише по повітрю, бонус Disc Thrower по повітрю
@@ -53,7 +54,8 @@
 - [ ] Вівтар рівнів 1–3 і Знання: у мультиплеєрі дар на вибір, у кампанії — перемога
 - [ ] Outpost, Residence, Edge Farm, дерева, руїни
 - [ ] Нові гейзерні острівці протягом бою
-- [ ] AI: прапорці з `.english` (`COLLECT_STORM_POWER`, `ATTACH_TO_ENEMY_ISLAND`, `ENCIRCLE_ENEMY_ISLAND`, `CONCENTRATE_FIRE`, `REPEAT_SUCCESSFUL_DROPS`, …), `aiTimeBetweenMoves`
+- [x] Простий AI (`ai.ts`): збір, мости до гейзерів, оборона, ланцюг генераторів до ворога, Disc Thrower і гармати біля його жерця, захоплення й ритуал; хід раз на `aiTimeBetweenMoves` — поведінка вигадана
+- [ ] AI: прапорці з `.english` (`COLLECT_STORM_POWER`, `ATTACH_TO_ENEMY_ISLAND`, `ENCIRCLE_ENEMY_ISLAND`, `CONCENTRATE_FIRE`, `REPEAT_SUCCESSFUL_DROPS`, …), `aiCollectors`, `aiGeyserAttachments`, `aiSalvageChance`, складність
 - [ ] Скрипти місій: секції-події (`[Succeeded]`, `[Failed]`, `[ai1templedead]`, тригери), ланцюжок `MissionBegin`
 - [x] Реплеї: запис команд і початкового стану, перевірка хешу
 - [ ] Золотий тест: реплей 10 хв матчу дає однаковий хеш у Node і в браузері

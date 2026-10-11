@@ -25,6 +25,11 @@ export const RUNES = 5; // runes the sacrificing priest must ward
 // 75 s after the Sacrifice was ordered, the priest walking to a new spot by the altar for each.
 const RUNE_SECONDS = 15;
 export const RUNE_INTERVAL = RUNE_SECONDS * TPS;
+// "When you lay a unit down in the game its image in the Production Window will stay dimmed for a
+// while" (Unit Rate option). The campaign default is stuffRefreshRate = 4 in setup.cfg, read as
+// seconds; the unit of that number is not stated anywhere (`?`).
+const UNIT_REFRESH_SECONDS = 4;
+export const UNIT_REFRESH = UNIT_REFRESH_SECONDS * TPS;
 export const MAX_PLAYERS = 8;
 export const MAX_ID = 0x7fffffff; // ids fit a signed 32-bit integer
 export const MAX_UINT32 = 0xffffffff;
@@ -130,6 +135,8 @@ export interface Player {
   tech: Set<string>; // unit ids the player knows
   hand: HandPiece[];
   pieceTimer: number;
+  /** Unit types laid down recently, with the ticks left before they can be laid again. */
+  refresh: { type: string; ticks: number; }[];
   alive: boolean;
 }
 

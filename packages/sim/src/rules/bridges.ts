@@ -5,7 +5,7 @@ import { W, H, Terrain, DIRS, PIECES, PIECE_HARDEN, rotatePiece, type Building }
 
 /** Cells of the player's ground joined to the Temple by an unbroken run of own island and bridge. */
 function connectedToTemple(world: WorldView, player: number): Uint8Array | null {
-  const temple = world.buildingsOf(player).find((b) => world.def(b.type).cls === 'Energy');
+  const temple = world.templeOf(player);
 
   if (!temple) {
     return null;

@@ -23,8 +23,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 6;
-export const RULES_VERSION = 12;
+export const SNAPSHOT_VERSION = 7;
+export const RULES_VERSION = 13;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -205,7 +205,8 @@ function parseEntity(raw: unknown): Entity {
 
 function parsePlayer(raw: unknown): SnapshotPlayer {
   const value = record(raw, 'player');
-  keys(value, ['id', 'name', 'theme', 'storm', 'tech', 'hand', 'pieceTimer', 'alive'], 'player');
+  keys(value, ['id', 'name', 'theme', 'storm', 'tech', 'hand', 'pieceTimer', 'refresh', 'alive'],
+    'player');
   const tech = list(value.tech, 'player.tech').map((entry) => text(entry, 'technology'));
   unique(tech, (entry) => entry, 'technology');
   return {
@@ -223,6 +224,14 @@ function parsePlayer(raw: unknown): SnapshotPlayer {
       };
     }),
     pieceTimer: integer(value.pieceTimer, 'player.pieceTimer', -Number.MAX_SAFE_INTEGER),
+    refresh: list(value.refresh, 'player.refresh').map((rawEntry) => {
+      const entry = record(rawEntry, 'refresh');
+      keys(entry, ['type', 'ticks'], 'refresh');
+      return {
+        type: text(entry.type, 'refresh.type'),
+        ticks: integer(entry.ticks, 'refresh.ticks', 1),
+      };
+    }),
     alive: boolean(value.alive, 'player.alive'),
   };
 }

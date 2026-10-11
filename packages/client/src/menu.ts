@@ -10,7 +10,11 @@ export interface MatchOptions {
   mission: string;
   storm: number;
   seed: number;
+  /** Whether the opponent is played by the computer or stands idle. */
+  opponent: Opponent;
 }
+
+export type Opponent = 'ai' | 'idle';
 
 const THEMES: Record<PlayableTheme, string> = {
   wind: 'Вітер (Wind)',
@@ -29,6 +33,7 @@ export const DEFAULT_OPTIONS: MatchOptions = {
   mission: 'thewarbegins',
   storm: DEFAULT_STORM,
   seed: DEFAULT_SEED,
+  opponent: 'ai',
 };
 
 /** Show the skirmish setup and resolve with the chosen options when the player starts. */
@@ -38,11 +43,14 @@ export function showMenu(root: HTMLElement, missions: Mission[]): Promise<MatchO
   root.innerHTML = `
     <div class="menu-card">
       <h1>NetStorm Web</h1>
-      <p class="muted">Фан-ремейк NetStorm: Islands At War. Сутичка проти пасивного суперника.</p>
+      <p class="muted">Фан-ремейк NetStorm: Islands At War. Сутичка проти комп'ютерного суперника.</p>
       <div class="menu-grid">
         <form class="menu-form">
           <label>Ваша стихія <select name="theme">${themeOptions()}</select></label>
           <label>Стихія суперника <select name="enemyTheme">${themeOptions()}</select></label>
+          <label>Суперник <select name="opponent">
+            <option value="ai">Комп'ютер</option><option value="idle">Без дій</option>
+          </select></label>
           <label>Карта гейзерів <select name="mission">${
     missions.map((m) => `<option value="${m.id}">${escapeHtml(m.title)}</option>`).join('')
   }</select></label>
@@ -64,6 +72,7 @@ export function showMenu(root: HTMLElement, missions: Mission[]): Promise<MatchO
   field<HTMLSelectElement>('mission').value = saved.mission;
   field<HTMLInputElement>('storm').value = String(saved.storm);
   field<HTMLInputElement>('seed').value = String(saved.seed);
+  field<HTMLSelectElement>('opponent').value = saved.opponent;
 
   const showBriefing = () => {
     const mission = missions.find((m) => m.id === field<HTMLSelectElement>('mission').value);
@@ -93,6 +102,7 @@ export function showMenu(root: HTMLElement, missions: Mission[]): Promise<MatchO
         mission: field<HTMLSelectElement>('mission').value,
         storm: clamp(Number(field<HTMLInputElement>('storm').value), MAX_STORM, DEFAULT_STORM),
         seed: clamp(Number(field<HTMLInputElement>('seed').value), MAX_SEED, DEFAULT_SEED),
+        opponent: field<HTMLSelectElement>('opponent').value === 'idle' ? 'idle' : 'ai',
       };
       saveOptions(options);
       root.hidden = true;
@@ -131,6 +141,7 @@ function loadOptions(missions: Mission[]): MatchOptions {
         : options.mission;
       options.storm = clamp(Number(value.storm), MAX_STORM, options.storm);
       options.seed = clamp(Number(value.seed), MAX_SEED, options.seed);
+      options.opponent = value.opponent === 'idle' ? 'idle' : 'ai';
     }
   } catch {
     // Private windows and blocked storage fall back to the defaults.
