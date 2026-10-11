@@ -1,117 +1,44 @@
-import { Application, Container, Graphics } from 'pixi.js';
+import { loadDefs } from '@netstorm/sim';
 import { loadTextures, type Manifest } from './assets.js';
-import { createWorldRenderer } from './renderer.js';
-import { iso, ZOOM } from './projection.js';
-import { createControls } from './controls.js';
-import {
-  loadDefs,
-  createSkirmish,
-  FixedStepClock,
-  ReplayRecorder,
-  playReplay,
-  type Command,
-  TPS,
-} from '@netstorm/sim';
-
-const HUD_REFRESH_TICKS = 5;
+import { type Maps, type Mission } from './game-data.js';
+import { showMenu } from './menu.js';
+import { runMatch } from './match.js';
 
 async function main() {
-  const [unitsRaw, forts, manifest] = await Promise.all([
-    fetch('data/units.json').then((r) => r.json()),
-    fetch('data/forts.json').then((r) => r.json()),
-    fetch('data/sprites.json').then((r) => r.json()) as Promise<Manifest>,
+  const [unitsRaw, maps, missions, manifest] = await Promise.all([
+    fetchJson<unknown>('data/units.json'),
+    fetchJson<Maps>('data/forts.json'),
+    fetchJson<Mission[]>('data/missions.json'),
+    fetchJson<Manifest>('data/sprites.json'),
   ]);
-  const defs = loadDefs(unitsRaw);
-  const geysers: [number, number][] = (forts['thewarbegins']?.geysers ?? []).map((
-    [x, y]: number[],
-  ) => [x!, y!]);
-  // oxlint-disable no-magic-numbers -- demo skirmish setup: seed and map coordinates
-  const world = createSkirmish(defs, 42, [
-    { id: 1, name: 'Ти', theme: 'wind', x: 70, y: 150 },
-    { id: 2, name: 'The Jailer', theme: 'rain', x: 150, y: 90 },
-  ], geysers.length ? geysers : [[110, 120]]);
-  // oxlint-enable no-magic-numbers
-
-  const app = new Application();
-  await app.init({
-    preference: 'webgl',
-    background: '#0b1020',
-    resizeTo: window,
-    antialias: false,
-    resolution: 1,
-  });
-  document.body.appendChild(app.canvas);
-  const camera = new Container();
-  camera.scale.set(ZOOM);
-  app.stage.addChild(camera);
-  const terrainG = new Graphics();
-  const entityLayer = new Container();
-  const ghost = new Graphics();
-  camera.addChild(terrainG, entityLayer, ghost);
-
-  const tex = await loadTextures(manifest);
-  const match = new ReplayRecorder(world);
-  const view = match.view();
-  const commands: Command[] = [];
-  const renderer = createWorldRenderer(view, terrainG, entityLayer, tex);
-
-  const controls = createControls(view, app, camera, ghost, (command) => commands.push(command),
-    () => match.drainEvents());
-
-  // --- loop: fixed-step simulation at TPS, rendering every frame
-  const me = world.priestOf(1)!;
-  const start = iso(me.x, me.y);
-  camera.position.set(window.innerWidth / 2 - start.sx * ZOOM,
-    window.innerHeight / 2 - start.sy * ZOOM);
-  (window as unknown as { ns: unknown; }).ns = {
-    world,
-    match,
-    playReplay,
-    camera,
-    app,
-    terrainG,
-    entityLayer,
+  const data = {
+    defs: loadDefs(unitsRaw),
+    maps,
+    missions,
+    textures: await loadTextures(manifest),
   };
-  const clock = new FixedStepClock(TPS);
-  let hudTick = -1;
-  controls.renderHud();
-  renderer.sync();
-  const resetClock = () => clock.reset();
-  document.addEventListener('visibilitychange', resetClock);
-  app.ticker.add((t) => {
-    if (document.hidden) {
-      return;
-    }
+  const menu = document.getElementById('menu')!;
+  const game = document.getElementById('game')!;
 
-    const steps = clock.advance(t.deltaMS, () => {
-      match.step(commands.splice(0));
-    });
-    renderer.sync();
-
-    if (steps) {
-      controls.drawGhost();
-    }
-
-    if (world.tick - hudTick >= HUD_REFRESH_TICKS) {
-      hudTick = world.tick;
-      controls.renderHud();
-      controls.renderLog();
-    }
-  });
-  return () => {
-    controls.dispose();
-    document.removeEventListener('visibilitychange', resetClock);
-    app.destroy(true, { children: true });
-    delete (window as unknown as { ns?: unknown; }).ns;
-  };
+  for (;;) {
+    const options = await showMenu(menu, missions);
+    await runMatch(game, data, options);
+  }
 }
 
-main()
-  .then((dispose) => {
-    import.meta.hot?.dispose(dispose);
-  })
-  .catch((error) => {
-    console.error(error);
-    document.getElementById('log')!.textContent =
-      'Не вдалося запустити гру. Перевірте доступність даних та WebGL.';
-  });
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`${response.status} ${url}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+main().catch((error) => {
+  console.error(error);
+  const menu = document.getElementById('menu')!;
+  menu.hidden = false;
+  menu.textContent = 'Не вдалося запустити гру. Перевірте доступність даних та WebGL.';
+});

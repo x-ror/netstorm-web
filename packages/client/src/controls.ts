@@ -1,271 +1,470 @@
 import { type Application, type Container, type Graphics } from 'pixi.js';
 import {
-  TPS,
+  DIRS,
+  ENERGY_RANGE,
+  HAND_SIZE,
   PIECES,
-  PIECE_HARDEN,
   ROTATION_MASK,
   rotatePiece,
-  DIRS,
-  type WorldView,
-  type Facing,
   type Command,
-  type Event as SimEvent,
+  type DeepReadonly,
+  type Entity,
+  type Facing,
+  type UnitDef,
+  type WorldView,
 } from '@netstorm/sim';
-import { iso, unIso, TW, TH } from './projection.js';
+import { project, TW, TH } from './projection.js';
+import { cellAt, zoomAt } from './camera.js';
+import { anchorFor, entityAt, hasFacing, type Tool, type UiState } from './ui-state.js';
 
-const LOG_DATA_CHARS = 60;
-const LOG_MAX_ENTRIES = 100;
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 4;
 const ZOOM_IN = 1.1;
 const ZOOM_OUT = 0.9;
-const COLOR_VALID = 0xffd166;
-const COLOR_INVALID = 0xff4444;
+const PAN_STEP = 48; // screen pixels per arrow key press
+const DRAG_THRESHOLD = 6; // screen pixels a press may move and still count as a click
+const COLOR = {
+  valid: 0xffd166,
+  invalid: 0xff4444,
+  selection: 0xffffff,
+  hover: 0x9fd3ff,
+  path: 0x9fd3ff,
+  energy: 0x66ccff,
+  reach: 0xff9f43,
+} as const;
 const GHOST_ALPHA = 0.5;
+const ENERGY_ALPHA = 0.35;
+const PATH_DOT = 1.5;
 const AIM_DISTANCE = 3; // cells from the cursor to the cannon aim marker
+const AIM_RADIUS = 2;
 
-/** Browser input creates commands; only the fixed-step loop submits them to the world. */
-export function createControls(
-  world: WorldView,
-  app: Application,
-  camera: Container,
-  ghost: Graphics,
-  submit: (command: Command) => void,
-  takeEvents: () => SimEvent[],
-) {
+type View = DeepReadonly<Entity>;
+
+function cellPoly(x: number, y: number): number[] {
+  return rectPoly(x, y, 1, 1);
+}
+
+/** Outline of a rectangle of cells. */
+function rectPoly(x: number, y: number, w: number, h: number): number[] {
+  const { sx, sy } = project(x, y);
+  return [sx, sy, sx + w * TW, sy, sx + w * TW, sy + h * TH, sx, sy + h * TH];
+}
+
+function footprint(entity: View): number[] {
+  return entity.kind === 'building'
+    ? rectPoly(entity.x, entity.y, entity.fx, entity.fy)
+    : cellPoly(entity.x, entity.y);
+}
+
+/** First cell, along one axis, of a cannon's line of fire in direction `d` (-1, 0 or 1). */
+function lineStart(d: number, origin: number, foot: number, centre: number, range: number): number {
+  if (d > 0) {
+    return origin + foot;
+  }
+
+  return d < 0 ? origin - range : centre;
+}
+
+/** Browser input becomes commands; only the fixed-step loop submits them to the world. */
+export function createControls(options: {
+  world: WorldView;
+  me: number;
+  ui: UiState;
+  app: Application;
+  camera: Container;
+  overlay: Graphics;
+  submit: (command: Command) => void;
+  /** Called after the interface state changed and the panels should be redrawn. */
+  changed: () => void;
+  togglePause: () => void;
+}) {
+  const { world, me, ui, app, camera, overlay, submit, changed } = options;
   const abort = new AbortController();
   const signal = abort.signal;
-  const hud = document.getElementById('hud')!;
-  const logEl = document.getElementById('log')!;
-  type Mode = 'piece' | 'cannon' | 'archer' | 'collect' | 'priest' | 'salvage';
-  let mode: Mode = 'piece';
-  let rot = 0;
-  let facing: Facing = 1;
-  let hover = { x: 0, y: 0 };
-  let selectedTransport: number | null = null;
 
-  function renderHud() {
-    const p = world.players.get(1)!;
-    const en = world.energy(1);
-    hud.innerHTML =
-      `<b>NetStorm Web</b> · tick ${world.tick} · Storm Power <b>${p.storm}</b> · енергія ${en.own}/${en.total} · сегменти мостів: ${
-        p.hand.map((h) => 'IOTLJSZ-'[h.piece] + (h.age < PIECE_HARDEN ? '*' : '')).join(' ') || '—'
-      }<br>`
-      + `режим: <b>${mode}</b> &nbsp; R — повернути (${rot}) &nbsp; F — напрям гармати (${
-        'ПСхЗ'[facing]
-      })<br>`
-      + (['piece', 'cannon', 'archer', 'collect', 'priest', 'salvage'] as Mode[])
-        .map((m) =>
-          `<button data-m="${m}" class="${m === mode ? 'on' : ''}">${
-            {
-              piece: 'міст',
-              cannon: 'Sun Cannon',
-              archer: 'Disc Thrower',
-              collect: 'транспорт→гейзер',
-              priest: 'жрець',
-              salvage: 'розібрати',
-            }[m]
-          }</button>`
-        )
-        .join('')
-      + `<div style="margin-top:6px;opacity:.75">ЛКМ — дія, права кнопка/перетягування — камера, колесо — масштаб. ${
-        world.winner ? '<b>Перемога гравця ' + world.winner + '</b>' : ''
-      }</div>`;
+  function setTool(tool: Tool): void {
+    ui.tool = tool;
+    changed();
+    drawOverlay();
   }
 
-  function renderLog() {
-    for (const e of takeEvents()) {
-      const d = document.createElement('div');
-      d.textContent = `${(e.tick / TPS).toFixed(1)}s ${e.what} ${e.who ?? ''} ${
-        e.data ? JSON.stringify(e.data).slice(0, LOG_DATA_CHARS) : ''
-      }`;
-      logEl.prepend(d);
-    }
+  function own(entity: View | undefined): boolean {
+    return !!entity && 'owner' in entity && entity.owner === me;
+  }
 
-    while (logEl.childElementCount > LOG_MAX_ENTRIES) {
-      logEl.lastElementChild!.remove();
+  function salvage(entity: View | undefined): void {
+    if ((entity?.kind === 'building' || entity?.kind === 'transport') && entity.owner === me) {
+      submit({ t: 'salvage', player: me, target: entity.id });
     }
   }
 
-  hud.addEventListener('click', (event) => {
-    const button = event.target instanceof Element
-      ? event.target.closest<HTMLButtonElement>('button[data-m]')
-      : null;
+  function handIndex(tool: Extract<Tool, { kind: 'piece'; }>): number {
+    return Math.min(tool.hand, world.players.get(me)!.hand.length - 1);
+  }
 
-    if (!button) {
+  /** A left click or tap on map cell (x, y). */
+  function primary(x: number, y: number): void {
+    const tool = ui.tool;
+
+    if (tool.kind === 'piece') {
+      const hand = handIndex(tool);
+
+      if (hand >= 0) {
+        submit({ t: 'dropPiece', player: me, hand, x, y, rot: ui.rot });
+      }
+
       return;
     }
 
-    mode = button.dataset.m as Mode;
-    renderHud();
-    drawGhost();
-  }, { signal });
-
-  window.addEventListener('keydown', (ev) => {
-    if (ev.key === 'r') {
-      rot = (rot + 1) & ROTATION_MASK;
+    if (tool.kind === 'build') {
+      const def = world.def(tool.type);
+      submit({
+        t: 'build',
+        player: me,
+        type: def.id,
+        ...anchorFor(def, x, y),
+        ...(hasFacing(def) ? { facing: ui.facing } : {}),
+      });
+      return;
     }
 
-    if (ev.key === 'f') {
-      facing = ((facing + 1) & ROTATION_MASK) as Facing;
+    const target = entityAt(world, x, y);
+
+    if (tool.kind === 'salvage') {
+      salvage(target);
+      return;
     }
 
-    renderHud();
-    drawGhost();
-  }, { signal });
-  let drag: { x: number; y: number; cx: number; cy: number; } | null = null;
+    if (order(x, y, target)) {
+      return;
+    }
+
+    ui.selected = target?.id ?? null;
+    changed();
+    drawOverlay();
+  }
+
+  /** Give the selected unit an order for the clicked spot; false when the click is a selection. */
+  function order(x: number, y: number, target: View | undefined): boolean {
+    const selected = ui.selected === null ? undefined : world.entities.get(ui.selected);
+
+    if (!selected || !own(selected) || own(target)) {
+      return false;
+    }
+
+    if (selected.kind === 'transport' && target) {
+      const transport = selected.id;
+
+      if (target.kind === 'geyser') {
+        submit({ t: 'collect', player: me, transport, geyser: target.id });
+        return true;
+      }
+
+      if (target.kind === 'crystal') {
+        submit({ t: 'pickupCrystal', player: me, transport, crystal: target.id });
+        return true;
+      }
+
+      if (target.kind === 'priest' && target.state === 'down') {
+        submit({ t: 'capturePriest', player: me, transport, target: target.id });
+        return true;
+      }
+    }
+
+    if (selected.kind === 'priest' && target?.kind !== 'building') {
+      submit({ t: 'movePriest', player: me, x, y });
+      return true;
+    }
+
+    return false;
+  }
+
+  /** Right click or Escape: drop the current tool, then the selection. */
+  function cancel(): void {
+    if (ui.tool.kind !== 'select') {
+      setTool({ kind: 'select' });
+    } else if (ui.selected !== null) {
+      ui.selected = null;
+      changed();
+      drawOverlay();
+    }
+  }
+
+  // --- pointer: mouse, pen and touch
+  const pointers = new Map<number, { x: number; y: number; }>();
+  let press:
+    | { id: number; button: number; x: number; y: number; cx: number; cy: number; moved: boolean; }
+    | null = null;
+  let pinch: number | null = null; // distance between two touches
+
+  const distance = () => {
+    const [a, b] = [...pointers.values()];
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+  };
+
   app.canvas.addEventListener('contextmenu', (ev) => ev.preventDefault(), { signal });
   app.canvas.addEventListener('pointerdown', (ev) => {
-    if (ev.button !== 0) {
-      drag = { x: ev.clientX, y: ev.clientY, cx: camera.x, cy: camera.y };
-    }
-  }, { signal });
-  window.addEventListener('pointerup', () => {
-    drag = null;
-  }, { signal });
-  app.canvas.addEventListener('pointermove', (ev) => {
-    if (drag) {
-      camera.x = drag.cx + ev.clientX - drag.x;
-      camera.y = drag.cy + ev.clientY - drag.y;
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+
+    if (pointers.size === 2) {
+      pinch = distance();
+      press = null;
+      return;
     }
 
-    const c = unIso((ev.clientX - camera.x) / camera.scale.x,
-      (ev.clientY - camera.y) / camera.scale.y);
-    hover = c;
-    drawGhost();
+    press = {
+      id: ev.pointerId,
+      button: ev.button,
+      x: ev.clientX,
+      y: ev.clientY,
+      cx: camera.x,
+      cy: camera.y,
+      moved: false,
+    };
   }, { signal });
+
+  window.addEventListener('pointermove', (ev) => {
+    if (pointers.has(ev.pointerId)) {
+      pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    }
+
+    if (pinch !== null && pointers.size === 2) {
+      const now = distance();
+      const [a, b] = [...pointers.values()];
+      zoomAt(camera, (a!.x + b!.x) / 2, (a!.y + b!.y) / 2, now / (pinch || now));
+      pinch = now;
+      return;
+    }
+
+    if (press && press.id === ev.pointerId) {
+      const dx = ev.clientX - press.x;
+      const dy = ev.clientY - press.y;
+      press.moved ||= Math.hypot(dx, dy) > DRAG_THRESHOLD;
+      // The left mouse button keeps clicking; other buttons and a finger drag the camera.
+      const pans = press.button !== 0 || ev.pointerType === 'touch';
+
+      if (pans && press.moved) {
+        camera.x = press.cx + dx;
+        camera.y = press.cy + dy;
+      }
+    }
+
+    if (ev.target === app.canvas) {
+      const cell = cellAt(camera, ev.clientX, ev.clientY);
+
+      if (cell.x !== ui.hover.x || cell.y !== ui.hover.y) {
+        ui.hover = cell;
+        drawOverlay();
+      }
+    }
+  }, { signal });
+
+  const release = (ev: PointerEvent) => {
+    pointers.delete(ev.pointerId);
+
+    if (pointers.size < 2) {
+      pinch = null;
+    }
+
+    if (!press || press.id !== ev.pointerId) {
+      return;
+    }
+
+    const click = !press.moved && ev.type === 'pointerup';
+    const button = press.button;
+    press = null;
+
+    if (!click) {
+      return;
+    }
+
+    if (button === 0) {
+      const cell = cellAt(camera, ev.clientX, ev.clientY);
+      ui.hover = cell;
+      primary(cell.x, cell.y);
+    } else if (button === 2) {
+      cancel();
+    }
+  };
+  window.addEventListener('pointerup', release, { signal });
+  window.addEventListener('pointercancel', release, { signal });
+
   app.canvas.addEventListener('wheel', (ev) => {
     ev.preventDefault();
-    const z = Math.min(MAX_ZOOM,
-      Math.max(MIN_ZOOM, camera.scale.x * (ev.deltaY < 0 ? ZOOM_IN : ZOOM_OUT)));
-    const k = z / camera.scale.x;
-    camera.x = ev.clientX - (ev.clientX - camera.x) * k;
-    camera.y = ev.clientY - (ev.clientY - camera.y) * k;
-    camera.scale.set(z);
+    zoomAt(camera, ev.clientX, ev.clientY, ev.deltaY < 0 ? ZOOM_IN : ZOOM_OUT);
   }, { signal, passive: false });
-  app.canvas.addEventListener('click', () => {
-    const { x, y } = hover;
-    const p = world.players.get(1)!;
 
-    if (mode === 'piece') {
-      if (p.hand.length) {
-        submit({ t: 'dropPiece', player: 1, hand: 0, x, y, rot });
+  // --- keyboard
+  const PAN: Record<string, [number, number]> = {
+    ArrowLeft: [1, 0],
+    ArrowRight: [-1, 0],
+    ArrowUp: [0, 1],
+    ArrowDown: [0, -1],
+  };
+
+  window.addEventListener('keydown', (ev) => {
+    if (ev.target instanceof HTMLInputElement || ev.target instanceof HTMLSelectElement) {
+      return;
+    }
+
+    const key = ev.key.toLowerCase();
+    const slot = Number(ev.key);
+    const pan = PAN[ev.key];
+
+    if (pan) {
+      camera.x += pan[0] * PAN_STEP;
+      camera.y += pan[1] * PAN_STEP;
+      ev.preventDefault();
+    } else if (key === 'r' || key === 'к') {
+      ui.rot = (ui.rot + 1) & ROTATION_MASK;
+    } else if (key === 'f' || key === 'а') {
+      ui.facing = ((ui.facing + 1) & ROTATION_MASK) as Facing;
+    } else if (key === 'escape') {
+      cancel();
+    } else if (key === ' ') {
+      ev.preventDefault();
+      options.togglePause();
+    } else if (key === 'delete') {
+      salvage(ui.selected === null ? undefined : world.entities.get(ui.selected));
+    } else if (Number.isInteger(slot) && slot >= 1 && slot <= HAND_SIZE) {
+      ui.tool = { kind: 'piece', hand: slot - 1 };
+    } else {
+      return;
+    }
+
+    changed();
+    drawOverlay();
+  }, { signal });
+
+  // --- overlay: placement ghost, energy circles, selection
+  function drawGhost(): void {
+    const { x, y } = ui.hover;
+    const tool = ui.tool;
+    let cells: [number, number][] = [];
+    let error = false;
+
+    if (tool.kind === 'piece') {
+      const piece = world.players.get(me)!.hand[handIndex(tool)];
+      cells = piece
+        ? rotatePiece(PIECES[piece.piece]!, ui.rot).map(([dx, dy]) => [x + dx, y + dy])
+        : [];
+      error = piece !== undefined
+        && world.canDropPiece({ player: me, hand: handIndex(tool), x, y, rot: ui.rot }) !== null;
+    } else if (tool.kind === 'build') {
+      const def = world.def(tool.type);
+      const anchor = anchorFor(def, x, y);
+      error = world.canBuild({
+        player: me,
+        type: def.id,
+        ...anchor,
+        ...(hasFacing(def) ? { facing: ui.facing } : {}),
+      }) !== null;
+      cells = Array.from({ length: def.footX * def.footY }, (_, index) => [
+        anchor.x + (index % def.footX),
+        anchor.y + Math.floor(index / def.footX),
+      ]);
+      drawEnergy();
+      drawReach(def, anchor.x, anchor.y, ui.facing);
+
+      if (hasFacing(def)) {
+        const [dx, dy] = DIRS[ui.facing]!;
+        const aim = project(x + dx * AIM_DISTANCE + 1 / 2, y + dy * AIM_DISTANCE + 1 / 2);
+        overlay.circle(aim.sx, aim.sy, AIM_RADIUS).fill(COLOR.invalid);
       }
-    } else if (mode === 'cannon') {
-      submit({ t: 'build', player: 1, type: 'suncannon', x: x - 1, y: y - 1, facing });
-    } else if (mode === 'archer') {
-      submit({ t: 'build', player: 1, type: 'sunarcher', x: x - 1, y: y - 1 });
-    } else if (mode === 'priest') {
-      submit({ t: 'movePriest', player: 1, x, y });
-    } else if (mode === 'salvage') {
-      const unit = world.inside(x, y)
-        ? world.entities.get(world.occupant[world.at(x, y)] ?? 0)
-        : undefined;
+    }
 
-      if (unit?.kind === 'building' && unit.owner === 1) {
-        submit({ t: 'salvage', player: 1, target: unit.id });
+    const style = { color: error ? COLOR.invalid : COLOR.valid, alpha: GHOST_ALPHA };
+
+    for (const [cx, cy] of cells) {
+      // oxlint-disable-next-line unicorn/no-array-fill-with-reference-type -- Pixi fills geometry with a paint style, not an array.
+      overlay.poly(cellPoly(cx, cy)).fill(style);
+    }
+  }
+
+  /** Where a shooter can hit, measured as the simulation does from its centre cell: a square of
+   * its range for most shooters, a straight line from the muzzle for cannons. */
+  function drawReach(def: Readonly<UnitDef>, x: number, y: number, facing: Facing): void {
+    if (!def.dps || !def.range) {
+      return;
+    }
+
+    const cx = x + (def.footX >> 1);
+    const cy = y + (def.footY >> 1);
+    const style = { color: COLOR.reach, alpha: ENERGY_ALPHA, width: 1 };
+
+    if (def.group !== 'cannon') {
+      overlay.poly(rectPoly(cx - def.range, cy - def.range, def.range * 2 + 1, def.range * 2 + 1))
+        .stroke(style);
+      return;
+    }
+
+    const [dx, dy] = DIRS[facing]!;
+    const startX = lineStart(dx, x, def.footX, cx, def.range);
+    const startY = lineStart(dy, y, def.footY, cy, def.range);
+    overlay.poly(rectPoly(startX, startY, dx ? def.range : 1, dy ? def.range : 1)).stroke(style);
+  }
+
+  /** The circles over which the player's Temple and Generators supply energy. */
+  function drawEnergy(): void {
+    const rx = ENERGY_RANGE * TW;
+    const ry = ENERGY_RANGE * TH;
+
+    for (const building of world.buildingsOf(me)) {
+      const def = world.def(building.type);
+
+      if (def.cls !== 'Energy' && def.group !== 'battery') {
+        continue;
       }
-    } else if (mode === 'collect') {
-      const tr = [...world.entities.values()].find((e) =>
-        e.kind === 'transport'
-        && e.owner === 1
-        && Math.abs(e.x - x) <= 1
-        && Math.abs(e.y - y) <= 1
-      );
-      const g = [...world.entities.values()].find((e) =>
-        e.kind === 'geyser' && Math.abs(e.x - x) <= 1 && Math.abs(e.y - y) <= 1
-      );
 
-      const crystal = [...world.entities.values()].find((e) =>
-        e.kind === 'crystal' && e.carriedBy === null && Math.abs(e.x - x) <= 1
-        && Math.abs(e.y - y) <= 1
-      );
+      const centre = project(building.x + building.fx / 2, building.y + building.fy / 2);
+      overlay.ellipse(centre.sx, centre.sy, rx, ry)
+        .stroke({ color: COLOR.energy, alpha: ENERGY_ALPHA, width: 1 });
+    }
+  }
 
-      const downed = [...world.entities.values()].find((e) =>
-        e.kind === 'priest'
-        && e.owner !== 1
-        && e.state === 'down'
-        && Math.abs(e.x - x) <= 1
-        && Math.abs(e.y - y) <= 1
-      );
+  function drawOverlay(): void {
+    overlay.clear();
+    drawGhost();
 
-      if (tr) {
-        selectedTransport = tr.id;
-      } else if (g && selectedTransport !== null) {
-        submit({ t: 'collect', player: 1, transport: selectedTransport, geyser: g.id });
-      } else if (downed && selectedTransport !== null) {
-        submit({ t: 'capturePriest', player: 1, transport: selectedTransport, target: downed.id });
-      } else if (crystal && selectedTransport !== null) {
-        submit({
-          t: 'pickupCrystal',
-          player: 1,
-          transport: selectedTransport,
-          crystal: crystal.id,
+    if (ui.tool.kind === 'select' || ui.tool.kind === 'salvage') {
+      const hovered = entityAt(world, ui.hover.x, ui.hover.y);
+
+      if (hovered && hovered.id !== ui.selected) {
+        overlay.poly(footprint(hovered)).stroke({
+          color: COLOR.hover,
+          width: 1,
+          alpha: GHOST_ALPHA,
         });
       }
     }
-  }, { signal });
 
-  function drawGhost() {
-    ghost.clear();
-    const p = world.players.get(1)!;
-    let buildingType: string | null = null;
+    const selected = ui.selected === null ? undefined : world.entities.get(ui.selected);
 
-    if (mode === 'cannon') {
-      buildingType = 'suncannon';
-    } else if (mode === 'archer') {
-      buildingType = 'sunarcher';
+    if (!selected) {
+      return;
     }
 
-    const definition = buildingType ? world.def(buildingType) : null;
-    let cells: [number, number][];
+    overlay.poly(footprint(selected)).stroke({ color: COLOR.selection, width: 1 });
 
-    if (mode === 'piece' && p.hand.length) {
-      cells = rotatePiece(PIECES[p.hand[0]!.piece]!, rot).map((
-        [dx, dy],
-      ) => [hover.x + dx, hover.y + dy]);
-    } else if (definition) {
-      cells = Array.from({ length: definition.footX * definition.footY }, (_, index) => [
-        hover.x - 1 + (index % definition.footX),
-        hover.y - 1 + Math.floor(index / definition.footX),
-      ]);
-    } else {
-      cells = [[hover.x, hover.y]];
+    if (selected.kind === 'building') {
+      drawReach(world.def(selected.type), selected.x, selected.y, selected.facing);
     }
 
-    const error = buildingType
-      ? world.canBuild({
-        player: 1,
-        type: buildingType,
-        x: hover.x - 1,
-        y: hover.y - 1,
-        ...(mode === 'cannon' ? { facing } : {}),
-      })
-      : null;
-    const ghostStyle = { color: error ? COLOR_INVALID : COLOR_VALID, alpha: GHOST_ALPHA };
-
-    for (const [x, y] of cells) {
-      const { sx, sy } = iso(x, y);
-      ghost.poly([sx, sy, sx + TW / 2, sy + TH / 2, sx, sy + TH, sx - TW / 2, sy + TH / 2]);
-      // oxlint-disable-next-line unicorn/no-array-fill-with-reference-type -- Pixi fills geometry with a paint style, not an array.
-      ghost.fill(ghostStyle);
-    }
-
-    if (mode === 'cannon') {
-      const [dx, dy] = DIRS[facing]!;
-      const { sx, sy } = iso(hover.x + dx * AIM_DISTANCE, hover.y + dy * AIM_DISTANCE);
-      ghost.circle(sx, sy + TH / 2, 2).fill(COLOR_INVALID);
+    if ('path' in selected) {
+      for (const [px, py] of selected.path) {
+        const { sx, sy } = project(px + 1 / 2, py + 1 / 2);
+        // oxlint-disable-next-line unicorn/no-array-fill-with-reference-type -- Pixi fills geometry with a paint style, not an array.
+        overlay.circle(sx, sy, PATH_DOT).fill({ color: COLOR.path, alpha: GHOST_ALPHA });
+      }
     }
   }
 
   return {
-    renderHud,
-    renderLog,
-    drawGhost,
+    setTool,
+    drawOverlay,
+    salvageSelected() {
+      salvage(ui.selected === null ? undefined : world.entities.get(ui.selected));
+    },
     dispose() {
       abort.abort();
-      hud.replaceChildren();
-      logEl.replaceChildren();
     },
   };
 }

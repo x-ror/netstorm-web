@@ -18,7 +18,7 @@
 
 - `npm run check` — lint, формат, typecheck, тести, збірка, бюджет розміру. Запускати перед комітом.
 - `npm run test:browser` — smoke у Chromium, включно з replay.
-- `npm test` — лише тести симуляції.
+- `npm test` — тести симуляції й чистих модулів клієнта (без браузера).
 - `npm run lint:fix`, `npm run format` — автовиправлення oxlint і dprint.
 
 ## Правила роботи з кодом
