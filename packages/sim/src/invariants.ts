@@ -1,5 +1,5 @@
-import type { WorldView } from './view.js';
-import { W, H, Terrain, MAX_ID, MAX_PLAYERS } from './state.js';
+import type { DeepReadonly, WorldView } from './view.js';
+import { W, H, Terrain, MAX_ID, MAX_PLAYERS, type Transport } from './state.js';
 
 function fail(message: string): never {
   throw new Error(`World invariant: ${message}`);
@@ -65,6 +65,8 @@ export function assertWorldInvariants(world: WorldView): void {
 
       priests.add(entity.owner);
 
+      const held = entity.state === 'carried' || entity.state === 'chained';
+
       if (entity.state === 'carried') {
         const carrier = entity.carriedBy === null
           ? undefined
@@ -72,34 +74,35 @@ export function assertWorldInvariants(world: WorldView): void {
 
         if (
           !carrier
-          || carrier.kind !== 'priest'
+          || carrier.kind !== 'transport'
           || carrier.carrying !== id
-          || carrier.state === 'carried'
           || carrier.owner === entity.owner
         ) {
           fail(`invalid priest carrier for ${id}`);
         }
-
-        if (entity.carrying !== null) {
-          fail(`carried priest ${id} carries another priest`);
-        }
       } else if (entity.carriedBy !== null) {
         fail(`uncarried priest ${id} has carrier`);
-      } else if (world.occupant[world.at(entity.x, entity.y)] !== id) {
-        fail(`priest ${id} missing from its cell`);
       }
 
-      if (entity.carrying !== null) {
-        const victim = world.entities.get(entity.carrying);
+      // The altar may have been destroyed earlier in the same tick; the priest goes free on his turn.
+      if (entity.state === 'chained') {
+        const altar = entity.chainedAt === null
+          ? fail(`unchained priest ${id}`)
+          : world.entities.get(entity.chainedAt);
 
-        if (
-          !victim
-          || victim.kind !== 'priest'
-          || victim.state !== 'carried'
-          || victim.carriedBy !== id
-        ) {
-          fail(`invalid priest cargo for ${id}`);
+        if (altar && (altar.kind !== 'building' || altar.owner === entity.owner)) {
+          fail(`invalid altar for priest ${id}`);
         }
+      } else if (entity.chainedAt !== null || entity.runes !== 0 || entity.runeTimer !== 0) {
+        fail(`ritual state on free priest ${id}`);
+      }
+
+      if (!Number.isInteger(entity.runes) || entity.runes < 0 || entity.runeTimer < 0) {
+        fail(`invalid ritual progress for priest ${id}`);
+      }
+
+      if (!held && world.occupant[world.at(entity.x, entity.y)] !== id) {
+        fail(`priest ${id} missing from its cell`);
       }
     } else if (entity.kind === 'geyser') {
       if (world.occupant[world.at(entity.x, entity.y)] !== id) {
@@ -111,22 +114,16 @@ export function assertWorldInvariants(world: WorldView): void {
       }
     } else if (entity.kind === 'transport') {
       if (entity.carrying !== null) {
-        const crystal = world.entities.get(entity.carrying);
+        const cargo = world.entities.get(entity.carrying);
+        const valid = (cargo?.kind === 'crystal' || cargo?.kind === 'priest')
+          && cargo.carriedBy === id;
 
-        if (!crystal || crystal.kind !== 'crystal' || crystal.carriedBy !== id) {
+        if (!valid) {
           fail(`invalid transport cargo for ${id}`);
         }
       }
 
-      // A 'pickup' target may already be gone: another transport can deliver that crystal first.
-      const target = entity.target === null ? undefined : world.entities.get(entity.target);
-      const validTarget = entity.goal === 'idle'
-        ? entity.target === null
-        : (entity.goal === 'pickup'
-          ? entity.target !== null
-          : target?.kind === 'geyser' || (entity.goal === 'home' && entity.target === null));
-
-      if (!validTarget) {
+      if (!validTransportTarget(world, entity)) {
         fail(`invalid transport target for ${id}`);
       }
     } else if (entity.kind === 'crystal') {
@@ -180,7 +177,8 @@ export function assertWorldInvariants(world: WorldView): void {
         if (
           x !== occupant.x
           || y !== occupant.y
-          || (occupant.kind === 'priest' && occupant.state === 'carried')
+          || (occupant.kind === 'priest'
+            && (occupant.state === 'carried' || occupant.state === 'chained'))
         ) {
           fail(`occupancy mismatch at ${cell}`);
         }
@@ -198,5 +196,23 @@ export function assertWorldInvariants(world: WorldView): void {
 
   if (world.winner !== null && !world.players.get(world.winner)?.alive) {
     fail('invalid winner');
+  }
+}
+
+function validTransportTarget(world: WorldView, t: DeepReadonly<Transport>): boolean {
+  const kind = t.target === null ? undefined : world.entities.get(t.target)?.kind;
+
+  switch (t.goal) {
+    case 'idle':
+      return t.target === null;
+    case 'collect':
+      return kind === 'geyser';
+    case 'home':
+      return t.target === null || kind === 'geyser';
+    // These targets may already be gone: a crystal delivered by someone else, a destroyed altar.
+    case 'pickup':
+    case 'capture':
+    case 'altar':
+      return t.target !== null;
   }
 }

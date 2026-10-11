@@ -11,6 +11,9 @@ export const HAND_SIZE = 3; // pieces a player can hold                   TODO v
 export const CRYSTAL_VALUE = 200; // Storm Power per crystal
 export const GEYSER_STOCK = 2000; // Storm Power a geyser holds before it is depleted
 export const PRIEST_HP = 100;
+export const RUNES = 5; // runes the sacrificing priest must ward
+const RUNE_SECONDS = 2; // invented: the official help does not say how long the ritual takes
+export const RUNE_INTERVAL = RUNE_SECONDS * TPS;
 export const MAX_PLAYERS = 8;
 export const MAX_ID = 0x7fffffff; // ids fit a signed 32-bit integer
 export const MAX_UINT32 = 0xffffffff;
@@ -129,11 +132,12 @@ export interface Transport {
   y: number;
   hp: number;
   hpMax: number;
-  carrying: number | null; // crystal id
+  carrying: number | null; // crystal id, or the enemy priest being carried to the altar
   path: [number, number][]; // remaining cells to walk
   move: number; // movement accumulator (×100)
-  goal: 'idle' | 'collect' | 'pickup' | 'home';
-  /** Geyser being mined (kept through 'home' so the transport loops), or the crystal to pick up. */
+  goal: 'idle' | 'collect' | 'pickup' | 'home' | 'capture' | 'altar';
+  /** Geyser being mined (kept through 'home' so the transport loops), the crystal or priest to pick
+   * up, or the altar the captive is carried to. */
   target: number | null;
 }
 export interface Priest {
@@ -144,9 +148,12 @@ export interface Priest {
   y: number;
   hp: number;
   hpMax: number;
-  state: 'normal' | 'down' | 'carried';
-  carriedBy: number | null; // id of the enemy priest carrying this one
-  carrying: number | null; // id of the priest being carried
+  /** down: immobilized at half HP; carried: on an enemy transport; chained: on an enemy altar. */
+  state: 'normal' | 'down' | 'carried' | 'chained';
+  carriedBy: number | null; // enemy transport carrying this priest
+  chainedAt: number | null; // enemy altar this priest is chained on
+  runes: number; // runes warded so far in the sacrifice of this priest
+  runeTimer: number; // ticks spent on the current rune
   path: [number, number][];
   move: number;
 }

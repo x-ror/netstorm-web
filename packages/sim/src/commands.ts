@@ -7,8 +7,7 @@ export type Command =
   | { t: 'collect'; player: number; transport: number; geyser: number; }
   | { t: 'pickupCrystal'; player: number; transport: number; crystal: number; }
   | { t: 'movePriest'; player: number; x: number; y: number; }
-  | { t: 'pickupPriest'; player: number; target: number; }
-  | { t: 'sacrifice'; player: number; };
+  | { t: 'capturePriest'; player: number; transport: number; target: number; };
 
 export type CommandError =
   | 'no player'
@@ -25,12 +24,10 @@ export type CommandError =
   | 'no energy'
   | 'bad target'
   | 'no temple'
+  | 'no altar'
   | 'no path'
   | 'priest unavailable'
-  | 'target not incapacitated'
-  | 'too far'
-  | 'nothing to sacrifice'
-  | 'not at altar';
+  | 'target not incapacitated';
 
 export type CommandResult = { ok: true; } | { ok: false; error: CommandError; };
 
@@ -43,8 +40,7 @@ export function parseCommand(raw: unknown): Command {
     'collect',
     'pickupCrystal',
     'movePriest',
-    'pickupPriest',
-    'sacrifice',
+    'capturePriest',
   ], 'command type');
   const player = integer(value.player, 'command.player', 1, MAX_PLAYERS);
 
@@ -99,11 +95,13 @@ export function parseCommand(raw: unknown): Command {
         x: integer(value.x, 'command.x', -Number.MAX_SAFE_INTEGER),
         y: integer(value.y, 'command.y', -Number.MAX_SAFE_INTEGER),
       };
-    case 'pickupPriest':
-      keys(value, ['t', 'player', 'target'], 'command');
-      return { t, player, target: integer(value.target, 'command.target', 1, MAX_ID) };
-    case 'sacrifice':
-      keys(value, ['t', 'player'], 'command');
-      return { t, player };
+    case 'capturePriest':
+      keys(value, ['t', 'player', 'transport', 'target'], 'command');
+      return {
+        t,
+        player,
+        transport: integer(value.transport, 'command.transport', 1, MAX_ID),
+        target: integer(value.target, 'command.target', 1, MAX_ID),
+      };
   }
 }

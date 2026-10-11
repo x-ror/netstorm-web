@@ -13,8 +13,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 3;
-export const RULES_VERSION = 3;
+export const SNAPSHOT_VERSION = 4;
+export const RULES_VERSION = 4;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -165,12 +165,14 @@ function parseEntity(raw: unknown): Entity {
       carrying: nullableId(value.carrying, 'transport.carrying'),
       path: parsePath(value.path),
       move: integer(value.move, 'transport.move'),
-      goal: choice(value.goal, ['idle', 'collect', 'pickup', 'home'], 'transport.goal'),
+      goal: choice(value.goal, ['idle', 'collect', 'pickup', 'home', 'capture', 'altar'],
+        'transport.goal'),
       target: nullableId(value.target, 'transport.target'),
     };
   }
 
-  keys(value, [...living, 'state', 'carriedBy', 'carrying', 'path', 'move'], 'priest');
+  keys(value, [...living, 'state', 'carriedBy', 'chainedAt', 'runes', 'runeTimer', 'path', 'move'],
+    'priest');
   return {
     id,
     kind,
@@ -179,9 +181,11 @@ function parseEntity(raw: unknown): Entity {
     y,
     hp,
     hpMax,
-    state: choice(value.state, ['normal', 'down', 'carried'], 'priest.state'),
+    state: choice(value.state, ['normal', 'down', 'carried', 'chained'], 'priest.state'),
     carriedBy: nullableId(value.carriedBy, 'priest.carriedBy'),
-    carrying: nullableId(value.carrying, 'priest.carrying'),
+    chainedAt: nullableId(value.chainedAt, 'priest.chainedAt'),
+    runes: integer(value.runes, 'priest.runes'),
+    runeTimer: integer(value.runeTimer, 'priest.runeTimer'),
     path: parsePath(value.path),
     move: integer(value.move, 'priest.move'),
   };

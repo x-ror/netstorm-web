@@ -6,6 +6,9 @@ type Payloads = {
   destroyed: { id: number; type: string; };
   delivered: { transport: number; };
   captured: { priest: number; };
+  chained: { priest: number; altar: number; };
+  rune: { priest: number; runes: number; };
+  released: { priest: number; };
   sacrifice: { victim: number; };
   rejected: { cmd: Command['t']; err: CommandError; };
   victory: undefined;

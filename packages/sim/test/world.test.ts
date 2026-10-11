@@ -129,25 +129,53 @@ test('cannon destroys an enemy transport in its line of fire; blocker shields it
   assert.ok(v2 && 'hp' in v2 && v2.hp === 50);
 });
 
-test('priest: shot to half HP goes down, enemy priest carries and sacrifices → victory', () => {
+test('priest: immobilized at half HP, carried by a transport, sacrificed with five runes → victory', () => {
   const w = mk();
   const red = w.priestOf(2)!;
   const blue = w.priestOf(1)!;
+  const t = [...w.entities.values()].find((e) => e.kind === 'transport' && e.owner === 1)!;
+  const altar = w.buildingsOf(1).find((b) => b.type === 'altar')!;
+  assert.ok(t.kind === 'transport');
+
+  // bridge between the two home islands so the transport can walk over and back
+  for (let x = 51; x < 110; x++) {
+    w.terrain[40 * 256 + x] = 2;
+    w.owner[40 * 256 + x] = 1;
+  }
+
+  assert.equal(w.apply({ t: 'capturePriest', player: 1, transport: t.id, target: red.id }),
+    'target not incapacitated');
   red.hp = 40;
   w.step();
   assert.equal(red.state, 'down');
-  // teleport blue priest next to red for the test (movement is covered by the transport test)
-  w.occupant[blue.y * 256 + blue.x] = 0;
-  blue.x = red.x + 1;
-  blue.y = red.y;
-  w.occupant[blue.y * 256 + blue.x] = blue.id;
-  assert.equal(w.apply({ t: 'pickupPriest', player: 1, target: red.id }), null);
-  assert.equal(w.apply({ t: 'sacrifice', player: 1 }), 'not at altar');
-  const altar = w.buildingsOf(1).find((b) => b.type === 'altar')!;
-  w.occupant[blue.y * 256 + blue.x] = 0;
-  blue.x = altar.x - 1;
-  blue.y = altar.y;
-  w.occupant[blue.y * 256 + blue.x] = blue.id;
-  assert.equal(w.apply({ t: 'sacrifice', player: 1 }), null);
+  assert.equal(w.apply({ t: 'capturePriest', player: 1, transport: t.id, target: blue.id }),
+    'bad target'); // never your own priest
+  assert.equal(w.apply({ t: 'capturePriest', player: 1, transport: t.id, target: red.id }), null);
+
+  for (let i = 0; i < 100 * TPS && w.priestOf(2)?.state !== 'chained'; i++) {
+    red.hp = 40; // keep him down: he regenerates while his temple stands
+    w.step();
+  }
+
+  assert.equal(w.priestOf(2)?.state, 'chained');
+  assert.equal(red.chainedAt, altar.id);
+  assert.equal(t.carrying, null);
+
+  // nothing happens until the altar owner's priest comes to the altar
+  for (let i = 0; i < 10 * TPS; i++) {
+    w.step();
+  }
+
+  assert.equal(red.runes, 0);
+  assert.equal(w.winner, null);
+  assert.equal(w.apply({ t: 'movePriest', player: 1, x: altar.x - 1, y: altar.y }), null);
+  w.drainEvents();
+
+  for (let i = 0; i < 100 * TPS && w.winner === null; i++) {
+    w.step();
+  }
+
   assert.equal(w.winner, 1);
+  assert.equal(w.drainEvents().filter((e) => e.what === 'rune').length, 5);
+  assert.ok(!w.entities.has(red.id));
 });

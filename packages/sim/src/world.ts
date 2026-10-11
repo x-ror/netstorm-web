@@ -9,12 +9,11 @@
  *    in their facing direction, disc throwers / anti-air in a radius; blockers absorb line fire
  *  - transports loop between a Storm Geyser and the Temple, carrying crystals until the geyser is depleted,
  *    then move on to the non-depleted geyser closest to the Temple
- *  - the High Priest can be shot down to ≤50 % HP (incapacitated), carried to the enemy altar and
- *    sacrificed → that player is defeated
+ *  - the High Priest cannot be killed by units, only immobilized at ≤50 % HP; an enemy transport then
+ *    carries him to its altar, where the enemy priest wards five runes to sacrifice him → that
+ *    player is defeated
  *
  * docs/game-rules.md lists every rule of the original with its source and how this code differs.
- * Known simplifications: an enemy priest carries the captive (original: a transport), the sacrifice
- * is instant (original: a five-rune ritual).
  *
  * Approximations still to verify against the original (marked TODO):
  *  - energy: generators give 1 energy of their theme, a temple 2; a unit needs energy per its level but does
@@ -27,7 +26,8 @@ import { tickBuilding, lineTarget, radiusTarget } from './rules/combat.js';
 import { tickPlayer } from './rules/economy.js';
 import { energy, canBuild, build } from './rules/building.js';
 import { tickTransport, collect, pickupCrystal } from './rules/movement.js';
-import { tickPriest, movePriest, pickupPriest, sacrifice } from './rules/priest.js';
+import { tickPriest, movePriest } from './rules/priest.js';
+import { capturePriest } from './rules/capture.js';
 import { Pathfinder } from './spatial/pathfinding.js';
 import { CellIndex } from './cell-index.js';
 import { Rng } from './rng.js';
@@ -178,7 +178,9 @@ export class World {
       hpMax: PRIEST_HP,
       state: 'normal',
       carriedBy: null,
-      carrying: null,
+      chainedAt: null,
+      runes: 0,
+      runeTimer: 0,
       path: [],
       move: 0,
     };
@@ -258,9 +260,11 @@ export class World {
     );
   }
 
-  /** Walkable for a transport/priest of player p: own ground, neutral islands, and any bridge.
+  /** Walkable for a transport/priest: any island or bridge cell without a building, whoever owns it.
+   * The help has transports heading for geysers "even in enemy territory" and fetching enemy
+   * priests, so ownership does not restrict movement; the player argument is kept for callers.
    * Priests also occupy a cell, so they additionally avoid geysers and other priests. */
-  walkable(p: number, x: number, y: number): boolean {
+  walkable(_player: number, x: number, y: number): boolean {
     if (!this.inside(x, y)) {
       return false;
     }
@@ -274,11 +278,7 @@ export class World {
 
     const occ = this.entities.get(this.occupant[i] ?? 0);
 
-    if (occ && occ.kind === 'building') {
-      return false;
-    }
-
-    return this.owner[i] === p || this.owner[i] === 0 || t === Terrain.Bridge;
+    return !occ || occ.kind !== 'building';
   }
 
   private forFoot(b: Building, f: (i: number) => void): void {
@@ -384,10 +384,8 @@ export class World {
         return pickupCrystal(this, c);
       case 'movePriest':
         return movePriest(this, c);
-      case 'pickupPriest':
-        return pickupPriest(this, c);
-      case 'sacrifice':
-        return sacrifice(this, c);
+      case 'capturePriest':
+        return capturePriest(this, c);
     }
   }
 

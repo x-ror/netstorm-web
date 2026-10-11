@@ -1,5 +1,6 @@
 import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
+import { arriveAtAltar, arriveAtPriest, releasePriest } from './capture.js';
 import {
   TPS,
   CRYSTAL_VALUE,
@@ -69,6 +70,10 @@ export function tickTransport(world: World, t: Transport): void {
     arriveAtCrystal(world, t);
   } else if (t.goal === 'home') {
     deliver(world, t);
+  } else if (t.goal === 'capture') {
+    arriveAtPriest(world, t);
+  } else if (t.goal === 'altar') {
+    arriveAtAltar(world, t);
   }
 }
 
@@ -225,14 +230,16 @@ function dropCargo(world: World, t: Transport): void {
   // The help does not say what happens to the cargo of a destroyed transport. Here the crystal
   // falls on the spot and any transport can fetch it with `pickupCrystal`.
   const c = world.entities.get(t.carrying);
+  t.carrying = null;
 
   if (c?.kind === 'crystal') {
     c.carriedBy = null;
     c.x = t.x;
     c.y = t.y;
+  } else if (c?.kind === 'priest') {
+    // Losing the carrier counts as being released by it (likely, not stated in the help).
+    releasePriest(world, c, t.x, t.y);
   }
-
-  t.carrying = null;
 }
 
 function ownTransport(world: World, player: number, id: number): Transport | null {

@@ -24,15 +24,15 @@ const mk = () =>
   ], [[80, 40]]);
 const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
-// Pins the current rules (RULES_VERSION 3). Re-pin deliberately whenever state shape or rules change.
+// Pins the current rules (RULES_VERSION 4). Re-pin deliberately whenever state shape or rules change.
 test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
-    [1, 3303397066],
-    [60, 899464266],
-    [101, 891727803],
-    [200, 3693461566],
-    [400, 1954336801],
+    [1, 2270937372],
+    [60, 1954689092],
+    [101, 4110953773],
+    [200, 4001169616],
+    [400, 3313341751],
   ]);
 
   for (let index = 0; index < 400; index++) {
@@ -165,31 +165,67 @@ test('snapshot continuation preserves movement and crystal ownership through del
   assert.equal(world.players.get(1)!.storm, 2800);
 });
 
-test('snapshots preserve a captured priest through sacrifice and victory', () => {
+/** A world where Blue's transport has chained Red's priest on Blue's altar. */
+function chainedWorld() {
   const world = mk();
   const victim = world.priestOf(2)!;
-  const carrier = world.priestOf(1)!;
-  victim.hp = 40;
-  world.step();
-  world.occupant[world.at(carrier.x, carrier.y)] = 0;
-  carrier.x = victim.x + 1;
-  carrier.y = victim.y;
-  world.occupant[world.at(carrier.x, carrier.y)] = carrier.id;
-  assert.deepEqual(world.execute({ t: 'pickupPriest', player: 1, target: victim.id }), {
-    ok: true,
-  });
+  const transport = [...world.entities.values()].find((entity) =>
+    entity.kind === 'transport' && entity.owner === 1
+  );
   const altar = world.buildingsOf(1).find((building) => building.type === 'altar')!;
-  world.occupant[world.at(carrier.x, carrier.y)] = 0;
-  carrier.x = altar.x - 1;
-  carrier.y = altar.y;
-  world.occupant[world.at(carrier.x, carrier.y)] = carrier.id;
-  const restored = World.fromSnapshot(json(world.snapshot()));
+  assert.ok(transport?.kind === 'transport');
 
-  for (const match of [world, restored]) {
-    match.step([{ t: 'sacrifice', player: 1 }]);
+  for (let x = 51; x < 110; x++) {
+    world.terrain[40 * 256 + x] = 2;
+    world.owner[40 * 256 + x] = 1;
   }
 
-  assert.equal(restored.hash(), world.hash());
+  victim.hp = 40;
+  world.step();
+  return { world, victim, transport, altar };
+}
+
+function chain(setup: ReturnType<typeof chainedWorld>) {
+  const { world, victim, transport } = setup;
+  assert.deepEqual(
+    world.execute({ t: 'capturePriest', player: 1, transport: transport.id, target: victim.id }),
+    { ok: true },
+  );
+
+  for (let index = 0; index < 1000 && victim.state !== 'chained'; index++) {
+    if (victim.state === 'down') {
+      victim.hp = 40;
+    }
+
+    world.step();
+    assertWorldInvariants(world);
+  }
+
+  assert.equal(victim.state, 'chained');
+}
+
+test('snapshots preserve a chained priest through the ritual and victory', () => {
+  const setup = chainedWorld();
+  const { world, victim, altar } = setup;
+  chain(setup);
+  assert.deepEqual(world.execute({ t: 'movePriest', player: 1, x: altar.x - 1, y: altar.y }), {
+    ok: true,
+  });
+
+  for (let index = 0; index < 1000 && victim.runes < 2; index++) {
+    world.step();
+  }
+
+  assert.equal(victim.runes, 2);
+  const restored = World.fromSnapshot(json(world.snapshot()));
+
+  for (let index = 0; index < 200 && world.winner === null; index++) {
+    world.step();
+    restored.step();
+    assert.equal(restored.hash(), world.hash());
+  }
+
+  assert.equal(world.winner, 1);
   assert.equal(restored.winner, 1);
   assertWorldInvariants(restored);
 });
@@ -353,7 +389,11 @@ test('external commands validate shape while retaining domain-rejected coordinat
     () => parseCommand({ t: 'build', player: 1, type: 'suncannon', x: 1, y: 2, facing: 7 }),
     /facing/,
   );
-  assert.throws(() => parseCommand({ t: 'sacrifice', player: 1, x: 10 }), /Unknown/);
+  assert.throws(
+    () => parseCommand({ t: 'capturePriest', player: 1, transport: 1, target: 2, x: 10 }),
+    /Unknown/,
+  );
+  assert.throws(() => parseCommand({ t: 'sacrifice', player: 1 }), /command type/);
   assert.throws(() => parseCommand(null), /object/);
 });
 
@@ -393,36 +433,72 @@ test('a loaded transport rejects another collect and drops linked cargo on destr
   assertWorldInvariants(world);
 });
 
-test('priest capture prevents overwriting cargo or nesting carrier chains', () => {
-  const world = mk();
-  world.addPlayer(3, 'Third', 'thunder', 0, []);
-  const third = world.addPriest(3, 121, 47);
-  const victim = world.priestOf(2)!;
-  const carrier = world.priestOf(1)!;
-  victim.hp = 40;
-  third.hp = 40;
+test('a captive goes free, fully healed, when his carrier is destroyed', () => {
+  const { world, victim, transport } = chainedWorld();
+  world.step([{ t: 'capturePriest', player: 1, transport: transport.id, target: victim.id }]);
+
+  for (let index = 0; index < 1000 && victim.state !== 'carried'; index++) {
+    victim.hp = 40;
+    world.step();
+  }
+
+  assert.equal(victim.state, 'carried');
+  assert.equal(transport.carrying, victim.id);
+  // A loaded transport takes neither a crystal nor a second priest.
+  const geyser = [...world.entities.values()].find((entity) => entity.kind === 'geyser')!;
+  assert.deepEqual(
+    world.execute({ t: 'collect', player: 1, transport: transport.id, geyser: geyser.id }),
+    { ok: false, error: 'bad target' },
+  );
   world.step();
-  world.occupant[world.at(carrier.x, carrier.y)] = 0;
-  carrier.x = 121;
-  carrier.y = 46;
-  world.occupant[world.at(carrier.x, carrier.y)] = carrier.id;
-  assert.deepEqual(world.execute({ t: 'pickupPriest', player: 1, target: victim.id }), {
-    ok: true,
-  });
-  const hash = world.hash();
-  assert.deepEqual(world.execute({ t: 'pickupPriest', player: 1, target: third.id }), {
-    ok: false,
-    error: 'bad target',
-  });
-  assert.equal(world.hash(), hash);
-  carrier.hp = 40;
-  third.hp = 100;
+  transport.hp = 0;
   world.step();
-  assert.deepEqual(world.execute({ t: 'pickupPriest', player: 3, target: carrier.id }), {
-    ok: false,
-    error: 'bad target',
-  });
+  assert.ok(!world.entities.has(transport.id));
+  assert.equal(victim.state, 'normal');
+  assert.equal(victim.hp, victim.hpMax);
+  assert.equal(victim.carriedBy, null);
+  assert.equal(world.occupant[world.at(victim.x, victim.y)], victim.id);
   assertWorldInvariants(world);
+});
+
+test('a chained priest escapes when the altar falls or the sacrificer is immobilized mid-ritual', () => {
+  const fallen = chainedWorld();
+  chain(fallen);
+  fallen.altar.hp = 0;
+  fallen.world.step();
+  fallen.world.step();
+  assert.equal(fallen.victim.state, 'normal');
+  assert.equal(fallen.victim.hp, fallen.victim.hpMax);
+  assert.equal(fallen.victim.chainedAt, null);
+  assertWorldInvariants(fallen.world);
+
+  const broken = chainedWorld();
+  chain(broken);
+  const sacrificer = broken.world.priestOf(1)!;
+  // Immobilized before the ritual starts: the captive stays chained.
+  sacrificer.hp = 40;
+  broken.world.step();
+  broken.world.step();
+  assert.equal(broken.victim.state, 'chained');
+  sacrificer.hp = sacrificer.hpMax;
+  broken.world.step();
+  assert.deepEqual(
+    broken.world.execute({ t: 'movePriest', player: 1, x: broken.altar.x - 1, y: broken.altar.y }),
+    { ok: true },
+  );
+
+  for (let index = 0; index < 1000 && broken.victim.runes < 1; index++) {
+    broken.world.step();
+  }
+
+  assert.equal(broken.victim.runes, 1);
+  sacrificer.hp = 40;
+  broken.world.step();
+  broken.world.step();
+  assert.equal(broken.victim.state, 'normal');
+  assert.equal(broken.victim.runes, 0);
+  assert.equal(broken.world.winner, null);
+  assertWorldInvariants(broken.world);
 });
 
 test('every nonempty replay requires a final checkpoint', () => {
