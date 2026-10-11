@@ -11,6 +11,7 @@ const DOT = 2;
 const COLOR = {
   bridge: 0x8a8f99,
   crackedBridge: 0x5a5148,
+  hardBridge: 0xb9c2d0,
   own: 0x5c7a3a,
   enemy: 0x7a3a3a,
   neutral: 0x6b5a3a,
@@ -66,7 +67,9 @@ export function createMinimap(
       const owner = world.owner[i];
       let color: readonly number[] = SKY;
 
-      if (terrain === Terrain.Bridge || terrain === Terrain.HardBridge) {
+      if (terrain === Terrain.HardBridge) {
+        color = PIXELS.hardBridge;
+      } else if (terrain === Terrain.Bridge) {
         color = PIXELS.bridge;
       } else if (terrain === Terrain.CrackedBridge) {
         color = PIXELS.crackedBridge;

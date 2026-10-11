@@ -69,6 +69,10 @@ export class World {
   readonly occupant = new Int32Array(W * H); // entity id occupying the cell, 0 = none
   readonly entities = new Map<number, Entity>();
   readonly players = new Map<number, Player>();
+  /** Buildings an explosion brought down during the current step. They go up on the next one, so a
+   * chain reaction advances one link a tick whatever the order of the entities. Not saved: it is
+   * empty between steps. */
+  readonly blasted = new Set<number>();
   readonly events: Event[] = [];
   private nextId = 1;
   private readonly transports = new CellIndex<Transport>(W, H);
@@ -416,6 +420,8 @@ export class World {
 
   // ---------- simulation ----------
   step(cmds: Command[] = []): void {
+    this.blasted.clear();
+
     for (const c of cmds) {
       const result = this.execute(c);
 

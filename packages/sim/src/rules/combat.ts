@@ -51,6 +51,10 @@ function selfAiming(def: UnitDef): boolean {
 
 export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void {
   if (b.hp <= 0) {
+    if (world.blasted.has(b.id)) {
+      return;
+    }
+
     removeBuilding(world, b);
     shakeBridges(world, b);
     explode(world, b);
@@ -90,6 +94,7 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
 }
 
 // Damage a destroyed Temple deals to everything around it (netstorm.game 10.82).
+// The function below this constant tells what a unit of a given type deals.
 const TEMPLE_BLAST = 400;
 const BLAST_GROUPS: ReadonlySet<string> = new Set(['archer', 'cannon', 'anti-air']);
 
@@ -101,14 +106,11 @@ const BLAST_GROUPS: ReadonlySet<string> = new Set(['archer', 'cannon', 'anti-air
  * damage belongs to the player who destroyed the unit. Salvage does not come through here.
  */
 function explode(world: World, b: Building): void {
-  const def = world.def(b.type);
-  const temple = def.cls === 'Energy';
+  const amount = blastDamage(world.def(b.type), b.hpMax);
 
-  if (!temple && !BLAST_GROUPS.has(def.group)) {
+  if (!amount) {
     return;
   }
-
-  const amount = temple ? TEMPLE_BLAST : Math.floor(b.hpMax / 2) + 1;
 
   // ponytail: scans every entity for each explosion; use the cell index if blasts get frequent.
   for (const entity of world.entities.values()) {
@@ -120,8 +122,21 @@ function explode(world: World, b: Building): void {
       && entity.y + height >= b.y && entity.y <= b.y + b.fy
     ) {
       damage(world, b.killer, entity, amount);
+
+      if (entity.kind === 'building' && entity.hp <= 0) {
+        world.blasted.add(entity.id);
+      }
     }
   }
+}
+
+/** Damage a unit of this type deals around itself when it is destroyed, 0 if it does not explode. */
+export function blastDamage(def: UnitDef, hpMax: number): number {
+  if (def.cls === 'Energy') {
+    return TEMPLE_BLAST;
+  }
+
+  return BLAST_GROUPS.has(def.group) ? Math.floor(hpMax / 2) + 1 : 0;
 }
 
 /** Take a building off the map. Its island, if it stood on one of its own, stays. */

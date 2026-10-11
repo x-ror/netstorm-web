@@ -29,6 +29,7 @@ const BAR_HEIGHT = 2;
 const COLOR = {
   bridge: 0x8a8f99,
   crackedBridge: 0x5a5148,
+  hardBridge: 0xb9c2d0,
   ownLand: 0x5c7a3a,
   enemyLand: 0x7a3a3a,
   neutralLand: 0x6b5a3a,
@@ -98,7 +99,11 @@ export function createWorldRenderer(
   }
 
   function tileKey(terrain: number, owner: number, x: number, y: number): string {
-    if (terrain === Terrain.Bridge || terrain === Terrain.HardBridge) {
+    if (terrain === Terrain.HardBridge) {
+      return 'bridge:hard';
+    }
+
+    if (terrain === Terrain.Bridge) {
       return 'bridge:solid';
     }
 
@@ -115,7 +120,7 @@ export function createWorldRenderer(
 
   // --- entities
   const sprites = new Map<number, Sprite | Graphics>();
-  /** Cooldowns seen on the previous tick: a shooter whose cooldown did not run down has fired. */
+  /** Cooldowns seen on the previous tick: a shooter whose cooldown went up has fired. */
   const cooldowns = new Map<number, number>();
   const explosions: { sprite: Sprite; start: number; }[] = [];
   const widths = new Map<number, number>(); // footprint width in cells, kept for the explosion
@@ -191,8 +196,9 @@ export function createWorldRenderer(
         continue;
       }
 
-      const fired = entity.cooldown > 0
-        && entity.cooldown >= (cooldowns.get(entity.id) ?? Infinity);
+      // A cooldown that merely stands still is not a shot: a building brought down by an explosion
+      // waits a tick with its cooldown frozen.
+      const fired = entity.hp > 0 && entity.cooldown > (cooldowns.get(entity.id) ?? Infinity);
       cooldowns.set(entity.id, entity.cooldown);
       const from = sprites.get(entity.id);
       const to = entity.target === null ? undefined : sprites.get(entity.target);
@@ -283,7 +289,11 @@ function footprintOf(
 }
 
 function terrainColor(terrain: number, owner: number, me: number): number {
-  if (terrain === Terrain.Bridge || terrain === Terrain.HardBridge) {
+  if (terrain === Terrain.HardBridge) {
+    return COLOR.hardBridge;
+  }
+
+  if (terrain === Terrain.Bridge) {
     return COLOR.bridge;
   }
 

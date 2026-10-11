@@ -4,6 +4,8 @@ import {
   PIECE_HARDEN,
   RUNES,
   TPS,
+  blastDamage,
+  shotInterval,
   rotatePiece,
   type DeepReadonly,
   type Entity,
@@ -236,6 +238,10 @@ function info(world: WorldView, me: number, ui: UiState): string {
     lines.push(`HP ${Math.ceil(entity.hp)} / ${entity.hpMax}`);
   }
 
+  if (entity.kind === 'building') {
+    lines.push(...combatLines(world.defs.get(entity.type), entity.hpMax));
+  }
+
   if (entity.kind === 'transport') {
     lines.push(
       `${GOALS[entity.goal] ?? entity.goal}${entity.carrying === null ? '' : ', з вантажем'}`,
@@ -265,6 +271,29 @@ function info(world: WorldView, me: number, ui: UiState): string {
   }
 
   return lines.map((line) => `<div>${line}</div>`).join('');
+}
+
+/** How a building fights, in the numbers the simulation uses. */
+function combatLines(def: Readonly<UnitDef> | undefined, hpMax: number): string[] {
+  if (!def) {
+    return [];
+  }
+
+  const lines: string[] = [];
+
+  if (def.dps && def.range) {
+    lines.push(
+      `шкода ${def.dps}/с, постріл раз на ${shotInterval(def) / TPS} с, дальність ${def.range}`,
+    );
+  }
+
+  const blast = blastDamage(def, hpMax);
+
+  if (blast) {
+    lines.push(`<span class="muted">Знищений вибухає: ${blast} шкоди всім поруч</span>`);
+  }
+
+  return lines;
 }
 
 function hint(world: WorldView, ui: UiState): string {

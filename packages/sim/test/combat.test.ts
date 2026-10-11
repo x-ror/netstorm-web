@@ -252,7 +252,10 @@ test('a destroyed shooter hurts everything next to it and can set off a chain', 
   assert.equal(second.killer, 2);
   assert.equal(apart.hp, apart.hpMax);
   assert.equal(walker.hp, 0);
-  // The second cannon goes up in turn and reaches the third, which the first could not.
+  // One link a tick: the second cannon is down but has not gone up yet.
+  assert.ok(world.entities.has(second.id));
+  assert.equal(third.hp, third.hpMax);
+  // Then it goes up in turn and reaches the third, which the first could not.
   world.step();
   assert.ok(!world.entities.has(second.id));
   assert.equal(third.hpMax - third.hp, 301);

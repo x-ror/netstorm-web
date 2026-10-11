@@ -7,7 +7,7 @@ export const GROUND_TILES = {
 } as const;
 /** Frames of each grass set picked for variety; every set has these. */
 export const GROUND_FRAMES = [4, 5, 47, 48, 51, 52, 53, 54] as const;
-export const BRIDGE_FRAMES = { solid: 0, cracked: 35 } as const;
+export const BRIDGE_FRAMES = { solid: 0, cracked: 35, hard: 50 } as const;
 
 /** Every other frame of the small explosion, the only one the size budget leaves room for. */
 export const EXPLOSION_FRAMES = Array.from({ length: 11 }, (_, i) => 35 + i * 2);
