@@ -195,7 +195,14 @@
         width: 100%;
         text-align: left;
       }
+      button.unit span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       button.unit small {
+        flex-shrink: 0;
         opacity: 0.8;
       }
       button.unit.poor {
@@ -251,7 +258,7 @@
       @media (max-width: 760px) {
         #units {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
         }
         #panel {
           top: auto;

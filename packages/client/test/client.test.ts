@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadDefs } from '@netstorm/sim';
-import { slimMaps, slimMissions } from '../src/game-data.js';
+import { reflow, slimMaps, slimMissions } from '../src/game-data.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS } from '../src/menu.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
@@ -28,6 +28,21 @@ test('shipped data keeps geysers and the campaign briefings only', () => {
   assert.match(mission.succeeded, /Success/);
   // Easy and hard variants and non-mission files are left out.
   assert.ok(missions.every((m) => !/easy$|hard$/.test(m.id) && maps[m.id]));
+});
+
+test('verse keeps its lines, prose is joined, attributions stay apart', () => {
+  const rescue = missions.find((m) => m.id === 'totherescue')!;
+  assert.match(rescue.briefing,
+    /^"For your friend and for devotion,\nCome up from the dusty ocean,\nand into the bleeding fray\."/);
+  assert.ok(!rescue.briefing.startsWith('To The Rescue')); // title differs in case only
+  assert.equal(reflow('A wrapped \nline.  Two spaces.\n  --Captain X\n\nTheir souls\n--and yours'),
+    'A wrapped line.  Two spaces.\n--Captain X\n\nTheir souls --and yours');
+});
+
+test('reflow handles CRLF, blank lines with spaces and trailing spaces', () => {
+  assert.equal(reflow('para one  \r\n \t\r\npara\r\ntwo \r\n'), 'para one\n\npara two');
+  assert.equal(reflow('heir.  \n\nHis people'), 'heir.\n\nHis people');
+  assert.equal(reflow(''), '');
 });
 
 test('the default match is the old demo skirmish', () => {

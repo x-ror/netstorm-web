@@ -55,30 +55,67 @@ export function slimMissions(raw: unknown, maps: Maps): Mission[] {
       title: header.title,
       storm: Number(header.myStartMoney) || 0,
       enemy: typeof header.aiName === 'string' ? header.aiName : '',
-      briefing: section(sections, 'A.', header.title),
-      succeeded: section(sections, 'Succeeded') || section(sections, 'succeeded'),
-      failed: section(sections, 'Failed'),
+      briefing: reflow(withoutTitle(text(sections, 'A.'), header.title)),
+      succeeded: reflow(text(sections, 'Succeeded') || text(sections, 'succeeded')),
+      failed: reflow(text(sections, 'Failed')),
     });
   }
 
   return missions.sort((a, b) => a.title.localeCompare(b.title));
 }
 
-/** A text section, reflowed: the original breaks lines to fit its 640 px windows, so single line
- * breaks inside a paragraph become spaces. Blank lines and attributions ("--Name") stay. */
-function section(sections: Record<string, unknown>, name: string, title = ''): string {
+function text(sections: Record<string, unknown>, name: string): string {
   const value = sections[name];
-  // The briefing repeats the mission title as its first line; the menu shows it as a heading.
-  const lines = typeof value === 'string' ? value.trim().split('\n') : [];
+  return typeof value === 'string' ? value.replace(/\r\n?/g, '\n') : '';
+}
 
-  if (title && lines[0]?.trim().toLowerCase() === title.toLowerCase()) {
-    lines.shift();
-  }
+const titleKey = (line: string) => line.trim().toLowerCase().replace(/[\s!.?:]+$/, '');
 
-  return lines.length
-    ? lines.join('\n').trim().replace(/[ \t]*\n(?!\n|--)(?<!\n\n)[ \t]*/g, ' ').replace(/ {2,}/g,
-      ' ')
-    : '';
+/** Drop a first line that repeats the mission title, which the menu shows as a heading. Case,
+ * spacing and closing punctuation may differ ("Capture The Priest!" for "Capture The Priest"). */
+function withoutTitle(body: string, title: string): string {
+  const lines = body.trim().split('\n');
+  return lines[0] !== undefined && titleKey(lines[0]) === titleKey(title)
+    ? lines.slice(1).join('\n')
+    : body;
+}
+
+/** An attribution line under a quote: "--Lament of Light". An inline dash ("--and yours") is not. */
+const ATTRIBUTION = /^--\s*[A-Z]/;
+
+/**
+ * Reflow a text written for the original's 640 px windows. Paragraphs are split on blank lines,
+ * even ones holding spaces. A paragraph that opens with a quotation mark is an epigraph or verse
+ * and keeps its line breaks; in others, lines are joined with a space, except attribution lines.
+ * Only line-end whitespace is touched, so spacing inside a line stays.
+ */
+export function reflow(body: string): string {
+  return body.replace(/\r\n?/g, '\n')
+    .split(/\n[ \t]*\n/)
+    .map((paragraph) => {
+      const lines = paragraph.split('\n').map((line) => line.trimEnd()).filter((line) =>
+        line.trim()
+      );
+
+      if (lines[0]?.trimStart().startsWith('"')) {
+        return lines.join('\n');
+      }
+
+      const out: string[] = [];
+
+      for (const line of lines) {
+        if (out.length && !ATTRIBUTION.test(line.trim())) {
+          out[out.length - 1] += ` ${line.trimStart()}`;
+        } else {
+          out.push(out.length ? line.trimStart() : line);
+        }
+      }
+
+      return out.join('\n');
+    })
+    .filter((paragraph) => paragraph.trim())
+    .join('\n\n')
+    .trim();
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
