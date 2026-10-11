@@ -1,2 +1,4 @@
 node_modules
 dist
+# Original game files: copyrighted, kept locally for reference only
+original/
