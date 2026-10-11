@@ -85,6 +85,8 @@ export function assertWorldInvariants(world: WorldView): void {
         }
       } else if (entity.carriedBy !== null) {
         fail(`uncarried priest ${id} has carrier`);
+      } else if (world.occupant[world.at(entity.x, entity.y)] !== id) {
+        fail(`priest ${id} missing from its cell`);
       }
 
       if (entity.carrying !== null) {
@@ -100,6 +102,10 @@ export function assertWorldInvariants(world: WorldView): void {
         }
       }
     } else if (entity.kind === 'geyser') {
+      if (world.occupant[world.at(entity.x, entity.y)] !== id) {
+        fail(`geyser ${id} missing from its cell`);
+      }
+
       if (entity.crystal !== null) {
         const crystal = world.entities.get(entity.crystal);
 
@@ -112,11 +118,21 @@ export function assertWorldInvariants(world: WorldView): void {
           fail(`invalid geyser crystal for ${id}`);
         }
       }
-    } else if (entity.kind === 'transport' && entity.carrying !== null) {
-      const crystal = world.entities.get(entity.carrying);
+    } else if (entity.kind === 'transport') {
+      if (entity.carrying !== null) {
+        const crystal = world.entities.get(entity.carrying);
 
-      if (!crystal || crystal.kind !== 'crystal' || crystal.carriedBy !== id) {
-        fail(`invalid transport cargo for ${id}`);
+        if (!crystal || crystal.kind !== 'crystal' || crystal.carriedBy !== id) {
+          fail(`invalid transport cargo for ${id}`);
+        }
+      }
+
+      if ((entity.goal === 'collect') !== (entity.target !== null)) {
+        fail(`invalid transport target for ${id}`);
+      }
+
+      if (entity.target !== null && world.entities.get(entity.target)?.kind !== 'geyser') {
+        fail(`invalid transport target for ${id}`);
       }
     } else if (entity.kind === 'crystal') {
       const geyser = world.entities.get(entity.geyser);

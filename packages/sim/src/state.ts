@@ -132,6 +132,7 @@ export interface Transport {
   path: [number, number][]; // remaining cells to walk
   move: number; // movement accumulator (×100)
   goal: 'idle' | 'collect' | 'home';
+  target: number | null; // geyser id while goal is 'collect'
 }
 export interface Priest {
   id: number;

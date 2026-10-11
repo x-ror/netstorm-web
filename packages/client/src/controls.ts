@@ -47,7 +47,7 @@ export function createControls(
     const p = world.players.get(1)!;
     const en = world.energy(1);
     hud.innerHTML =
-      `<b>NetStorm Web</b> · tick ${world.tick} · Storm Power <b>${p.storm}</b> · енергія ${en.own}/${en.any} · сегменти мостів: ${
+      `<b>NetStorm Web</b> · tick ${world.tick} · Storm Power <b>${p.storm}</b> · енергія ${en.own}/${en.total} · сегменти мостів: ${
         p.hand.map((i) => 'IOTLJSZ-'[i]).join(' ') || '—'
       }<br>`
       + `режим: <b>${mode}</b> &nbsp; R — повернути (${rot}) &nbsp; F — напрям гармати (${

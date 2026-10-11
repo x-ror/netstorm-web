@@ -55,7 +55,8 @@ export function movePriest(
     return 'priest unavailable';
   }
 
-  const path = world.findPath(c.player, p.x, p.y, (cell) => cell[0] === c.x && cell[1] === c.y);
+  const path = world.findPath(c.player, p.x, p.y, (cell) => cell[0] === c.x && cell[1] === c.y,
+    true);
 
   if (!path) {
     return 'no path';

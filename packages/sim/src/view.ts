@@ -1,4 +1,4 @@
-import type { UnitDef } from './defs.js';
+import type { UnitDef, UnitGroup } from './defs.js';
 import type { Building, Entity, Player, Priest } from './state.js';
 import type { CommandError } from './commands.js';
 
@@ -24,8 +24,12 @@ export interface WorldView {
   readonly walkable: (player: number, x: number, y: number) => boolean;
   readonly def: (type: string) => Readonly<UnitDef>;
   readonly priestOf: (player: number) => DeepReadonly<Priest> | undefined;
-  readonly buildingsOf: (player: number, group?: string) => ReadonlyArray<DeepReadonly<Building>>;
-  readonly energy: (player: number) => { own: number; any: number; };
+  readonly buildingsOf: (
+    player: number,
+    group?: UnitGroup,
+  ) => ReadonlyArray<DeepReadonly<Building>>;
+  /** `own` counts generators of the player's theme (and Sun); `total` counts all generators. */
+  readonly energy: (player: number) => { own: number; total: number; };
   readonly canBuild: (command: {
     player: number;
     type: string;

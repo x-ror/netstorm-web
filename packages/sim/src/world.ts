@@ -26,7 +26,7 @@ import { tickPriest, movePriest, pickupPriest, sacrifice } from './rules/priest.
 import { Pathfinder } from './spatial/pathfinding.js';
 import { CellIndex } from './cell-index.js';
 import { Rng } from './rng.js';
-import { type DefTable, type UnitDef, type Theme } from './defs.js';
+import { type DefTable, type UnitDef, type UnitGroup, type Theme } from './defs.js';
 import {
   W,
   H,
@@ -221,6 +221,7 @@ export class World {
       path: [],
       move: 0,
       goal: 'idle',
+      target: null,
     };
     this.entities.set(t.id, t);
     return t; // transports do not block cells
@@ -253,7 +254,8 @@ export class World {
     );
   }
 
-  /** Walkable for a transport/priest of player p: own ground, neutral islands, and any bridge. */
+  /** Walkable for a transport/priest of player p: own ground, neutral islands, and any bridge.
+   * Priests also occupy a cell, so they additionally avoid geysers and other priests. */
   walkable(p: number, x: number, y: number): boolean {
     if (!this.inside(x, y)) {
       return false;
@@ -298,7 +300,7 @@ export class World {
     return undefined;
   }
 
-  buildingsOf(p: number, group?: string): Building[] {
+  buildingsOf(p: number, group?: UnitGroup): Building[] {
     const r: Building[] = [];
 
     for (const e of this.entities.values()) {
@@ -310,7 +312,7 @@ export class World {
     return r;
   }
 
-  energy(p: number): { own: number; any: number; } {
+  energy(p: number): { own: number; total: number; } {
     return energy(this, p);
   }
 
@@ -505,8 +507,9 @@ export class World {
     sx: number,
     sy: number,
     goal: (c: [number, number]) => boolean,
+    avoidOccupied = false,
   ): [number, number][] | null {
-    return this.pathfinder.find(this, p, sx, sy, goal);
+    return this.pathfinder.find(this, p, sx, sy, goal, avoidOccupied);
   }
 
   /** Call after bulk edits to terrain/owner arrays, e.g. a scenario editor. */

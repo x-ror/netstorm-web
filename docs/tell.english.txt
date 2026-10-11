@@ -1,0 +1,3092 @@
+[COMMENTS]
+
+[*********]
+
+[GUILD SYSTEM WAS KILLED IT WAS A BAD IDEA!!!]netstormhq.net
+
+[REVISED GUILD SYSTEM V 1.2]
+
+[ADMINZONE]
+$Input=Enter Zone To Add User Pass,0,ADMINZONE2
+
+[ADMINZONE2]
+
+[ADMINGETTAG]
+$Input=Enter The Tag For Player,1,ADMINGETTAG2
+
+[ADMINGETTAG2]
+
+[REGGUILD]
+$Input=Enter Your Guild Name,1,REGGUILD1
+
+[REGGUILD1]
+
+$Input=Enter Your Guild Password,1,REGGUILD2
+
+[REGGUILD2]
+
+[REGGUILD3]
+Is this information correct?
+Guild Name:{GUILDPARAM1}
+
+Guild Password:{GUILDPARAM2}
+
+$Button=Yes,Tell,ZSEND(GUILDNEW,{GUILDPARAM1},{GUILDPARAM2})
+$Button=No,Tell,REGGUILD
+$Button=Abort,DoNothing,1
+
+[GUILDLOGIN]
+
+$Input=Enter Your Guild Name,1,GUILDLOGIN2
+
+[GUILDLOGIN2]
+
+$Input=Enter Your Guild Password,1,GUILDLOGIN3
+
+[GUILDLOGIN3]
+
+[GUILDLOGIN4]
+
+[GUILD SYSTEM V 1.0 Disbaneded]
+
+[SSSUPDATEZONE]
+
+[SSSGuildAdd]
+
+[SSSGuildAskPass]
+$Input=Enter Your Guild Password,1,GuildAskPass2
+
+[SSSGuildAskPass2]
+
+[SSSGuildSendData]
+$Zsend=GUILDADD,{GUILDADDLAST},{GUILDADDLASTP}
+
+[SSSYourguildWasAdded]
+
+[SSSYourguildfail]
+
+[GENERAL SYSTEM]
+[SetIslands]
+
+[ NETWORK SYSTEM V1.0]
+
+[ZSEND]
+$Zsend={param.1},{param.2},{param.3}
+
+[PickMPMission]
+{H2}Select a Multiplayer Mission
+
+{Text}
+Select the Mission you wish to load
+ from the list below.
+$Menu=*FORTHTMLBATTLE*,DoNothing,0
+
+$Button=Exit,DoNothing,0
+
+[BattleOver6]
+{H2}Battle Over
+{Text}
+
+$Button=Continue,GoMultiplayer,1
+
+[ChangeFirewall]
+{H2}Toggle Server Diagnostic Status
+{Text}You are about to Toggle Server Diagnostic Status!
+
+In order for this change to be applied correct you will be required to log off the server.
+
+Are you sure your ready to logoff the server?
+
+$Button=Yes,Tell,ToggleMyFirewall
+$Button=No,DoNothing,0
+
+[ToggleMyFirewall]
+
+[New GAme system Starts Here]
+
+[DENYSALVAGE]
+{H2}Salvage Denied
+
+{Text}
+It is unwise to salvage important buildings at this time. Salvaging
+only provides 25% of the Storm Power worth of the building you destroy - the
+rest dissipates into the environment.
+
+It is usually a last-resort option used during battles.
+
+$Button=OK,DoNothing,0
+
+[PlayerInfo]
+{H2}Level Manager            
+
+{Text}~5{FragIcon}{FragName}{Accent}: {CText}{param.4}
+
+{Text}{ShardIcon}{ShardName}{Accent}: {CText}{param.3} {Accent}({Link}Craft Stone{Accent}){Text}~5
+
+{Text}{StoneIcon}{StoneName}{Accent}: {CText}{param.2}
+
+$Button=Ok,DoNothing,0
+
+[CraftWarning]
+
+{H2}You can not Craft at This Time
+{Text}You currently do not have enough {ShardName} to craft a {StoneName} at this time.
+
+Crafting requires {ShardtoStone} {ShardName} and you only have {param.3} {ShardName} at this time
+
+you can craft this !
+
+$Button=Back,Tell,PlayerInfo({param.1},{param.2},{param.3},{param.4})
+$Button=Ok,DoNothing,0
+
+[PROFILE SYSTEM STARTS HERE]
+
+[LoadProfiles]
+
+[ShowProfileList]
+{H2}Profiles
+
+{Text}
+Select the Profile you wish to Preview from the list below.
+$Menu=#{param.1},Tell,PreiverProfile({cur.file})
+$Button=Cancel,DoNothing,0
+
+[PreiverProfile]
+{H2}Profile {{param.1}.Title}
+
+{Text}Author{Accent}:{Text} {{param.1}.Author}
+
+{Text}Date{Accent}:{Text} {{param.1}.Date}
+
+{Text}Web Site{Accent}:{Text} {{param.1}.WebSite}
+
+$Button=Back,Tell,LoadProfiles
+$Button=Activate,Tell,SetProfile({param.1})
+
+[SetProfile]
+
+[this shit was killed]
+
+[END OF DEAD SHIT]
+
+[saveingthis]
+
+[ProfileDone]
+{H2}Profiles
+
+{Text}
+Your Profile has Been Set!
+$Button= OK,DoNothing,0
+
+[SETSIZE]
+
+[DeathToSize]
+{H2}~aWARNING!
+{BE}{Text}Changing screen resolution settings requires you to {Alert}restart{Text} Netstorm.
+
+Your new settings will be applied next time you launch the game.
+
+If you set your options in ~iuser.cfg ~wyou will need to edit or remove them manually.
+$Button=Restart Now,Tell,SetSizeAndQuit({param.1},{param.2})
+$Button=Keep Playing,Tell,SetSizeAndContinue({param.1},{param.2})
+
+[SetSizeAndQuit]
+
+$OnExit=test,RequestQuitApp,98
+
+[SetSizeAndContinue]
+
+[SETSIZEDANGEROUSLY]
+
+$OnExit=test,Tell,ScreenResetNow
+
+[ScreenResetNow]
+
+[PriestImmobile]
+
+[islandUnderAttack]
+
+[AdminBcast]
+$Input=Broad Cast Public Message,1,BcastReturn
+
+[BcastReturn]
+
+[AdminMcast]
+$Input=MCast Public Message,1,McastReturn
+
+[McastReturn]
+
+[***********************************************************]
+[ZoneLocked]
+{H2}Zone Restricted
+
+{Text}
+The zone you are trying to enter currently has restricted status and currently you do not have permission to enter this zone.
+
+$Button=OK,DoNothing,0
+[***********************************************************]
+[UserNotUpdated]
+{H2}~rNot Validated
+
+{Text}Your copy of Netstorm couldn't be validated because you chose not to run the auto-updater or it failed to validate your game.
+
+You will be unable to play online multiplayer but single-player and local multiplayer over LAN are still available.
+$Button=Run Auto-updater,QuitApp,98
+$Button=Play Offline,DoNothing,0
+[***********************************************************]
+
+[WELCOME]
+{H2}NetStorm
+
+{Text}
+You are about to enter the world of Nimbus - a realm 
+of island fortresses floating high above the clouds.
+
+Your mission is to capture enemy High Priests and sacrifice
+them to the Furies to gain Knowledge and Power.
+
+$Button=OK,Tell,Welcome2
+
+[***********************************************************]
+[WELCOME2]
+
+{H2}NetStorm
+
+{Text}
+NetStorm is quite different from other Action-Strategy games.
+We urge you to play through the early Missions before advancing to
+the Multi-player games.
+
+The early Missions will introduce important concepts like Energy
+and Bridge Building that are key to success in both single player
+and multi-player scenarios.
+
+$Button=Play Early Missions,MissionBegin,Tutorial1
+$Button=Main Menu,Tell,Blank
+
+[***********************************************************]
+[About]
+{H2}NetStorm
+
+{Text}
+Version {version}
+
+(c) 1997 Titanic Entertainment, Inc. and Activision Inc.
+
+{gamemaster}.{gameminor} Patch by Ticonderoga Entertainment.
+
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[NotImplemented]
+{H2}Not Implemented Yet
+
+{Text}
+Sorry, this function has not yet been implemented, or
+has been temporarily disabled for the demo due to
+instability.
+
+If you receive this message in error, your version number is {version}.
+$Button=OK,Tell,{global.priorTell}
+
+[***********************************************************]
+[PlayerSubIdNotFound]
+{H2}No Information for Player #{p.handle}
+
+{Text}
+No information was found for the given account.
+
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[TechSupport]
+{H2}Technical Support
+
+{Text}
+Before contacting us for help, we suggest consulting the Technical Help file supplied with
+this game. From your Windows {CText}Start{Text} menu select {CText}Programs{Text} / {CText}NetStorm{Text} / {CText}Technical Help{Text}
+to see more information. It may take twenty seconds or more for this program to run, so please be patient.
+
+You can Email {SUPPORTNAME} technical support at {Link}{EMAIL1}{Text}
+for assistance.
+
+[***********************************************************]
+[SETUP]
+{H2}Setup
+
+{Text}
+NetStorm's Setup program is being started.  Please wait for the
+program to appear, then enter the required information.
+
+If you register while setup is running this fortress will take
+the handle that you register with.
+
+When you are ready, quit setup and click the button below.
+$Button=Setup is Done,AccountSetup,1
+
+[***********************************************************]
+[QUITABANDON]
+{H2}Quit Program
+
+{Text}
+There is a battle in progress. Are you certain you wish to
+quit NetStorm and return to the desktop now?
+
+$Button=Quit,QuitApp,99
+$Button=Keep Playing,DoNothing,0
+
+[***********************************************************]
+[BuildNoBucks]
+{H2}Storm Power Needed
+
+{Text}
+You do not have enough {Link}Storm Power{Text} to create
+this building.
+
+You can tell how much Storm Power is needed by looking at the
+number on the High Priest build menu in the upper-left-hand 
+corner of your screen. If the number shows in red, like this 
+~r210{Text}, you know you need more Storm Power.
+
+[***********************************************************]
+[NoTechTheme]
+{H2}May Not Build
+
+{Text}
+You may not build {Link}a Workshop{Text} of that alignment until you
+control {Link}Knowledge{Text} of the same alignment. In other words,
+a Rain Workshop can only be used to create {Link}Units{Text} which
+are Rain oriented.
+
+[***********************************************************]
+[UpgradeNoBucks]
+{H2}Storm Power Needed
+
+{Text}
+You do not have enough {Link}Storm Power{Text} to upgrade this Workshop.
+
+You can tell how much Storm Power is needed by looking at the
+number on the High Priest build menu in the upper-left-hand 
+corner of your screen. If the number shows in red, like this 
+~r210{Text}, you know you need more Storm Power.
+
+[***********************************************************]
+[FortRequired]
+{H2}Multiplayer Fort File Required
+{Text}
+You Must Create a Save Game File Before you can Enter Multiplayer.
+Please click the create new fort above to create a save game file.
+
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[NameRequired]
+{H2}Unique Name Required
+{Text}
+A Fortress with that name already exists on this computer.
+Please choose a unique name for your fortress.
+
+$Button=OK,DoNothing,0
+
+[NameRequiredEditor]
+{H2}Unique Name Required
+{Text}
+A Fortress with that name already exists on this computer.
+Please choose a unique name for your fortress.
+
+$Button=OK,DoNothing,0
+
+[NameRequiredEditor1]
+{H2}File Name Required!
+{Text}
+It appears that you currently do not have any save game files (forts) in your D folder
+
+Netstorm requires that you have at least one save game file in order to play Netstorm. 
+
+Press Ok to See the File name screen again and this time enter a valid filename,
+
+else you can press cancel and return to the main menu should you have no desire to setup your multiplayer fort at the moment.
+
+$Button=OK,DoNothing,0
+$Button=Cancel,Tell,BLANK
+
+[***********************************************************]
+[DEMOVILLE]
+{H2}NetStorm
+
+{Text}
+Please choose which demo you wish to view:
+
+$Timeout=120,Tell,Blank
+
+$Menu=The Storm Rages,StartDemo,DemoStormRages
+$Menu=Demo of "Guard My Back",StartDemo,GuardMyBack
+$Menu=Demo of "Dissolved Alliance",StartDemo,DissolvedAlliance
+
+$Button=Cancel,Tell,Blank
+
+[***********************************************************]
+[DemoAi1TempleDead]
+
+[DemoGoodTeamDead]
+
+[DemoBadTeamDead]
+
+[***********************************************************]
+[Demo]
+{H2}Demo of NetStorm
+
+{Text}
+This demonstration will show your island in
+a battle, but controlled by the computer.
+
+If you wish, you may lay down units just as in the game,
+to help your island to victory.
+
+$Timeout=15,DoNothing,0
+
+[***********************************************************]
+[MetaVerDiff]
+{H2}Version Difference
+
+{Text}
+You are attempting to attach to a challenge server
+which has version {param.1}.
+Your game is version {MAJOR_VERSION}.{MINOR_VERSION} which is
+incompatible with the server version.  You either need to update
+your version or you need to find a more modern challenge server.
+
+If you need to update your version, updates are located at:
+
+{Link}{UPDATEURL}{Text}
+
+$Button=OK,SaveGoMain,0
+
+[***********************************************************]
+[GameVerDiff]
+{H2}Version Difference
+
+{Text}
+You are attempting to attach to a game server
+which has version {param.1}.
+Your game is version {MAJOR_VERSION}.{MINOR_VERSION} which is
+incompatible with that game server version.  You either need
+to update your version or play with someone who is the same version as you.
+
+If you need to update your version, updates are located at:
+
+{Text}{UPDATEURL}{Text}
+
+$Button=OK,SaveGoMain,0
+
+[***********************************************************]
+[PieceDump]
+{Text}
+The entire piece list has been written to the html 
+file
+
+ "{Link}NetStormPieceList"{text}
+
+in your game's main directory.
+
+[***********************************************************]
+[SalvageVortex]
+{H2}Warning
+
+{Text}
+If you choose to salvage this Temple you will
+be unable to accumulate additional Storm Power
+and you will be unable to build bridges.
+
+Are you sure you wish to salvage it?
+
+$Button=Salvage It,Salvage,{global.salvageSid}
+$Button=Cancel,DoNothing,0
+
+[***********************************************************]
+[SalvageInf]
+{H2}Warning
+
+{Text}
+If you Salvage this you may lose the ability to produce
+one or more battle units.
+
+Are you sure you wish to salvage it?
+$Button=Salvage It!,Salvage,{global.salvageSid}
+$Button=Cancel,DoNothing,0
+
+[***********************************************************]
+[BeginCapture]
+{H2}Begin Capture
+
+{Text}
+Would you like to begin capturing a movie now?
+$Button=Begin Capture,Capture,1
+$Button=Cancel,DoNothing,0
+
+[***********************************************************]
+[EndCapture]
+{H2}End Capture
+
+{Text}
+The capture has been written into the files
+called {gifSequenceName}000.bmp and so on.
+
+[PlacingIslands]
+{Text}
+To the left is an overview of this map. To add a new island,
+left-click on one of the islands below the overview window. Then
+click again to drop the new island into place on the map.
+
+To cancel without placing, click again on the island's image in
+the bottom part of the window.
+
+[***********************************************************]
+[CSLGenericFail]
+{H2}Challenge Login Failed!
+{Text}
+Your attempt to connect to the Challenge server has failed
+for some unknown reason.
+
+Check {Link}{UPDATEURL} {Text} For Information
+
+[***********************************************************]
+[CSLServerFull]
+{H2}Challenge Login Failed!
+{Text}
+You could not connect to the Challenge server because it has
+no more room for new players.
+
+Try another server, or try again later.
+
+[***********************************************************]
+[CSLBadNameLen]
+{H2}Challenge Login Failed!
+{Text}
+The name length received by the server was invalid.
+
+Check {Link}{UPDATEURL} {Text} For Information
+
+[***********************************************************]
+[CSLAlreadyHere]
+{H2}Challenge Login Failed!
+{Text}
+You could not connect to the Challenge server because another
+user is connected with the same Fort ID number as yours.
+
+Create a new Multiplayer Fort and try logging in again.
+
+[***********************************************************]
+[TellGifWritten]
+{H2}Screen Shot Written
+
+This screen shot has been written to the file
+
+{CText}{InstallDir}{GifOutSpec}{Text}
+
+$Button=View,URL,file:///{InstallDir}{GifOutSpec1}
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[WarnPriestTaken]
+
+[WarnYourPriestTaken]
+
+[***********************************************************]
+[WarnNeutralPriestTaken]
+
+[***********************************************************]
+[BecomingServer]
+{H2}Becoming Server
+
+{Text}
+The connection to the game server has been lost. Your
+machine has been elected the new server.  You may experience
+some delays while the other players reconnect to your machine.
+
+If your machine is unreachable by the others, the game
+will end prematurely.
+
+[***********************************************************]
+[ConfirmRetreat]
+{H2}Depart Battle
+
+{Text}
+Are you certain you wish to depart from this battle?
+
+You will not be able to return if you choose to do so.
+
+$Button=Depart,LeaveBattle,1
+$Button=Stay,DoNothing,0
+
+[***********************************************************]
+[LoadEditable]
+{H2}Load Battle Map
+
+{Text}
+Select the battle you wish to load from the list below.
+$Menu=*FORTHTMLEDIT*,DoNothing,0
+$Button=Create New Map,tell,LOADLOADFORT
+$Button=Cancel,Tell,Blank
+
+[LOADLOADFORT]
+
+[***********************************************************]
+[LoadMultiplayer]
+{H2}Load Multi-player Game
+
+{Text}
+Select the saved game you wish to load from the list below.
+
+$Menu=*FORTHTMLLIST*,DoNothing,0
+$Button=Create New Game,tell,LOADLOADFORT1
+$Button=Cancel,DoNothing,0
+
+[LOADLOADFORT1]
+
+[***********************************************************]
+[LeaveEditMode]
+{H2}Leave Edit Mode
+
+{Text}
+Would you like to save this map now?
+
+$Button=Yes,SaveGoMain,1
+$Button=No,SaveGoMain,0
+$Button=Cancel,DoNothing,0
+
+[LeaveMPEditMode]
+{H2}Leave Edit Mode
+
+{Text}
+Would you like to save this Fort now?
+
+$Button=Yes,SaveGoMulti,1
+$Button=No,SaveGoMulti,0
+$Button=Cancel,DoNothing,0
+
+[***********************************************************]
+[QuitEditMode]
+{H2}Quit NetStorm
+
+{Text}
+Quit now without saving?
+
+$Button=Yes,QuitApp,99
+$Button=No,DoNothing,0
+
+[***********************************************************]
+[ABORT]
+{H2}Leave Mission?
+
+{Text}
+Do you wish to quit this mission and return to the
+Main Menu now?
+
+$Button=Main Menu,LeaveBattle,1
+$Button=Replay Mission,MissionRestart,0
+$Button=Continue Mission,DoNothing,0
+
+[***********************************************************]
+[TryAgain]
+{Text} 
+Would you like to attempt the mission {CText}{mission.title}{Text} again?
+
+$Button=Replay Mission,MissionRestart,0
+$Button=Leave Missions,MissionAbort,1
+
+[***********************************************************]
+[SetOwner]
+{H2}Set Player
+
+{Text}
+Make this unit owned by which player?
+
+$Menu=~[C.84]Human Player,SetOwner,1
+$Menu=~[C.249]Computer #1,SetOwner,2
+$Menu=~[C.95]Computer #2,SetOwner,3
+$Menu=~[C.207]Computer #3,SetOwner,4
+$Menu=~[C.189]Computer #4,SetOwner,5
+$Menu=~[C.112]Computer #5,SetOwner,6
+$Menu=~[C.156]Computer #6,SetOwner,7
+$Menu=~[C.222]Computer #7,SetOwner,8
+$Button=No Owner,SetOwner,0
+$Button=Cancel,DoNothing,0
+
+[***********************************************************]
+[Campaign]
+
+[UCampaign]
+
+{H2}Campaign
+
+{Text}
+Which campaign would you like to play?
+
+$Timeout=120,Tell,Blank
+
+$Menu=@{guideSpec},Tell,{cur.file}.overview
+
+$Button=Back,Tell,Blank
+
+[***********************************************************]
+[Credits]
+
+{H2}NetStorm Credits
+$Menu=Netstorm 10.82 Patch Credits,Tell,Credits82
+$Menu=Netstorm 10.72 Patch Credits,Tell,CreditsNew
+$Menu=Netstorm Original Credits,Tell,Creditsold
+$Button=Cancel,Tell,Blank
+
+[CreditsNew]
+
+{H2}NetStorm 10.72 Patch Credits
+
+{Text}
+Patch Developed by Ticonderoga Entertainment
+
+{CText}Programming{Text}
+
+Fleet_Admiral, Project Leader and Lead Developer.
+
+Wishmaster, Assistant developer.
+
+Rangerone, Auto Updating Software.
+
+{CText}Graphics{Text}
+
+DWMI, 3d Graphics and Graphics Manager.
+
+Robban, 3d Graphics.
+
+Cirrostratus, Concept Art.
+
+Fleet_Admiral, 2d art and general concepts.
+
+{CText}Sound{Text}
+
+Dwia, Sound Technician.
+
+Dwindlin, Sound Technician.
+
+$Timeout=20,Tell,CreditsNew1
+$Button=More,Tell,CreditsNew1
+$Button=Back,Tell,Credits
+$Button=Cancel,Tell,Blank
+
+[CreditsNew1]
+
+{H2}NetStorm 10.72 Patch Credits
+
+{Text}
+{CText}Scripting{Text}
+
+Fleet_Admiral, Lead English Scripter.
+
+Samthemon, English Scripter.
+
+AmericanEagle, Help File Writer.
+
+Dwindlin, Help File Writer.
+
+MrBig, Help File Writer.
+
+Ventusmori, Help File Writer.
+
+Whirlibulf, Help File Writer.
+
+Kenzo, Help File Writer.
+
+{CText}Unit Balance{Text}
+
+MrBig, Lead Tester and Unit Balance.
+
+Clif, Unit Balance.
+
+Kain, Unit Balance.
+
+{CText}Others{Text}
+
+YellowEye, Darkskies and Activision coordinator.
+
+{CText}Special Thanks to{Text}
+
+Kain
+
+YellowEye
+
+NsWorld
+
+Robban
+
+ZBS
+
+Ken
+
+$Timeout=20,Tell,CreditsNew2
+$Button=More,Tell,CreditsNew2
+$Button=Back,Tell,CreditsNew
+$Button=Cancel,Tell,Blank
+
+[CreditsNew2]
+
+{H2}NetStorm 10.72 Patch Credits
+
+{Text}
+{CText}The NSHQ Pip Icon Contest Winners{Text}
+
+First place, IV0.
+
+Second Place, mig5.
+
+Third Place, Tas.
+
+{CText}The NSHQ Pip Icon Contest Participants{Text}
+
+Tas
+
+demon98765
+
+DWMI
+
+mig5
+
+Drunken_Master
+
+IV0
+
+{CText}Alpha Testers{Text}
+
+Manifesto, CrispyCrab, Deacon, Caesar
+
+Ventusmori, Darkwizzard, Dwindlin, Promise
+
+RickMcCrank, CoWsGoMoO, Dwiggy, AustralianDingo
+
+Papers, Sudden_Death, BlueCheese, AmericanEagle
+
+KellJes, NsWorld, Chgirl, Whirlibulf
+
+$Timeout=20,Tell,CreditsNew3
+$Button=More,Tell,CreditsNew3
+$Button=Back,Tell,CreditsNew1
+$Button=Cancel,Tell,Blank
+
+[CreditsNew3]
+
+{H2}NetStorm 10.72 Patch Credits
+
+{Text}
+{CText}Beta Testers{Text}
+
+Besroah, Dahonk, Ingwe, Jaron
+
+Moonstone, Shoty, Sneakynewbie, stormer
+
+Tas, Zazu
+
+{CText}Dedication{Text}
+
+The Netstorm 10.70 patch is dedicated in memory of Ladybulf.
+
+May your devotion to nimbus never be forgotten!
+
+$Timeout=20,Tell,Blank
+$Button=Back,Tell,CreditsNew2
+$Button=Cancel,Tell,Blank
+
+[Credits82]
+
+{H2}NetStorm 10.82 Patch Credits
+
+{CText}Everything 10.81+{Text}
+
+DWMI, Tired Engineer
+
+{CText}10.80 Team{Text}
+
+Fleet_Admiral, President Nerd
+
+Sam, Vice Nerd
+
+MrBiG, Chief Complainer
+
+Others, Probably.
+
+{CText}Hosting{Text}
+
+Fleet_Admiral, Main Server
+
+RAMA, Backup Server & RamaBot
+
+Dwindlin, DwinBot
+
+DWMI, HostBot
+
+{CText}Special Thanks{Text}
+
+RAMA, Community Warrior
+
+StormCat, Multiplayer Tester
+
+Ingwe, Campaign Tester
+
+$Timeout=20,Tell,Credits82Testers
+$Button=More,Tell,Credits82Testers
+$Button=Back,Tell,Credits
+$Button=Cancel,Tell,Blank
+
+[Credits82Testers]
+
+{H2}NetStorm 10.82 Patch Credits
+
+{CText}Beta Testers{Text}
+
+_SadDed_
+
+Avuton
+
+Dwindlin
+
+Ingwe
+
+Jon
+
+LeakyRUS
+
+Rav2705
+
+Spud
+
+StormCat
+
+Vee-Dee
+
+$Timeout=20,Tell,Blank
+$Button=Back,Tell,Credits82
+$Button=Okay,Tell,Blank
+
+[Creditsold]
+
+{H2}NetStorm Credits
+
+{Text}
+Developed by Titanic Entertainment
+
+{CText}Titanic is, in alphabetical order:{Text}
+
+Tony Bratton, Chief Nerd
+
+Ken Demarest, President and Nerd
+
+Beverly Garland, Art Director
+
+Jim Greer, Director of Mind Control Products
+
+Steve Moore, Father and Author
+
+Chip Patterson, Artist
+
+Kelcey Privett, Artist
+
+Zack Simpson, Chief Executive Nerd
+
+$Timeout=20,Tell,Credits1
+$Button=More,Tell,Credits1
+$Button=Back,Tell,Credits
+$Button=Cancel,Tell,Blank
+
+[***********************************************************]
+[Credits1]
+{H2}NetStorm Credits
+
+{Text}
+{CText}Additional Support From:{Text}
+
+Thomas Blom, Video Support
+
+Randy Buck, Voice and Sound Effects
+
+Tom Byrne, Voice Talent
+
+John King, Voice Talent
+
+Richard (Dicko) Mather, Conceptual Art
+
+John Miles, Graphic Code
+
+Mark Morgan, Music
+
+Morgan Ogburn, Conceptual Art
+
+Mike Privett, Additional Programming
+
+Purple Frog Software, Conversion to Html
+Boutros Boutros-Doggie, Security
+
+$Timeout=20,Tell,Credits2
+$Button=Back,Tell,Creditsold
+$Button=More,Tell,Credits2
+$Button=Cancel,Tell,Blank
+
+[Credits2]
+{H2}NetStorm Credits
+
+{Text}
+{CText}Activision Production{Text}
+
+Mitch Lasky, Executive Producer
+
+Jonathan Knight, Producer
+
+Jason Kay, Producer
+
+John Cibulski, Production Coordinator
+
+Sandi Isaacs, Localizations
+
+{CText}German Localization{Text}
+
+Natascha Conrad, Activision Germany
+
+Maren Bitzer, MB Office Service
+
+M & S Music, German Speech Recordings
+
+Effective Media, German QA Testing
+
+$Timeout=20,Tell,Credits3
+$Button=Back,Tell,Credits1
+$Button=More,Tell,Credits3
+$Button=Cancel,Tell,Blank
+
+[Credits3]
+{H2}NetStorm Credits
+
+{Text}
+{CText}Activision Marketing and Public Relations{Text}
+
+Peter Karpas, Product Manager
+
+Steve Perkins, Assistant Product Manager (Intern)
+
+Kerstine Johnson, Manager Corporate Communications
+
+Elizabeth Capps, Junior Publicist
+
+{CText}Activision Documentation{Text}
+
+Mark Walker, Author
+
+Mike Rivera, Documentation Manager
+
+Ronnie Lane, Technical Help Documentation
+
+Belinda Van Sickle, Documentation Writer / Production Artist
+
+{CText}Activision Creative Services{Text}
+
+Ron Gould, Creative Director
+
+Veronica Milito, Lead Copywriter
+
+Jim Bridges, Senior Designer
+
+$Timeout=20,Tell,Credits4
+$Button=Back,Tell,Credits2
+$Button=More,Tell,Credits4
+$Button=Cancel,Tell,Blank
+
+[Credits4]
+{H2}NetStorm Credits
+
+{Text}
+{CText}Activision Quality Assurance{Text}
+
+Dave Arnspiger, QA Manager
+
+Tim Vanlaw, Senior QA Project Lead
+
+Mitchell Goldman, Project Lead
+
+Aaron Casillas, Tester
+
+Christian Campbell, Tester
+
+Michael Brady, Tester
+
+Chris Toft, Tester
+
+Aaron Gray, Tester
+
+Laurent Slutzky, Tester
+
+Matt Powers, Tester
+
+And lots of other important people!
+
+$Timeout=20,Tell,Credits5
+$Button=Back,Tell,Credits3
+$Button=More,Tell,Credits5
+$Button=Cancel,Tell,Blank
+
+[Credits5]
+{H2}NetStorm Credits
+
+{Text}
+{CText}Special Thanks To:{Text}
+
+Bill Anker
+
+Jamie Bafus
+
+Tony Bowren
+
+Christian Casparian
+
+Scott Cronce
+
+Scott Culbertson
+
+Sean Dunn
+
+Kelly Egan
+
+Lydia Estrada
+
+Kevin Gliner
+
+Eric Johnson
+
+Sean Kelley
+
+Brian Kelly
+
+Gary Knight
+
+Bobby Kotick
+
+$Timeout=20,Tell,Credits6
+$Button=Back,Tell,Credits4
+$Button=More,Tell,Credits6
+$Button=Cancel,Tell,Blank
+
+[Credits6]
+{H2}NetStorm Credits
+
+{Text}
+{CText}Special Thanks To:{Text}
+
+Maryanne Lataif
+
+Julia Moore
+
+David Petchey
+
+Jean Powell
+
+Paula Sandige
+
+Wendy Scherdorf
+
+Ron Scott
+
+Michael Tracy
+
+Denise Walsh
+
+David Vonderhaar
+
+$Timeout=20,Tell,Credits7
+$Button=Back,Tell,Credits5
+$Button=More,Tell,Credits7
+$Button=Cancel,Tell,Blank
+
+[Credits7]
+{H2}NetStorm Credits
+
+{Text}
+{CText}Our Official Beta Testers:{Text}
+{Text}
+^ShahaB^	
+__Mike__	
+|}urn()ut	
+Ace4	
+Acid^Warp	
+Adso	
+
+Agent-X	
+Ahnold	
+Aias	
+AirdoG	
+Airik	
+AL GHU	
+
+Alagrnn	
+Alakhai	
+Albertaco	
+AltiDude	
+Ando	
+AngelMantis	
+
+Antok	
+Apocalypse	
+Aquabat0	
+Aralan	
+Arbitrage	
+Arcanar Z	
+
+ArcherRed	
+Arctic	
+argent	
+Arithon	
+arkaynne	
+art1	
+
+Artemus	
+Asmodeas	
+asterix	
+AstroSpam	
+aToMs	
+Aurin	
+
+Avatar	
+Avenger	
+Aviator	
+B4IG0	
+Babs	
+Backlash	
+
+BAKup	
+Bastage	
+Batman	
+BBlackFIre	
+beak	
+Ben Raines	
+
+BennyJ	
+Berman	
+Bigred	
+BigT	
+bishdogg	
+Bishop	
+
+BlackMagi	
+Blades	
+Blasto	
+Blastocyte	
+blink	
+blood
+Blood Poet	
+BloodHawk/Nightstalker	
+Bloodlust	
+Bloodshock	
+Bloodyeye	
+bludlust	
+
+blue	
+boingo	
+bravheart	
+Brian	
+Bruce	
+Bruenor	
+
+Bry	
+buck	
+Bug	
+BullsEye	
+Bumpbash	
+butter	
+
+$Timeout=20,Tell,Credits8
+$Button=Back,Tell,Credits6
+$Button=More,Tell,Credits8
+$Button=Cancel,Tell,Blank
+
+[Credits8]
+{Text}
+Cair	
+camel	
+cancer man	
+Capnjim	
+Captain Canuck	
+CaptCPU	
+
+Caramon	
+casper	
+Catch22	
+Cecil ~~SoC~~	
+CentSys	
+Chainsaw	
+
+Chance	
+Cheeser	
+Chewie	
+chrillel	
+christovich	
+chrisw15	
+
+chrisw73	
+Chrono	
+Chubbs	
+chuckod	
+Chucky	
+Chut	
+
+Claytonious	
+clerk	
+cloverlief	
+Clownboy	
+CodeRed	
+codezero	
+
+ColdBlooded187	
+comdot	
+Condor	
+Confucius	
+Conquer5	
+Coolspot	
+
+Cougar	
+craigm	
+CryogenIce	
+Cutthroat	
+CyborMan	
+Cyrex	
+
+Cytopia	
+Daax	
+Dagger	
+Dahrien	
+Daika	
+Dalamar	
+
+Dan	
+Danath	
+danbeck	
+Dandy	
+Danor	
+Dark Legacy	
+
+Dark_Spawn	
+Darkhat	
+DarkHaven	
+Darkhorse	
+DarkOne	
+DarkStar	
+
+Data	
+DataJosh	
+davet	
+Dayzed	
+Dea	
+DeadEnd	
+
+Death-3D	
+Deatha	
+deathblow	
+DeathDragon  
+Deathstalker  	
+Decay	
+Decoy	
+
+deicide	
+Dela	
+Demon Stalker	
+Dengar	
+Desticato	
+Devastater ~~SoC~~	
+
+DeVioUS	
+Diet*Crack	
+dlavanty	
+doc	
+DogBeast	
+Dogma	
+
+Don	
+dougi	
+Doyle	
+Dr.Gambit	
+dragon500	
+DragonKnt	
+
+dragonsfire	
+Drakkeen	
+Draven	
+Dravus	
+DRDOOM	
+drdoug	
+
+Dubak	
+Dukat	
+Dwer	
+Dwiggs	
+EarWart	
+echoes	
+
+Electron	
+EleKTRa	
+Elessar	
+Eliminator01	
+Elmo	
+emmex	
+
+Ender6	
+Enkidu	
+Euphoric	
+Evil Ernie	
+Expert	
+Extensis~~SoC~~	
+
+Ez	
+Fabio	
+falcon	
+Farman	
+Fate	
+Faustus	
+
+$Timeout=20,Tell,Credits9
+$Button=Back,Tell,Credits7
+$Button=More,Tell,Credits9
+$Button=Cancel,Tell,Blank
+
+[Credits9]
+{Text}
+FID	
+Fireball	
+fireball	
+firefox	
+Fizbane	
+Flex	
+
+flo	
+Fonny	
+FooBunny	
+Fox	
+Franz	
+Frederik	
+
+frenzy	
+Fruithater	
+Galadin	
+Gargamel	
+geminix	
+ghost	
+
+ghostrider	
+Ghostwheel	
+Glace	
+glitch	
+Gluestick	
+gogolie	
+
+Goldcard	
+Goldy	
+goof	
+goosta	
+Gorky	
+GQ~~SoC~~	
+
+Greebo	
+Greengob	
+Grey Deathstalker	
+griffen8	
+Grignard	
+grymm	
+
+gulsukat	
+gummer	
+HackAway	
+Hahnbon	
+Hammerhead	
+Haplo	
+
+Happy	
+Happyfunball	
+Harlequinn	
+hawkeye	
+Hawkeye	
+HEAT-SoC	
+
+Hedge	
+Hedgehog	
+Heidi	
+Hellblazr	
+Hellder	
+Hellfire	
+
+Hemlock	
+hepner	
+Here2day	
+herulian	
+Heyhey233	
+Hikarr~~SoC~~	
+
+HipCheck	
+Hokies	
+Hornet	
+Hudatmon	
+Hummer	
+hungrybear	
+
+Hunts	
+IceMage	
+ICE-MAN	
+IcePic	
+idea genarator	
+ignatu	
+
+Immortal	
+InfiniT	
+Infominer	
+IO	
+IPFREELY	
+IRex	
+
+IronClaw	
+Jack The Knife	
+Jade Monkey	
+Jalthi	
+JaM	
+Jammer	
+
+Jarish	
+Jaunt	
+Jawz	
+jay	
+Jayce or Korda	
+JeePers	
+
+Jerky Junky	(sort of)
+Jester	
+jiant	
+JimmDogg	
+jinxter	
+
+jjbean	
+jkf3	
+JoDax	
+$Timeout=20,Tell,Credits10
+$Button=Back,Tell,Credits8
+$Button=More,Tell,Credits10
+$Button=Cancel,Tell,Blank
+
+[Credits10]
+{Text}
+joe	
+John	
+Joker	
+
+Joly	
+Jonakand	
+jonboy	
+Jonny_B	
+Jorge	
+Jorus	
+
+jt	
+Jthon	
+Judge_Dead	
+Juice	
+junkman	
+kabooby	
+
+Kain	
+Kaiser Sozia	
+kaitsak	
+Kalgash	
+Kali	
+Kane13	
+
+Kangster	
+Kaphka	
+Kaw-Liga	
+Kenku	
+Kero	
+Kevin	
+
+Kevlar-X	
+Kevman	
+Khaneric	
+KHawke	
+Khyron	
+Killer	
+
+Klive	
+KLR_1	
+knight or Wolf	
+knight21	
+Koala	
+Kooldude	
+
+Korvus	
+kparkera	
+Krafd	
+kram	
+Ksai	
+Kudro	
+
+Kwagga	
+LAman	
+LandeeJ	
+Lanik	
+LAR	
+Lassk	
+
+Latta	
+LDespot	
+Leadpipe	
+LeChuck	
+Leppard	
+Lightbringer	
+
+LightWing	
+Lilandra	
+Lionheart	
+LiPPoPeR	
+ljauthor	
+Lochiel	
+
+Loenni
+Login	
+Loki	
+loki	
+Loomer	
+Lord 360	
+Lord Alex	
+
+LordAce	
+Lurch	
+Maallan	
+machu	
+Mad Killa	
+Maddog	
+
+MadDog	
+MadMan	
+Madrox	
+Malor	
+Mankind	
+Marquette~~SoC~~	
+
+Master Rahl	
+matt	
+matthew0	
+Matthias	
+Maverick	
+Max	
+
+Maxfield	
+McBane 	
+Medic	
+medina	
+Megadeth	
+mel	
+
+melf	
+Menace	
+Merc	
+Methos	
+mike	
+Mike	
+
+Mirewin~~SOC~~	
+Mitch	
+MLiq	
+Monkytec	
+MoonStryke	
+Morph	
+
+mouse	
+Mr. E	
+Mr.Dog	
+Mr.EEL	
+MrScott	
+MudMan~~SoC~~	
+
+Mutsaers	
+mykell	
+MysticMan	
+Mystico	
+nachos	
+Nagash	
+
+Nat	
+N-Dawg	
+$Timeout=20,Tell,Credits11
+$Button=Back,Tell,Credits9
+$Button=More,Tell,Credits11
+$Button=Cancel,Tell,Blank
+
+[Credits11]
+{Text}
+NecroLyte	
+Nedx	
+neelu	
+NeoN pUP!	
+
+NexusOne	
+nicadd	
+NiceGuy	
+Nick	
+Nickolis	
+Night Falcon	
+
+Ninja	
+NocturnaL	
+nogs or theprodigy	
+none	
+Nova	
+nt	
+
+oather	
+Oberon	
+Oboeist	
+octopus	
+Ogreff	
+oj	
+
+Oracle	
+oren	
+Ouch	
+Pac Paraco	
+Palindrome	
+Pete	
+
+pETerCOol	
+Phantasm	
+PhaZe171	
+Pheonix Phire	
+Phil	
+Phobos	
+
+Phoenix	
+Phook	
+phoric	
+Phred	
+picklers	
+Pimp523	
+
+Ping	
+PJP	
+Pokey	
+poopmasta general	
+PrayerStorm	
+Probe	
+
+Pryde	
+Psalm~~{69}	
+Puffy	
+Pulse	
+PUMA	
+Punisher	
+
+Pythonite	
+Quidam	
+Quoth	
+Rabbit	
+Raff	
+Rage	
+
+Rakshas	
+Randomizer	
+Ranger Rick	
+Ranma	
+Rascal	
+Rasher	
+
+Rasputin	
+Raven	
+Razor	
+RedCaseyB	
+Red-Eye	
+Rein	
+
+reinking	
+Reliant	
+reos	
+repentordie	
+Reptile	
+Reverend	
+
+Rhuell	
+Rhynno	
+Rich	
+ridlrtim	
+Riff Raff	
+Rilian	
+
+RingTail	
+Ripper	
+rkm	
+rolice	
+Rommel	
+roy7	
+
+RoyalHoser	
+Rumruner	
+Rune	
+Rush	
+Rutabaga Boy	
+Ruthless Warrior SoC	
+
+Ryanag	
+Saber	
+Sadres~~Soc~~	
+Sage	
+Sailor Star Fighter	
+Sam Scam	
+
+Sam Strohbehn	
+SandWorm	
+Sartre	
+saskman	
+SaXoN	
+Scrag	
+
+Scream	
+Seamus	
+Sean	
+Seat	
+Seath	
+Seeker	
+
+Sephiros	
+Sephiroth	
+SHADE	
+Shade	
+$Timeout=20,Tell,Credits12
+$Button=Back,Tell,Credits10
+$Button=More,Tell,Credits12
+$Button=Cancel,Tell,Blank
+
+[Credits12]
+{Text}
+Shadow	
+Shadow999	
+
+Shadowvox	
+ShAdOwZ	
+shaman	
+Shameless	
+Shen-Lon	
+Shlonglor	
+
+Shyn	
+Sickboy	
+sid	
+Sigis	
+sigmund	
+Silvergene	
+
+Simbad	
+Sinnist	
+Sir Court Jesster	
+SirSoccer	
+sk8r	
+Skates	
+
+SkinTech	
+Skull~~SoC~~	
+Slacker	
+SLASH	
+Slaughterama	
+slayer33	
+
+slider	
+Slowboat	
+Slugger	
+snafu	
+Sneti	
+SniperX	
+
+Snoop6	
+Snowball	
+Snowdown	
+SnowyThing	
+soccerbag	
+Sockum	
+
+Sol'kanar	
+Soltan	
+Someguy	
+Spambone	
+Spanky	
+Sparks	
+
+Speaker	
+Spectre	
+speedy	
+Spektre	
+spinnaker	
+SpiritWalker~~SoC~~	
+
+Splash	
+Sposh	
+SquidS	
+SRL	
+S'Rothon	
+Stalker	
+
+Stark	
+StarMax	
+Statue	
+SternMan	
+stiletto	
+Stix	
+
+Stony	 
+Storm    
+strahd	
+Strahd	
+Straylight	
+Strokah	
+SurgeMan	
+
+Surreal Logic 
+Syxx	
+TAD	
+TadiRan	
+Talon	
+Tech Master	
+
+TecK	
+Ted	
+Teflon Macobb	
+Terran	
+Tha Pimp	
+Thanatos	
+
+The Apostate	
+The Cook	
+The Maxx	
+The_Prophet	
+the_saint	
+theblack	
+
+TheMan	
+TheMaster	
+Thexder	
+Thin	
+Thorn	
+Thrawn	
+
+tiberium	
+tigerx	
+Tim	
+Timewarp	
+Toad	
+tomahawk	
+
+Tommy The Cat	
+Toonces X	
+Townsaver	
+Tramii	
+Trav	
+Trilox	
+
+trouth	
+trum	
+Turtle or Toad	
+Twiggy	
+Tziinch	
+UFOria	
+
+UltraX	
+UnIoNFliP	
+Vader187	
+Vagabond	
+$Timeout=20,Tell,Credits13
+$Button=Back,Tell,Credits11
+$Button=More,Tell,Credits13
+$Button=Cancel,Tell,Blank
+
+[Credits13]
+{Text}
+Valdier	
+Valdin	
+
+VanatTal	
+vardi_y	
+Varquai	
+Vector	
+Vengeance	
+Vex	
+
+Vipester~~SoC~~	
+Vision	
+vlad	
+Vodooman	
+Voodoyou	
+w00kie	
+
+Wag	
+waldo007	
+WallStreet	
+Warhaven	
+Warhawk	
+WARHEADS	
+
+webv	
+Weedle	
+Weedo	
+whir	
+whiteape	
+Whitey	
+
+Willard	
+Winky	
+Wintermute	
+wiz473	
+Wizeman	
+Wog	
+
+Wolf	
+Wolfinjer	
+Wonderer	
+Wongo	
+Wraith	
+Wulf2	
+
+Wylde	
+Xenon	
+Xerria	
+Xerxes	
+xmen	
+xuric	
+
+yakman	
+yinjb	
+Yopapa	
+Zaijian	
+Zantar	
+
+Zaphod	
+ZarQuon	
+Zealot	
+zen	
+Zergo	
+
+Zero_Signal	
+zipoff	
+zodiak	
+Zorik	
+Zuhkov	
+$Timeout=20,Tell,Blank
+$Button=Back,Tell,Credits12
+$Button=OK,Tell,Blank
+
+[***********************************************************]
+[NewTech]
+{H2}Technology Gained!
+
+{Text}
+Your Altar is consumed! Your sacrifice is received!  The Furies 
+are merciful. Your people are imbued with knowledge of 
+the {global.newTechName}{Text}.
+
+{global.newTechPic}
+
+You will be able to use this unit from now on!
+
+$Timeout=15,DoNothing,0
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[AltarUpgrade]
+{H2}Altar Upgraded!
+
+{Text}
+Your altar has been sanctified and strengthened by the Sacrifice
+of your enemy's Priest. In your next battle, you may use it to 
+gain more powerful Knowledge.
+
+$Timeout=15,DoNothing,0
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[MultiplayerPriestDead]
+
+[AddWarningRemoved]
+{H2}Priest is Dead!
+
+{Text}
+Your Priest's blood has been spilled on 
+the Altar of {CText}{param.1}.{Text}
+
+$Timeout=15,DoNothing,0
+$Button=OK,DoNothing,0
+
+$Timeout=15,DoNothing,0
+$Button=Leave Battle,LeaveBattle,1
+$Button=Keep Watching,DoNothing,0
+
+[***********************************************************]
+[MultiplayerOtherPriestDead]
+
+[AddWarningRemoved]
+{H2}Sacrifice!
+
+{Text}
+The High Priest of {CText}{param.1}{Text} has been slain
+upon the Altar of {CText}{param.2}.{Text} The Furies are well pleased.
+
+$Timeout=15,DoNothing,0
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[AlreadyUpgrading]
+{H2}Already Upgrading
+
+{Text}
+You must wait until the current upgrade is complete before
+starting another.
+
+[***********************************************************]
+[ClientDisconnect]
+{H2}Client Disconnected
+{Text}
+{param.1} has disconnected from the game.
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[QueryDecendToChalLevel]
+{H2}Descend to zone {param.1}?
+{Text}
+$Button=Yes,DecendToChalLevel,{param.1}
+$Button=No,DoNothing,0
+
+[***********************************************************]
+[QueryLeaveChalBattle]
+{H2}Leave current battle?
+{Text}
+$Button=Yes,ChalSailPos,{param.1}
+$Button=No,DoNothing,0
+
+[***********************************************************]
+[QueryLeaveJoinChalBattle]
+{H2}Leave current battle?
+{Text}
+$Button=Yes,ChalSailJoinBattle,{param.1}
+$Button=No,DoNothing,0
+
+[***********************************************************]
+[NoDirectDraw]
+{H2}DirectDraw Not Installed
+
+{Text}
+You have requested a fullscreen mode, but DirectDraw does
+not appear to be installed. DirectDraw is required to play
+in fullscreen mode.
+
+Exit NetStorm and install DirectX to play fullscreen.
+
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[Tips]
+{H2}Did You Know?
+
+{Text}
+{@tell.tip{tipNumber}|You're out of Tips!}
+
+$Button=Prior Tip,TellTip,1
+
+$Button=Next Tip,TellTip,2
+$Button=No More Tips,Config,tellTips=0
+$Button=OK,TellTip,3
+
+[***********************************************************]
+[NotInDemo][BreakingThroughMissing][MissingMission]
+[Remvoed]
+{H2}NetStorm!
+
+{Text}
+This mission is not in the NetStorm demo.
+
+We hope you have enjoyed playing this short demo. There are
+many more missions in the final version, and if you haven't
+tried the Multiplayer game give it a shot!
+
+You can buy
+NetStorm direct from Activision
+by calling 800-477-3650 or by visiting your nearest retailer.
+
+For the latest demo download check out http://www.titanic.com/netstorm/demo.html
+.
+
+$Button=OK,DoNothing,0
+
+$OnExit=X,Tell,Blank
+
+$OnExit=X,Tell,Blank
+
+[***********************************************************]
+[DemoNote]
+{H2}Demonstration
+
+{Text}
+This is a demonstration of NetStorm, version {version}. 
+
+This demo has three missions, all the tutorials, and lets you play
+in Multiplayer using only Sun Knowledge. Save games created during this
+demo can be continued when you purchase the game!
+
+Hit F1 in the game for help and technical support.
+
+Have fun!
+
+$Button=OK,Tell,{param.1}
+
+[***********************************************************]
+[TipList]
+tip0="Visit NetstormHQ to check for updates, get support, meet new friends, or discuss your favorite strategies. You can also participate in tournaments! Please visit our sponsors."
+tip1="You can use {CText}F2{Text} to make bridge connecting easier."
+tip2="You can {CText}right-click{Text} on anything to get help about it - even game windows!"
+tip3="If at first you don't succeed, try again! The only way to master Netstorm is to practice. Some people have been playing for years and still have room for improvement. You'll soon beat them if you train hard!"
+tip4="You can use {CText}F5{Text} to find your Priest at any time. Pressing the key {CText}P{Text} or {CText}R{Text} will select the priest, pressing the key twice will find him and select him too!"
+tip5="You can check the range of enemy units by clicking on them."
+tip6="When you place a unit off of a bridge, you can build more bridge from that unit's island!"
+tip7="If you build bridge directly to a Geyser it's harder to connect than if you approach from one side."
+tip8="You should always continue building bridges to Storm Geysers so that your Golems never stop harvesting."
+tip9="Using hotkeys in Netstorm can save valuable seconds in battle. The keys {CText}Q W A S Z X{Text} allow you to bring up bridges without having to move your mouse! Also pressing {CText}U{Text} takes you to the last unit you lost."
+tip10="When forming a bridge arm for attack you can alternate your branch arms in and out to maximize mobility, offensive, and defensive positioning!"
+tip11="Towers can be used to protect weak attack units!"
+tip12="You get Storm Power every time you destroy an enemy unit!"
+tip13="Once you've attached to a Geyser you own its island, and can build bridge off of it!"
+tip14="Building more Workshops is more efficient than Upgrading!"
+tip15="A mix of weapons is often better than focusing on just one type."
+tip16="All units will always pick the closest available target - even if its invulnerable to their attack!"
+tip17="When transports arrive at an empty Geyser, they always choose the Geyser closest to your Temple next - even if it is in enemy territory!"
+tip18="You shouldn't cluster your shooting units together - when one blows up they will all be damaged!"
+tip19="You can break through enemy bridge by building an inexpensive unit right next to it, and then Salvaging your unit. The destructive force will cause normal bridge to crack, and cracked bridge to crumble!"
+tip20="In Multiplayer, you can blow up enemy bridges by building a generator next to them, right-clicking on it and choosing 'Meltdown'!"
+tip21="If you have a fast video card you may be able to use {CText}Options / Adjust Direct Draw / Parallax Clouds{Text} in Direct Draw mode. Its cool!!"
+tip22="When shooting an enemy unit, aim for the area where it meets the ground. If you try to hit it up high your shots may pass right by it!"
+tip23="You can build on your allies' Island and bridges, if your bridges connect."
+tip24="You can Salvage what you're not using when you need extra Storm Power."
+tip25="Since units always choose the closest target, you can often use Towers to distract enemy fire while you attack from another angle!"
+tip26="Beware of broken bridges! Golems may walk off a bridge if it existed when they started moving!"
+tip27="The priest can pray for a powerful Spell in multiplayer games!"
+tip28="You can build Outposts in Multiplayer Mode to control more islands!"
+tip29="Air units can not attack other air units!"
+tip30="Which 'slot' you choose in a Multiplayer Challenge Ring determines the location of your island in the battle."
+tip31="The key to fighting Whirligigs, Dust Devils, and Man o' Wars is to kill their bases - never waste time on the flyers themselves."
+tip32="If you don't want to have to worry about running out of money, use Sun units - they're cheap!"
+tip33="Each Transport has important differences - if you know how to use them creatively!"
+tip34="You can group weapons in a complementary manner.  The weakness of one could be the strength of the other!"
+tip35="In Multiplayer, when you build your temple you should place it near the most geysers, so your golems don't have so far to walk!"
+tip36="You can build more bridge even when the one you're connecting to is still dark."
+tip37="In Multiplayer, if you start typing another player's name in the chat window and hit TAB, it will fill in the rest of the name."
+tip38="When your ally is low on cash, you can {CText}right-click{Text} on a unit owned by them, go to {CText}Player{Text}, click {CText}Send Money{Text} and choose how much you want to send."
+tip39="You're out of Tips! You can find more Tips at NetstormHQ."
+[***********************************************************]
+[AllianceRequested]
+{H2}Alliance Requested
+{Text}
+{param.1}{param.2} {Text} would like to form an Alliance. If you agree, you 
+will be able to build off each other's bridges and your Battle Units will 
+not target each other.
+
+Do you agree to the Alliance?
+$Button=Yes,ConfirmAlliance,{param.3}
+$Button=No,DoNothing,0
+
+[AllianceSpam]
+{H2}Alliance Requested Denied 
+{Text} 
+You have exceeded the limit of {param.1} alliances request with {param.2}{param.3}{Text}. Please try again later.
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[AllianceComplete]
+{H2}Alliance Complete
+{Text}
+You and {CText}{param.1}{Text} are now mutual Allies. You can both build off each
+other's bridges, and your Battle Units will not target each other.
+
+Note that you still have be connected to your Ally's bridge network to be 
+able to build off of it!
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[AllianceBroken]
+
+[***********************************************************]
+[SacrificeMenu]
+{H2}Sacrifice!
+
+{Text}
+Glory be to the Furies! You may choose a Level {param.2}
+unit as your
+
+reward, or Upgrade to get higher level units.
+
+reward.
+
+$Timeout=15,RequestStormpower,0
+$Menu=*TECHLIST*,DoNothing,{param.1}
+[***********************************************************]
+[SacrificeForStormpower]
+{H2}Storm Power Gained!
+{Text}
+You have gained Storm Power for the Sacrifice of your enemy's Priest!
+
+$Timeout=15,DoNothing,0
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[DirectDrawManager]
+
+{H2}Direct Draw
+
+{Text}
+This game uses Microsoft's "Direct Draw" technology to 
+give you fast full-screen game performance. 
+Most modern games use DirectDraw.  However,
+for optimal performance NetStorm uses a few DirectDraw features
+that many other games don't use, and which may or may not
+work on all video cards.
+
+Consequently, we have provided several options which let you tune
+NetStorm to your particular video card.  As you toggle options,
+it is possible that your machine will crash. If this
+occurs, simply reboot and run NetStorm again. NetStorm will
+return to the last known good mode.  But, to be safe,
+you should close all other applications before selecting {CText}Start Direct Draw{Text} below.
+
+{CText}For Windows Legacy users Hit ALT-ENTER any time to return to a window!{Text}
+
+{CText}For Windows XP users, to go into windows mode simply press and hold CTRL-ALT-ENTER. For other operating systems use ALT-ENTER.{Text}
+
+$Button=Start Direct Draw,Tell,DirectDrawManager2
+$Button=Support,Tell,DirectDrawSupport
+$Button=Cancel,DoNothing,0
+$Timeout=45,DoNothing,0
+
+[***********************************************************]
+[DirectDrawManager2]
+
+[***********************************************************]
+[AdjustDirectDraw]
+{H2}Direct Draw
+
+{Text}
+You can often drastically improve the performance of NetStorm
+by changing some of the options below.
+Each option will be explained when you select it (before it is activated.)
+
+Remember that if your video card does not support a particular
+feature, some of these options may lock up your machine.  
+It is recommended that you shut down all other
+applications before changing these options.
+
+As you change each feature, NetStorm will prompt you to
+accept the change, and will automatically revert in 15 seconds
+if you do not.
+
+In case your machine crashes, restart and NetStorm will return
+to the last known good mode.
+
+{CText}If you can't see your mouse, try pressing F12!{Text}
+
+{CText}Hit ALT-ENTER any time to return to a window!{Text}
+
+$Checked=Safe & Slow Mode,Tell,ToggleBackBufferDib,{global.ddBackBufferDib},1
+$Checked=Safe & Jumpy Mouse,Tell,ToggleMouse,{global.ddSoftwareMouse},1
+$Checked=Parallax Clouds,Tell,ToggleParallax,{global.ddParallax},{global.ddFourPage}
+$Checked=Reduce Tearing,Tell,ToggleFlipping,{global.ddFlipping},1
+
+$Button=Help,Tell,DirectDrawSupport
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[ToggleBackBufferDib]
+{H2}Compatible But Slower Mode
+
+{Text}
+Compatible Mode should work on almost all video cards,
+however, it is often considerably slower.
+
+It is highly recommended that you turn {CText}off{Text} Compatibilty Mode if
+possible.  Fortunatly, this should work on the vast majority of cards.
+
+Compatible But Slower Mode is currently {CText}ONOFF{Text}.
+
+$Button=Turn Off,ScreenModeChange,2
+
+$Button=Turn On,ScreenModeChange,2
+
+$Button=Cancel,Tell,AdjustDirectDraw
+
+[***********************************************************]
+[ToggleMouse]
+{H2}Compatible But Jumpy Mouse
+
+{Text}
+If your mouse leaves 'trash' on the screen when you move
+it around, or doesn't show up at all, then you should turn
+on this option.
+
+Turning this option on will not slow the game down much,
+but will cause the mouse to 'stick' and 'jump' when the frame rate is low.
+
+Compatible But Jumpy Mouse is currently {CText}ONOFF{Text}.
+
+$Button=Turn Off,ScreenModeChange,64
+
+$Button=Turn On,ScreenModeChange,64
+
+$Button=Cancel,Tell,AdjustDirectDraw
+
+[***********************************************************]
+[ToggleFlipping]
+{H2}Reduce Tearing
+
+{Text}
+If the screen seems to 'tear' when you scroll around in NetStorm, 
+turn on this option.  However, this may slow the game 
+down considerably on many video cards.
+
+Tearing Reduction is currently {CText}ONOFF{Text}.
+
+$Button=Turn Off,ScreenModeChange,4
+
+$Button=Turn On,ScreenModeChange,4
+
+$Button=Cancel,Tell,AdjustDirectDraw
+
+[***********************************************************]
+[ToggleParallax]
+{H2}Parallax Clouds
+
+{Text}
+You can make the clouds move as if they were far away, increasing
+the illusion of altitude in NetStorm.  If your video card has enough
+memory and is fast, this won't slow the game down too much and
+will look very good.
+
+Parallax Clouds are currently {CText}ONOFF{Text}.
+
+$Button=Turn Off,ScreenModeChange,16
+
+$Button=Turn On,ScreenModeChange,16
+
+$Button=Cancel,Tell,AdjustDirectDraw
+
+[***********************************************************]
+[DirectDrawSupport]
+{H2}Direct Draw Support
+
+{Text}
+Direct Draw is Microsoft's technology, but each video card 
+manufacturer is responsible for making their card work with it.
+
+If Direct Draw doesn't work on your computer contact your graphics
+card manufacturer, or contact Microsoft on the web at
+
+http://www.microsoft.com
+
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[BattleOver1]
+{H2}VICTORY!
+{Text}
+
+$Button=Continue,GoMultiplayer,1
+
+[BattleOver2]
+{H2}DEFEAT!
+{Text}
+
+$Button=Continue,GoMultiplayer,1
+
+[BattleOver3]
+{H2}Battle Over
+{Text}
+
+$Button=Continue,GoMultiplayer,1
+
+[BattleOver4]
+{H2}Connection Failure
+{Text}
+
+Your multiplayer NetStorm game could not start because
+some players never connected to the server.
+
+$Button=Return to Challenge Area,GoMultiplayer,1
+
+[BattleOver5]
+{H2}Draw
+{Text}
+
+$Button=Continue,GoMultiplayer,1
+
+[***********************************************************]
+[BattleVersionMismatch]
+{H2}Version Mismatch
+
+{Text}
+All players in a given battle must be using compatible
+versions.
+
+We're sorry, but your version is not compatible with the
+rest of the players in that battle.  This could be because
+they are playing a later version, or because you are using
+a more recent version than they.
+
+You can download the latest patches from {Link}{UPDATEURL} {Text}
+
+$Button=Darn,DoNothing,0
+
+[***********************************************************]
+[BattleFailedDiags]
+{H2}Sorry
+
+{Text}
+You cannot become the battlemaster if you have not passed
+the diagnostics.
+
+The previous battlemaster of this battle has left, which
+would make you the battlemaster.  But you have not passed
+the diagnostics, making you ineligble.
+
+You can try running the diagnostics again, or join
+another battle.
+
+$Button=Ok,DoNothing,0
+
+[***********************************************************]
+[QueryForceJoinChalBattle]
+{H2}You May Be Firewalled
+
+{Text}
+You have not passed the receive diagnostics, indicating that
+other players will not be able to connect to your computer.
+This condition prevents you from being the master of a
+battle, although you can still join other battles.
+
+If you think your network situation has changed since the
+last time you ran diagnostics, exit NetStorm and run them
+again.  You can also force yourself to attach as the
+battlemaster by clicking "BattleMaster"
+
+$Button=BattleMaster,ChalForceJoinBattle,{param.1}
+$Button=Cancel,DoNothing,0
+
+[***********************************************************]
+[Player]
+{H2}Player "{p.handle}"
+
+{Text}
+{p.handle} has played {CText}{p.totalGames}{Text} games.
+
+Reliability Rating: {CText}{p.reliability}%{Text}
+(meaning that {p.handle} disconnects or quits out of games early
+{CText}{p.unreliability}%{Text} of the time).
+
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[MetaPlayer]
+{H2}Player "{p.handle}"
+
+{Text}
+Client version: {CText}{p.version}{Text}
+
+Client language: {CText}{p.language}{Text}
+
+{p.handle} has played {CText}{p.totalGames}{Text} games.
+
+Reliability Rating: {CText}{p.reliability}%{Text}
+(meaning that {p.handle} disconnects or quits out of games early
+{CText}{p.unreliability}%{Text} of the time).
+
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[MoreData]
+{H2}Multiplayer Stats
+
+~[IBridge.K1]~B~EConstruction~[IBridge.K1]
+{Text}Bridges Placed: {CText}{param.1}{Text}
+
+{Text}Outposts Built: {CText}{param.2}{Text}
+
+{Text}Workshops Upgraded: {CText}{param.3}{Text}
+
+{Text}Most Built: {CText}{param.4} ({param.5}){Text}
+
+~[IThunderCannonMissile.4]~B~EDestruction~[IThunderCannonMissile.4]
+{Text}Units Destroyed: {CText}{param.6}{Text}
+
+{Text}Units Lost: {CText}{param.7}{Text}
+
+{Text}Units Salvaged: {CText}{param.8}{Text}
+
+{Text}Meltdowns: {CText}{param.9}{Text}
+
+~[IfortGump.3]~B~EStorm Power~[IfortGump.3]
+{Text}Collected: {CText}{param.10}{Text}
+
+{Text}Kill Reward: {CText}{param.11}{Text}
+
+~[IPriest.F1]~B~EVictory~[IPriest.F1]
+{Text}Priests Sacrificed: {CText}{param.12}{Text}
+
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[intro1082]
+{H2}Netstorm Update v10.82
+
+{CText}What's New?
+
+{Text}This update brings multiple fixes, improvements and balance changes that breathe new life into Netstorm.
+
+{CText}New Unit Added
+
+~[ISunBattery.1]{Text}The Sun Generator is a cheaper, sun-only generator that aims to boost strategies involving Sun-only or rushing with a Sun Workshop.
+
+{CText}Borderless Window
+
+{Text}You now have the option to go fullscreen in window mode, allowing Netstorm better support for Windows 10.
+
+{CText}Fairer Geysers
+
+{Text}Geyser spawns in multiplayer are now balanced by default. They will generally spawn in pairs, one for each side.
+$Button=Skip,Config,introGiven=1
+$Button=More,Tell,intro1082page2
+
+[intro1082page2]
+{H2}Netstorm Update v10.82 - Page 2
+
+{CText}North / South Advantage - Fixed!
+
+{Text}Previously certain units had advantage based on your starting location. This was caused by a bug which is now fixed. 
+Ranges are adjusted based on direction so that they are equal regardless of the unit appearance.
+
+{CText}Reworked Balance
+
+{Text}The balance for the game was given a huge overhaul. While iconic units remain mostly the same, changes were made to nearly every other unit.
+Air is much more powerful but so is anti-air. Golems are slightly slower to encourage teching into collectors, which are faster.
+Most units will behave the same but Bulfs are now invulnerble to air and collect TWO storm crystals at a time.
+
+{CText}Greater variety
+
+{Text}Multiplayer maps are now capable of spawning in 16 million different variations. Additionally, there are new battlemaster options including the ability to change bridge sets (with new bridges!).
+$Button=Skip,Config,introGiven=1
+$Button=Even More,Tell,intro1082page3
+
+[intro1082page3]
+{H2}Netstorm Update v10.82 - Page 3
+
+{CText}Island Modification
+
+{Text}It's now MUCH easier to move your residence or re-roll a new island. Just left-click on your fort in the Multiplayer menu and you'll see the new options.
+
+{CText}Multiplayer Statistics
+
+{Text}Your fort will now record every unit you build and many other fun statistics. You can view this by clicking your fort and selecting ~jView Stats~w.
+
+{CText}Titles & Achievements
+
+{Text}Unlock new titles in multiplayer battle to display below your name in the zones. The more you play, the greater your progress. Discover how close you are to unlocking the next title by selecting ~jChange Title~w from the Multiplayer Fort menu.
+$Button=Full Patch Notes,ShowDevLog,0
+$Button=OK,Config,introGiven=1
+
+[***********************************************************]
+[HostBotIntro]
+{H1}Multiplayer Help
+
+{H2}~iHostBots (Automated Game Hosting)
+
+{Text}NetStorm now has automated game hosts that allow players to connect through firewalls and record game statistics.
+
+{Link}Click here to learn how to use HostBots.
+
+{H2}~iMultiplayer AI (Skirmish)
+
+{Text}Multiplayer battles can now include AI opponents. You can play solo or unite against this new threat to Nimbus.
+
+{Link}Click here to discover AI battles.
+
+{H2}~iNetStorm Community Discord Server
+
+{Text}Need help? Looking for battles? Want to chat about NetStorm?
+
+{Link}Click here to discover the Netstorm Community!
+$Button=Join Community,Tell,DiscordInfo
+$Button=I understand,DoNothing,0
+
+$Button=Don't Show This Again,Config,noShowHostBotIntro=1
+
+[***********************************************************]
+[ChalIntro]
+{H2}Serenisphere
+{Text}You have entered the Serenisphere where the tribes of Nimbus gather to fight for Knowledge and power!
+
+Click {Link}here{Text} to see the {Link}Multiplayer Quick Start{Text}.
+
+{CText}Left-Click{Text} to move your island.
+
+{CText}Right-Click{Text} to get information about {Link}Challenge Rings{Text} and {Link}Zones{Text}.
+
+{Text}We strongly encourage you to play the "Early Missions" so that 
+you'll know how to fight in a Multiplayer battle!{Text}
+
+Hit {CText}F8{Text} any time to see this box again.
+
+$Button=OK,DoNothing,0
+
+$Button=Don't Show This Again,Config,noShowChalIntro=1
+
+[***********************************************************]
+[DiscordInfo]
+{H2}~iNetStorm Community Discord Server
+
+{Text}~EDiscord is a text and voice chat designed specifically for gamers.
+
+~EIt works on desktop, phone and can even run in a browser.
+
+~EWe use our server to ~aarrange battles~w, ~ushare media ~wand ~idiscuss development & balance~w.
+
+{Link}Click here{Text}~E for an invite to the NS community.
+$Button=People scare me,DoNothing,0
+$Button=Invite me!,URL,https://discord.gg/ZB9ty3g
+
+[***********************************************************]
+[CSLShutdown]
+{H2}Server Shutdown
+{Text}
+This server is being shutdown or reset. While it is in this state,
+it is not allowing new players to connect.
+
+Try connecting again in a few minutes, or try another server.
+
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[asksend]
+{h2}Send All
+
+{Text}
+Are you sure you want to send all your Storm Power?
+$Button=Yes,SendAllBucks,{param.1}
+$Button=No,DoNothing,0
+
+[NewRank]
+{H2}New Rank Achieved
+
+{Text}
+Congratulations!
+
+You have achieved Rank {param.1}! 
+
+The Furies destroy your Knowledge and grant you the Sun Disc
+Thrower and Sun Cannon again. 
+[***********************************************************]
+[ProdPending]
+{H2}Production Busy
+
+{Text}
+Production is busy.
+
+You must wait until the prior Knowledge is in production
+before starting another. Production should be ready in
+just a moment.
+
+[***********************************************************]
+[LeaveEarly]
+{H2}Leave Battle In Shame
+
+{Text}
+You may leave this battle now, but your Reliability
+Rating will be decreased and other players may not
+wish to play with you.
+
+You may leave honorably when:
+
+* A victor is decided or draw declared.
+
+* Your Priest is captured or dead.
+
+* Your temple is destroyed and you cannot build another.
+
+* Your temple is destroyed and your Priest is immobile.
+
+Are you certain you wish to depart from this battle?
+
+$Button=Leave Anyway,LeaveBattle,1
+$Button=Stay,DoNothing,0
+
+[***********************************************************]
+[LeaveNormal]
+{H2}Leave Battle Honorably
+
+{Text}
+Your Priest has been Captured or Sacrificed, or you are alone
+in a battle.  There is no need to remain in
+this battle now.
+
+If you choose to leave now your Reliability Rating will
+not be harmed.
+
+$Button=Leave Honorably,LeaveBattle,9
+$Button=Stay,DoNothing,0
+
+[***********************************************************]
+[NoCaptureNotOnline]
+{H2}Not Capturable!
+
+{Text}
+You may not capture the Priest owned by "{param.1}" because
+that player is disconnected from the game.
+
+If the player reconnects his Priest will be capturable again.
+
+[***********************************************************]
+[OnlyOneLeft]
+{H2}Only One Left!
+
+{Text}
+You are the only player still connected to this game.
+
+You can keep playing to see whether other players reconnect.
+
+[***********************************************************]
+[EarlySacrifice]
+{H2}Too Early!
+
+{Text}
+Priests may not be Sacrificed within the first few minutes of
+game play.
+
+The Furies are unwilling to grant Knowledge for brief and
+easy battles. Wait a short while and perhaps they will be
+more generous!
+
+[***********************************************************]
+[DrawNotAccepted]
+
+[***********************************************************]
+[MayNotBattleUpdate]
+{H2}Sorry
+
+{Text}
+Only the BattleMaster may change the description of a battle.
+
+You are either not in a battle, or you are not the battle master.
+
+[***********************************************************]
+[WarnCantUpgradeAltarOffHomeIsland]
+{h2}Warning
+
+{Text}
+You've built your Altar on an island other than your home. You won't be
+able to upgrade this Altar, because it won't return with you after battle.
+You may still Sacrifice priests for Knowledge or Storm Power at this Altar.
+
+$Button=OK,DoNothing,0
+$Button=Don't Show This Again,Config,noShowWarnCantUpgrade=1
+
+[***********************************************************]
+[NoProtocol]
+{H2}No Network Detected
+
+{Text}
+NetStorm could not find evidence of TCP/IP nor IPX/SPX socket
+support on your computer. At least one of these protocols is 
+required in order to play multiplayer NetStorm.
+
+Install TCP/IP (for Internet play) or IPX/SPX (for LAN play), or
+both, then run NetStorm diagnostics.  If the diagnostics detect
+the protocols you installed, you should not see this message.
+
+If diagnostics detects the protocols, but you still get this
+message, contact customer support.
+
+$Button=I will,Tell,Blank
+
+[***********************************************************]
+[BridgesKilled]
+{H2}Low on Space
+
+{Text}
+The amount of bridges currently on the map has exceeded the allowed Allocated memory set aside in the game. In order to all game play to continue all bridges have been destroyed.
+
+[***********************************************************]
+[FinishedDemo]
+[Void]
+Demo Complete
+
+Congratulations, you've gotten all the Sun Knowledge! You've advanced
+as far as you can in this Demo of NetStorm. 
+
+You can order the game at our 
+website
+
+or by visiting your local software retailer.
+
+You will receive 5,000 ~[IfortGump.3] for this Sacrifice.
+
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[MetaKeepAliveTimeout]
+{H2}Closing Server Connection
+
+{Text}
+The server has not been heard from in too long.
+
+Try reconnecting. If you cannot connect, the server may be
+down or the network between you and the server may be
+experiencing problems.
+
+$Button=OK,LeaveBattle,2
+
+[***********************************************************]
+[TooManyPirates]
+{H2}Too Many Players Without CDs
+
+{Text}
+Half or more of the players in a battle must have their game
+CD in order to play.
+
+$Button=OK,DoNothing,0
+
+[***********************************************************]
+[DirectDrawVerify]
+{H2}Confirm Mode Change
+{Text}
+Your Direct Draw mode has been changed. 
+
+If everything looks fine to you, select {CText}OK{Text} now to keep
+this mode. Otherwise you will return to your old mode in 15 seconds.
+
+$Timeout=15,ScreenModeAbsChange,{param.1}
+$Button=OK,AcceptScreenModeChange,1
+$Button=Cancel,ScreenModeAbsChange,{param.1}
+
+[***********************************************************]
+[NotRestart]
+{H2}Cannot Connect
+
+{Text}
+Battle can not be restarted because all remaining players
+(including yourself) are firewalled.
+
+If you believe that you are not firewalled, you can re-run the
+diagnostics at any time by choosing "Netstorm Diagnostics"
+from the NetStorm Folder on Windows Start Menu.
+
+$Button=OK,LeaveBattle,1
+
+[***********************************************************]
+[AskLaunchRootServer]
+{H2}Launch Challenge Server?
+{Text}
+No challenge server was found on your LAN.
+Would you like to become a challenge server
+now?
+
+If you do nothing, you will become server in 10 seconds.
+
+$Timeout=10,LaunchRootServer,1
+$Button=Become Server,LaunchRootServer,1
+$Button=Keep Searching,LaunchRootServer,0
+$Button=Cancel,LaunchRootServer,2
+
+[***********************************************************]
+[InsertCD]
+[no cd requred]
+{H2}Insert NetStorm CD
+{Text}
+NetStorm requires the CD now.
+Please insert it into any CDROM drive
+on your machine.
+
+$Button=OK,RecheckCD,0
+$Button=Quit Game,QuitApp,99
+
+[***********************************************************]
+[WarnFailedDiags]
+{H2}You Have Not Passed the Diagnostics
+{Text}
+Players who have not passed the diagnostics cannot become Battle Masters.
+
+If you are not behind a firewall, or have Forwarded ports 6799 and 6800, you can disable the diagnostics check by pressing the Escape key, clicking on the Options menu, then selecting the Game tab, and choosing the Pass Server Diagnostics option. This will allow you to become the Battle Master.
+
+If, however, you are behind a firewall, or have not forwarded the proper ports, please leave this option checked as it will ensure that only those that can host games will become the Battle Master.
+
+$Button=OK,ChalForceJoinBattle,{param.1}
+$Button=Don't Show This Again,ChalJoinBattleNoWarning,{param.1}
+
+[old junk]
+
+Players whom have not passed diagnostics cannot become
+BattleMasters.
+
+You can run diagnostics by selecting "NetStorm Diagnostics"
+from the submenu of the Window Start Menu in which you installed
+the NetStorm shortcuts.
+
+You may also run diagnostics from the DOS
+command line by typing "NSUTIL diagnose" in the directory
+in which you installed NetStorm.
+
+[***********************************************************]
+[IPXSucks]
+{H2}IPX/SPX Warning
+{Text}
+The IPX/SPX Protocol under Windows has various instabilities 
+depending on the networking card and driver used.  You may 
+experience difficulties including crashes and/or the inability 
+to connect to games.  If you experience any of these problems, 
+you should use the TCP/IP protocol for LAN games if at all possible.
+
+Also please note that NetStorm cannot run under an IPX emulator such as 
+Kali(tm).  NetStorm provides its own TCP/IP Networking which makes 
+Kali(tm) (and similar IPX emulators) unnecessary to play NetStorm.
+
+$Button=OK,Config,useIPAsLanProtocol=0
+$Button=Cancel,DoNothing,0
+
+[DoTheIPXDANCE]
+LALALAL
+
+[***********************************************************]
+[ClientCheated]
+[zonked]
+
+[***********************************************************]
+[ServerCheated]
+[zonked]
+
+[***********************************************************]
+[ServerThinksYouCheated]
+[zonked]
+
+[***********************************************************]
+[PlayerNoMake]
+[zonked]
+
+[***********************************************************]
+[LeaveCheaters]
+[zonked]
+{H2}Leave Battle Honorably
+
+{Text}
+Somebody has cheated. Your priest will be removed from battle
+when you leave.
+
+If you choose to leave now your Reliability Rating will
+not be harmed.
+
+$Button=Leave Honorably,LeaveCheater,0
+$Button=Stay,DoNothing,0
+
+[END]
+

@@ -15,7 +15,11 @@ export function advance(world: World, e: Transport | Priest, speed: number): boo
     e.move -= MOVE_SCALE;
     const [x, y] = e.path.shift()!;
 
-    if (!world.walkable(e.owner, x, y)) {
+    // A priest occupies its cell, so it stops rather than overwrite a geyser or another priest.
+    if (
+      !world.walkable(e.owner, x, y)
+      || (e.kind === 'priest' && world.occupant[world.at(x, y)])
+    ) {
       e.path = [];
       return false;
     }
@@ -53,11 +57,10 @@ export function tickTransport(world: World, t: Transport): void {
   }
 
   if (t.goal === 'collect') {
-    const g = [...world.entities.values()].find((e) =>
-      e.kind === 'geyser' && Math.abs(e.x - t.x) + Math.abs(e.y - t.y) === 1
-    ) as Geyser | undefined;
+    const g = targetGeyser(world, t);
+    t.target = null;
 
-    if (g?.crystal !== null && g?.crystal !== undefined) {
+    if (g && g.crystal !== null) {
       const c = world.entities.get(g.crystal);
 
       if (!c || c.kind !== 'crystal') {
@@ -98,11 +101,23 @@ export function tickTransport(world: World, t: Transport): void {
   }
 }
 
+/** The geyser this transport was sent to, if it still exists and the transport stands next to it. */
+function targetGeyser(world: World, t: Transport): Geyser | null {
+  const g = t.target === null ? undefined : world.entities.get(t.target);
+
+  if (!g || g.kind !== 'geyser' || Math.abs(g.x - t.x) + Math.abs(g.y - t.y) !== 1) {
+    return null;
+  }
+
+  return g;
+}
+
 function dropCargo(world: World, t: Transport): void {
   if (t.carrying === null) {
     return;
   }
 
+  // As in the original, the crystal falls where its carrier died. Picking it up is not implemented yet.
   const c = world.entities.get(t.carrying);
 
   if (c?.kind === 'crystal') {
@@ -138,5 +153,6 @@ export function collect(world: World, c: Extract<Command, { t: 'collect'; }>): C
 
   t.path = path;
   t.goal = 'collect';
+  t.target = g.id;
   return null;
 }

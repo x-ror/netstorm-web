@@ -24,14 +24,15 @@ const mk = () =>
   ], [[80, 40]]);
 const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
-test('refactoring preserves pre-refactor authoritative hashes at reference ticks', () => {
+// Re-pinned when Transport gained `target`; without that field these equal the pre-refactor hashes.
+test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
-    [1, 1995136146],
-    [60, 2782835982],
-    [101, 1476032888],
-    [200, 2546456109],
-    [400, 4261632554],
+    [1, 238646694],
+    [60, 2196105562],
+    [101, 459643884],
+    [200, 1792633689],
+    [400, 3623366358],
   ]);
 
   for (let index = 0; index < 400; index++) {
@@ -441,4 +442,78 @@ test('snapshot boundaries reject sparse grids and unsupported setup fields', () 
   alteredDefs.set('wrong-key', other.def('suncannon'));
   const invalid = new World(alteredDefs, 1);
   assert.throws(() => invalid.snapshot(), /definition key mismatch/);
+});
+
+test('a transport only collects from the geyser it was sent to', () => {
+  const world = mk();
+  const transport = [...world.entities.values()].find((entity) =>
+    entity.kind === 'transport' && entity.owner === 1
+  );
+  const full = [...world.entities.values()].find((entity) => entity.kind === 'geyser');
+  assert.ok(transport?.kind === 'transport' && full?.kind === 'geyser');
+  const empty = world.addGeyser(full.x, full.y + 2);
+  full.timer = 1;
+  world.step();
+  assert.ok(full.crystal !== null && empty.crystal === null);
+  // Adjacent to both geysers.
+  transport.x = full.x;
+  transport.y = full.y + 1;
+  assert.deepEqual(
+    world.execute({ t: 'collect', player: 1, transport: transport.id, geyser: empty.id }),
+    { ok: true },
+  );
+  assert.equal(transport.target, empty.id);
+  world.step();
+  assert.equal(transport.carrying, null);
+  assert.equal(transport.goal, 'idle');
+  assert.equal(transport.target, null);
+  assert.ok(full.crystal !== null);
+  assertWorldInvariants(world);
+});
+
+test('a priest cannot enter or path through a geyser or another priest', () => {
+  const world = mk();
+  const priest = world.priestOf(1)!;
+  const geyser = world.addGeyser(priest.x + 3, priest.y);
+  const cell = world.at(geyser.x, geyser.y);
+  assert.deepEqual(world.execute({ t: 'movePriest', player: 1, x: geyser.x, y: geyser.y }), {
+    ok: false,
+    error: 'no path',
+  });
+  assert.deepEqual(world.execute({ t: 'movePriest', player: 1, x: geyser.x + 2, y: geyser.y }), {
+    ok: true,
+  });
+
+  for (let index = 0; index < 100; index++) {
+    world.step();
+    assert.equal(world.occupant[cell], geyser.id);
+  }
+
+  assert.deepEqual([priest.x, priest.y], [geyser.x + 2, geyser.y]);
+  // A stale path straight into an occupied cell stops the priest in front of it.
+  priest.path = [[geyser.x + 1, geyser.y], [geyser.x, geyser.y]];
+
+  for (let index = 0; index < 50; index++) {
+    world.step();
+  }
+
+  assert.deepEqual([priest.x, priest.y], [geyser.x + 1, geyser.y]);
+  assert.equal(world.occupant[cell], geyser.id);
+  const other = world.addPlayer(3, 'Third', 'thunder', 0, []);
+  const blocker = world.addPriest(other.id, geyser.x + 2, geyser.y);
+  priest.path = [[blocker.x, blocker.y]];
+
+  for (let index = 0; index < 50; index++) {
+    world.step();
+  }
+
+  assert.deepEqual([priest.x, priest.y], [geyser.x + 1, geyser.y]);
+  assert.equal(world.occupant[world.at(blocker.x, blocker.y)], blocker.id);
+  assertWorldInvariants(world);
+});
+
+test('unit definitions reject unknown classes and groups', () => {
+  assert.throws(() => loadDefs([{ id: 'x', class: 'Enrgy' }]), /Unknown unit class/);
+  assert.throws(() => loadDefs([{ id: 'x', group: 'canon' }]), /Unknown unit group/);
+  assert.equal(loadDefs([{ id: 'x', class: 'Energy', group: 'battery' }]).get('x')?.cls, 'Energy');
 });

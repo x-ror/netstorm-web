@@ -1,4 +1,4 @@
-import type { UnitDef } from './defs.js';
+import { UNIT_CLASSES, UNIT_GROUPS, type UnitDef } from './defs.js';
 import type { Entity, Player } from './state.js';
 import { W, H, PIECES, FACINGS, MAX_ID, MAX_PLAYERS, MAX_UINT32 } from './state.js';
 import {
@@ -13,8 +13,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 1;
-export const RULES_VERSION = 1;
+export const SNAPSHOT_VERSION = 2;
+export const RULES_VERSION = 2;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -62,7 +62,7 @@ function parseDef(raw: unknown): UnitDef {
   return {
     id,
     name: text(value.name, 'definition.name'),
-    cls: text(value.cls, 'definition.cls'),
+    cls: choice(value.cls, UNIT_CLASSES, 'definition.cls'),
     theme: value.theme === null
       ? null
       : choice(value.theme, ['sun', 'wind', 'rain', 'thunder'], 'definition.theme'),
@@ -74,7 +74,7 @@ function parseDef(raw: unknown): UnitDef {
     footX: integer(value.footX, 'definition.footX', 0, W),
     footY: integer(value.footY, 'definition.footY', 0, H),
     speed: finite(value.speed, 'definition.speed'),
-    group: text(value.group, 'definition.group'),
+    group: choice(value.group, UNIT_GROUPS, 'definition.group'),
     delay: finite(value.delay, 'definition.delay'),
     lifeSpan: finite(value.lifeSpan, 'definition.lifeSpan'),
   };
@@ -153,7 +153,7 @@ function parseEntity(raw: unknown): Entity {
   }
 
   if (kind === 'transport') {
-    keys(value, [...living, 'type', 'carrying', 'path', 'move', 'goal'], 'transport');
+    keys(value, [...living, 'type', 'carrying', 'path', 'move', 'goal', 'target'], 'transport');
     return {
       id,
       kind,
@@ -167,6 +167,7 @@ function parseEntity(raw: unknown): Entity {
       path: parsePath(value.path),
       move: integer(value.move, 'transport.move'),
       goal: choice(value.goal, ['idle', 'collect', 'home'], 'transport.goal'),
+      target: nullableId(value.target, 'transport.target'),
     };
   }
 

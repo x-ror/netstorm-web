@@ -12,6 +12,7 @@ export class Pathfinder {
     sx: number,
     sy: number,
     goal: (c: [number, number]) => boolean,
+    avoidOccupied = false,
   ): [number, number][] | null {
     if (!world.inside(sx, sy)) {
       return null;
@@ -59,6 +60,10 @@ export class Pathfinder {
         }
 
         const j = world.at(nx, ny);
+
+        if (avoidOccupied && world.occupant[j]) {
+          continue;
+        }
 
         if (visited[j] !== epoch) {
           visited[j] = epoch;

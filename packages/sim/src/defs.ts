@@ -2,10 +2,51 @@
 
 export type Theme = 'sun' | 'wind' | 'rain' | 'thunder';
 
+/** Original class names as they appear in the .type files, including the "Offsensive" typo. */
+export const UNIT_CLASSES = [
+  '',
+  'Aerial Attack',
+  'Aerial Transport',
+  'Air Attack Base',
+  'Altar',
+  'Anti-Air',
+  'Bridge',
+  'Defense',
+  'Defensive Spell',
+  'Energy',
+  'Ground Transport',
+  'High Priest',
+  'Offensive Spell',
+  'Offsensive Spell',
+  'Production',
+  'Residence',
+  'Shooter',
+  'Source of Energy',
+  'Source of Storm Power',
+  'Spell',
+  'Summons Spell',
+  'World Event',
+] as const;
+export type UnitClass = (typeof UNIT_CLASSES)[number];
+
+export const UNIT_GROUPS = [
+  '',
+  'anti-air',
+  'archer',
+  'aviary',
+  'balloon',
+  'battery',
+  'blocker',
+  'cannon',
+  'fence',
+  'walker',
+] as const;
+export type UnitGroup = (typeof UNIT_GROUPS)[number];
+
 export interface UnitDef {
   id: string; // original type name, e.g. "suncannon"
   name: string; // description, e.g. "Sun Cannon"
-  cls: string; // original class: Shooter, Defense, Ground Transport, ...
+  cls: UnitClass;
   theme: Theme | null;
   level: number; // 1..3, 0 = not researchable
   cost: number; // Storm Power
@@ -15,7 +56,7 @@ export interface UnitDef {
   footX: number;
   footY: number;
   speed: number; // cells per second (transports)
-  group: string; // cannon | archer | blocker | fence | aviary | battery | walker | balloon | anti-air | ''
+  group: UnitGroup;
   delay: number; // delayBetweenShots (s)
   lifeSpan: number; // s, aerial attackers
 }
@@ -46,7 +87,7 @@ export function loadDefs(raw: unknown): DefTable {
     t.set(id, {
       id,
       name: str(r.description, id),
-      cls: str(r.class),
+      cls: oneOf(r.class, UNIT_CLASSES, 'class'),
       theme: (['sun', 'wind', 'rain', 'thunder'].includes(theme ?? '')
         ? theme
         : null) as Theme | null,
@@ -58,7 +99,7 @@ export function loadDefs(raw: unknown): DefTable {
       footX: num(r.foot_x, 1),
       footY: num(r.foot_y, 1),
       speed: num(r.speed),
-      group: str(r.group),
+      group: oneOf(r.group, UNIT_GROUPS, 'group'),
       delay: num(r.delayBetweenShots),
       lifeSpan: num(r.lifeSpan),
     });
@@ -69,6 +110,20 @@ export function loadDefs(raw: unknown): DefTable {
 
 function str(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback;
+}
+
+function oneOf<const T extends readonly string[]>(
+  v: unknown,
+  options: T,
+  label: string,
+): T[number] {
+  const value = str(v);
+
+  if (!options.includes(value)) {
+    throw new TypeError(`Unknown unit ${label}: ${value}`);
+  }
+
+  return value;
 }
 
 function num(v: unknown, fallback = 0): number {

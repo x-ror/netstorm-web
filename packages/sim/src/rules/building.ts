@@ -4,7 +4,7 @@ import type { WorldView } from '../view.js';
 import { energyNeed } from '../defs.js';
 import { MAX_FACING } from '../state.js';
 
-export function energy(world: WorldView, p: number): { own: number; any: number; } {
+export function energy(world: WorldView, p: number): { own: number; total: number; } {
   const pl = world.players.get(p);
 
   if (!pl) {
@@ -12,7 +12,7 @@ export function energy(world: WorldView, p: number): { own: number; any: number;
   }
 
   let own = 0;
-  let any = 0;
+  let other = 0;
 
   for (const b of world.buildingsOf(p)) {
     const d = world.def(b.type);
@@ -31,11 +31,11 @@ export function energy(world: WorldView, p: number): { own: number; any: number;
     if (d.theme === pl.theme || d.theme === 'sun') {
       own += n;
     } else {
-      any += n;
+      other += n;
     }
   }
 
-  return { own, any: any + own };
+  return { own, total: own + other };
 }
 
 export function canBuild(
@@ -81,7 +81,7 @@ export function canBuild(
     const need = energyNeed(def);
     const have = world.energy(command.player);
 
-    if (have.own < need.own || have.any < need.own + need.any) {
+    if (have.own < need.own || have.total < need.own + need.any) {
       return 'no energy';
     }
   }
