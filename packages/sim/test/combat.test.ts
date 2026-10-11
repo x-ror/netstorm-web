@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { World, loadDefs, TPS } from '../src/index.js';
 
+import { shotInterval } from '../src/rules/combat.js';
 import { ScanWorld } from './reference-world.js';
 
 const defs = loadDefs(
   JSON.parse(readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8')),
 );
 const mk = () => new World(defs, 42);
+const seconds = (id: string) => shotInterval(defs.get(id)!) / TPS;
 
 test('stacked transports keep entity order after an earlier transport moves into their cell', () => {
   const world = mk();
@@ -207,4 +209,27 @@ test('salvage refunds a quarter scaled by health and nothing below half health',
   world.execute({ t: 'salvage', player: 1, target: wrecked.id });
   assert.equal(world.players.get(1)!.storm, 100 + 66);
   assert.ok(!world.entities.has(wrecked.id));
+});
+
+test('shot timing follows the fire animations of the original', () => {
+  assert.equal(seconds('suncannon'), 5); // delayBetweenShots alone: it fires on the first frame
+  assert.equal(seconds('thunderarcher'), 1);
+  assert.equal(seconds('thundercannon'), 4);
+  assert.equal(seconds('windarcher'), 0.8);
+  assert.equal(seconds('raincannon'), 0.2); // 0.24 s, on a 0.1 s tick
+  assert.equal(seconds('sunarcher'), 7);
+  // A Thunder Cannon shot carries four seconds of its 40 per second.
+  const world = mk();
+  world.addIsland(0, 0, 100, 100, 2);
+  const tower = world.spawnBuilding('suncannon', 2, 60, 39, 1);
+  world.spawnBuilding('thundercannon', 1, 48, 39, 1);
+  world.step();
+  assert.equal(tower.hpMax - tower.hp, 160);
+  // The Vander Tower is anti-air: a hit is 0.6 of its 35 per second, not a second of it.
+  const other = mk();
+  other.addIsland(0, 0, 100, 100, 2);
+  const near = other.spawnBuilding('suncannon', 2, 54, 39, 1);
+  other.spawnBuilding('thunderarcher', 1, 48, 39, 1);
+  other.step();
+  assert.equal(near.hpMax - near.hp, 21);
 });

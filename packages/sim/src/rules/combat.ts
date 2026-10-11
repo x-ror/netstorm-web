@@ -14,12 +14,34 @@ import {
 export type EnemyAt = (owner: number, x: number, y: number) => Entity | null;
 
 const HP_DECIMALS = 4; // hp is rounded to keep the simulation deterministic
-// Invented: most shooters have no delayBetweenShots in the data and the help gives no rate of fire.
+// Invented, for anything that shoots without a delay in its data and without an entry below.
 const DEFAULT_SHOT_SECONDS = 1;
+/* oxlint-disable no-magic-numbers -- timings read from the original */
+/**
+ * Seconds the fire animation of a shooter takes in the original (GunAnim.cpp in netstorm.game
+ * 10.82): the frames of one facing in the unit's .type file times the frame delay of its class.
+ * A gun fires once per animation and then waits delayBetweenShots, so the two add up. The Sun
+ * Cannon and the Vander Tower fire on the first frame, which leaves their delay alone.
+ */
+const FIRE_SECONDS: Readonly<Record<string, number>> = {
+  thundercannon: 4, // 9 frames at 0.5 s; the shot leaves 3.5 s in ("3.5 charge" in its data)
+  windarcher: 0.8, // 5 frames at 0.2 s
+  // 3 frames at 0.08 s. The original fires like this for 4 s and then rests 6 s; the rest is not
+  // modelled, and the average is the same because a hit carries the time since the previous one.
+  raincannon: 0.24,
+  // Approximate (`?`): the arm is a spring that spins up to the bearing of the target, throws
+  // after 3.1 to 3.6 s and needs 2.6 to 5.6 s more to wind down. Not measured in the game.
+  sunarcher: 7,
+};
+/** Share of its damage rate an anti-air gun deals with one hit, whatever the time between hits. */
+const FLAT_SHOT_SHARE = 0.6;
+/* oxlint-enable no-magic-numbers */
 
-/** Ticks between shots. `delay` is delayBetweenShots from the unit data, read as seconds (unconfirmed). */
+/** Ticks between shots: the fire animation plus delayBetweenShots, which the original reads as
+ * seconds. */
 export function shotInterval(def: UnitDef): number {
-  return Math.max(1, Math.round((def.delay > 0 ? def.delay : DEFAULT_SHOT_SECONDS) * TPS));
+  const fire = FIRE_SECONDS[def.id] ?? (def.delay > 0 ? 0 : DEFAULT_SHOT_SECONDS);
+  return Math.max(1, Math.round((def.delay + fire) * TPS));
 }
 
 /** The Sun Cannon "will rotate itself to target an enemy"; other cannons keep their orientation. */
@@ -57,9 +79,12 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
     return;
   }
 
-  // "Damage" in the unit data is the average per second, so one shot carries a whole interval of it.
+  // "Damage" in the unit data is the average per second. In the original a hit from an archer or a
+  // cannon deals that rate times the time since the gun's previous hit, so one shot carries a whole
+  // interval of it. Other groups deal a fixed share of the rate with every hit.
   const interval = shotInterval(def);
-  damage(world, b.owner, target, (def.dps * interval) / TPS);
+  const amount = def.group === 'anti-air' ? def.dps * FLAT_SHOT_SHARE : (def.dps * interval) / TPS;
+  damage(world, b.owner, target, amount);
   b.cooldown = interval;
 }
 
