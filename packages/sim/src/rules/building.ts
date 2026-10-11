@@ -91,10 +91,25 @@ export function canBuild(
     : null;
 }
 
-/** A unit needs Energy of its own alignment from a Temple or Generator nearby; Sun units accept any.
- * How much each unit needs is shown in the game by icons and is not in the help, so one source is
- * enough here. */
+/** Energy icons on a unit's card, by level. Read from the game for Sun units of level 1 (Sun Cannon,
+ * Golem: one) and level 2 (Whirlibase: two). The own/any split for the Furies' units and all of
+ * level 3 follow the same pattern but are not yet confirmed in the game. */
+function energyNeed(level: number): { own: number; any: number; } {
+  if (level <= 1) {
+    return { own: 1, any: 0 };
+  }
+
+  return level === 2 ? { own: 1, any: 1 } : { own: 2, any: 1 };
+}
+
+/** Each Temple or Generator whose circle covers the build site supplies one Energy. A unit needs
+ * `own` of its own alignment plus `any` more of whatever kind; Sun units accept any kind for both,
+ * and the "sun-only" Sun Generator feeds nothing but Sun units. */
 function hasEnergy(world: WorldView, player: number, def: UnitDef, x: number, y: number): boolean {
+  const need = energyNeed(def.level);
+  let own = 0;
+  let total = 0;
+
   for (const b of world.buildingsOf(player)) {
     const source = world.def(b.type);
 
@@ -102,18 +117,27 @@ function hasEnergy(world: WorldView, player: number, def: UnitDef, x: number, y:
       continue;
     }
 
-    // The Sun Generator is "sun-only"; every other source also feeds Sun units.
-    const feeds = def.theme === 'sun' || source.theme === def.theme;
     // Centre to centre; which point of the unit the original tests against the circle is unknown.
     const dx = b.x + b.fx / 2 - (x + def.footX / 2);
     const dy = b.y + b.fy / 2 - (y + def.footY / 2);
 
-    if (feeds && dx * dx + dy * dy <= ENERGY_RANGE * ENERGY_RANGE) {
-      return true;
+    if (dx * dx + dy * dy > ENERGY_RANGE * ENERGY_RANGE) {
+      continue;
+    }
+
+    if (def.theme === 'sun') {
+      own++;
+      total++;
+    } else if (source.theme !== 'sun') {
+      total++;
+
+      if (source.theme === def.theme) {
+        own++;
+      }
     }
   }
 
-  return false;
+  return own >= need.own && total >= need.own + need.any;
 }
 
 /** "You can build units on your home island, on any un-owned island connected by bridges, or off of

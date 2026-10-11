@@ -214,13 +214,19 @@ test("energy must come from a nearby source of the unit's own alignment", () => 
   const far = { player: 1, x: 70, y: 41 } as const;
   // More than 30 cells from the centre of the Wind Temple: too far for anything.
   assert.equal(w.apply({ t: 'build', type: 'suncannon', ...far }), 'no energy');
-  // A Sun Generator feeds only Sun units.
+  // A Sun Generator feeds only Sun units. One source is enough for a level 1 unit (Sun Cannon)
+  // but not for a level 2 one (Whirlibase shows two Sun icons in the game).
   w.spawnBuilding('sunbattery', 1, 64, 41);
   assert.equal(w.apply({ t: 'build', type: 'windarcher', ...far }), 'no energy');
   assert.equal(w.canBuild({ type: 'suncannon', ...far }), null);
+  assert.equal(w.canBuild({ type: 'sunaviary', ...far }), 'no energy');
   // A Wind Generator feeds Wind and Sun units, not Thunder ones.
   w.spawnBuilding('windbattery', 1, 64, 36);
+  assert.equal(w.canBuild({ type: 'sunaviary', ...far }), null);
   assert.equal(w.apply({ t: 'build', type: 'thundercannon', ...far }), 'no energy');
+  // The Crossbow is level 2: one Wind energy plus one more that is not sun-only.
+  assert.equal(w.apply({ t: 'build', type: 'windarcher', ...far }), 'no energy');
+  w.spawnBuilding('windbattery', 1, 60, 36);
   assert.equal(w.apply({ t: 'build', type: 'windarcher', ...far }), null);
 });
 
