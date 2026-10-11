@@ -187,6 +187,8 @@ export interface Building {
   facing: Facing;
   target: number | null; // entity this shooter is locked on
   cooldown: number; // ticks until the next shot
+  /** Player whose damage brought the building down, 0 until then; its explosion is his too. */
+  killer: number;
 }
 export interface Transport {
   id: number;

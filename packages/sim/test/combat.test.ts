@@ -233,3 +233,42 @@ test('shot timing follows the fire animations of the original', () => {
   other.step();
   assert.equal(near.hpMax - near.hp, 21);
 });
+
+test('a destroyed shooter hurts everything next to it and can set off a chain', () => {
+  const world = mk();
+  world.addIsland(0, 0, 100, 100, 1);
+  const first = world.spawnBuilding('suncannon', 1, 40, 40, 1);
+  const second = world.spawnBuilding('suncannon', 1, 43, 40, 1); // touches the first
+  const third = world.spawnBuilding('suncannon', 1, 46, 40, 1); // touches only the second
+  const apart = world.spawnBuilding('suncannon', 1, 40, 44, 1); // a cell of gap below the first
+  const walker = world.spawnTransport('sunwalker', 1, 39, 39); // diagonal to the first
+  second.hp = 301;
+  first.hp = 0;
+  first.killer = 2;
+  world.step();
+  // Half of its 600 hit points plus one, to friend and foe alike.
+  assert.ok(!world.entities.has(first.id));
+  assert.equal(second.hp, 0);
+  assert.equal(second.killer, 2);
+  assert.equal(apart.hp, apart.hpMax);
+  assert.equal(walker.hp, 0);
+  // The second cannon goes up in turn and reaches the third, which the first could not.
+  world.step();
+  assert.ok(!world.entities.has(second.id));
+  assert.equal(third.hpMax - third.hp, 301);
+});
+
+test('a destroyed Temple deals 400 around it; a generator does not explode', () => {
+  const world = mk();
+  world.addIsland(0, 0, 100, 100, 1);
+  const temple = world.spawnBuilding('windvortex', 1, 40, 40, 1);
+  const near = world.spawnBuilding('suncannon', 1, 40 + temple.fx, 40, 1);
+  temple.hp = 0;
+  world.step();
+  assert.equal(near.hpMax - near.hp, 400);
+  const battery = world.spawnBuilding('windbattery', 1, 60, 60, 1);
+  const beside = world.spawnBuilding('suncannon', 1, 60 + battery.fx, 60, 1);
+  battery.hp = 0;
+  world.step();
+  assert.equal(beside.hp, beside.hpMax);
+});

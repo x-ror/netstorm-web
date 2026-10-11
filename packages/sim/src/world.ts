@@ -208,6 +208,7 @@ export class World {
       facing,
       target: null,
       cooldown: 0,
+      killer: 0,
     };
     this.entities.set(b.id, b);
     this.forFoot(b, (i) => {

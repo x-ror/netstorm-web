@@ -53,6 +53,7 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
   if (b.hp <= 0) {
     removeBuilding(world, b);
     shakeBridges(world, b);
+    explode(world, b);
     world.emit({ what: 'destroyed', who: b.owner, data: { id: b.id, type: b.type } });
     return;
   }
@@ -88,6 +89,41 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
   b.cooldown = interval;
 }
 
+// Damage a destroyed Temple deals to everything around it (netstorm.game 10.82).
+const TEMPLE_BLAST = 400;
+const BLAST_GROUPS: ReadonlySet<string> = new Set(['archer', 'cannon', 'anti-air']);
+
+/**
+ * "When shooting units explode they also damage every other unit nearby! They may explode from
+ * that damage in a chain reaction. Temples also explode in this way." In the original a destroyed
+ * archer, cannon or anti-air gun deals half of its full hit points plus one, and a Temple 400, to
+ * everything with hit points that stands within one cell of its footprint, whoever owns it. The
+ * damage belongs to the player who destroyed the unit. Salvage does not come through here.
+ */
+function explode(world: World, b: Building): void {
+  const def = world.def(b.type);
+  const temple = def.cls === 'Energy';
+
+  if (!temple && !BLAST_GROUPS.has(def.group)) {
+    return;
+  }
+
+  const amount = temple ? TEMPLE_BLAST : Math.floor(b.hpMax / 2) + 1;
+
+  // ponytail: scans every entity for each explosion; use the cell index if blasts get frequent.
+  for (const entity of world.entities.values()) {
+    const width = entity.kind === 'building' ? entity.fx : 1;
+    const height = entity.kind === 'building' ? entity.fy : 1;
+
+    if (
+      entity.x + width >= b.x && entity.x <= b.x + b.fx
+      && entity.y + height >= b.y && entity.y <= b.y + b.fy
+    ) {
+      damage(world, b.killer, entity, amount);
+    }
+  }
+}
+
 /** Take a building off the map. Its island, if it stood on one of its own, stays. */
 export function removeBuilding(world: World, b: Building): void {
   for (let y = b.y; y < b.y + b.fy; y++) {
@@ -106,6 +142,10 @@ function damage(world: World, by: number, entity: Entity, amount: number): void 
 
   const before = entity.hp;
   entity.hp = Math.max(0, +(before - amount).toFixed(HP_DECIMALS));
+
+  if (entity.kind === 'building' && before > 0 && entity.hp <= 0) {
+    entity.killer = by;
+  }
 
   // "When you destroy an enemy unit you get 25% of its Storm Power value." A priest is never
   // destroyed by units, and only the shot that brings the unit down is paid.
