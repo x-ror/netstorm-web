@@ -11,6 +11,7 @@ import {
   type DeepReadonly,
   type Entity,
   type Facing,
+  type UnitDef,
   type WorldView,
 } from '@netstorm/sim';
 import { project, TW, TH } from './projection.js';
@@ -28,6 +29,7 @@ const COLOR = {
   hover: 0x9fd3ff,
   path: 0x9fd3ff,
   energy: 0x66ccff,
+  reach: 0xff9f43,
 } as const;
 const GHOST_ALPHA = 0.5;
 const ENERGY_ALPHA = 0.35;
@@ -51,6 +53,15 @@ function footprint(entity: View): number[] {
   return entity.kind === 'building'
     ? rectPoly(entity.x, entity.y, entity.fx, entity.fy)
     : cellPoly(entity.x, entity.y);
+}
+
+/** First cell, along one axis, of a cannon's line of fire in direction `d` (-1, 0 or 1). */
+function lineStart(d: number, origin: number, foot: number, centre: number, range: number): number {
+  if (d > 0) {
+    return origin + foot;
+  }
+
+  return d < 0 ? origin - range : centre;
 }
 
 /** Browser input becomes commands; only the fixed-step loop submits them to the world. */
@@ -354,6 +365,7 @@ export function createControls(options: {
         anchor.y + Math.floor(index / def.footX),
       ]);
       drawEnergy();
+      drawReach(def, anchor.x, anchor.y, ui.facing);
 
       if (hasFacing(def)) {
         const [dx, dy] = DIRS[ui.facing]!;
@@ -368,6 +380,29 @@ export function createControls(options: {
       // oxlint-disable-next-line unicorn/no-array-fill-with-reference-type -- Pixi fills geometry with a paint style, not an array.
       overlay.poly(cellPoly(cx, cy)).fill(style);
     }
+  }
+
+  /** Where a shooter can hit, measured as the simulation does from its centre cell: a square of
+   * its range for most shooters, a straight line from the muzzle for cannons. */
+  function drawReach(def: Readonly<UnitDef>, x: number, y: number, facing: Facing): void {
+    if (!def.dps || !def.range) {
+      return;
+    }
+
+    const cx = x + (def.footX >> 1);
+    const cy = y + (def.footY >> 1);
+    const style = { color: COLOR.reach, alpha: ENERGY_ALPHA, width: 1 };
+
+    if (def.group !== 'cannon') {
+      overlay.poly(rectPoly(cx - def.range, cy - def.range, def.range * 2 + 1, def.range * 2 + 1))
+        .stroke(style);
+      return;
+    }
+
+    const [dx, dy] = DIRS[facing]!;
+    const startX = lineStart(dx, x, def.footX, cx, def.range);
+    const startY = lineStart(dy, y, def.footY, cy, def.range);
+    overlay.poly(rectPoly(startX, startY, dx ? def.range : 1, dy ? def.range : 1)).stroke(style);
   }
 
   /** The circles over which the player's Temple and Generators supply energy. */
@@ -411,6 +446,10 @@ export function createControls(options: {
     }
 
     overlay.poly(footprint(selected)).stroke({ color: COLOR.selection, width: 1 });
+
+    if (selected.kind === 'building') {
+      drawReach(world.def(selected.type), selected.x, selected.y, selected.facing);
+    }
 
     if ('path' in selected) {
       for (const [px, py] of selected.path) {

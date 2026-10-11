@@ -9,7 +9,7 @@ import {
   isBridge,
   GEYSER_ISLAND_SIZE,
 } from '@netstorm/sim';
-import { GROUND_FRAMES } from './texture-selection.js';
+import { EXPLOSION_FRAMES, GROUND_FRAMES } from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
 
 const SPRITE_ANCHOR_X = 0.5;
@@ -18,6 +18,9 @@ const CLIFF_HEIGHT = 6; // rock face drawn under an island's southern rim
 const SCATTER_X = 7;
 const SCATTER_Y = 13;
 const BAR_GAP = 2; // pixels between a sprite's top and its health bar
+const EXPLOSION_FRAME_MS = 70;
+const EXPLOSION_CELLS = 2; // footprint width the small explosion covers at scale 1
+const TRACER_LIFT = 0.6; // share of a shooter's sprite height its shots leave from
 const MARKER_RADIUS = 4;
 const CELL_CENTER = 0.5;
 const MIN_ALPHA = 0.5; // alpha of an entity at zero hp
@@ -39,6 +42,7 @@ const COLOR = {
   barBack: 0x1b1f2a,
   barGood: 0x7bd36b,
   barLow: 0xff5a4a,
+  tracer: 0xfff2b0,
 } as const;
 const LOW_HP = 0.35;
 
@@ -111,6 +115,10 @@ export function createWorldRenderer(
 
   // --- entities
   const sprites = new Map<number, Sprite | Graphics>();
+  /** Cooldowns seen on the previous tick: a shooter whose cooldown did not run down has fired. */
+  const cooldowns = new Map<number, number>();
+  const explosions: { sprite: Sprite; start: number; }[] = [];
+  const widths = new Map<number, number>(); // footprint width in cells, kept for the explosion
   entityLayer.sortableChildren = true;
 
   function syncEntities() {
@@ -136,6 +144,7 @@ export function createWorldRenderer(
 
         entityLayer.addChild(sprite);
         sprites.set(entity.id, sprite);
+        widths.set(entity.id, entity.kind === 'building' ? entity.fx : 1);
       } else if (sprite instanceof Sprite && texture && sprite.texture !== texture) {
         sprite.texture = texture;
       }
@@ -166,6 +175,67 @@ export function createWorldRenderer(
       if (!world.entities.has(id)) {
         sprite.destroy();
         sprites.delete(id);
+        cooldowns.delete(id);
+        widths.delete(id);
+      }
+    }
+
+    drawTracers();
+  }
+
+  /** A line from each shooter that fired this tick to its target. Shots are not simulated as
+   * projectiles, so this only shows who is shooting whom. */
+  function drawTracers(): void {
+    for (const entity of world.entities.values()) {
+      if (entity.kind !== 'building') {
+        continue;
+      }
+
+      const fired = entity.cooldown > 0
+        && entity.cooldown >= (cooldowns.get(entity.id) ?? Infinity);
+      cooldowns.set(entity.id, entity.cooldown);
+      const from = sprites.get(entity.id);
+      const to = entity.target === null ? undefined : sprites.get(entity.target);
+
+      if (!fired || !from || !to) {
+        continue;
+      }
+
+      bars.moveTo(from.x, from.y - from.height * TRACER_LIFT)
+        .lineTo(to.x, to.y - to.height / 2)
+        .stroke({ color: COLOR.tracer, width: 1 });
+    }
+  }
+
+  /** Play the explosion where an entity's sprite stands; call before the next sync removes it. */
+  function explode(id: number): void {
+    const target = sprites.get(id);
+    const first = textures.get('explosion:0');
+
+    if (!target || !first) {
+      return;
+    }
+
+    const sprite = new Sprite(first);
+    sprite.anchor.set(SPRITE_ANCHOR_X, 1);
+    sprite.position.copyFrom(target.position);
+    sprite.scale.set(Math.max(1, (widths.get(id) ?? 1) / EXPLOSION_CELLS));
+    sprite.zIndex = target.zIndex + 1;
+    entityLayer.addChild(sprite);
+    explosions.push({ sprite, start: performance.now() });
+  }
+
+  function animate(now: number): void {
+    for (let i = explosions.length - 1; i >= 0; i--) {
+      const { sprite, start } = explosions[i]!;
+      const frame = Math.floor((now - start) / EXPLOSION_FRAME_MS);
+      const texture = textures.get(`explosion:${frame}`);
+
+      if (frame >= EXPLOSION_FRAMES.length || !texture) {
+        sprite.destroy();
+        explosions.splice(i, 1);
+      } else {
+        sprite.texture = texture;
       }
     }
   }
@@ -180,7 +250,10 @@ export function createWorldRenderer(
   let terrainRevision = -1;
   let entityTick = -1;
   return {
+    explode,
     sync() {
+      animate(performance.now());
+
       if (terrainRevision !== world.terrainRevision) {
         drawTerrain();
         terrainRevision = world.terrainRevision;

@@ -6,6 +6,7 @@ import {
   playReplay,
   type Command,
   type DefTable,
+  type Event as SimEvent,
 } from '@netstorm/sim';
 import { type Maps, type Mission } from './game-data.js';
 import { type MatchOptions } from './menu.js';
@@ -93,8 +94,21 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const minimap = createMinimap(minimapCanvas, view, ME, camera);
   const logEl = root.querySelector<HTMLElement>('#log')!;
 
-  function renderLog(): void {
+  const pending: SimEvent[] = [];
+
+  /** Take the tick's events: effects play at once, the log is written with the next HUD refresh. */
+  function takeEvents(): void {
     for (const event of match.drainEvents()) {
+      if (event.what === 'destroyed') {
+        renderer.explode(event.data.id);
+      }
+
+      pending.push(event);
+    }
+  }
+
+  function renderLog(): void {
+    for (const event of pending.splice(0)) {
       const line = describeEvent(view, ME, event);
 
       if (!line) {
@@ -142,6 +156,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     const steps = ui.paused ? 0 : clock.advance(t.deltaMS, () => {
       match.step(commands.splice(0));
     });
+    takeEvents();
     renderer.sync();
 
     if (ui.selected !== null && !world.entities.has(ui.selected)) {
