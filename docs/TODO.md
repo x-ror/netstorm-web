@@ -54,7 +54,8 @@
 - [ ] Вівтар рівнів 1–3 і Знання: у мультиплеєрі дар на вибір, у кампанії — перемога
 - [ ] Outpost, Residence, Edge Farm, дерева, руїни
 - [ ] Нові гейзерні острівці протягом бою
-- [ ] AI: прапорці з `.english` (`COLLECT_STORM_POWER`, `ATTACH_TO_ENEMY_ISLAND`, `ENCIRCLE_ENEMY_ISLAND`, `CONCENTRATE_FIRE`, `REPEAT_SUCCESSFUL_DROPS`, …), `aiTimeBetweenMoves`
+- [x] Простий AI (`ai.ts`): збір, мости до гейзерів, оборона, ланцюг генераторів до ворога, Disc Thrower і гармати біля його жерця, захоплення й ритуал; хід раз на `aiTimeBetweenMoves` — поведінка вигадана
+- [ ] AI: прапорці з `.english` (`COLLECT_STORM_POWER`, `ATTACH_TO_ENEMY_ISLAND`, `ENCIRCLE_ENEMY_ISLAND`, `CONCENTRATE_FIRE`, `REPEAT_SUCCESSFUL_DROPS`, …), `aiCollectors`, `aiGeyserAttachments`, `aiSalvageChance`, складність
 - [ ] Скрипти місій: секції-події (`[Succeeded]`, `[Failed]`, `[ai1templedead]`, тригери), ланцюжок `MissionBegin`
 - [x] Реплеї: запис команд і початкового стану, перевірка хешу
 - [ ] Золотий тест: реплей 10 хв матчу дає однаковий хеш у Node і в браузері

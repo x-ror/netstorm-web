@@ -1,6 +1,7 @@
 import { Application, Container, Graphics, type Texture } from 'pixi.js';
 import {
   FixedStepClock,
+  aiMove,
   ReplayRecorder,
   TPS,
   playReplay,
@@ -10,7 +11,7 @@ import {
 } from '@netstorm/sim';
 import { type Maps, type Mission } from './game-data.js';
 import { type MatchOptions } from './menu.js';
-import { createMatchWorld, ME } from './setup.js';
+import { createMatchWorld, ENEMY, ME } from './setup.js';
 import { createWorldRenderer } from './renderer.js';
 import { createControls } from './controls.js';
 import { createHud } from './hud.js';
@@ -21,6 +22,7 @@ import { ZOOM } from './projection.js';
 import { createUiState } from './ui-state.js';
 
 const HUD_REFRESH_TICKS = 5;
+const DEFAULT_AI_DELAY = 6; // seconds between AI moves when no mission gives them
 const LOG_MAX_ENTRIES = 60;
 
 export interface GameData {
@@ -66,6 +68,12 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     leave = resolve;
   });
   const clock = new FixedStepClock(TPS);
+  const aiInterval = Math.max(1, Math.round((mission?.aiDelay ?? DEFAULT_AI_DELAY) * TPS));
+  // The opponent's moves are commands like the player's, so the replay records them.
+  const aiCommands = () =>
+    options.opponent === 'ai' && world.tick % aiInterval === 0
+      ? aiMove(view, { player: ENEMY })
+      : [];
   const togglePause = () => {
     ui.paused = !ui.paused;
     clock.reset();
@@ -132,6 +140,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     world,
     match,
     playReplay,
+    aiMove,
     camera,
     app,
     terrainG,
@@ -154,7 +163,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     }
 
     const steps = ui.paused ? 0 : clock.advance(t.deltaMS, () => {
-      match.step(commands.splice(0));
+      match.step([...commands.splice(0), ...aiCommands()]);
     });
     takeEvents();
     renderer.sync();

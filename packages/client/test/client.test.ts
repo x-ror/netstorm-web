@@ -21,6 +21,7 @@ test('shipped data keeps geysers and the campaign briefings only', () => {
   assert.equal(mission.title, 'The War Begins!');
   assert.equal(mission.enemy, 'The Jailer');
   assert.equal(mission.storm, 3000);
+  assert.equal(mission.aiDelay, 6);
   // The title line is dropped and the original's hard line breaks are reflowed.
   assert.match(mission.briefing, /^"Darkness and tyranny/);
   assert.match(mission.briefing, /Lords of Darkness are now/);
