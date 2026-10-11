@@ -4,6 +4,8 @@ type Payloads = {
   bridge: [number, number][];
   build: { id: number; type: string; };
   destroyed: { id: number; type: string; };
+  reward: { id: number; amount: number; };
+  salvaged: { id: number; type: string; refund: number; };
   delivered: { transport: number; };
   captured: { priest: number; };
   chained: { priest: number; altar: number; };

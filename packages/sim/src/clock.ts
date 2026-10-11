@@ -8,10 +8,7 @@ export class FixedStepClock {
   private accumulator = 0;
   readonly stepMs: number;
 
-  constructor(
-    ticksPerSecond: number,
-    readonly maxSteps = 5,
-  ) {
+  constructor(ticksPerSecond: number, readonly maxSteps = 5) {
     if (
       !Number.isFinite(ticksPerSecond)
       || ticksPerSecond <= 0

@@ -24,7 +24,7 @@ import { hashWorld } from './checksum.js';
 import { dropPiece } from './rules/bridges.js';
 import { tickBuilding } from './rules/combat.js';
 import { tickPlayer } from './rules/economy.js';
-import { energy, canBuild, build } from './rules/building.js';
+import { energy, canBuild, build, salvage } from './rules/building.js';
 import { tickTransport, collect, pickupCrystal } from './rules/movement.js';
 import { tickPriest, movePriest } from './rules/priest.js';
 import { capturePriest } from './rules/capture.js';
@@ -388,6 +388,8 @@ export class World {
         return movePriest(this, c);
       case 'capturePriest':
         return capturePriest(this, c);
+      case 'salvage':
+        return salvage(this, c);
     }
   }
 

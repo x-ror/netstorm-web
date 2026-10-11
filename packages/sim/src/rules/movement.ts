@@ -52,8 +52,7 @@ export function advance(world: World, e: Transport | Priest, speed: number): boo
 
 export function tickTransport(world: World, t: Transport): void {
   if (t.hp <= 0) {
-    dropCargo(world, t);
-    world.entities.delete(t.id);
+    removeTransport(world, t);
     world.emit({ what: 'destroyed', who: t.owner, data: { id: t.id, type: t.type } });
     return;
   }
@@ -75,6 +74,12 @@ export function tickTransport(world: World, t: Transport): void {
   } else if (t.goal === 'altar') {
     arriveAtAltar(world, t);
   }
+}
+
+/** Take a transport off the map; whatever it carried is left behind. */
+export function removeTransport(world: World, t: Transport): void {
+  dropCargo(world, t);
+  world.entities.delete(t.id);
 }
 
 function nextTo(a: { x: number; y: number; }, b: { x: number; y: number; }): boolean {

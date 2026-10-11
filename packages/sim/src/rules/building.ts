@@ -2,7 +2,9 @@ import type { World } from '../world.js';
 import type { Command, CommandError } from '../commands.js';
 import type { WorldView } from '../view.js';
 import type { UnitDef } from '../defs.js';
-import { DIRS, ENERGY_RANGE, MAX_FACING, Terrain } from '../state.js';
+import { DIRS, ENERGY_RANGE, MAX_FACING, REFUND_SHARE, Terrain } from '../state.js';
+import { removeBuilding } from './combat.js';
+import { removeTransport } from './movement.js';
 
 export function energy(world: WorldView, p: number): { own: number; total: number; } {
   const pl = world.players.get(p);
@@ -197,5 +199,31 @@ export function build(world: World, c: Extract<Command, { t: 'build'; }>): Comma
 
   const b = world.spawnBuilding(def.id, c.player, c.x, c.y, c.facing ?? 0);
   world.emit({ what: 'build', who: c.player, data: { id: b.id, type: def.id } });
+  return null;
+}
+
+/** "You may Salvage any unit and recoup 25% of the Storm Power you spent to build it. If the unit has
+ * been damaged, you will recoup less... If the damage goes beyond half of the unit's hit points you
+ * will recoup no Storm Power at all." Salvaging does not cause an explosion. */
+export function salvage(world: World, c: Extract<Command, { t: 'salvage'; }>): CommandError | null {
+  const unit = world.entities.get(c.target);
+
+  if (!unit || (unit.kind !== 'building' && unit.kind !== 'transport') || unit.owner !== c.player) {
+    return 'bad target';
+  }
+
+  const def = world.def(unit.type);
+  const refund = unit.hp * 2 < unit.hpMax
+    ? 0
+    : Math.floor((def.cost * REFUND_SHARE * unit.hp) / unit.hpMax);
+
+  if (unit.kind === 'building') {
+    removeBuilding(world, unit);
+  } else {
+    removeTransport(world, unit);
+  }
+
+  world.players.get(c.player)!.storm += refund;
+  world.emit({ what: 'salvaged', who: c.player, data: { id: unit.id, type: unit.type, refund } });
   return null;
 }

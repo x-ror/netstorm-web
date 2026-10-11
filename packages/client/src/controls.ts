@@ -36,7 +36,7 @@ export function createControls(
   const signal = abort.signal;
   const hud = document.getElementById('hud')!;
   const logEl = document.getElementById('log')!;
-  type Mode = 'piece' | 'cannon' | 'archer' | 'collect' | 'priest';
+  type Mode = 'piece' | 'cannon' | 'archer' | 'collect' | 'priest' | 'salvage';
   let mode: Mode = 'piece';
   let rot = 0;
   let facing: Facing = 1;
@@ -53,7 +53,7 @@ export function createControls(
       + `режим: <b>${mode}</b> &nbsp; R — повернути (${rot}) &nbsp; F — напрям гармати (${
         'ПСхЗ'[facing]
       })<br>`
-      + (['piece', 'cannon', 'archer', 'collect', 'priest'] as Mode[])
+      + (['piece', 'cannon', 'archer', 'collect', 'priest', 'salvage'] as Mode[])
         .map((m) =>
           `<button data-m="${m}" class="${m === mode ? 'on' : ''}">${
             {
@@ -62,6 +62,7 @@ export function createControls(
               archer: 'Disc Thrower',
               collect: 'транспорт→гейзер',
               priest: 'жрець',
+              salvage: 'розібрати',
             }[m]
           }</button>`
         )
@@ -155,6 +156,14 @@ export function createControls(
       submit({ t: 'build', player: 1, type: 'sunarcher', x: x - 1, y: y - 1 });
     } else if (mode === 'priest') {
       submit({ t: 'movePriest', player: 1, x, y });
+    } else if (mode === 'salvage') {
+      const unit = world.inside(x, y)
+        ? world.entities.get(world.occupant[world.at(x, y)] ?? 0)
+        : undefined;
+
+      if (unit?.kind === 'building' && unit.owner === 1) {
+        submit({ t: 'salvage', player: 1, target: unit.id });
+      }
     } else if (mode === 'collect') {
       const tr = [...world.entities.values()].find((e) =>
         e.kind === 'transport'

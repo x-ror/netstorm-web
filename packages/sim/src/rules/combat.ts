@@ -1,6 +1,14 @@
 import type { World } from '../world.js';
 import type { UnitDef } from '../defs.js';
-import { TPS, DIRS, FACINGS, type Entity, type Building, type Facing } from '../state.js';
+import {
+  TPS,
+  DIRS,
+  FACINGS,
+  REFUND_SHARE,
+  type Entity,
+  type Building,
+  type Facing,
+} from '../state.js';
 
 export type EnemyAt = (owner: number, x: number, y: number) => Entity | null;
 
@@ -20,13 +28,7 @@ function selfAiming(def: UnitDef): boolean {
 
 export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void {
   if (b.hp <= 0) {
-    for (let y = b.y; y < b.y + b.fy; y++) {
-      for (let x = b.x; x < b.x + b.fx; x++) {
-        world.occupant[world.at(x, y)] = 0;
-      }
-    }
-
-    world.entities.delete(b.id);
+    removeBuilding(world, b);
     world.emit({ what: 'destroyed', who: b.owner, data: { id: b.id, type: b.type } });
     return;
   }
@@ -55,13 +57,41 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
 
   // "Damage" in the unit data is the average per second, so one shot carries a whole interval of it.
   const interval = shotInterval(def);
-  damage(target, (def.dps * interval) / TPS);
+  damage(world, b.owner, target, (def.dps * interval) / TPS);
   b.cooldown = interval;
 }
 
-function damage(entity: Entity, amount: number): void {
-  if ('hp' in entity) {
-    entity.hp = Math.max(0, +(entity.hp - amount).toFixed(HP_DECIMALS));
+/** Take a building off the map. Its island, if it stood on one of its own, stays. */
+export function removeBuilding(world: World, b: Building): void {
+  for (let y = b.y; y < b.y + b.fy; y++) {
+    for (let x = b.x; x < b.x + b.fx; x++) {
+      world.occupant[world.at(x, y)] = 0;
+    }
+  }
+
+  world.entities.delete(b.id);
+}
+
+function damage(world: World, by: number, entity: Entity, amount: number): void {
+  if (!('hp' in entity)) {
+    return;
+  }
+
+  const before = entity.hp;
+  entity.hp = Math.max(0, +(before - amount).toFixed(HP_DECIMALS));
+
+  // "When you destroy an enemy unit you get 25% of its Storm Power value." A priest is never
+  // destroyed by units, and only the shot that brings the unit down is paid.
+  if (entity.kind === 'priest' || before <= 0 || entity.hp > 0) {
+    return;
+  }
+
+  const amountPaid = Math.floor(world.def(entity.type).cost * REFUND_SHARE);
+  const player = world.players.get(by);
+
+  if (player && amountPaid > 0) {
+    player.storm += amountPaid;
+    world.emit({ what: 'reward', who: by, data: { id: entity.id, amount: amountPaid } });
   }
 }
 

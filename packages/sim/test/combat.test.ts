@@ -162,3 +162,49 @@ test('shooters fire separate shots, lock on the closest target and the Sun Canno
   assert.equal(sun.target, near.id);
   assert.equal(sun.facing, 1);
 });
+
+test('destroying an enemy unit pays a quarter of its cost, once, to the shooter', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 0, []);
+  world.addPlayer(2, 'Red', 'rain', 0, []);
+  world.addIsland(0, 100, 256, 60, 0);
+  // Two cannons aimed at the same weak target must not both be paid.
+  world.spawnBuilding('suncannon', 1, 100, 120, 1);
+  world.spawnBuilding('suncannon', 1, 116, 130, 0);
+  const victim = world.spawnBuilding('sunarcher', 2, 116, 120);
+  victim.hp = 60;
+  world.step();
+  assert.equal(victim.hp, 0);
+  assert.equal(world.players.get(1)!.storm, Math.floor(defs.get('sunarcher')!.cost / 4));
+  world.step();
+  assert.ok(!world.entities.has(victim.id));
+  assert.equal(world.players.get(1)!.storm, Math.floor(defs.get('sunarcher')!.cost / 4));
+  assert.equal(world.players.get(2)!.storm, 0);
+});
+
+test('salvage refunds a quarter scaled by health and nothing below half health', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 0, []);
+  world.addPlayer(2, 'Red', 'rain', 0, []);
+  world.addIsland(0, 100, 256, 60, 1);
+  const cost = defs.get('suncannon')!.cost;
+  assert.equal(cost, 400);
+  const intact = world.spawnBuilding('suncannon', 1, 100, 120);
+  const dented = world.spawnBuilding('suncannon', 1, 110, 120);
+  const wrecked = world.spawnBuilding('suncannon', 1, 120, 120);
+  dented.hp = (dented.hpMax * 2) / 3; // the help's example: a third gone → 66
+  wrecked.hp = wrecked.hpMax / 2 - 1;
+  assert.deepEqual(world.execute({ t: 'salvage', player: 2, target: intact.id }), {
+    ok: false,
+    error: 'bad target',
+  });
+  assert.deepEqual(world.execute({ t: 'salvage', player: 1, target: intact.id }), { ok: true });
+  assert.equal(world.players.get(1)!.storm, 100);
+  assert.ok(!world.entities.has(intact.id));
+  assert.equal(world.occupant[world.at(101, 121)], 0);
+  world.execute({ t: 'salvage', player: 1, target: dented.id });
+  assert.equal(world.players.get(1)!.storm, 100 + 66);
+  world.execute({ t: 'salvage', player: 1, target: wrecked.id });
+  assert.equal(world.players.get(1)!.storm, 100 + 66);
+  assert.ok(!world.entities.has(wrecked.id));
+});
