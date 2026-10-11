@@ -1,6 +1,6 @@
 import type { UnitDef } from './defs.js';
 import type { Entity, Player } from './state.js';
-import { W, H, PIECES } from './state.js';
+import { W, H, PIECES, FACINGS, MAX_ID, MAX_PLAYERS, MAX_UINT32 } from './state.js';
 import {
   boolean,
   choice,
@@ -96,7 +96,7 @@ function parseEntity(raw: unknown): Entity {
   const value = record(raw, 'entity');
   const kind = choice(value.kind, ['building', 'transport', 'priest', 'crystal', 'geyser'],
     'entity.kind');
-  const id = integer(value.id, 'entity.id', 1, 0x7fffffff);
+  const id = integer(value.id, 'entity.id', 1, MAX_ID);
   const x = integer(value.x, 'entity.x', 0, W - 1);
   const y = integer(value.y, 'entity.y', 0, H - 1);
   const common = ['id', 'kind', 'x', 'y'];
@@ -108,7 +108,7 @@ function parseEntity(raw: unknown): Entity {
       kind,
       x,
       y,
-      geyser: integer(value.geyser, 'crystal.geyser', 1, 0x7fffffff),
+      geyser: integer(value.geyser, 'crystal.geyser', 1, MAX_ID),
       carriedBy: nullableId(value.carriedBy, 'crystal.carriedBy'),
     };
   }
@@ -125,7 +125,7 @@ function parseEntity(raw: unknown): Entity {
     };
   }
 
-  const owner = integer(value.owner, 'entity.owner', 0, 8);
+  const owner = integer(value.owner, 'entity.owner', 0, MAX_PLAYERS);
   const hp = finite(value.hp, 'entity.hp');
   const hpMax = finite(value.hpMax, 'entity.hpMax');
 
@@ -148,7 +148,7 @@ function parseEntity(raw: unknown): Entity {
       fy: integer(value.fy, 'building.fy', 0, H),
       hp,
       hpMax,
-      facing: choice(value.facing, [0, 1, 2, 3], 'building.facing'),
+      facing: choice(value.facing, FACINGS, 'building.facing'),
     };
   }
 
@@ -193,7 +193,7 @@ function parsePlayer(raw: unknown): SnapshotPlayer {
   const tech = list(value.tech, 'player.tech').map((entry) => text(entry, 'technology'));
   unique(tech, (entry) => entry, 'technology');
   return {
-    id: integer(value.id, 'player.id', 1, 8),
+    id: integer(value.id, 'player.id', 1, MAX_PLAYERS),
     name: text(value.name, 'player.name'),
     theme: choice(value.theme, ['sun', 'wind', 'rain', 'thunder'], 'player.theme'),
     storm: finite(value.storm, 'player.storm'),
@@ -258,7 +258,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
   unique(defs, (def) => def.id, 'definition');
   unique(entities, (entity) => entity.id, 'entity');
   unique(players, (player) => player.id, 'player');
-  const nextId = integer(value.nextId, 'snapshot.nextId', 1, 0x7fffffff);
+  const nextId = integer(value.nextId, 'snapshot.nextId', 1, MAX_ID);
 
   if (entities.some((entity) => entity.id >= nextId)) {
     throw new TypeError('Invalid next entity id');
@@ -268,12 +268,12 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     formatVersion: SNAPSHOT_VERSION,
     rulesVersion: RULES_VERSION,
     tick: integer(value.tick, 'snapshot.tick'),
-    rngState: integer(value.rngState, 'snapshot.rngState', 0, 0xffffffff),
+    rngState: integer(value.rngState, 'snapshot.rngState', 0, MAX_UINT32),
     nextId,
     winner: nullableId(value.winner, 'snapshot.winner'),
     terrain: grid(value.terrain, 'terrain', 2),
-    owner: grid(value.owner, 'owner', 8),
-    occupant: grid(value.occupant, 'occupant', 0x7fffffff),
+    owner: grid(value.owner, 'owner', MAX_PLAYERS),
+    occupant: grid(value.occupant, 'occupant', MAX_ID),
     defs,
     entities,
     players,

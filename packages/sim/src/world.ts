@@ -33,6 +33,7 @@ import {
   PIECE_INTERVAL,
   CRYSTAL_INTERVAL,
   PRIEST_HP,
+  MAX_FACING,
   Terrain,
   type Player,
   type Building,
@@ -49,6 +50,8 @@ import type { WorldView } from './view.js';
 import { parseSnapshot, SNAPSHOT_VERSION, RULES_VERSION, type WorldSnapshot } from './snapshot.js';
 import { assertWorldInvariants } from './invariants.js';
 export * from './state.js';
+
+const GEYSER_ISLAND_SIZE = 3; // neutral island a geyser sits on
 export * from './commands.js';
 export * from './events.js';
 
@@ -146,7 +149,7 @@ export class World {
   }
 
   addGeyser(x: number, y: number): Geyser {
-    this.addIsland(x - 1, y - 1, 3, 3, 0);
+    this.addIsland(x - 1, y - 1, GEYSER_ISLAND_SIZE, GEYSER_ISLAND_SIZE, 0);
     const g: Geyser = {
       id: this.nextId++,
       kind: 'geyser',
@@ -355,7 +358,7 @@ export class World {
     if (
       c.t === 'build'
       && c.facing !== undefined
-      && (!Number.isInteger(c.facing) || c.facing < 0 || c.facing > 3)
+      && (!Number.isInteger(c.facing) || c.facing < 0 || c.facing > MAX_FACING)
     ) {
       return 'bad facing';
     }

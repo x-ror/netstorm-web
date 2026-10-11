@@ -4,9 +4,11 @@ import { parseSnapshot, RULES_VERSION, type WorldSnapshot } from './snapshot.js'
 import { integer, keys, list, record } from './validation.js';
 import type { WorldView } from './view.js';
 import type { Event } from './events.js';
-import { TPS } from './state.js';
+import { TPS, MAX_UINT32 } from './state.js';
 
 export const REPLAY_VERSION = 1;
+const HASH_INTERVAL_SECONDS = 5;
+const HASH_INTERVAL = HASH_INTERVAL_SECONDS * TPS; // ticks between recorded state hashes
 
 export interface ReplayFrame {
   /** Commands are applied before advancing to this tick. */
@@ -44,7 +46,7 @@ export function parseReplay(raw: unknown): Replay {
     return {
       tick,
       commands: list(frame.commands, 'frame.commands').map(parseCommand),
-      hash: frame.hash === null ? null : integer(frame.hash, 'frame.hash', 0, 0xffffffff),
+      hash: frame.hash === null ? null : integer(frame.hash, 'frame.hash', 0, MAX_UINT32),
     };
   });
 
@@ -98,7 +100,7 @@ export class ReplayRecorder {
     this.frames.push({
       tick: this.world.tick,
       commands: recorded,
-      hash: this.frames.length % (5 * TPS) === 5 * TPS - 1 ? this.world.hash() : null,
+      hash: this.frames.length % HASH_INTERVAL === HASH_INTERVAL - 1 ? this.world.hash() : null,
     });
   }
 

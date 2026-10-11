@@ -1,5 +1,5 @@
 import type { WorldView } from './view.js';
-import { W, H, Terrain } from './state.js';
+import { W, H, Terrain, MAX_ID, MAX_PLAYERS } from './state.js';
 
 function fail(message: string): never {
   throw new Error(`World invariant: ${message}`);
@@ -24,7 +24,7 @@ export function assertWorldInvariants(world: WorldView): void {
   const priests = new Set<number>();
 
   for (const [id, entity] of world.entities) {
-    if (id !== entity.id || !Number.isInteger(id) || id <= 0 || id > 0x7fffffff) {
+    if (id !== entity.id || !Number.isInteger(id) || id <= 0 || id > MAX_ID) {
       fail('invalid entity id');
     }
 
@@ -182,7 +182,7 @@ export function assertWorldInvariants(world: WorldView): void {
   }
 
   for (const [id, player] of world.players) {
-    if (id !== player.id || !Number.isInteger(id) || id < 1 || id > 8) {
+    if (id !== player.id || !Number.isInteger(id) || id < 1 || id > MAX_PLAYERS) {
       fail('invalid player id');
     }
   }

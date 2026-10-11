@@ -2,15 +2,17 @@ import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
 import { TPS, CRYSTAL_VALUE, type Transport, type Priest, type Geyser } from '../state.js';
 
+const MOVE_SCALE = 100; // fixed-point progress needed to enter the next cell
+
 export function advance(world: World, e: Transport | Priest, speed: number): boolean {
   if (!e.path.length) {
     return false;
   }
 
-  e.move += Math.round((speed * 100) / TPS);
+  e.move += Math.round((speed * MOVE_SCALE) / TPS);
 
-  while (e.move >= 100 && e.path.length) {
-    e.move -= 100;
+  while (e.move >= MOVE_SCALE && e.path.length) {
+    e.move -= MOVE_SCALE;
     const [x, y] = e.path.shift()!;
 
     if (!world.walkable(e.owner, x, y)) {

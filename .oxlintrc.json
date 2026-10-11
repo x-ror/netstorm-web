@@ -1,7 +1,13 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "oxc"],
-  "jsPlugins": ["@stylistic/eslint-plugin"],
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc"
+  ],
+  "jsPlugins": [
+    "@stylistic/eslint-plugin"
+  ],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
@@ -12,11 +18,23 @@
     "typescript/no-explicit-any": "error",
     "unicorn/no-array-reverse": "off",
     "unicorn/no-array-sort": "off",
-    "curly": ["error", "all"],
-    "one-var": ["error", "never"],
+    "curly": [
+      "error",
+      "all"
+    ],
+    "one-var": [
+      "error",
+      "never"
+    ],
     "unicorn/no-nested-ternary": "error",
-    "max-depth": ["error", 4],
-    "max-nested-callbacks": ["error", 3],
+    "max-depth": [
+      "error",
+      4
+    ],
+    "max-nested-callbacks": [
+      "error",
+      3
+    ],
     "no-else-return": "error",
     "no-lonely-if": "error",
     "prefer-const": "error",
@@ -29,7 +47,10 @@
         "props": false
       }
     ],
-    "object-shorthand": ["error", "always"],
+    "object-shorthand": [
+      "error",
+      "always"
+    ],
     "typescript/consistent-type-imports": [
       "error",
       {
@@ -55,14 +76,68 @@
       {
         "blankLine": "always",
         "prev": "*",
-        "next": ["if", "for", "while", "do", "switch", "try", "function", "class"]
+        "next": [
+          "if",
+          "for",
+          "while",
+          "do",
+          "switch",
+          "try",
+          "function",
+          "class"
+        ]
       },
       {
         "blankLine": "always",
-        "prev": ["if", "for", "while", "do", "switch", "try", "function", "class"],
+        "prev": [
+          "if",
+          "for",
+          "while",
+          "do",
+          "switch",
+          "try",
+          "function",
+          "class"
+        ],
         "next": "*"
+      }
+    ],
+    "typescript/no-magic-numbers": [
+      "error",
+      {
+        "ignore": [
+          -1,
+          0,
+          1,
+          2
+        ],
+        "ignoreArrayIndexes": true,
+        "ignoreDefaultValues": true,
+        "ignoreClassFieldInitialValues": true,
+        "ignoreEnums": true,
+        "ignoreNumericLiteralTypes": true,
+        "ignoreReadonlyClassProperties": true,
+        "ignoreTypeIndexes": true
       }
     ]
   },
-  "ignorePatterns": ["**/dist/**", "packages/client/public/**", "data/**"]
+  "overrides": [
+    {
+      "files": [
+        "**/test/**",
+        "scripts/**",
+        "packages/sim/src/rng.ts",
+        "packages/sim/src/checksum.ts",
+        "packages/client/src/texture-selection.ts"
+      ],
+      "rules": {
+        "typescript/no-magic-numbers": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "**/dist/**",
+    "packages/client/public/**",
+    "data/**"
+  ]
 }

@@ -1,3 +1,5 @@
+const MS_PER_SECOND = 1000;
+
 /** Fixed simulation steps with bounded local catch-up. Pass elapsed wall time in ms.
  * This clock may discard time on slow frames. A future lockstep client must wait
  * for authoritative ticks instead of using this local scheduling policy.
@@ -19,7 +21,7 @@ export class FixedStepClock {
       throw new RangeError('Invalid fixed-step clock configuration');
     }
 
-    this.stepMs = 1000 / ticksPerSecond;
+    this.stepMs = MS_PER_SECOND / ticksPerSecond;
   }
 
   advance(elapsedMs: number, step: () => void): number {

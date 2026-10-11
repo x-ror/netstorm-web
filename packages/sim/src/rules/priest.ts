@@ -3,6 +3,8 @@ import type { World } from '../world.js';
 import { TPS, type Priest } from '../state.js';
 import { advance } from './movement.js';
 
+const PRIEST_SPEED = 1.8; // cells per second
+
 export function tickPriest(world: World, p: Priest): void {
   if (p.state === 'carried') {
     const by = p.carriedBy === null ? undefined : world.entities.get(p.carriedBy);
@@ -40,7 +42,7 @@ export function tickPriest(world: World, p: Priest): void {
     return;
   }
 
-  advance(world, p, 1.8);
+  advance(world, p, PRIEST_SPEED);
 }
 
 export function movePriest(

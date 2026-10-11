@@ -1,3 +1,5 @@
+import { MAX_ID } from './state.js';
+
 export function record(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new TypeError(`${label} must be an object`);
@@ -86,5 +88,5 @@ export function choice<const T extends readonly (string | number)[]>(
 }
 
 export function nullableId(value: unknown, label: string): number | null {
-  return value === null ? null : integer(value, label, 1, 0x7fffffff);
+  return value === null ? null : integer(value, label, 1, MAX_ID);
 }

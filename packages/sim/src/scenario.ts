@@ -13,6 +13,8 @@ export interface SkirmishPlayer {
   tech?: string[];
 }
 
+const DEFAULT_STORM = 2000; // starting Storm Power
+
 const BASE_TECH = [
   'sunwalker',
   'suncannon',
@@ -49,7 +51,9 @@ export function createSkirmish(
       `${p.theme}aviary`,
       `${p.theme}balloon`,
     ].filter((t) => defs.has(t));
-    w.addPlayer(p.id, p.name, p.theme, p.storm ?? 2000, p.tech ?? [...BASE_TECH, ...themeTech]);
+    w.addPlayer(p.id, p.name, p.theme, p.storm ?? DEFAULT_STORM,
+      p.tech ?? [...BASE_TECH, ...themeTech]);
+    // oxlint-disable no-magic-numbers -- starting base layout, offsets from the player origin
     w.addIsland(p.x - 10, p.y - 8, 21, 17, p.id);
     w.spawnBuilding(`${p.theme}vortex`, p.id, p.x - 4, p.y - 3); // temple
     w.spawnBuilding('altar', p.id, p.x + 2, p.y - 7);
@@ -57,6 +61,7 @@ export function createSkirmish(
     w.addPriest(p.id, p.x, p.y + 6);
     const transportType = startingTransport(p.theme);
     w.spawnTransport(transportType, p.id, p.x + 1, p.y + 6);
+    // oxlint-enable no-magic-numbers
   }
 
   for (const [x, y] of geysers) {

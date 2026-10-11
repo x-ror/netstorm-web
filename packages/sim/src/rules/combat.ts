@@ -4,6 +4,8 @@ import { TPS, DIRS, type Entity, type Building } from '../state.js';
 
 type EnemyAt = (owner: number, x: number, y: number) => Entity | null;
 
+const HP_DECIMALS = 4; // hp is rounded to keep the simulation deterministic
+
 export function tickBuilding(
   world: World,
   b: Building,
@@ -36,7 +38,7 @@ export function tickBuilding(
 
 function damage(entity: Entity, amount: number): void {
   if ('hp' in entity) {
-    entity.hp = Math.max(0, +(entity.hp - amount).toFixed(4));
+    entity.hp = Math.max(0, +(entity.hp - amount).toFixed(HP_DECIMALS));
   }
 }
 
@@ -60,7 +62,7 @@ export function lineTarget(
     case 2:
       y = b.y + b.fy;
       break;
-    case 3:
+    case 3: // oxlint-disable-line no-magic-numbers -- Facing W
       x = b.x - 1;
       break;
   }

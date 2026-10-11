@@ -3,11 +3,19 @@ import type { Theme } from './defs.js';
 export const TPS = 10; // simulation ticks per second
 export const W = 256;
 export const H = 256; // world size in cells
-export const PIECE_INTERVAL = 6 * TPS; // temple emits a bridge piece every 6 s      TODO verify
+const PIECE_INTERVAL_SECONDS = 6;
+const CRYSTAL_INTERVAL_SECONDS = 20;
+export const PIECE_INTERVAL = PIECE_INTERVAL_SECONDS * TPS; // temple emits a bridge piece every 6 s      TODO verify
 export const HAND_SIZE = 3; // pieces a player can hold                   TODO verify
-export const CRYSTAL_INTERVAL = 20 * TPS; // geyser spawns a crystal every 20 s     TODO verify
+export const CRYSTAL_INTERVAL = CRYSTAL_INTERVAL_SECONDS * TPS; // geyser spawns a crystal every 20 s     TODO verify
 export const CRYSTAL_VALUE = 200; // Storm Power per crystal (nugget cost=200)
 export const PRIEST_HP = 100;
+export const MAX_PLAYERS = 8;
+export const MAX_ID = 0x7fffffff; // ids fit a signed 32-bit integer
+export const MAX_UINT32 = 0xffffffff;
+export const FACINGS = [0, 1, 2, 3] as const; // oxlint-disable-line no-magic-numbers -- enumerates Facing
+export const MAX_FACING = 3;
+export const ROTATION_MASK = 3; // rotations and facings wrap modulo 4
 
 export const enum Terrain {
   Sky = 0,
@@ -28,7 +36,7 @@ export const PIECES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
     [0, 0],
     [1, 0],
     [2, 0],
-    [3, 0],
+    [3, 0], // oxlint-disable-line no-magic-numbers -- piece cell offset
   ], // I
   [
     [0, 0],
@@ -78,7 +86,7 @@ export function rotatePiece(
 ): [number, number][] {
   let out: [number, number][] = cells.map((c) => [c[0], c[1]]);
 
-  for (let r = 0; r < (rot & 3); r++) {
+  for (let r = 0; r < (rot & ROTATION_MASK); r++) {
     out = out.map(([x, y]) => [-y, x]);
   }
 

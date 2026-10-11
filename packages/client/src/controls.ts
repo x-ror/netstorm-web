@@ -2,6 +2,7 @@ import { type Application, type Container, type Graphics } from 'pixi.js';
 import {
   TPS,
   PIECES,
+  ROTATION_MASK,
   rotatePiece,
   DIRS,
   type WorldView,
@@ -10,6 +11,17 @@ import {
   type Event as SimEvent,
 } from '@netstorm/sim';
 import { iso, unIso, TW, TH } from './projection.js';
+
+const LOG_DATA_CHARS = 60;
+const LOG_MAX_ENTRIES = 100;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 4;
+const ZOOM_IN = 1.1;
+const ZOOM_OUT = 0.9;
+const COLOR_VALID = 0xffd166;
+const COLOR_INVALID = 0xff4444;
+const GHOST_ALPHA = 0.5;
+const AIM_DISTANCE = 3; // cells from the cursor to the cannon aim marker
 
 /** Browser input creates commands; only the fixed-step loop submits them to the world. */
 export function createControls(
@@ -63,12 +75,12 @@ export function createControls(
     for (const e of takeEvents()) {
       const d = document.createElement('div');
       d.textContent = `${(e.tick / TPS).toFixed(1)}s ${e.what} ${e.who ?? ''} ${
-        e.data ? JSON.stringify(e.data).slice(0, 60) : ''
+        e.data ? JSON.stringify(e.data).slice(0, LOG_DATA_CHARS) : ''
       }`;
       logEl.prepend(d);
     }
 
-    while (logEl.childElementCount > 100) {
+    while (logEl.childElementCount > LOG_MAX_ENTRIES) {
       logEl.lastElementChild!.remove();
     }
   }
@@ -89,11 +101,11 @@ export function createControls(
 
   window.addEventListener('keydown', (ev) => {
     if (ev.key === 'r') {
-      rot = (rot + 1) & 3;
+      rot = (rot + 1) & ROTATION_MASK;
     }
 
     if (ev.key === 'f') {
-      facing = ((facing + 1) & 3) as Facing;
+      facing = ((facing + 1) & ROTATION_MASK) as Facing;
     }
 
     renderHud();
@@ -122,7 +134,8 @@ export function createControls(
   }, { signal });
   app.canvas.addEventListener('wheel', (ev) => {
     ev.preventDefault();
-    const z = Math.min(4, Math.max(0.5, camera.scale.x * (ev.deltaY < 0 ? 1.1 : 0.9)));
+    const z = Math.min(MAX_ZOOM,
+      Math.max(MIN_ZOOM, camera.scale.x * (ev.deltaY < 0 ? ZOOM_IN : ZOOM_OUT)));
     const k = z / camera.scale.x;
     camera.x = ev.clientX - (ev.clientX - camera.x) * k;
     camera.y = ev.clientY - (ev.clientY - camera.y) * k;
@@ -195,7 +208,7 @@ export function createControls(
         ...(mode === 'cannon' ? { facing } : {}),
       })
       : null;
-    const ghostStyle = { color: error ? 0xff4444 : 0xffd166, alpha: 0.5 };
+    const ghostStyle = { color: error ? COLOR_INVALID : COLOR_VALID, alpha: GHOST_ALPHA };
 
     for (const [x, y] of cells) {
       const { sx, sy } = iso(x, y);
@@ -206,8 +219,8 @@ export function createControls(
 
     if (mode === 'cannon') {
       const [dx, dy] = DIRS[facing]!;
-      const { sx, sy } = iso(hover.x + dx * 3, hover.y + dy * 3);
-      ghost.circle(sx, sy + TH / 2, 2).fill(0xff4444);
+      const { sx, sy } = iso(hover.x + dx * AIM_DISTANCE, hover.y + dy * AIM_DISTANCE);
+      ghost.circle(sx, sy + TH / 2, 2).fill(COLOR_INVALID);
     }
   }
 

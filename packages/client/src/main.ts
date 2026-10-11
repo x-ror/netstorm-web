@@ -13,6 +13,8 @@ import {
   TPS,
 } from '@netstorm/sim';
 
+const HUD_REFRESH_TICKS = 5;
+
 async function main() {
   const [unitsRaw, forts, manifest] = await Promise.all([
     fetch('data/units.json').then((r) => r.json()),
@@ -23,10 +25,12 @@ async function main() {
   const geysers: [number, number][] = (forts['thewarbegins']?.geysers ?? []).map((
     [x, y]: number[],
   ) => [x!, y!]);
+  // oxlint-disable no-magic-numbers -- demo skirmish setup: seed and map coordinates
   const world = createSkirmish(defs, 42, [
     { id: 1, name: 'Ти', theme: 'wind', x: 70, y: 150 },
     { id: 2, name: 'The Jailer', theme: 'rain', x: 150, y: 90 },
   ], geysers.length ? geysers : [[110, 120]]);
+  // oxlint-enable no-magic-numbers
 
   const app = new Application();
   await app.init({
@@ -68,7 +72,7 @@ async function main() {
     terrainG,
     entityLayer,
   };
-  const clock = new FixedStepClock(TPS, 5);
+  const clock = new FixedStepClock(TPS);
   let hudTick = -1;
   controls.renderHud();
   renderer.sync();
@@ -88,7 +92,7 @@ async function main() {
       controls.drawGhost();
     }
 
-    if (world.tick - hudTick >= 5) {
+    if (world.tick - hudTick >= HUD_REFRESH_TICKS) {
       hudTick = world.tick;
       controls.renderHud();
       controls.renderLog();

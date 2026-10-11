@@ -2,6 +2,7 @@ import type { World } from '../world.js';
 import type { Command, CommandError } from '../commands.js';
 import type { WorldView } from '../view.js';
 import { energyNeed } from '../defs.js';
+import { MAX_FACING } from '../state.js';
 
 export function energy(world: WorldView, p: number): { own: number; any: number; } {
   const pl = world.players.get(p);
@@ -57,7 +58,7 @@ export function canBuild(
 
   if (
     command.facing !== undefined
-    && (!Number.isInteger(command.facing) || command.facing < 0 || command.facing > 3)
+    && (!Number.isInteger(command.facing) || command.facing < 0 || command.facing > MAX_FACING)
   ) {
     return 'bad facing';
   }

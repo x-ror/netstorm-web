@@ -1,4 +1,4 @@
-import type { Facing } from './state.js';
+import { FACINGS, MAX_ID, MAX_PLAYERS, type Facing } from './state.js';
 import { choice, integer, keys, record, text } from './validation.js';
 
 export type Command =
@@ -43,7 +43,7 @@ export function parseCommand(raw: unknown): Command {
     'pickupPriest',
     'sacrifice',
   ], 'command type');
-  const player = integer(value.player, 'command.player', 1, 8);
+  const player = integer(value.player, 'command.player', 1, MAX_PLAYERS);
 
   switch (t) {
     case 'dropPiece':
@@ -67,7 +67,7 @@ export function parseCommand(raw: unknown): Command {
       };
 
       if (value.facing !== undefined) {
-        command.facing = choice(value.facing, [0, 1, 2, 3], 'command.facing');
+        command.facing = choice(value.facing, FACINGS, 'command.facing');
       }
 
       return command;
@@ -77,8 +77,8 @@ export function parseCommand(raw: unknown): Command {
       return {
         t,
         player,
-        transport: integer(value.transport, 'command.transport', 1, 0x7fffffff),
-        geyser: integer(value.geyser, 'command.geyser', 1, 0x7fffffff),
+        transport: integer(value.transport, 'command.transport', 1, MAX_ID),
+        geyser: integer(value.geyser, 'command.geyser', 1, MAX_ID),
       };
     case 'movePriest':
       keys(value, ['t', 'player', 'x', 'y'], 'command');
@@ -90,7 +90,7 @@ export function parseCommand(raw: unknown): Command {
       };
     case 'pickupPriest':
       keys(value, ['t', 'player', 'target'], 'command');
-      return { t, player, target: integer(value.target, 'command.target', 1, 0x7fffffff) };
+      return { t, player, target: integer(value.target, 'command.target', 1, MAX_ID) };
     case 'sacrifice':
       keys(value, ['t', 'player'], 'command');
       return { t, player };
