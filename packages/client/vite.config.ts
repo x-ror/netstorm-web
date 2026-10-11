@@ -10,9 +10,18 @@ function gameAssets(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const path = req.url?.split('?')[0];
-        const name =
-          path === '/data/units.json' ? 'units' : path === '/data/forts.json' ? 'forts' : undefined;
-        if (!name) return next();
+        let name: string | undefined;
+
+        if (path === '/data/units.json') {
+          name = 'units';
+        } else if (path === '/data/forts.json') {
+          name = 'forts';
+        }
+
+        if (!name) {
+          return next();
+        }
+
         res.setHeader('Content-Type', 'application/json');
         res.end(readFileSync(new URL(`../../data/${name}.json`, import.meta.url)));
       });
@@ -23,27 +32,37 @@ function gameAssets(): Plugin {
       );
       const selected: Manifest = {};
       const files = new Set<string>();
+
       for (const [, type, gif, frame] of TEXTURES) {
         const entry = selectFrame(manifest, type, gif, frame);
-        if (!entry) continue;
+
+        if (!entry) {
+          continue;
+        }
+
         const [index, file] = entry;
         ((selected[type] ??= {})[gif] ??= {})[index] = file;
         files.add(file);
       }
+
       for (const file of files) {
-        if (!file.startsWith('sprites/') || file.split('/').includes('..'))
+        if (!file.startsWith('sprites/') || file.split('/').includes('..')) {
           throw new Error(`Invalid sprite path: ${file}`);
+        }
+
         this.emitFile({
           type: 'asset',
           fileName: file,
           source: readFileSync(new URL(`./public/${file}`, import.meta.url)),
         });
       }
+
       this.emitFile({
         type: 'asset',
         fileName: 'data/sprites.json',
         source: JSON.stringify(selected),
       });
+
       for (const name of ['units', 'forts']) {
         const data = JSON.parse(
           readFileSync(new URL(`../../data/${name}.json`, import.meta.url), 'utf8'),

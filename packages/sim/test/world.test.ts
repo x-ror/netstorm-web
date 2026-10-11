@@ -31,25 +31,34 @@ test('defs loaded with original numbers', () => {
 test('deterministic: same seed and commands give the same hash', () => {
   const run = () => {
     const w = mk(7);
-    for (let i = 0; i < 400; i++)
+
+    for (let i = 0; i < 400; i++) {
       w.step(i === 100 ? [{ t: 'build', player: 1, type: 'suncannon', x: 32, y: 36 }] : []);
+    }
+
     return w.hash();
   };
   assert.equal(run(), run());
   const w2 = mk(8);
-  for (let i = 0; i < 400; i++) w2.step();
+
+  for (let i = 0; i < 400; i++) {
+    w2.step();
+  }
+
   assert.notEqual(run(), w2.hash());
 });
 
 test('temple hands out bridge pieces; pieces must touch own ground', () => {
   const w = mk();
-  for (let i = 0; i < PIECE_INTERVAL; i++) w.step();
+
+  for (let i = 0; i < PIECE_INTERVAL; i++) {
+    w.step();
+  }
+
   const p = w.players.get(1)!;
   assert.equal(p.hand.length, 1);
-  assert.equal(
-    w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 60, y: 60, rot: 0 }),
-    'not connected',
-  );
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 60, y: 60, rot: 0 }),
+    'not connected');
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null); // right edge of island is x=50
   assert.equal(p.hand.length, 0);
   const cells = w.events.at(-1)!.data as [number, number][];
@@ -59,10 +68,8 @@ test('temple hands out bridge pieces; pieces must touch own ground', () => {
 test('build: needs tech, storm power, energy and own ground', () => {
   const w = mk();
   const p = w.players.get(1)!;
-  assert.equal(
-    w.apply({ t: 'build', player: 1, type: 'thundercannon', x: 32, y: 36 }),
-    'unknown tech',
-  );
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'thundercannon', x: 32, y: 36 }),
+    'unknown tech');
   assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 90, y: 90 }), 'blocked');
   assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 32, y: 36 }), null);
   assert.equal(p.storm, 2000 - 400);
@@ -74,14 +81,23 @@ test('transport collects a crystal and delivers storm power', () => {
   const p = w.players.get(1)!;
   const t = [...w.entities.values()].find((e) => e.kind === 'transport' && e.owner === 1)!;
   const g = [...w.entities.values()].find((e) => e.kind === 'geyser')!;
+
   // bridge straight from the island edge (x=50) to the geyser islet (x=79)
   for (let x = 51; x < 79; x++) {
     w.terrain[40 * 256 + x] = 2;
     w.owner[40 * 256 + x] = 1;
   }
-  for (let i = 0; i < CRYSTAL_INTERVAL; i++) w.step();
+
+  for (let i = 0; i < CRYSTAL_INTERVAL; i++) {
+    w.step();
+  }
+
   assert.equal(w.apply({ t: 'collect', player: 1, transport: t.id, geyser: g.id }), null);
-  for (let i = 0; i < 80 * TPS; i++) w.step();
+
+  for (let i = 0; i < 80 * TPS; i++) {
+    w.step();
+  }
+
   assert.equal(p.storm, 2000 + CRYSTAL_VALUE);
 });
 
@@ -89,7 +105,11 @@ test('cannon destroys an enemy transport in its line of fire; blocker shields it
   const w = mk();
   w.spawnBuilding('suncannon', 1, 48, 39, 1); // facing east, muzzle at x=51
   const victim = w.spawnTransport('sunwalker', 2, 60, 40); // hp 50, in line (row 40 = centre of the 3×3 footprint)
-  for (let i = 0; i < 4 * TPS; i++) w.step(); // 16 dps → dead in ~3.2 s
+
+  for (let i = 0; i < 4 * TPS; i++) {
+    w.step();
+  } // 16 dps → dead in ~3.2 s
+
   assert.ok(!w.entities.has(victim.id));
   const victim2 = w.spawnTransport('sunwalker', 2, 60, 40);
   w.terrain[40 * 256 + 55] = 1;
@@ -99,7 +119,11 @@ test('cannon destroys an enemy transport in its line of fire; blocker shields it
   w.terrain[40 * 256 + 57] = 1;
   w.owner[40 * 256 + 57] = 2;
   w.spawnBuilding('sunblocker', 2, 55, 39);
-  for (let i = 0; i < 10 * TPS; i++) w.step();
+
+  for (let i = 0; i < 10 * TPS; i++) {
+    w.step();
+  }
+
   const v2 = w.entities.get(victim2.id);
   assert.ok(v2 && 'hp' in v2 && v2.hp === 50);
 });

@@ -62,28 +62,31 @@ test('tick rebuild includes externally moved, removed and newly spawned transpor
 });
 
 test('indexed combat matches full scans through moving, stacked, blocked and destroyed targets', () => {
-  const indexed = mk(),
-    scanned = new ScanWorld(defs);
+  const indexed = mk();
+  const scanned = new ScanWorld(defs);
+
   for (const world of [indexed, scanned]) {
     world.addIsland(0, 0, 256, 256, 2);
+
     for (let row = 0; row < 8; row++) {
       world.spawnBuilding(row % 2 ? 'sunarcher' : 'suncannon', 1, 30, 20 + row * 10, 1);
+
       for (let i = 0; i < 10; i++) {
-        const transport = world.spawnTransport(
-          'sunwalker',
-          i % 3 === 0 ? 1 : 2,
-          35 + i,
-          21 + row * 10,
-        );
+        const transport = world.spawnTransport('sunwalker', i % 3 === 0 ? 1 : 2, 35 + i,
+          21 + row * 10);
         transport.path = [
           [transport.x, transport.y + 1],
           [transport.x + 1, transport.y + 1],
           [transport.x + 1, transport.y],
         ];
       }
-      if (row % 3 === 0) world.spawnBuilding('sunblocker', 2, 38, 19 + row * 10);
+
+      if (row % 3 === 0) {
+        world.spawnBuilding('sunblocker', 2, 38, 19 + row * 10);
+      }
     }
   }
+
   for (let tick = 0; tick < 120; tick++) {
     indexed.step();
     scanned.step();

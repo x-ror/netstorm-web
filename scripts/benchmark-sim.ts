@@ -9,21 +9,26 @@ const defs = loadDefs(
 );
 // Large HP keeps each sample's entity count constant during sustained combat.
 const durable: DefTable = new Map([...defs].map(([id, def]) => [id, { ...def, hp: 1_000_000 }]));
-const samples = 120,
-  warmup = 20;
+const samples = 120;
+const warmup = 20;
 
 function fixture(scan: boolean, combat: boolean): World {
   const world = scan ? new ScanWorld(durable) : new World(durable, 42);
   world.addIsland(0, 0, 256, 256, 0);
+
   for (let i = 0; i < 24; i++) {
-    const x = 20 + (i % 8) * 26,
-      y = 20 + Math.floor(i / 8) * 36;
+    const x = 20 + (i % 8) * 26;
+    const y = 20 + Math.floor(i / 8) * 36;
     world.spawnBuilding(i % 2 ? 'sunarcher' : 'suncannon', 1, x, y, 1);
-    if (combat) world.spawnTransport('sunwalker', 2, x + 6, y + 1);
+
+    if (combat) {
+      world.spawnTransport('sunwalker', 2, x + 6, y + 1);
+    }
   }
+
   for (let i = 0; i < 512; i++) {
-    const x = 10 + (i % 220),
-      y = 160 + Math.floor(i / 220) * 3;
+    const x = 10 + (i % 220);
+    const y = 160 + Math.floor(i / 220) * 3;
     const transport = world.spawnTransport('sunwalker', 2, x, y);
     transport.path = [
       [x, y + 1],
@@ -31,6 +36,7 @@ function fixture(scan: boolean, combat: boolean): World {
       [x + 1, y],
     ];
   }
+
   return world;
 }
 
@@ -39,23 +45,27 @@ function measure(world: World) {
     world.step();
     world.drainEvents();
   }
+
   const times: number[] = [];
+
   for (let i = 0; i < samples; i++) {
     const start = performance.now();
     world.step();
     times.push(performance.now() - start);
     world.drainEvents();
   }
+
   times.sort((a, b) => a - b);
   return { p50: times[Math.floor(samples * 0.5)]!, p95: times[Math.floor(samples * 0.95)]! };
 }
 
 const results = [];
+
 for (const combat of [true, false]) {
-  const scan = fixture(true, combat),
-    indexed = fixture(false, combat);
-  const before = measure(scan),
-    after = measure(indexed);
+  const scan = fixture(true, combat);
+  const indexed = fixture(false, combat);
+  const before = measure(scan);
+  const after = measure(indexed);
   assert.equal(indexed.hash(), scan.hash(), 'Benchmark changed simulation results');
   results.push({
     scenario: combat
@@ -68,19 +78,17 @@ for (const combat of [true, false]) {
     'p50 speedup': `${(before.p50 / after.p50).toFixed(1)}x`,
   });
 }
-const small = createSkirmish(
-  defs,
-  42,
-  [
-    { id: 1, name: 'Blue', theme: 'wind', x: 40, y: 40 },
-    { id: 2, name: 'Red', theme: 'rain', x: 120, y: 40 },
-  ],
-  [[80, 40]],
-);
+
+const small = createSkirmish(defs, 42, [
+  { id: 1, name: 'Blue', theme: 'wind', x: 40, y: 40 },
+  { id: 2, name: 'Red', theme: 'rain', x: 120, y: 40 },
+], [[80, 40]]);
 const smallResult = measure(small);
 console.table(results);
 console.log(
-  `Default skirmish: p50 ${smallResult.p50.toFixed(3)} ms, p95 ${smallResult.p95.toFixed(3)} ms per tick.`,
+  `Default skirmish: p50 ${smallResult.p50.toFixed(3)} ms, p95 ${
+    smallResult.p95.toFixed(3)
+  } ms per tick.`,
 );
 console.log(
   `Node ${process.version}, ${warmup} warmup ticks + ${samples} measured ticks per fixture. Synthetic CPU measurements, excludes rendering and hashing.`,

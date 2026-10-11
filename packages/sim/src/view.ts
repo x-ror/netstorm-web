@@ -1,0 +1,36 @@
+import type { UnitDef } from './defs.js';
+import type { Building, Entity, Player, Priest } from './state.js';
+import type { CommandError } from './commands.js';
+
+export type DeepReadonly<T> = T extends Map<infer K, infer V> ? ReadonlyMap<K, DeepReadonly<V>>
+  : T extends Set<infer V> ? ReadonlySet<DeepReadonly<V>>
+  : T extends object ? { readonly [K in keyof T]: DeepReadonly<T[K]>; }
+  : T;
+
+/** A compile-time boundary, not a security boundary or a copy of the world. */
+export interface WorldView {
+  readonly tick: number;
+  readonly terrainRevision: number;
+  readonly winner: number | null;
+  readonly terrain: ArrayLike<number>;
+  readonly owner: ArrayLike<number>;
+  readonly occupant: ArrayLike<number>;
+  readonly entities: ReadonlyMap<number, DeepReadonly<Entity>>;
+  readonly players: ReadonlyMap<number, DeepReadonly<Player>>;
+  readonly defs: ReadonlyMap<string, Readonly<UnitDef>>;
+  readonly inside: (x: number, y: number) => boolean;
+  readonly at: (x: number, y: number) => number;
+  readonly isOwnGround: (player: number, x: number, y: number) => boolean;
+  readonly walkable: (player: number, x: number, y: number) => boolean;
+  readonly def: (type: string) => Readonly<UnitDef>;
+  readonly priestOf: (player: number) => DeepReadonly<Priest> | undefined;
+  readonly buildingsOf: (player: number, group?: string) => ReadonlyArray<DeepReadonly<Building>>;
+  readonly energy: (player: number) => { own: number; any: number; };
+  readonly canBuild: (command: {
+    player: number;
+    type: string;
+    x: number;
+    y: number;
+    facing?: number;
+  }) => CommandError | null;
+}

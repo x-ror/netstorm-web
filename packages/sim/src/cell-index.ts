@@ -22,6 +22,7 @@ export class CellIndex<T extends Positioned> {
       bucket.length = 0;
       this.pool.push(bucket);
     }
+
     this.cells.clear();
     this.order.clear();
   }
@@ -33,18 +34,28 @@ export class CellIndex<T extends Positioned> {
 
   move(item: T, previousX: number, previousY: number): void {
     const previous = this.key(previousX, previousY);
-    if (previous === this.key(item.x, item.y)) return;
+
+    if (previous === this.key(item.x, item.y)) {
+      return;
+    }
+
     if (previous !== null) {
       const bucket = this.cells.get(previous);
+
       if (bucket) {
         const position = bucket.indexOf(item);
-        if (position >= 0) bucket.splice(position, 1);
+
+        if (position >= 0) {
+          bucket.splice(position, 1);
+        }
+
         if (!bucket.length) {
           this.cells.delete(previous);
           this.pool.push(bucket);
         }
       }
     }
+
     this.insert(item);
   }
 
@@ -55,25 +66,35 @@ export class CellIndex<T extends Positioned> {
 
   private insert(item: T): void {
     const key = this.key(item.x, item.y);
-    if (key === null) return;
+
+    if (key === null) {
+      return;
+    }
+
     let bucket = this.cells.get(key);
+
     if (!bucket) {
       bucket = this.pool.pop() ?? [];
       this.cells.set(key, bucket);
     }
+
     const rank = this.order.get(item.id)!;
     let position = bucket.length;
-    while (position > 0 && this.order.get(bucket[position - 1]!.id)! > rank) position--;
+
+    while (position > 0 && this.order.get(bucket[position - 1]!.id)! > rank) {
+      position--;
+    }
+
     bucket.splice(position, 0, item);
   }
 
   private key(x: number, y: number): number | null {
-    return Number.isInteger(x) &&
-      Number.isInteger(y) &&
-      x >= 0 &&
-      y >= 0 &&
-      x < this.width &&
-      y < this.height
+    return Number.isInteger(x)
+        && Number.isInteger(y)
+        && x >= 0
+        && y >= 0
+        && x < this.width
+        && y < this.height
       ? y * this.width + x
       : null;
   }

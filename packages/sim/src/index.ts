@@ -3,3 +3,7 @@ export * from './defs.js';
 export * from './world.js';
 export * from './scenario.js';
 export * from './clock.js';
+export * from './view.js';
+export * from './snapshot.js';
+export * from './invariants.js';
+export * from './replay.js';

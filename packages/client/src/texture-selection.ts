@@ -27,7 +27,14 @@ export function selectFrame(
   frame?: number,
 ): [string, string] | undefined {
   const frames = manifest[type]?.[gif];
-  if (!frames) return undefined;
-  if (frame !== undefined && frames[frame]) return [String(frame), frames[frame]];
+
+  if (!frames) {
+    return undefined;
+  }
+
+  if (frame !== undefined && frames[frame]) {
+    return [String(frame), frames[frame]];
+  }
+
   return Object.entries(frames)[0];
 }

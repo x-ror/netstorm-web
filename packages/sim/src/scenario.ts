@@ -1,8 +1,7 @@
 /** Scenario builders. Island shapes are not yet decoded from .fort, so skirmish islands are rectangles;
  *  geyser positions can be taken from data/forts.json (decoded by tools/unfort.py). */
 import { World } from './world.js';
-import type { Theme } from './defs.js';
-import { DefTable } from './defs.js';
+import type { Theme, DefTable } from './defs.js';
 
 export interface SkirmishPlayer {
   id: number;
@@ -32,9 +31,13 @@ export function createSkirmish(
   geysers: [number, number][],
 ): World {
   const w = new World(defs, seed);
-  for (const p of players)
-    if (p.theme === 'sun')
+
+  for (const p of players) {
+    if (p.theme === 'sun') {
       throw new Error('a player must follow Wind, Rain or Thunder (Sun has no temple)');
+    }
+  }
+
   for (const p of players) {
     const themeTech = [
       `${p.theme}battery`,
@@ -52,13 +55,25 @@ export function createSkirmish(
     w.spawnBuilding('altar', p.id, p.x + 2, p.y - 7);
     w.spawnBuilding(`${p.theme}factory`, p.id, p.x - 10, p.y + 1); // workshop
     w.addPriest(p.id, p.x, p.y + 6);
-    w.spawnTransport(
-      p.theme === 'thunder' ? 'bulf' : p.theme === 'sun' ? 'sunwalker' : `${p.theme}walker`,
-      p.id,
-      p.x + 1,
-      p.y + 6,
-    );
+    const transportType = startingTransport(p.theme);
+    w.spawnTransport(transportType, p.id, p.x + 1, p.y + 6);
   }
-  for (const [x, y] of geysers) w.addGeyser(x, y);
+
+  for (const [x, y] of geysers) {
+    w.addGeyser(x, y);
+  }
+
   return w;
+}
+
+function startingTransport(theme: Theme): string {
+  if (theme === 'thunder') {
+    return 'bulf';
+  }
+
+  if (theme === 'sun') {
+    return 'sunwalker';
+  }
+
+  return `${theme}walker`;
 }

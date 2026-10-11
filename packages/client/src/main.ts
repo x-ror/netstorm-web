@@ -3,7 +3,15 @@ import { loadTextures, type Manifest } from './assets.js';
 import { createWorldRenderer } from './renderer.js';
 import { iso, ZOOM } from './projection.js';
 import { createControls } from './controls.js';
-import { loadDefs, createSkirmish, FixedStepClock, TPS } from '@netstorm/sim';
+import {
+  loadDefs,
+  createSkirmish,
+  FixedStepClock,
+  ReplayRecorder,
+  playReplay,
+  type Command,
+  TPS,
+} from '@netstorm/sim';
 
 async function main() {
   const [unitsRaw, forts, manifest] = await Promise.all([
@@ -12,18 +20,13 @@ async function main() {
     fetch('data/sprites.json').then((r) => r.json()) as Promise<Manifest>,
   ]);
   const defs = loadDefs(unitsRaw);
-  const geysers: [number, number][] = (forts['thewarbegins']?.geysers ?? []).map(
-    ([x, y]: number[]) => [x!, y!],
-  );
-  const world = createSkirmish(
-    defs,
-    42,
-    [
-      { id: 1, name: 'Ти', theme: 'wind', x: 70, y: 150 },
-      { id: 2, name: 'The Jailer', theme: 'rain', x: 150, y: 90 },
-    ],
-    geysers.length ? geysers : [[110, 120]],
-  );
+  const geysers: [number, number][] = (forts['thewarbegins']?.geysers ?? []).map((
+    [x, y]: number[],
+  ) => [x!, y!]);
+  const world = createSkirmish(defs, 42, [
+    { id: 1, name: 'Ти', theme: 'wind', x: 70, y: 150 },
+    { id: 2, name: 'The Jailer', theme: 'rain', x: 150, y: 90 },
+  ], geysers.length ? geysers : [[110, 120]]);
 
   const app = new Application();
   await app.init({
@@ -43,18 +46,28 @@ async function main() {
   camera.addChild(terrainG, entityLayer, ghost);
 
   const tex = await loadTextures(manifest);
-  const renderer = createWorldRenderer(world, terrainG, entityLayer, tex);
+  const match = new ReplayRecorder(world);
+  const view = match.view();
+  const commands: Command[] = [];
+  const renderer = createWorldRenderer(view, terrainG, entityLayer, tex);
 
-  const controls = createControls(world, app, camera, ghost);
+  const controls = createControls(view, app, camera, ghost, (command) => commands.push(command),
+    () => match.drainEvents());
 
   // --- loop: fixed-step simulation at TPS, rendering every frame
   const me = world.priestOf(1)!;
   const start = iso(me.x, me.y);
-  camera.position.set(
-    window.innerWidth / 2 - start.sx * ZOOM,
-    window.innerHeight / 2 - start.sy * ZOOM,
-  );
-  (window as unknown as { ns: unknown }).ns = { world, camera, app, terrainG, entityLayer };
+  camera.position.set(window.innerWidth / 2 - start.sx * ZOOM,
+    window.innerHeight / 2 - start.sy * ZOOM);
+  (window as unknown as { ns: unknown; }).ns = {
+    world,
+    match,
+    playReplay,
+    camera,
+    app,
+    terrainG,
+    entityLayer,
+  };
   const clock = new FixedStepClock(TPS, 5);
   let hudTick = -1;
   controls.renderHud();
@@ -62,12 +75,19 @@ async function main() {
   const resetClock = () => clock.reset();
   document.addEventListener('visibilitychange', resetClock);
   app.ticker.add((t) => {
-    if (document.hidden) return;
+    if (document.hidden) {
+      return;
+    }
+
     const steps = clock.advance(t.deltaMS, () => {
-      world.step(controls.takeCommands());
+      match.step(commands.splice(0));
     });
     renderer.sync();
-    if (steps) controls.drawGhost();
+
+    if (steps) {
+      controls.drawGhost();
+    }
+
     if (world.tick - hudTick >= 5) {
       hudTick = world.tick;
       controls.renderHud();
@@ -78,9 +98,10 @@ async function main() {
     controls.dispose();
     document.removeEventListener('visibilitychange', resetClock);
     app.destroy(true, { children: true });
-    delete (window as unknown as { ns?: unknown }).ns;
+    delete (window as unknown as { ns?: unknown; }).ns;
   };
 }
+
 main()
   .then((dispose) => {
     import.meta.hot?.dispose(dispose);

@@ -23,14 +23,23 @@ export interface UnitDef {
 export type DefTable = Map<string, UnitDef>;
 
 export function loadDefs(raw: unknown): DefTable {
-  if (!Array.isArray(raw)) throw new TypeError('Unit definitions must be an array');
+  if (!Array.isArray(raw)) {
+    throw new TypeError('Unit definitions must be an array');
+  }
+
   const t: DefTable = new Map();
+
   for (const value of raw) {
-    if (!value || typeof value !== 'object' || Array.isArray(value))
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
       throw new TypeError('Invalid unit definition');
+    }
+
     const r = value as Record<string, unknown>;
-    if (typeof r.id !== 'string' || !r.id.trim())
+
+    if (typeof r.id !== 'string' || !r.id.trim()) {
       throw new TypeError('Unit definition needs an id');
+    }
+
     const id = r.id.toLowerCase();
     // Original extraction contains repeated ids. Later definitions override earlier ones.
     const theme = typeof r.theme === 'string' ? r.theme.toLowerCase() : null;
@@ -54,22 +63,35 @@ export function loadDefs(raw: unknown): DefTable {
       lifeSpan: num(r.lifeSpan),
     });
   }
+
   return t;
 }
 
 function str(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback;
 }
+
 function num(v: unknown, fallback = 0): number {
-  if (v === undefined) return fallback;
-  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0)
+  if (v === undefined) {
+    return fallback;
+  }
+
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
     throw new TypeError('Unit values must be finite non-negative numbers');
+  }
+
   return v;
 }
 
 /** Energy a unit needs to be built: level 1 → 1 of own theme; level 2 → +1 any; level 3 → 2 own + 1 any. */
-export function energyNeed(def: UnitDef): { own: number; any: number } {
-  if (def.level <= 1) return { own: 1, any: 0 };
-  if (def.level === 2) return { own: 1, any: 1 };
+export function energyNeed(def: UnitDef): { own: number; any: number; } {
+  if (def.level <= 1) {
+    return { own: 1, any: 0 };
+  }
+
+  if (def.level === 2) {
+    return { own: 1, any: 1 };
+  }
+
   return { own: 2, any: 1 };
 }
