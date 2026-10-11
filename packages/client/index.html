@@ -170,6 +170,14 @@
       #tools {
         margin-top: 8px;
       }
+      /* Two columns of three, as the bridge slots stand in the original's Production Window. */
+      #hand {
+        display: grid;
+        grid-template-columns: repeat(2, max-content);
+      }
+      #hand > span {
+        grid-column: 1 / -1;
+      }
       button.piece {
         padding: 3px;
       }

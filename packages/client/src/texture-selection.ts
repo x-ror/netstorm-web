@@ -26,7 +26,12 @@ export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]>
   ['suncannon:2', 'suncannon', 'scannon', 0],
   ['suncannon:3', 'suncannon', 'scannon', 14],
   ['sunarcher', 'sunarcher', 'f'],
-  ['thundercannon', 'thundercannon', 'tcannon'],
+  // The whole-body frame of each facing (N, E, S, W); the other frames of the set are small
+  // overlays of the charging animation.
+  ['thundercannon:0', 'thundercannon', 'tcannon', 19],
+  ['thundercannon:1', 'thundercannon', 'tcannon', 7],
+  ['thundercannon:2', 'thundercannon', 'tcannon', 24],
+  ['thundercannon:3', 'thundercannon', 'tcannon', 36],
   ['windarcher', 'windarcher', 'warch1'],
   ['sunwalker', 'sunwalker', 'golem'],
   ['windwalker', 'windwalker', 'wwalker'],

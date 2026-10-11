@@ -312,10 +312,13 @@ function terrainColor(terrain: number, owner: number, me: number): number {
   return COLOR.neutralLand;
 }
 
+/** Buildings drawn with a frame of their own for each facing. */
+const FACING_SPRITES: ReadonlySet<string> = new Set(['suncannon', 'thundercannon']);
+
 function textureKey(entity: DeepReadonly<Entity>): string {
   switch (entity.kind) {
     case 'building':
-      return entity.type === 'suncannon' ? `suncannon:${entity.facing}` : entity.type;
+      return FACING_SPRITES.has(entity.type) ? `${entity.type}:${entity.facing}` : entity.type;
     case 'transport':
       return entity.type;
     case 'priest':
