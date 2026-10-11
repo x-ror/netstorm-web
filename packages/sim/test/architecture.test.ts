@@ -11,7 +11,7 @@ import {
   createSkirmish,
   type Command,
   type WorldSnapshot,
-  type Geyser,
+  type Transport,
 } from '../src/index.js';
 
 const defs = loadDefs(
@@ -24,16 +24,15 @@ const mk = () =>
   ], [[80, 40]]);
 const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
-// Re-pinned when Transport gained `target` and when Crystal Crab's level followed the official help.
-// With both reverted these equal the pre-refactor hashes.
+// Pins the current rules (RULES_VERSION 3). Re-pin deliberately whenever state shape or rules change.
 test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
-    [1, 4211769341],
-    [60, 2167157105],
-    [101, 2969459431],
-    [200, 2053809426],
-    [400, 3856690405],
+    [1, 3303397066],
+    [60, 899464266],
+    [101, 891727803],
+    [200, 3693461566],
+    [400, 1954336801],
   ]);
 
   for (let index = 0; index < 400; index++) {
@@ -73,20 +72,24 @@ test('commands retain submission order and rejection events have typed payloads'
 
 test('entities spawned during an update wait until the next tick', () => {
   class SpawningWorld extends World {
-    override spawnCrystal(geyser: Geyser) {
+    override spawnCrystal(carrier: Transport, value: number) {
       const transport = this.spawnTransport('sunwalker', 1, 10, 10);
       transport.path = [[11, 10]];
       transport.move = 100;
-      return super.spawnCrystal(geyser);
+      return super.spawnCrystal(carrier, value);
     }
   }
 
   const world = new SpawningWorld(defs, 1);
   world.addIsland(0, 0, 20, 20, 1);
   const geyser = world.addGeyser(15, 15);
-  geyser.timer = 1;
+  const miner = world.spawnTransport('sunwalker', 1, 16, 15);
+  miner.goal = 'collect';
+  miner.target = geyser.id;
   world.step();
-  const transport = [...world.entities.values()].find((entity) => entity.kind === 'transport')!;
+  const transport = [...world.entities.values()].find((entity) =>
+    entity.kind === 'transport' && entity.id !== miner.id
+  )!;
   assert.equal(transport.x, 10);
   world.step();
   assert.equal(transport.x, 11);
@@ -158,7 +161,8 @@ test('snapshot continuation preserves movement and crystal ownership through del
     assert.equal(restored.hash(), world.hash());
   }
 
-  assert.equal(world.players.get(1)!.storm, 2200);
+  // Four round trips: the transport keeps mining without further commands.
+  assert.equal(world.players.get(1)!.storm, 2800);
 });
 
 test('snapshots preserve a captured priest through sacrifice and victory', () => {
@@ -368,8 +372,6 @@ test('a loaded transport rejects another collect and drops linked cargo on destr
   );
   const geyser = [...world.entities.values()].find((entity) => entity.kind === 'geyser');
   assert.ok(transport?.kind === 'transport' && geyser?.kind === 'geyser');
-  geyser.timer = 1;
-  world.step();
   transport.x = geyser.x + 1;
   transport.y = geyser.y;
   const command: Command = { t: 'collect', player: 1, transport: transport.id, geyser: geyser.id };
@@ -445,17 +447,21 @@ test('snapshot boundaries reject sparse grids and unsupported setup fields', () 
   assert.throws(() => invalid.snapshot(), /definition key mismatch/);
 });
 
-test('a transport only collects from the geyser it was sent to', () => {
+test('a transport mines only its target geyser and moves on when it is depleted', () => {
   const world = mk();
   const transport = [...world.entities.values()].find((entity) =>
     entity.kind === 'transport' && entity.owner === 1
   );
   const full = [...world.entities.values()].find((entity) => entity.kind === 'geyser');
   assert.ok(transport?.kind === 'transport' && full?.kind === 'geyser');
-  const empty = world.addGeyser(full.x, full.y + 2);
-  full.timer = 1;
-  world.step();
-  assert.ok(full.crystal !== null && empty.crystal === null);
+  const empty = world.addGeyser(full.x, full.y + 2, 0);
+  const stock = full.stock;
+
+  for (let x = 51; x < 79; x++) {
+    world.terrain[40 * 256 + x] = 2;
+    world.owner[40 * 256 + x] = 1;
+  }
+
   // Adjacent to both geysers.
   transport.x = full.x;
   transport.y = full.y + 1;
@@ -465,10 +471,15 @@ test('a transport only collects from the geyser it was sent to', () => {
   );
   assert.equal(transport.target, empty.id);
   world.step();
+  // The depleted geyser gives nothing; the transport re-targets instead of raiding its neighbour.
   assert.equal(transport.carrying, null);
-  assert.equal(transport.goal, 'idle');
-  assert.equal(transport.target, null);
-  assert.ok(full.crystal !== null);
+  assert.equal(full.stock, stock);
+  assert.equal(transport.goal, 'collect');
+  assert.equal(transport.target, full.id);
+  world.step();
+  assert.ok(transport.carrying !== null);
+  assert.equal(full.stock, stock - 200);
+  assert.equal(transport.goal, 'home');
   assertWorldInvariants(world);
 });
 
@@ -517,4 +528,87 @@ test('unit definitions reject unknown classes and groups', () => {
   assert.throws(() => loadDefs([{ id: 'x', class: 'Enrgy' }]), /Unknown unit class/);
   assert.throws(() => loadDefs([{ id: 'x', group: 'canon' }]), /Unknown unit group/);
   assert.equal(loadDefs([{ id: 'x', class: 'Energy', group: 'battery' }]).get('x')?.cls, 'Energy');
+});
+
+test('a geyser is depleted after its stock is carried away and the transport stops', () => {
+  const world = mk();
+  const transport = [...world.entities.values()].find((entity) =>
+    entity.kind === 'transport' && entity.owner === 1
+  );
+  const geyser = [...world.entities.values()].find((entity) => entity.kind === 'geyser');
+  assert.ok(transport?.kind === 'transport' && geyser?.kind === 'geyser');
+  geyser.stock = 500;
+
+  for (let x = 51; x < 79; x++) {
+    world.terrain[40 * 256 + x] = 2;
+    world.owner[40 * 256 + x] = 1;
+  }
+
+  const storm = world.players.get(1)!.storm;
+  world.step([{ t: 'collect', player: 1, transport: transport.id, geyser: geyser.id }]);
+
+  for (let index = 0; index < 3000 && transport.goal !== 'idle'; index++) {
+    world.step();
+  }
+
+  // 500 = two full crystals and a final partial one; nothing is created or lost.
+  assert.equal(geyser.stock, 0);
+  assert.equal(world.players.get(1)!.storm, storm + 500);
+  assert.equal(transport.goal, 'idle');
+  assert.equal(transport.target, null);
+  assert.equal([...world.entities.values()].filter((entity) => entity.kind === 'crystal').length,
+    0);
+  assert.deepEqual(
+    world.execute({ t: 'collect', player: 1, transport: transport.id, geyser: geyser.id }),
+    { ok: true },
+  );
+
+  for (let index = 0; index < 600 && transport.goal !== 'idle'; index++) {
+    world.step();
+  }
+
+  // Sent to a depleted geyser with no other in the world, it walks there and gives up.
+  assert.equal(transport.goal, 'idle');
+  assert.equal(transport.carrying, null);
+  assert.equal(world.players.get(1)!.storm, storm + 500);
+  assertWorldInvariants(world);
+});
+
+test('a dropped crystal can be fetched by another transport and banked', () => {
+  const world = mk();
+  const transport = [...world.entities.values()].find((entity) =>
+    entity.kind === 'transport' && entity.owner === 1
+  );
+  const geyser = [...world.entities.values()].find((entity) => entity.kind === 'geyser');
+  assert.ok(transport?.kind === 'transport' && geyser?.kind === 'geyser');
+  const carrier = world.spawnTransport('sunwalker', 1, transport.x + 2, transport.y);
+  carrier.goal = 'collect';
+  carrier.target = geyser.id;
+  carrier.x = geyser.x + 1;
+  carrier.y = geyser.y;
+  world.step();
+  const crystalId = carrier.carrying;
+  assert.ok(crystalId !== null);
+  carrier.x = transport.x + 2;
+  carrier.y = transport.y;
+  carrier.path = [];
+  carrier.hp = 0;
+  world.step();
+  const crystal = world.entities.get(crystalId);
+  assert.ok(crystal?.kind === 'crystal' && crystal.carriedBy === null);
+  assert.deepEqual(
+    world.execute({ t: 'pickupCrystal', player: 2, transport: transport.id, crystal: crystalId }),
+    { ok: false, error: 'bad target' },
+  );
+  const storm = world.players.get(1)!.storm;
+  world.step([{ t: 'pickupCrystal', player: 1, transport: transport.id, crystal: crystalId }]);
+
+  for (let index = 0; index < 600 && transport.goal !== 'idle'; index++) {
+    world.step();
+    assertWorldInvariants(world);
+  }
+
+  assert.equal(world.players.get(1)!.storm, storm + 200);
+  assert.ok(!world.entities.has(crystalId));
+  assert.equal(transport.target, null);
 });

@@ -6,7 +6,7 @@ import {
   createSkirmish,
   TPS,
   PIECE_INTERVAL,
-  CRYSTAL_INTERVAL,
+  GEYSER_STOCK,
   CRYSTAL_VALUE,
 } from '../src/index.js';
 
@@ -76,7 +76,7 @@ test('build: needs tech, storm power, energy and own ground', () => {
   assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 32, y: 36 }), 'blocked'); // occupied
 });
 
-test('transport collects a crystal and delivers storm power', () => {
+test('transport loops between geyser and temple, moving stock into storm power', () => {
   const w = mk();
   const p = w.players.get(1)!;
   const t = [...w.entities.values()].find((e) => e.kind === 'transport' && e.owner === 1)!;
@@ -88,17 +88,18 @@ test('transport collects a crystal and delivers storm power', () => {
     w.owner[40 * 256 + x] = 1;
   }
 
-  for (let i = 0; i < CRYSTAL_INTERVAL; i++) {
-    w.step();
-  }
-
   assert.equal(w.apply({ t: 'collect', player: 1, transport: t.id, geyser: g.id }), null);
 
   for (let i = 0; i < 80 * TPS; i++) {
     w.step();
   }
 
-  assert.equal(p.storm, 2000 + CRYSTAL_VALUE);
+  const gained = p.storm - 2000;
+  assert.ok(gained >= 2 * CRYSTAL_VALUE, 'several round trips without a new command');
+  assert.equal(gained % CRYSTAL_VALUE, 0);
+  assert.ok(g.kind === 'geyser' && t.kind === 'transport');
+  // Storm Power is conserved: what left the geyser is either banked or in the transport's hands.
+  assert.equal(g.stock + gained + (t.carrying === null ? 0 : CRYSTAL_VALUE), GEYSER_STOCK);
 });
 
 test('cannon destroys an enemy transport in its line of fire; blocker shields it', () => {

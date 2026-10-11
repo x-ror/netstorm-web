@@ -106,17 +106,8 @@ export function assertWorldInvariants(world: WorldView): void {
         fail(`geyser ${id} missing from its cell`);
       }
 
-      if (entity.crystal !== null) {
-        const crystal = world.entities.get(entity.crystal);
-
-        if (
-          !crystal
-          || crystal.kind !== 'crystal'
-          || crystal.geyser !== id
-          || crystal.carriedBy !== null
-        ) {
-          fail(`invalid geyser crystal for ${id}`);
-        }
+      if (!Number.isInteger(entity.stock) || entity.stock < 0) {
+        fail(`invalid geyser stock for ${id}`);
       }
     } else if (entity.kind === 'transport') {
       if (entity.carrying !== null) {
@@ -127,18 +118,20 @@ export function assertWorldInvariants(world: WorldView): void {
         }
       }
 
-      if ((entity.goal === 'collect') !== (entity.target !== null)) {
-        fail(`invalid transport target for ${id}`);
-      }
+      // A 'pickup' target may already be gone: another transport can deliver that crystal first.
+      const target = entity.target === null ? undefined : world.entities.get(entity.target);
+      const validTarget = entity.goal === 'idle'
+        ? entity.target === null
+        : (entity.goal === 'pickup'
+          ? entity.target !== null
+          : target?.kind === 'geyser' || (entity.goal === 'home' && entity.target === null));
 
-      if (entity.target !== null && world.entities.get(entity.target)?.kind !== 'geyser') {
+      if (!validTarget) {
         fail(`invalid transport target for ${id}`);
       }
     } else if (entity.kind === 'crystal') {
-      const geyser = world.entities.get(entity.geyser);
-
-      if (!geyser || geyser.kind !== 'geyser') {
-        fail(`invalid crystal origin for ${id}`);
+      if (!Number.isInteger(entity.value) || entity.value <= 0) {
+        fail(`invalid crystal value for ${id}`);
       }
 
       if (entity.carriedBy !== null) {

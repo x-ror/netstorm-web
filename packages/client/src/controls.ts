@@ -166,10 +166,22 @@ export function createControls(
         e.kind === 'geyser' && Math.abs(e.x - x) <= 1 && Math.abs(e.y - y) <= 1
       );
 
+      const crystal = [...world.entities.values()].find((e) =>
+        e.kind === 'crystal' && e.carriedBy === null && Math.abs(e.x - x) <= 1
+        && Math.abs(e.y - y) <= 1
+      );
+
       if (tr) {
         selectedTransport = tr.id;
       } else if (g && selectedTransport !== null) {
         submit({ t: 'collect', player: 1, transport: selectedTransport, geyser: g.id });
+      } else if (crystal && selectedTransport !== null) {
+        submit({
+          t: 'pickupCrystal',
+          player: 1,
+          transport: selectedTransport,
+          crystal: crystal.id,
+        });
       }
     }
   }, { signal });

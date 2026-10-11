@@ -89,7 +89,7 @@ export function createWorldRenderer(
       sprite.position.set(sx, sy + TH / 2);
       sprite.zIndex = sy;
       sprite.tint = entityTint(entity);
-      sprite.alpha = 'hp' in entity ? MIN_ALPHA + ((1 - MIN_ALPHA) * entity.hp) / entity.hpMax : 1;
+      sprite.alpha = entityAlpha(entity);
     }
 
     for (const [id, sprite] of sprites) {
@@ -146,6 +146,15 @@ function textureKey(entity: DeepReadonly<Entity>): string {
     case 'crystal':
       return 'nugget';
   }
+}
+
+function entityAlpha(entity: DeepReadonly<Entity>): number {
+  if ('hp' in entity) {
+    return MIN_ALPHA + ((1 - MIN_ALPHA) * entity.hp) / entity.hpMax;
+  }
+
+  // A depleted geyser fades out.
+  return entity.kind === 'geyser' && entity.stock <= 0 ? MIN_ALPHA : 1;
 }
 
 function entityTint(entity: DeepReadonly<Entity>): number {

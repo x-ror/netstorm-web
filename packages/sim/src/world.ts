@@ -7,13 +7,14 @@
  *    touching the player's own island or bridges
  *  - combat units are buildings: placed on own island/bridge cells, never move; cannons fire along a line
  *    in their facing direction, disc throwers / anti-air in a radius; blockers absorb line fire
- *  - transports walk over own island/bridge cells to Storm Geysers, pick up crystals and bring them home
+ *  - transports loop between a Storm Geyser and the Temple, carrying crystals until the geyser is depleted,
+ *    then move on to the non-depleted geyser closest to the Temple
  *  - the High Priest can be shot down to ≤50 % HP (incapacitated), carried to the enemy altar and
  *    sacrificed → that player is defeated
  *
  * docs/game-rules.md lists every rule of the original with its source and how this code differs.
  * Known simplifications: an enemy priest carries the captive (original: a transport), the sacrifice
- * is instant (original: a five-rune ritual), geysers grow crystals on a timer (original: finite stock).
+ * is instant (original: a five-rune ritual).
  *
  * Approximations still to verify against the original (marked TODO):
  *  - energy: generators give 1 energy of their theme, a temple 2; a unit needs energy per its level but does
@@ -23,9 +24,9 @@
 import { hashWorld } from './checksum.js';
 import { dropPiece } from './rules/bridges.js';
 import { tickBuilding, lineTarget, radiusTarget } from './rules/combat.js';
-import { tickPlayer, tickGeyser } from './rules/economy.js';
+import { tickPlayer } from './rules/economy.js';
 import { energy, canBuild, build } from './rules/building.js';
-import { tickTransport, collect } from './rules/movement.js';
+import { tickTransport, collect, pickupCrystal } from './rules/movement.js';
 import { tickPriest, movePriest, pickupPriest, sacrifice } from './rules/priest.js';
 import { Pathfinder } from './spatial/pathfinding.js';
 import { CellIndex } from './cell-index.js';
@@ -35,7 +36,7 @@ import {
   W,
   H,
   PIECE_INTERVAL,
-  CRYSTAL_INTERVAL,
+  GEYSER_STOCK,
   PRIEST_HP,
   MAX_FACING,
   Terrain,
@@ -152,15 +153,14 @@ export class World {
     }
   }
 
-  addGeyser(x: number, y: number): Geyser {
+  addGeyser(x: number, y: number, stock = GEYSER_STOCK): Geyser {
     this.addIsland(x - 1, y - 1, GEYSER_ISLAND_SIZE, GEYSER_ISLAND_SIZE, 0);
     const g: Geyser = {
       id: this.nextId++,
       kind: 'geyser',
       x,
       y,
-      timer: CRYSTAL_INTERVAL / 2,
-      crystal: null,
+      stock,
     };
     this.entities.set(g.id, g);
     this.occupant[y * W + x] = g.id;
@@ -380,6 +380,8 @@ export class World {
         return build(this, c);
       case 'collect':
         return collect(this, c);
+      case 'pickupCrystal':
+        return pickupCrystal(this, c);
       case 'movePriest':
         return movePriest(this, c);
       case 'pickupPriest':
@@ -420,9 +422,7 @@ export class World {
         continue;
       }
 
-      if (e.kind === 'geyser') {
-        tickGeyser(this, e);
-      } else if (e.kind === 'transport') {
+      if (e.kind === 'transport') {
         this.tickTransport(e);
       } else if (e.kind === 'priest') {
         this.tickPriest(e);
@@ -432,15 +432,15 @@ export class World {
     }
   }
 
-  /** Internal rule hook; only the geyser update creates gameplay crystals. */
-  spawnCrystal(g: Geyser): Crystal {
+  /** Internal rule hook; a crystal only forms in the hands of the transport mining a geyser. */
+  spawnCrystal(carrier: Transport, value: number): Crystal {
     const c: Crystal = {
       id: this.nextId++,
       kind: 'crystal',
-      x: g.x,
-      y: g.y,
-      geyser: g.id,
-      carriedBy: null,
+      x: carrier.x,
+      y: carrier.y,
+      value,
+      carriedBy: carrier.id,
     };
     this.entities.set(c.id, c);
     return c;

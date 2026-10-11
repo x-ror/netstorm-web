@@ -4,11 +4,12 @@ export const TPS = 10; // simulation ticks per second
 export const W = 256;
 export const H = 256; // world size in cells
 const PIECE_INTERVAL_SECONDS = 6;
-const CRYSTAL_INTERVAL_SECONDS = 20;
 export const PIECE_INTERVAL = PIECE_INTERVAL_SECONDS * TPS; // temple emits a bridge piece every 6 s      TODO verify
 export const HAND_SIZE = 3; // pieces a player can hold                   TODO verify
-export const CRYSTAL_INTERVAL = CRYSTAL_INTERVAL_SECONDS * TPS; // geyser spawns a crystal every 20 s     TODO verify
-export const CRYSTAL_VALUE = 200; // Storm Power per crystal (nugget cost=200)
+// The official help gives neither number (the stock is the "Money per Geyser" battle option);
+// both come from the .type files and are unconfirmed. See docs/game-rules.md.
+export const CRYSTAL_VALUE = 200; // Storm Power per crystal
+export const GEYSER_STOCK = 2000; // Storm Power a geyser holds before it is depleted
 export const PRIEST_HP = 100;
 export const MAX_PLAYERS = 8;
 export const MAX_ID = 0x7fffffff; // ids fit a signed 32-bit integer
@@ -131,8 +132,9 @@ export interface Transport {
   carrying: number | null; // crystal id
   path: [number, number][]; // remaining cells to walk
   move: number; // movement accumulator (×100)
-  goal: 'idle' | 'collect' | 'home';
-  target: number | null; // geyser id while goal is 'collect'
+  goal: 'idle' | 'collect' | 'pickup' | 'home';
+  /** Geyser being mined (kept through 'home' so the transport loops), or the crystal to pick up. */
+  target: number | null;
 }
 export interface Priest {
   id: number;
@@ -153,7 +155,7 @@ export interface Crystal {
   kind: 'crystal';
   x: number;
   y: number;
-  geyser: number;
+  value: number; // Storm Power credited on delivery
   carriedBy: number | null;
 }
 export interface Geyser {
@@ -161,7 +163,6 @@ export interface Geyser {
   kind: 'geyser';
   x: number;
   y: number;
-  timer: number;
-  crystal: number | null;
+  stock: number; // Storm Power left; 0 = depleted
 }
 export type Entity = Building | Transport | Priest | Crystal | Geyser;

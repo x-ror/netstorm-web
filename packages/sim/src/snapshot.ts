@@ -13,8 +13,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 2;
-export const RULES_VERSION = 2;
+export const SNAPSHOT_VERSION = 3;
+export const RULES_VERSION = 3;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -102,26 +102,25 @@ function parseEntity(raw: unknown): Entity {
   const common = ['id', 'kind', 'x', 'y'];
 
   if (kind === 'crystal') {
-    keys(value, [...common, 'geyser', 'carriedBy'], 'crystal');
+    keys(value, [...common, 'value', 'carriedBy'], 'crystal');
     return {
       id,
       kind,
       x,
       y,
-      geyser: integer(value.geyser, 'crystal.geyser', 1, MAX_ID),
+      value: integer(value.value, 'crystal.value', 1),
       carriedBy: nullableId(value.carriedBy, 'crystal.carriedBy'),
     };
   }
 
   if (kind === 'geyser') {
-    keys(value, [...common, 'timer', 'crystal'], 'geyser');
+    keys(value, [...common, 'stock'], 'geyser');
     return {
       id,
       kind,
       x,
       y,
-      timer: integer(value.timer, 'geyser.timer', -Number.MAX_SAFE_INTEGER),
-      crystal: nullableId(value.crystal, 'geyser.crystal'),
+      stock: integer(value.stock, 'geyser.stock'),
     };
   }
 
@@ -166,7 +165,7 @@ function parseEntity(raw: unknown): Entity {
       carrying: nullableId(value.carrying, 'transport.carrying'),
       path: parsePath(value.path),
       move: integer(value.move, 'transport.move'),
-      goal: choice(value.goal, ['idle', 'collect', 'home'], 'transport.goal'),
+      goal: choice(value.goal, ['idle', 'collect', 'pickup', 'home'], 'transport.goal'),
       target: nullableId(value.target, 'transport.target'),
     };
   }

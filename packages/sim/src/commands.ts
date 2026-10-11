@@ -5,6 +5,7 @@ export type Command =
   | { t: 'dropPiece'; player: number; hand: number; x: number; y: number; rot: number; }
   | { t: 'build'; player: number; type: string; x: number; y: number; facing?: Facing; }
   | { t: 'collect'; player: number; transport: number; geyser: number; }
+  | { t: 'pickupCrystal'; player: number; transport: number; crystal: number; }
   | { t: 'movePriest'; player: number; x: number; y: number; }
   | { t: 'pickupPriest'; player: number; target: number; }
   | { t: 'sacrifice'; player: number; };
@@ -23,6 +24,7 @@ export type CommandError =
   | 'no storm power'
   | 'no energy'
   | 'bad target'
+  | 'no temple'
   | 'no path'
   | 'priest unavailable'
   | 'target not incapacitated'
@@ -39,6 +41,7 @@ export function parseCommand(raw: unknown): Command {
     'dropPiece',
     'build',
     'collect',
+    'pickupCrystal',
     'movePriest',
     'pickupPriest',
     'sacrifice',
@@ -79,6 +82,14 @@ export function parseCommand(raw: unknown): Command {
         player,
         transport: integer(value.transport, 'command.transport', 1, MAX_ID),
         geyser: integer(value.geyser, 'command.geyser', 1, MAX_ID),
+      };
+    case 'pickupCrystal':
+      keys(value, ['t', 'player', 'transport', 'crystal'], 'command');
+      return {
+        t,
+        player,
+        transport: integer(value.transport, 'command.transport', 1, MAX_ID),
+        crystal: integer(value.crystal, 'command.crystal', 1, MAX_ID),
       };
     case 'movePriest':
       keys(value, ['t', 'player', 'x', 'y'], 'command');
