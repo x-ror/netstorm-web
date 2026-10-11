@@ -67,6 +67,7 @@ try {
     }
   });
   await page.goto(url, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Почати' }).click();
   await page.waitForFunction(() => window.ns?.world.players.get(1).hand.length > 0);
   const result = await page.evaluate(() => {
     const { world, match, terrainG, entityLayer } = window.ns;
@@ -85,12 +86,58 @@ try {
   assert.ok(result.sprites > 0);
   await page.waitForFunction((before) => window.ns.terrainG.context.instructions.length > before,
     result.before);
-  await page.getByRole('button', { name: 'Sun Cannon', exact: true }).click();
-  assert.equal(
-    await page.getByRole('button', { name: 'Sun Cannon', exact: true }).getAttribute('class'),
-    'on',
-  );
+
+  // Production Window: picking a unit arms the build tool, Escape returns to selection.
+  const cannon = page.getByRole('button', { name: 'Sun Cannon', exact: true });
+  await cannon.click();
+  assert.match(await cannon.getAttribute('class'), /\bon\b/);
   await page.keyboard.press('f');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.evaluate(() => window.ns.ui.tool.kind), 'select');
+
+  // Selecting the transport and clicking a geyser orders it to collect; the geyser is not bridged
+  // yet, so the order comes back refused in the log.
+  const screenOf = (x, y) =>
+    page.evaluate(([cx, cy]) => {
+      const { camera } = window.ns;
+      return {
+        x: camera.x + (cx - cy) * 8 * camera.scale.x,
+        y: camera.y + (cx + cy + 1) * 5.5 * camera.scale.y,
+      };
+    }, [x, y]);
+  const transport = await page.evaluate(() => {
+    const t = [...window.ns.world.entities.values()].find((e) =>
+      e.kind === 'transport' && e.owner === 1
+    );
+    return { id: t.id, x: t.x, y: t.y };
+  });
+  let point = await screenOf(transport.x, transport.y);
+  await page.mouse.click(point.x, point.y);
+  assert.equal(await page.evaluate(() => window.ns.ui.selected), transport.id);
+  const geyser = await page.evaluate(() => {
+    const { world, camera } = window.ns;
+    const g = [...world.entities.values()].find((e) => e.kind === 'geyser');
+    camera.position.set(640 - (g.x - g.y) * 8 * camera.scale.x,
+      400 - (g.x + g.y + 1) * 5.5 * camera.scale.y);
+    return { x: g.x, y: g.y };
+  });
+  point = await screenOf(geyser.x, geyser.y);
+  await page.mouse.click(point.x, point.y);
+  await page.locator('#log').getByText('Збір: туди не дійти').waitFor();
+
+  // Pause stops the simulation; Space resumes it.
+  await page.keyboard.press(' ');
+  const pausedAt = await page.evaluate(() => window.ns.world.tick);
+  await page.waitForTimeout(400);
+  assert.equal(await page.evaluate(() => window.ns.world.tick), pausedAt);
+  await page.keyboard.press(' ');
+
+  // The minimap moves the camera.
+  const cameraBefore = await page.evaluate(() => window.ns.camera.x);
+  const minimap = await page.locator('#minimap').boundingBox();
+  await page.mouse.click(minimap.x + minimap.width * 0.8, minimap.y + minimap.height * 0.5);
+  assert.notEqual(await page.evaluate(() => window.ns.camera.x), cameraBefore);
+
   await page.mouse.move(640, 400);
   await page.mouse.wheel(0, 100);
   await page.mouse.down({ button: 'right' });
@@ -104,8 +151,15 @@ try {
   });
   assert.equal(replay.actual, replay.replayed);
   assert.ok(replay.tick > result.tick);
+
+  // Leaving the match returns to the menu and releases the scene.
+  await page.getByRole('button', { name: 'Меню' }).click();
+  await page.getByRole('button', { name: 'Почати' }).waitFor();
+  assert.equal(await page.evaluate(() => window.ns), undefined);
   assert.deepEqual(errors, []);
-  console.log('Browser smoke passed: assets, ticking, bridge redraw, HUD, camera and replay.');
+  console.log(
+    'Browser smoke passed: menu, assets, ticking, bridge redraw, production, orders, pause, minimap, camera and replay.',
+  );
 } finally {
   await browser?.close();
   server.kill();

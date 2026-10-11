@@ -2,6 +2,21 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import { TEXTURES, selectFrame, type Manifest } from './src/texture-selection.js';
+import { slimMaps, slimMissions } from './src/game-data.js';
+
+function readData(name: string): unknown {
+  return JSON.parse(readFileSync(new URL(`../../data/${name}.json`, import.meta.url), 'utf8'));
+}
+
+/** The trimmed data files the client loads, by published name. */
+function gameData(): Record<string, unknown> {
+  const maps = slimMaps(readData('forts'));
+  return {
+    units: readData('units'),
+    forts: maps,
+    missions: slimMissions(readData('missions'), maps),
+  };
+}
 
 /** Ship only frames loaded by the scene. Keep the complete extraction in public for development. */
 function gameAssets(): Plugin {
@@ -10,20 +25,14 @@ function gameAssets(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const path = req.url?.split('?')[0];
-        let name: string | undefined;
-
-        if (path === '/data/units.json') {
-          name = 'units';
-        } else if (path === '/data/forts.json') {
-          name = 'forts';
-        }
+        const name = /^\/data\/(units|forts|missions)\.json$/.exec(path ?? '')?.[1];
 
         if (!name) {
           return next();
         }
 
         res.setHeader('Content-Type', 'application/json');
-        res.end(readFileSync(new URL(`../../data/${name}.json`, import.meta.url)));
+        res.end(JSON.stringify(gameData()[name]));
       });
     },
     generateBundle() {
@@ -63,10 +72,7 @@ function gameAssets(): Plugin {
         source: JSON.stringify(selected),
       });
 
-      for (const name of ['units', 'forts']) {
-        const data = JSON.parse(
-          readFileSync(new URL(`../../data/${name}.json`, import.meta.url), 'utf8'),
-        );
+      for (const [name, data] of Object.entries(gameData())) {
         this.emitFile({
           type: 'asset',
           fileName: `data/${name}.json`,
@@ -78,6 +84,8 @@ function gameAssets(): Plugin {
 }
 
 export default defineConfig(({ command }) => ({
+  // Relative URLs let the build run from any path, e.g. a GitHub Pages project site.
+  base: './',
   publicDir: command === 'build' ? false : 'public',
   plugins: [gameAssets()],
   server: { fs: { allow: [fileURLToPath(new URL('../..', import.meta.url))] } },

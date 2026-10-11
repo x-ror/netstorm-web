@@ -3,61 +3,278 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>NetStorm Web — spike</title>
+    <title>NetStorm Web</title>
+    <link rel="icon" href="data:," />
     <style>
+      :root {
+        --bg: #0b1020;
+        --panel: rgba(8, 12, 24, 0.86);
+        --line: #3b4d7a;
+        --button: #22304f;
+        --text: #cfd6e6;
+        --accent: #ffd166;
+        --good: #9fe870;
+        --bad: #ff8a80;
+      }
       html,
       body {
         margin: 0;
         height: 100%;
-        background: #0b1020;
-        color: #cfd6e6;
+        background: var(--bg);
+        color: var(--text);
         font: 13px/1.4 system-ui, sans-serif;
         overflow: hidden;
+        touch-action: none;
       }
-      #hud {
-        position: fixed;
-        left: 12px;
-        top: 10px;
-        z-index: 2;
-        background: rgba(8, 12, 24, 0.8);
-        padding: 10px 12px;
-        border-radius: 8px;
-        max-width: 340px;
+      canvas {
+        display: block;
       }
-      #hud b {
-        color: #ffd166;
+      b {
+        color: var(--accent);
       }
-      #hud button {
-        margin: 4px 4px 0 0;
+      .muted {
+        opacity: 0.7;
+        font-weight: normal;
+      }
+      button {
         padding: 4px 8px;
-        background: #22304f;
+        background: var(--button);
         color: #e6ecff;
-        border: 1px solid #3b4d7a;
+        border: 1px solid var(--line);
         border-radius: 5px;
         cursor: pointer;
+        font: inherit;
       }
-      #hud button.on {
-        background: #ffd166;
+      button.on {
+        background: var(--accent);
         color: #141a2e;
+      }
+      button.primary {
+        background: var(--accent);
+        color: #141a2e;
+        font-weight: 600;
+        padding: 8px 18px;
+      }
+      kbd {
+        font: 11px ui-monospace, monospace;
+        opacity: 0.7;
+      }
+      pre {
+        white-space: pre-wrap;
+        font: 13px/1.5 Georgia, serif;
+      }
+      #menu,
+      #overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 5;
+        display: grid;
+        place-items: center;
+        overflow: auto;
+        background: radial-gradient(circle at 30% 20%, #1c2a4f, var(--bg) 70%);
+      }
+      #overlay {
+        background: rgba(8, 12, 24, 0.7);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .menu-card {
+        box-sizing: border-box;
+        max-width: 860px;
+        width: calc(100% - 32px);
+        margin: 16px;
+        padding: 20px 24px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+      .menu-card h1 {
+        margin: 0;
+        color: var(--accent);
+      }
+      .menu-grid {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) 2fr;
+        gap: 24px;
+      }
+      @media (max-width: 640px) {
+        .menu-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .menu-form {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+      }
+      .menu-form label {
+        display: grid;
+        gap: 4px;
+      }
+      .menu-form select,
+      .menu-form input {
+        padding: 5px;
+        background: #121a33;
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        font: inherit;
+      }
+      .briefing h2 {
+        margin-top: 0;
+      }
+      .briefing .note {
+        font-size: 12px;
+      }
+      #topbar {
+        position: fixed;
+        left: 50%;
+        top: 8px;
+        transform: translateX(-50%);
+        z-index: 2;
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        background: var(--panel);
+        padding: 6px 12px;
+        border-radius: 8px;
+        white-space: nowrap;
+      }
+      #panel {
+        position: fixed;
+        left: 8px;
+        top: 8px;
+        bottom: 8px;
+        z-index: 2;
+        width: 236px;
+        overflow: auto;
+        background: var(--panel);
+        padding: 8px 10px;
+        border-radius: 8px;
+      }
+      #panel h3 {
+        margin: 6px 0 4px;
+        font-size: 13px;
+      }
+      #panel h3 .muted {
+        font-size: 11px;
+      }
+      #hand,
+      #units,
+      #tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      #tools {
+        margin-top: 8px;
+      }
+      button.piece {
+        padding: 3px;
+      }
+      button.piece.cracked .f {
+        background: #a08c6c;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 7px);
+        grid-auto-rows: 7px;
+        gap: 1px;
+      }
+      .grid i {
+        display: block;
+      }
+      .grid .f {
+        background: #c9ced8;
+      }
+      button.unit {
+        display: flex;
+        justify-content: space-between;
+        gap: 6px;
+        width: 100%;
+        text-align: left;
+      }
+      button.unit small {
+        opacity: 0.8;
+      }
+      button.unit.poor {
+        opacity: 0.5;
+      }
+      #info {
+        margin-top: 10px;
+        border-top: 1px solid var(--line);
+        padding-top: 6px;
+      }
+      #info button {
+        margin-top: 4px;
+      }
+      .own {
+        color: var(--good);
+      }
+      .enemy {
+        color: var(--bad);
       }
       #log {
         position: fixed;
-        right: 12px;
-        top: 10px;
+        right: 8px;
+        top: 8px;
         z-index: 2;
-        background: rgba(8, 12, 24, 0.8);
-        padding: 8px 12px;
-        border-radius: 8px;
         width: 260px;
-        max-height: 40vh;
+        max-height: 35vh;
         overflow: auto;
+        background: var(--panel);
+        padding: 6px 10px;
+        border-radius: 8px;
         font-size: 12px;
+      }
+      #log:empty {
+        display: none;
+      }
+      #log .good {
+        color: var(--good);
+      }
+      #log .bad {
+        color: var(--bad);
+      }
+      #minimap {
+        position: fixed;
+        right: 8px;
+        bottom: 8px;
+        z-index: 2;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        image-rendering: pixelated;
+        cursor: crosshair;
+      }
+      @media (max-width: 760px) {
+        #panel {
+          top: auto;
+          right: 8px;
+          width: auto;
+          max-height: 34vh;
+        }
+        #topbar {
+          left: 8px;
+          transform: none;
+          gap: 8px;
+        }
+        #log {
+          top: 52px;
+          width: 200px;
+          max-height: 20vh;
+        }
+        #minimap {
+          bottom: calc(34vh + 16px);
+          width: 140px;
+        }
       }
     </style>
   </head>
   <body>
-    <div id="hud"></div>
-    <div id="log"></div>
+    <div id="menu" hidden></div>
+    <div id="game" hidden></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
