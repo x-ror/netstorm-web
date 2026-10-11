@@ -1,2 +1,11 @@
-{ "name": "@netstorm/sim", "version": "0.0.1", "type": "module", "main": "src/index.ts", "types": "src/index.ts",
-  "scripts": { "test": "node --import tsx --test test/*.test.ts", "typecheck": "tsc --noEmit -p ." } }
+{
+  "name": "@netstorm/sim",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "node --import tsx --test --test-isolation=none test/*.test.ts",
+    "typecheck": "tsc --noEmit -p ."
+  }
+}

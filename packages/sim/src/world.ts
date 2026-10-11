@@ -1,5 +1,5 @@
 /**
- * NetStorm simulation core — deterministic, integer-only, engine-agnostic.
+ * NetStorm simulation core — deterministic, fixed-tick, engine-agnostic.
  *
  * Rules reproduced from the original (see project doc "Ядро механіки"):
  *  - the world is a 256×256 cell grid of sky; players own islands; everything else is reached by bridges
@@ -16,6 +16,7 @@
  *    not consume it permanently (original: "once built units don't consume energy")
  *  - shooters deal continuous dps while the target is in the line/radius
  */
+import { CellIndex } from './cell-index.js';
 import { Rng } from './rng.js';
 import { DefTable, UnitDef, Theme, energyNeed } from './defs.js';
 
@@ -98,6 +99,8 @@ export interface Event { tick: number; what: string; who?: number; data?: unknow
 
 export class World {
   tick = 0;
+  /** Derived presentation counter, excluded from the authoritative hash. */
+  terrainRevision = 0;
   readonly terrain = new Uint8Array(W * H);
   readonly owner = new Uint8Array(W * H);       // island/bridge owner
   readonly occupant = new Int32Array(W * H);    // entity id occupying the cell, 0 = none
@@ -105,6 +108,11 @@ export class World {
   readonly players = new Map<number, Player>();
   readonly events: Event[] = [];
   private nextId = 1;
+  private readonly transports = new CellIndex<Transport>(W, H);
+  private readonly pathPrevious = new Int32Array(W * H);
+  private readonly pathVisited = new Uint32Array(W * H);
+  private readonly pathQueue = new Int32Array(W * H);
+  private pathSearch = 0;
   readonly rng: Rng;
   winner: number | null = null;
 
@@ -117,6 +125,7 @@ export class World {
   }
   /** Fill a rectangle with island cells owned by `owner` (0 = neutral geyser islet). */
   addIsland(x0: number, y0: number, w: number, h: number, owner: number): void {
+    this.invalidateTerrain();
     for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) if (this.inside(x, y)) {
       this.terrain[y * W + x] = Terrain.Island; this.owner[y * W + x] = owner;
     }
@@ -144,7 +153,7 @@ export class World {
 
   // ---------- queries ----------
   def(type: string): UnitDef { const d = this.defs.get(type.toLowerCase()); if (!d) throw new Error('unknown unit ' + type); return d; }
-  inside(x: number, y: number): boolean { return x >= 0 && y >= 0 && x < W && y < H; }
+  inside(x: number, y: number): boolean { return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < W && y < H; }
   at(x: number, y: number): number { return y * W + x; }
   isOwnGround(p: number, x: number, y: number): boolean { return this.inside(x, y) && this.terrain[this.at(x, y)] !== Terrain.Sky && this.owner[this.at(x, y)] === p; }
   /** Walkable for a transport/priest of player p: own ground, neutral islands, and any bridge. */
@@ -174,6 +183,10 @@ export class World {
   // ---------- commands ----------
   apply(c: Command): string | null {
     const pl = this.players.get(c.player); if (!pl || !pl.alive) return 'no player';
+    if (this.winner !== null) return 'game over';
+    if ('x' in c && !this.inside(c.x, c.y)) return 'bad coordinates';
+    if (c.t === 'build' && c.facing !== undefined && (!Number.isInteger(c.facing) || c.facing < 0 || c.facing > 3)) return 'bad facing';
+    if (c.t === 'dropPiece' && (!Number.isInteger(c.hand) || !Number.isInteger(c.rot))) return 'bad piece';
     switch (c.t) {
       case 'dropPiece': {
         const piece = pl.hand[c.hand]; if (piece === undefined) return 'no piece';
@@ -185,6 +198,7 @@ export class World {
         }
         if (!touches) return 'not connected';
         for (const [x, y] of cells) { this.terrain[this.at(x, y)] = Terrain.Bridge; this.owner[this.at(x, y)] = c.player; }
+        this.invalidateTerrain();
         pl.hand.splice(c.hand, 1); this.log('bridge', c.player, cells); return null;
       }
       case 'build': {
@@ -235,6 +249,8 @@ export class World {
   // ---------- simulation ----------
   step(cmds: Command[] = []): void {
     for (const c of cmds) { const err = this.apply(c); if (err) this.log('rejected', c.player, { cmd: c.t, err }); }
+    this.transports.reset();
+    for (const entity of this.entities.values()) if (entity.kind === 'transport') this.transports.add(entity);
     this.tick++;
     for (const pl of this.players.values()) if (pl.alive) {
       // bridge pieces from the temple
@@ -243,6 +259,7 @@ export class World {
       }
     }
     for (const e of [...this.entities.values()]) {
+      if (!this.entities.has(e.id)) continue;
       if (e.kind === 'geyser') this.tickGeyser(e);
       else if (e.kind === 'transport') this.tickTransport(e);
       else if (e.kind === 'priest') this.tickPriest(e);
@@ -264,7 +281,9 @@ export class World {
       e.move -= 100; const [x, y] = e.path.shift()!;
       if (!this.walkable(e.owner, x, y)) { e.path = []; return false; }
       if (e.kind === 'priest') { this.occupant[this.at(e.x, e.y)] = 0; this.occupant[this.at(x, y)] = e.id; }
+      const previousX = e.x, previousY = e.y;
       e.x = x; e.y = y;
+      if (e.kind === 'transport') this.transports.move(e, previousX, previousY);
     }
     return true;
   }
@@ -282,6 +301,8 @@ export class World {
         if (path) { t.path = path; t.goal = 'home'; } else t.goal = 'idle';
       } else t.goal = 'idle';
     } else if (t.goal === 'home' && t.carrying !== null) {
+      const home = this.buildingsOf(t.owner).find(b => this.def(b.type).cls === 'Energy');
+      if (!home || !this.adjacentTo(t.x, t.y, home)) { t.goal = 'idle'; return; }
       const pl = this.players.get(t.owner)!; pl.storm += CRYSTAL_VALUE; this.entities.delete(t.carrying); t.carrying = null; t.goal = 'idle';
       this.log('delivered', t.owner, { transport: t.id });
     }
@@ -324,9 +345,15 @@ export class World {
   }
   private radiusTarget(b: Building, def: UnitDef): Entity | null {
     const cx = b.x + (b.fx >> 1), cy = b.y + (b.fy >> 1);
-    for (let r = 1; r <= def.range; r++) for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++) {
-      if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) !== r) continue;
-      const hit = this.enemyAt(b.owner, x, y); if (hit) return hit;
+    // Same row-major ring order as before, without visiting the ring's interior.
+    for (let r = 1; r <= def.range; r++) {
+      const left = cx - r, right = cx + r, top = cy - r, bottom = cy + r;
+      for (let x = left; x <= right; x++) { const hit = this.enemyAt(b.owner, x, top); if (hit) return hit; }
+      for (let y = top + 1; y < bottom; y++) {
+        const first = this.enemyAt(b.owner, left, y); if (first) return first;
+        const last = this.enemyAt(b.owner, right, y); if (last) return last;
+      }
+      for (let x = left; x <= right; x++) { const hit = this.enemyAt(b.owner, x, bottom); if (hit) return hit; }
     }
     return null;
   }
@@ -334,7 +361,10 @@ export class World {
     if (!this.inside(x, y)) return null;
     const occ = this.entities.get(this.occupant[this.at(x, y)] ?? 0);
     if (occ && (occ.kind === 'building' || occ.kind === 'priest') && occ.owner !== me && occ.owner !== 0) return occ;
-    for (const e of this.entities.values()) if (e.kind === 'transport' && e.owner !== me && e.x === x && e.y === y && e.hp > 0) return e;
+    const transports = this.transports.at(x, y);
+    if (transports) for (const transport of transports) {
+      if (transport.owner !== me && transport.hp > 0 && this.entities.has(transport.id)) return transport;
+    }
     return null;
   }
 
@@ -344,25 +374,64 @@ export class World {
 
   /** BFS over walkable cells; returns the cells to step through (excluding start) or null. */
   findPath(p: number, sx: number, sy: number, goal: (c: [number, number]) => boolean): [number, number][] | null {
-    const prev = new Int32Array(W * H).fill(-1); const q: number[] = [this.at(sx, sy)]; prev[this.at(sx, sy)] = this.at(sx, sy);
-    for (let qi = 0; qi < q.length; qi++) {
-      const i = q[qi]!, x = i % W, y = (i / W) | 0;
-      if (goal([x, y])) { const out: [number, number][] = []; let c = i; while (c !== this.at(sx, sy)) { out.push([c % W, (c / W) | 0]); c = prev[c]!; } return out.reverse(); }
-      for (const [dx, dy] of DIRS) { const nx = x + dx, ny = y + dy; if (!this.walkable(p, nx, ny)) continue; const j = this.at(nx, ny); if (prev[j] === -1) { prev[j] = i; q.push(j); } }
+    if (!this.inside(sx, sy)) return null;
+    // Epoch markers avoid clearing 65,536 cells for each search. No scratch allocations.
+    this.pathSearch = (this.pathSearch + 1) >>> 0;
+    if (this.pathSearch === 0) { this.pathVisited.fill(0); this.pathSearch = 1; }
+    const epoch = this.pathSearch, prev = this.pathPrevious, visited = this.pathVisited, q = this.pathQueue;
+    const start = this.at(sx, sy);
+    let tail = 1;
+    q[0] = start; prev[start] = start; visited[start] = epoch;
+    for (let head = 0; head < tail; head++) {
+      const i = q[head]!, x = i % W, y = (i / W) | 0;
+      if (goal([x, y])) {
+        const out: [number, number][] = [];
+        for (let cell = i; cell !== start; cell = prev[cell]!) out.push([cell % W, (cell / W) | 0]);
+        return out.reverse();
+      }
+      for (const [dx, dy] of DIRS) {
+        const nx = x + dx, ny = y + dy;
+        if (!this.walkable(p, nx, ny)) continue;
+        const j = this.at(nx, ny);
+        if (visited[j] !== epoch) { visited[j] = epoch; prev[j] = i; q[tail++] = j; }
+      }
     }
     return null;
   }
 
+  /** Call after bulk edits to terrain/owner arrays, e.g. a scenario editor. */
+  invalidateTerrain(): void { this.terrainRevision++; }
+
+  /** Consume transient notifications. Events are not simulation state or a replay. */
+  drainEvents(): Event[] { return this.events.splice(0); }
+
   private log(what: string, who?: number, data?: unknown): void { this.events.push({ tick: this.tick, what, who, data }); }
 
-  /** FNV-1a hash of the authoritative state — compared between lockstep peers to detect desync. */
+  /** FNV-1a checksum of all state that affects future ticks, plus unit definitions.
+   * Map insertion order is included because it defines system update/target order.
+   * This detects accidental divergence; it is not a cryptographic checksum.
+   */
   hash(): number {
     let h = 0x811c9dc5;
-    const mix = (v: number) => { h ^= v & 0xff; h = Math.imul(h, 0x01000193); h ^= (v >>> 8) & 0xff; h = Math.imul(h, 0x01000193); };
-    mix(this.tick); mix(this.rng.state());
-    for (let i = 0; i < W * H; i++) { if (this.terrain[i]) { mix(i); mix(this.terrain[i]! | (this.owner[i]! << 4)); } }
-    for (const [id, e] of this.entities) { mix(id); mix(e.x); mix(e.y); if ('hp' in e) mix(Math.round(e.hp * 100)); }
-    for (const p of this.players.values()) { mix(p.storm); mix(p.hand.length); }
+    const byte = (v: number) => { h = Math.imul(h ^ (v & 0xff), 0x01000193); };
+    const uint = (v: number) => { byte(v); byte(v >>> 8); byte(v >>> 16); byte(v >>> 24); };
+    const text = (v: string) => {
+      uint(v.length);
+      for (let i = 0; i < v.length; i++) { const c = v.charCodeAt(i); byte(c); byte(c >>> 8); }
+    };
+    uint(this.tick); uint(this.rng.state()); uint(this.nextId);
+    text(JSON.stringify(this.winner));
+    for (let i = 0; i < W * H; i++) {
+      byte(this.terrain[i]!); byte(this.owner[i]!); uint(this.occupant[i]!);
+    }
+    uint(this.defs.size);
+    for (const [id, def] of this.defs) { text(id); text(JSON.stringify(def)); }
+    uint(this.entities.size);
+    for (const [id, entity] of this.entities) { uint(id); text(JSON.stringify(entity)); }
+    uint(this.players.size);
+    for (const [id, player] of this.players) {
+      uint(id); text(JSON.stringify({ ...player, tech: [...player.tech].sort() }));
+    }
     return h >>> 0;
   }
 }

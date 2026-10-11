@@ -2,14 +2,20 @@
   "name": "netstorm-web",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "npm run dev -w @netstorm/client",
+    "build": "npm run build -w @netstorm/client",
+    "test": "npm test -w @netstorm/sim",
+    "typecheck": "npm run typecheck --workspaces",
+    "check": "npm run typecheck && npm test && npm run build && npm run check:size",
+    "check:size": "node scripts/check-size.mjs",
+    "test:browser": "node scripts/smoke-browser.mjs",
+    "benchmark": "node --import tsx scripts/benchmark-sim.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "private": "true",
+  "private": true,
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -20,5 +26,8 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.4"
+  },
+  "engines": {
+    "node": ">=24.0.0"
   }
 }

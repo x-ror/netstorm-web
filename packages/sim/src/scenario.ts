@@ -1,6 +1,7 @@
 /** Scenario builders. Island shapes are not yet decoded from .fort, so skirmish islands are rectangles;
  *  geyser positions can be taken from data/forts.json (decoded by tools/unfort.py). */
-import { World, Theme } from './index.js';
+import { World } from './world.js';
+import type { Theme } from './defs.js';
 import { DefTable } from './defs.js';
 
 export interface SkirmishPlayer { id: number; name: string; theme: Theme; x: number; y: number; storm?: number; tech?: string[] }

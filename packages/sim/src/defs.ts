@@ -22,24 +22,33 @@ export interface UnitDef {
 
 export type DefTable = Map<string, UnitDef>;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function loadDefs(raw: any[]): DefTable {
+export function loadDefs(raw: unknown): DefTable {
+  if (!Array.isArray(raw)) throw new TypeError('Unit definitions must be an array');
   const t: DefTable = new Map();
-  for (const r of raw) {
-    const id = String(r.id).toLowerCase();
+  for (const value of raw) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Invalid unit definition');
+    const r = value as Record<string, unknown>;
+    if (typeof r.id !== 'string' || !r.id.trim()) throw new TypeError('Unit definition needs an id');
+    const id = r.id.toLowerCase();
+    // Original extraction contains repeated ids. Later definitions override earlier ones.
     const theme = typeof r.theme === 'string' ? r.theme.toLowerCase() : null;
     t.set(id, {
-      id, name: r.description ?? id, cls: r.class ?? '',
+      id, name: str(r.description, id), cls: str(r.class),
       theme: (['sun', 'wind', 'rain', 'thunder'].includes(theme ?? '') ? theme : null) as Theme | null,
       level: num(r.level), cost: num(r.cost), hp: num(r.maxHitPoints), range: num(r.range), dps: num(r.hpPerSec),
-      footX: num(r.foot_x, 1), footY: num(r.foot_y, 1), speed: num(r.speed), group: r.group ?? '',
+      footX: num(r.foot_x, 1), footY: num(r.foot_y, 1), speed: num(r.speed), group: str(r.group),
       delay: num(r.delayBetweenShots), lifeSpan: num(r.lifeSpan),
     });
   }
   return t;
 }
 
-function num(v: unknown, d = 0): number { return typeof v === 'number' && Number.isFinite(v) ? v : d; }
+function str(v: unknown, fallback = ''): string { return typeof v === 'string' ? v : fallback; }
+function num(v: unknown, fallback = 0): number {
+  if (v === undefined) return fallback;
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) throw new TypeError('Unit values must be finite non-negative numbers');
+  return v;
+}
 
 /** Energy a unit needs to be built: level 1 → 1 of own theme; level 2 → +1 any; level 3 → 2 own + 1 any. */
 export function energyNeed(def: UnitDef): { own: number; any: number } {
