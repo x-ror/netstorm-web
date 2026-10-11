@@ -1,16 +1,24 @@
 import type { World } from '../world.js';
 import type { UnitDef } from '../defs.js';
-import { TPS, DIRS, type Entity, type Building } from '../state.js';
+import { TPS, DIRS, FACINGS, type Entity, type Building, type Facing } from '../state.js';
 
-type EnemyAt = (owner: number, x: number, y: number) => Entity | null;
+export type EnemyAt = (owner: number, x: number, y: number) => Entity | null;
 
 const HP_DECIMALS = 4; // hp is rounded to keep the simulation deterministic
+// Invented: most shooters have no delayBetweenShots in the data and the help gives no rate of fire.
+const DEFAULT_SHOT_SECONDS = 1;
 
-export function tickBuilding(
-  world: World,
-  b: Building,
-  select: (building: Building, def: UnitDef) => Entity | null,
-): void {
+/** Ticks between shots. `delay` is delayBetweenShots from the unit data, read as seconds (unconfirmed). */
+export function shotInterval(def: UnitDef): number {
+  return Math.max(1, Math.round((def.delay > 0 ? def.delay : DEFAULT_SHOT_SECONDS) * TPS));
+}
+
+/** The Sun Cannon "will rotate itself to target an enemy"; other cannons keep their orientation. */
+function selfAiming(def: UnitDef): boolean {
+  return def.group === 'cannon' && def.theme === 'sun';
+}
+
+export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void {
   if (b.hp <= 0) {
     for (let y = b.y; y < b.y + b.fy; y++) {
       for (let x = b.x; x < b.x + b.fx; x++) {
@@ -29,11 +37,26 @@ export function tickBuilding(
     return;
   }
 
-  const target = select(b, def);
-
-  if (target) {
-    damage(target, def.dps / TPS);
+  if (b.cooldown > 0) {
+    b.cooldown--;
   }
+
+  // "Once locked, they will keep at it until destroyed" — or until it can no longer be hit.
+  let target = lockedTarget(world, b, def, enemyAt);
+
+  if (!target) {
+    target = acquire(world, b, def, enemyAt);
+    b.target = target?.id ?? null;
+  }
+
+  if (!target || b.cooldown > 0) {
+    return;
+  }
+
+  // "Damage" in the unit data is the average per second, so one shot carries a whole interval of it.
+  const interval = shotInterval(def);
+  damage(target, (def.dps * interval) / TPS);
+  b.cooldown = interval;
 }
 
 function damage(entity: Entity, amount: number): void {
@@ -42,17 +65,81 @@ function damage(entity: Entity, amount: number): void {
   }
 }
 
+function lockedTarget(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt): Entity | null {
+  const target = b.target === null ? undefined : world.entities.get(b.target);
+
+  if (!target) {
+    return null;
+  }
+
+  if (def.group === 'cannon') {
+    return lineTarget(world, b, def, enemyAt, b.facing)?.entity === target ? target : null;
+  }
+
+  return targetable(b, target) && inRadius(b, def, target) ? target : null;
+}
+
+/** "All units will always choose the closest available target." */
+function acquire(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt): Entity | null {
+  if (def.group !== 'cannon') {
+    return radiusTarget(b, def, enemyAt);
+  }
+
+  if (!selfAiming(def)) {
+    return lineTarget(world, b, def, enemyAt, b.facing)?.entity ?? null;
+  }
+
+  let best: { entity: Entity; distance: number; } | null = null;
+
+  for (const facing of FACINGS) {
+    const hit = lineTarget(world, b, def, enemyAt, facing);
+
+    if (hit && (!best || hit.distance < best.distance)) {
+      best = hit;
+      b.facing = facing; // turning is instant here; the original has a turning speed
+    }
+  }
+
+  return best?.entity ?? null;
+}
+
+function targetable(b: Building, target: Entity): boolean {
+  switch (target.kind) {
+    case 'building':
+      return target.owner !== b.owner && target.owner !== 0;
+    case 'priest':
+      return target.owner !== b.owner && (target.state === 'normal' || target.state === 'down');
+    case 'transport':
+      return target.owner !== b.owner && target.hp > 0;
+    case 'crystal':
+    case 'geyser':
+      return false;
+  }
+}
+
+function inRadius(b: Building, def: UnitDef, target: Entity): boolean {
+  const cx = b.x + (b.fx >> 1);
+  const cy = b.y + (b.fy >> 1);
+  const width = target.kind === 'building' ? target.fx : 1;
+  const height = target.kind === 'building' ? target.fy : 1;
+  const dx = Math.max(target.x - cx, 0, cx - (target.x + width - 1));
+  const dy = Math.max(target.y - cy, 0, cy - (target.y + height - 1));
+  return Math.max(dx, dy) <= def.range;
+}
+
+/** First enemy along a straight line from the muzzle; any building in the way stops the shot. */
 export function lineTarget(
   world: World,
   b: Building,
   def: UnitDef,
   enemyAt: EnemyAt,
-): Entity | null {
-  const [dx, dy] = DIRS[b.facing]!;
+  facing: Facing,
+): { entity: Entity; distance: number; } | null {
+  const [dx, dy] = DIRS[facing]!;
   let x = b.x + (b.fx >> 1);
   let y = b.y + (b.fy >> 1);
 
-  switch (b.facing) {
+  switch (facing) {
     case 0:
       y = b.y - 1;
       break;
@@ -71,7 +158,7 @@ export function lineTarget(
     const hit = enemyAt(b.owner, x, y);
 
     if (hit) {
-      return hit;
+      return { entity: hit, distance: r };
     }
 
     const occ = world.entities.get(world.occupant[world.at(x, y)] ?? 0);
@@ -84,11 +171,11 @@ export function lineTarget(
   return null;
 }
 
+/** Closest enemy by ring: rings grow outward, each scanned in row-major order. */
 export function radiusTarget(b: Building, def: UnitDef, enemyAt: EnemyAt): Entity | null {
   const cx = b.x + (b.fx >> 1);
   const cy = b.y + (b.fy >> 1);
 
-  // Same row-major ring order as before, without visiting the ring's interior.
   for (let r = 1; r <= def.range; r++) {
     const left = cx - r;
     const right = cx + r;

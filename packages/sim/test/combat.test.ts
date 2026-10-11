@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { World, loadDefs } from '../src/index.js';
+import { World, loadDefs, TPS } from '../src/index.js';
 
 import { ScanWorld } from './reference-world.js';
 
@@ -49,7 +49,7 @@ test('dead transports cannot hide the next target in the same tick', () => {
 
 test('tick rebuild includes externally moved, removed and newly spawned transports', () => {
   const world = mk();
-  world.spawnBuilding('suncannon', 1, 48, 39, 1);
+  const cannon = world.spawnBuilding('suncannon', 1, 48, 39, 1);
   const target = world.spawnTransport('sunwalker', 2, 60, 41);
   world.step();
   target.y = 40;
@@ -57,6 +57,7 @@ test('tick rebuild includes externally moved, removed and newly spawned transpor
   assert.ok(target.hp < target.hpMax);
   world.entities.delete(target.id);
   const replacement = world.spawnTransport('sunwalker', 2, 60, 40);
+  cannon.cooldown = 0; // skip the reload so the next tick shows whether the newcomer is seen
   world.step();
   assert.ok(replacement.hp < replacement.hpMax);
 });
@@ -114,4 +115,50 @@ test('an enemy occupant has priority over stacked transports', () => {
   world.step();
   assert.ok(blocker.hp < blocker.hpMax);
   assert.equal(transport.hp, transport.hpMax);
+});
+
+test('shooters fire separate shots, lock on the closest target and the Sun Cannon turns itself', () => {
+  const world = mk();
+  world.addIsland(0, 100, 256, 60, 0);
+  // Fixed orientation: a Thunder Cannon facing east ignores an enemy to its north.
+  const thunder = world.spawnBuilding('thundercannon', 1, 100, 120, 1);
+  const north = world.spawnBuilding('sunblocker', 2, 100, 110);
+  // Self-aiming: a Sun Cannon built facing east turns north to the only enemy in its lines.
+  const sun = world.spawnBuilding('suncannon', 1, 140, 120, 1);
+  const far = world.spawnBuilding('sunblocker', 2, 140, 101);
+  world.step();
+  assert.equal(thunder.target, null);
+  assert.equal(north.hp, north.hpMax);
+  assert.equal(sun.facing, 0);
+  assert.equal(sun.target, far.id);
+  // One shot carries a whole interval of the per-second damage, then the cannon reloads.
+  const interval = 5 * TPS;
+  assert.equal(far.hp, far.hpMax - 16 * 5);
+  assert.equal(sun.cooldown, interval);
+
+  for (let index = 0; index < interval - 1; index++) {
+    world.step();
+  }
+
+  assert.equal(far.hp, far.hpMax - 16 * 5);
+  // A closer enemy appears in another direction: the lock holds while the first target can be hit.
+  const near = world.spawnBuilding('sunblocker', 2, 153, 120);
+  world.step();
+  assert.equal(far.hp, far.hpMax - 2 * 16 * 5);
+  assert.equal(near.hp, near.hpMax);
+  assert.equal(sun.target, far.id);
+  // A tower interposed in the line of fire, closer than anything else, takes over as the target.
+  const tower = world.spawnBuilding('sunblocker', 2, 140, 110);
+  sun.cooldown = 0;
+  world.step();
+  assert.equal(sun.target, tower.id);
+  assert.equal(tower.hp, tower.hpMax - 16 * 5);
+  // Once the target is destroyed the cannon picks the closest one, in any of its four directions.
+  tower.hp = 0;
+  far.hp = 0;
+  world.step();
+  sun.cooldown = 0;
+  world.step();
+  assert.equal(sun.target, near.id);
+  assert.equal(sun.facing, 1);
 });

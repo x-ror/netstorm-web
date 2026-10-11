@@ -13,8 +13,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 4;
-export const RULES_VERSION = 4;
+export const SNAPSHOT_VERSION = 5;
+export const RULES_VERSION = 5;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -135,7 +135,7 @@ function parseEntity(raw: unknown): Entity {
   const living = [...common, 'owner', 'hp', 'hpMax'];
 
   if (kind === 'building') {
-    keys(value, [...living, 'type', 'fx', 'fy', 'facing'], 'building');
+    keys(value, [...living, 'type', 'fx', 'fy', 'facing', 'target', 'cooldown'], 'building');
     return {
       id,
       kind,
@@ -148,6 +148,8 @@ function parseEntity(raw: unknown): Entity {
       hp,
       hpMax,
       facing: choice(value.facing, FACINGS, 'building.facing'),
+      target: nullableId(value.target, 'building.target'),
+      cooldown: integer(value.cooldown, 'building.cooldown'),
     };
   }
 

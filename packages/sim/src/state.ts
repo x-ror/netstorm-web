@@ -122,6 +122,8 @@ export interface Building {
   hp: number;
   hpMax: number;
   facing: Facing;
+  target: number | null; // entity this shooter is locked on
+  cooldown: number; // ticks until the next shot
 }
 export interface Transport {
   id: number;

@@ -5,8 +5,9 @@
  *  - the world is a 256×256 cell grid of sky; players own islands; everything else is reached by bridges
  *  - the temple hands out random bridge pieces (tetromino-like); a piece may only be dropped on sky cells
  *    touching the player's own island or bridges
- *  - combat units are buildings: placed on own island/bridge cells, never move; cannons fire along a line
- *    in their facing direction, disc throwers / anti-air in a radius; blockers absorb line fire
+ *  - combat units are buildings: placed on own island/bridge cells, never move. They fire separate shots at
+ *    the closest target and stay locked on it. Cannons fire along a line (the Sun Cannon turns itself to
+ *    one of four directions), disc throwers / anti-air in a radius; buildings in the way stop line fire
  *  - transports loop between a Storm Geyser and the Temple, carrying crystals until the geyser is depleted,
  *    then move on to the non-depleted geyser closest to the Temple
  *  - the High Priest cannot be killed by units, only immobilized at ≤50 % HP; an enemy transport then
@@ -18,11 +19,10 @@
  * Approximations still to verify against the original (marked TODO):
  *  - energy: generators give 1 energy of their theme, a temple 2; a unit needs energy per its level but does
  *    not consume it permanently (original: "once built units don't consume energy")
- *  - shooters deal continuous dps while the target is in the line/radius
  */
 import { hashWorld } from './checksum.js';
 import { dropPiece } from './rules/bridges.js';
-import { tickBuilding, lineTarget, radiusTarget } from './rules/combat.js';
+import { tickBuilding } from './rules/combat.js';
 import { tickPlayer } from './rules/economy.js';
 import { energy, canBuild, build } from './rules/building.js';
 import { tickTransport, collect, pickupCrystal } from './rules/movement.js';
@@ -204,6 +204,8 @@ export class World {
       hp: def.hp,
       hpMax: def.hp,
       facing,
+      target: null,
+      cooldown: 0,
     };
     this.entities.set(b.id, b);
     this.forFoot(b, (i) => {
@@ -453,16 +455,7 @@ export class World {
   }
 
   private tickBuilding(building: Building): void {
-    tickBuilding(this, building,
-      (b, def) => def.group === 'cannon' ? this.lineTarget(b, def) : this.radiusTarget(b, def));
-  }
-
-  private lineTarget(b: Building, def: UnitDef): Entity | null {
-    return lineTarget(this, b, def, (owner, x, y) => this.enemyAt(owner, x, y));
-  }
-
-  private radiusTarget(b: Building, def: UnitDef): Entity | null {
-    return radiusTarget(b, def, (owner, x, y) => this.enemyAt(owner, x, y));
+    tickBuilding(this, building, (owner, x, y) => this.enemyAt(owner, x, y));
   }
 
   private enemyAt(me: number, x: number, y: number): Entity | null {

@@ -1,4 +1,4 @@
-import { World, type Entity, type DefTable, type Building, type UnitDef } from '../src/index.js';
+import { World, type Entity, type DefTable } from '../src/index.js';
 
 // Reference the previous full scan. Compare authoritative outcomes, not bucket internals.
 export class ScanWorld extends World {
@@ -30,32 +30,6 @@ export class ScanWorld extends World {
             && entity.hp > 0
           ) {
             return entity;
-          }
-        }
-
-        return null;
-      },
-    });
-    Object.defineProperty(this, 'radiusTarget', {
-      value: (building: Building, def: UnitDef): Entity | null => {
-        const cx = building.x + (building.fx >> 1);
-        const cy = building.y + (building.fy >> 1);
-
-        for (let r = 1; r <= def.range; r++) {
-          for (let y = cy - r; y <= cy + r; y++) {
-            for (let x = cx - r; x <= cx + r; x++) {
-              if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) !== r) {
-                continue;
-              }
-
-              const hit = (
-                this as unknown as { enemyAt(owner: number, x: number, y: number): Entity | null; }
-              ).enemyAt(building.owner, x, y);
-
-              if (hit) {
-                return hit;
-              }
-            }
           }
         }
 
