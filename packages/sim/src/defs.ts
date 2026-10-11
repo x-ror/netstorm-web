@@ -63,6 +63,11 @@ export interface UnitDef {
 
 export type DefTable = Map<string, UnitDef>;
 
+/** Values the game shows on a unit's card but its .type file leaves out. See docs/game-rules.md. */
+const SHOWN_IN_GAME: Readonly<Record<string, { cost: number; }>> = {
+  sunwalker: { cost: 400 }, // Golem: no cost in sunwalker.type, "Cost in Storm Power: 400" in the game
+};
+
 export function loadDefs(raw: unknown): DefTable {
   if (!Array.isArray(raw)) {
     throw new TypeError('Unit definitions must be an array');
@@ -92,7 +97,7 @@ export function loadDefs(raw: unknown): DefTable {
         ? theme
         : null) as Theme | null,
       level: num(r.level),
-      cost: num(r.cost),
+      cost: r.cost === undefined && SHOWN_IN_GAME[id] ? SHOWN_IN_GAME[id].cost : num(r.cost),
       hp: num(r.maxHitPoints),
       range: num(r.range),
       dps: num(r.hpPerSec),

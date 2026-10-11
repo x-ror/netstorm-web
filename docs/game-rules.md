@@ -153,6 +153,17 @@
 
 Рівні юнітів за новою версією довідки (help 1127–1211): Sun 1 — Golem, Sun Generator, Disc Thrower, Sun Cannon, Stone Tower, Sun Barricade; Sun 2 — Whirligig, Whirlibase, Balloon. Wind 1 — Generator; 2 — Sail Skater, Crossbow, Wind Tower; 3 — Dust Devil, Devil Maker, Air Ship. Rain 1 — Generator, Crystal Crab, Acid Barricade; 2 — Ice Cannon, Ice Tower; 3 — Man o' War, Pool, Cloud Floater. Thunder 1 — Generator, Bulf, Arc Spire; 2 — Thunder Cannon, Bulwark; 3 — Vander Tower. З `data/units.json` розходиться лише Crystal Crab: у довідці рівень 1, а у файлі гри `rainwalker.type` — `level = 2`. Код бере рівень 2 із файлу гри: де довідка й дані розходяться, діють дані, бо саме їх виконує гра.
 
+## Картки юнітів у грі
+
+Прочитано зі знімків довідки юніта в запущеній грі:
+
+| Юніт | Hits | Range / Speed | Damage | Ціна | Energy to Build |
+| --- | --- | --- | --- | --- | --- |
+| Sun Cannon | 600 | Range 22 | 16 | 400 | 1 × Sun |
+| Golem | 50 | Speed 1.8, Turning Rate: Instant | — | 400 | 1 × Sun |
+
+Ціни Golem у `sunwalker.type` немає, тож у `data/units.json` вона порожня; код бере 400 з картки. Транспорт теж потребує енергії для побудови.
+
 ## Що ще показали файли гри
 
 - Гра не зберігає більшість чисел правил у даних: радіус енергії, тривалість ритуалу, час твердіння мосту, швидкість регенерації жерця зашиті у двійковий `netstorm.game`. У `.type` і `setup.cfg` їх немає.
