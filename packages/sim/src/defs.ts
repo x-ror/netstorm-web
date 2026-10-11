@@ -143,16 +143,3 @@ function num(v: unknown, fallback = 0): number {
 
   return v;
 }
-
-/** Energy a unit needs to be built: level 1 → 1 of own theme; level 2 → +1 any; level 3 → 2 own + 1 any. */
-export function energyNeed(def: UnitDef): { own: number; any: number; } {
-  if (def.level <= 1) {
-    return { own: 1, any: 0 };
-  }
-
-  if (def.level === 2) {
-    return { own: 1, any: 1 };
-  }
-
-  return { own: 2, any: 1 };
-}

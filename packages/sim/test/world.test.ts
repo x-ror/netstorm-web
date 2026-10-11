@@ -70,7 +70,8 @@ test('build: needs tech, storm power, energy and own ground', () => {
   const p = w.players.get(1)!;
   assert.equal(w.apply({ t: 'build', player: 1, type: 'thundercannon', x: 32, y: 36 }),
     'unknown tech');
-  assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 90, y: 90 }), 'blocked');
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 90, y: 90 }),
+    'not connected'); // open sky, not off a bridge
   assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 32, y: 36 }), null);
   assert.equal(p.storm, 2000 - 400);
   assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 32, y: 36 }), 'blocked'); // occupied
@@ -178,4 +179,62 @@ test('priest: immobilized at half HP, carried by a transport, sacrificed with fi
   assert.equal(w.winner, 1);
   assert.equal(w.drainEvents().filter((e) => e.what === 'rune').length, 5);
   assert.ok(!w.entities.has(red.id));
+});
+
+const bridge = (w: ReturnType<typeof mk>, from: number, to: number) => {
+  for (let x = from; x <= to; x++) {
+    w.terrain[40 * 256 + x] = 2;
+    w.owner[40 * 256 + x] = 1;
+  }
+};
+
+test('units go off a bridge onto their own island, never on the bridge itself', () => {
+  const w = mk();
+  bridge(w, 51, 60);
+  const cannon = { t: 'build', player: 1, type: 'suncannon' } as const;
+  assert.equal(w.apply({ ...cannon, x: 55, y: 39 }), 'blocked'); // footprint covers bridge cells
+  assert.equal(w.apply({ ...cannon, x: 55, y: 42 }), 'not connected'); // a gap from the bridge
+  assert.equal(w.apply({ ...cannon, x: 49, y: 47 }), 'blocked'); // half island, half sky
+  assert.equal(w.apply({ ...cannon, x: 49, y: 41 }), 'blocked'); // island edge plus sky
+  assert.equal(w.apply({ ...cannon, x: 51, y: 41 }), null); // sky cells touching the bridge
+  // The unit stands on an island of its own, and bridge can continue from it.
+  assert.equal(w.terrain[42 * 256 + 53], 1);
+  assert.equal(w.owner[42 * 256 + 53], 1);
+  w.players.get(1)!.hand.push(7);
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 52, y: 44, rot: 0 }), null);
+});
+
+test("energy must come from a nearby source of the unit's own alignment", () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  p.tech.add('thundercannon');
+  bridge(w, 51, 90);
+  const far = { player: 1, x: 70, y: 41 } as const;
+  // Too far from the Wind Temple for anything.
+  assert.equal(w.apply({ t: 'build', type: 'suncannon', ...far }), 'no energy');
+  // A Sun Generator feeds only Sun units.
+  w.spawnBuilding('sunbattery', 1, 64, 41);
+  assert.equal(w.apply({ t: 'build', type: 'windarcher', ...far }), 'no energy');
+  assert.equal(w.canBuild({ type: 'suncannon', ...far }), null);
+  // A Wind Generator feeds Wind and Sun units, not Thunder ones.
+  w.spawnBuilding('windbattery', 1, 64, 36);
+  assert.equal(w.apply({ t: 'build', type: 'thundercannon', ...far }), 'no energy');
+  assert.equal(w.apply({ t: 'build', type: 'windarcher', ...far }), null);
+});
+
+test('bridge needs an unbroken attachment to the Temple; attaching to a geyser claims its island', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  bridge(w, 51, 76);
+  p.hand.push(7, 7); // dominoes
+  w.terrain[40 * 256 + 55] = 0; // cut the bridge
+  w.owner[40 * 256 + 55] = 0;
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 77, y: 40, rot: 0 }),
+    'not connected');
+  bridge(w, 55, 55);
+  assert.equal(w.owner[39 * 256 + 80], 0);
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 77, y: 40, rot: 0 }), null);
+  // The geyser islet (79..81 × 39..41) now belongs to the player and carries the connection on.
+  assert.equal(w.owner[39 * 256 + 80], 1);
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 82, y: 40, rot: 0 }), null);
 });

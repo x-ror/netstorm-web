@@ -11,6 +11,9 @@ export const HAND_SIZE = 3; // pieces a player can hold                   TODO v
 export const CRYSTAL_VALUE = 200; // Storm Power per crystal
 export const GEYSER_STOCK = 2000; // Storm Power a geyser holds before it is depleted
 export const PRIEST_HP = 100;
+// Cells a Temple or Generator spreads its Energy. The help only says "nearby" and that the range is
+// the Generator Range battle option; this value is unconfirmed.
+export const ENERGY_RANGE = 8;
 export const RUNES = 5; // runes the sacrificing priest must ward
 const RUNE_SECONDS = 2; // invented: the official help does not say how long the ritual takes
 export const RUNE_INTERVAL = RUNE_SECONDS * TPS;
