@@ -1,5 +1,60 @@
 import type { World } from '../world.js';
-import { HAND_SIZE, PIECES, PIECE_HARDEN, PIECE_INTERVAL, type Player } from '../state.js';
+import {
+  DOMINO_PIECE,
+  HAND_SIZE,
+  PIECE_HARD,
+  PIECE_INTERVAL,
+  PIECE_WEIGHTS,
+  SINGLE_PIECE,
+  type Player,
+} from '../state.js';
+
+const PIECE_WEIGHT_TOTAL = PIECE_WEIGHTS.reduce((sum, weight) => sum + weight, 0);
+// Every third draw into the last free slot is a single block and the draw after it a domino, and
+// every fifth draw into any other slot is a single block, each only if the window has none.
+const LAST_SLOT_CYCLE = 3;
+const OTHER_SLOT_CYCLE = 5;
+
+/** One piece by weight. The running total is compared with `>=`, as the original does. */
+function drawPiece(world: World): number {
+  const roll = world.rng.int(PIECE_WEIGHT_TOTAL);
+  let total = 0;
+
+  for (let piece = 0; piece < PIECE_WEIGHTS.length; piece++) {
+    total += PIECE_WEIGHTS[piece]!;
+
+    if (total >= roll) {
+      return piece;
+    }
+  }
+
+  return PIECE_WEIGHTS.length - 1;
+}
+
+/** The piece for a free slot, as the original's Production Window picks it: a weighted draw,
+ * redrawn once for each piece in the window it repeats, then the guaranteed small pieces. */
+function nextPiece(world: World, player: Player): number {
+  let piece = drawPiece(world);
+
+  for (const entry of player.hand) {
+    if (entry.piece === piece) {
+      piece = drawPiece(world);
+    }
+  }
+
+  const lacks = (wanted: number): boolean => !player.hand.some((entry) => entry.piece === wanted);
+  const turn = player.piecesDrawn++;
+
+  if (player.hand.length === HAND_SIZE - 1) {
+    if (turn % LAST_SLOT_CYCLE === 0) {
+      return lacks(SINGLE_PIECE) ? SINGLE_PIECE : piece;
+    }
+
+    return turn % LAST_SLOT_CYCLE === 1 && lacks(DOMINO_PIECE) ? DOMINO_PIECE : piece;
+  }
+
+  return turn % OTHER_SLOT_CYCLE === 0 && lacks(SINGLE_PIECE) ? SINGLE_PIECE : piece;
+}
 
 export function tickPlayer(world: World, player: Player): void {
   if (!player.alive) {
@@ -13,7 +68,7 @@ export function tickPlayer(world: World, player: Player): void {
   player.refresh = player.refresh.filter((entry) => entry.ticks > 0);
 
   for (const entry of player.hand) {
-    entry.age = Math.min(PIECE_HARDEN, entry.age + 1);
+    entry.age = Math.min(PIECE_HARD, entry.age + 1);
   }
 
   if (
@@ -23,7 +78,7 @@ export function tickPlayer(world: World, player: Player): void {
     player.pieceTimer = PIECE_INTERVAL;
 
     if (player.hand.length < HAND_SIZE) {
-      player.hand.push({ piece: world.rng.int(PIECES.length), age: 0 });
+      player.hand.push({ piece: nextPiece(world, player), age: 0 });
     }
   }
 }

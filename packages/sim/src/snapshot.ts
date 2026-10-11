@@ -4,7 +4,7 @@ import {
   W,
   H,
   PIECES,
-  PIECE_HARDEN,
+  PIECE_HARD,
   FACINGS,
   MAX_ID,
   MAX_PLAYERS,
@@ -23,8 +23,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 7;
-export const RULES_VERSION = 13;
+export const SNAPSHOT_VERSION = 9;
+export const RULES_VERSION = 15;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -205,8 +205,18 @@ function parseEntity(raw: unknown): Entity {
 
 function parsePlayer(raw: unknown): SnapshotPlayer {
   const value = record(raw, 'player');
-  keys(value, ['id', 'name', 'theme', 'storm', 'tech', 'hand', 'pieceTimer', 'refresh', 'alive'],
-    'player');
+  keys(value, [
+    'id',
+    'name',
+    'theme',
+    'storm',
+    'tech',
+    'hand',
+    'pieceTimer',
+    'piecesDrawn',
+    'refresh',
+    'alive',
+  ], 'player');
   const tech = list(value.tech, 'player.tech').map((entry) => text(entry, 'technology'));
   unique(tech, (entry) => entry, 'technology');
   return {
@@ -220,10 +230,11 @@ function parsePlayer(raw: unknown): SnapshotPlayer {
       keys(entry, ['piece', 'age'], 'hand piece');
       return {
         piece: integer(entry.piece, 'piece', 0, PIECES.length - 1),
-        age: integer(entry.age, 'piece.age', 0, PIECE_HARDEN),
+        age: integer(entry.age, 'piece.age', 0, PIECE_HARD),
       };
     }),
     pieceTimer: integer(value.pieceTimer, 'player.pieceTimer', -Number.MAX_SAFE_INTEGER),
+    piecesDrawn: integer(value.piecesDrawn, 'player.piecesDrawn', 0),
     refresh: list(value.refresh, 'player.refresh').map((rawEntry) => {
       const entry = record(rawEntry, 'refresh');
       keys(entry, ['type', 'ticks'], 'refresh');
@@ -301,7 +312,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     rngState: integer(value.rngState, 'snapshot.rngState', 0, MAX_UINT32),
     nextId,
     winner: nullableId(value.winner, 'snapshot.winner'),
-    terrain: grid(value.terrain, 'terrain', Terrain.CrackedBridge),
+    terrain: grid(value.terrain, 'terrain', Terrain.HardBridge),
     owner: grid(value.owner, 'owner', MAX_PLAYERS),
     occupant: grid(value.occupant, 'occupant', MAX_ID),
     defs,

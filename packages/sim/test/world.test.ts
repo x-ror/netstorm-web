@@ -8,6 +8,10 @@ import {
   PIECE_INTERVAL,
   GEYSER_STOCK,
   PIECE_HARDEN,
+  PIECE_HARD,
+  PIECES,
+  PIECE_WEIGHTS,
+  HAND_SIZE,
   CRYSTAL_VALUE,
   type Transport,
   UNIT_REFRESH,
@@ -66,9 +70,9 @@ test('temple hands out bridge pieces; pieces must touch own ground', () => {
   assert.equal(w.canDropPiece({ player: 1, hand: 1, x: 51, y: 40, rot: 0 }), 'no piece');
   assert.equal(w.canDropPiece({ player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null);
   assert.equal(p.hand.length, 1);
-  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 60, y: 60, rot: 0 }),
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 60, y: 60, rot: 1 }),
     'not connected');
-  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null); // right edge of island is x=50
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null); // right edge of island is x=50
   assert.equal(p.hand.length, 0);
   const cells = w.events.at(-1)!.data as [number, number][];
   // the piece spent no time in the window, so it is laid as cracked bridge
@@ -223,8 +227,51 @@ test('units go off a bridge onto their own island, never on the bridge itself', 
   // The unit stands on an island of its own, and bridge can continue from it.
   assert.equal(w.terrain[42 * 256 + 53], 1);
   assert.equal(w.owner[42 * 256 + 53], 1);
-  w.players.get(1)!.hand.push({ piece: 7, age: PIECE_HARDEN });
-  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 52, y: 44, rot: 0 }), null);
+  w.players.get(1)!.hand.push({ piece: 1, age: PIECE_HARDEN });
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 52, y: 44, rot: 1 }), null);
+});
+
+test('the Temple fills the window with the original pieces, small ones guaranteed', () => {
+  // 46 pieces of one to seven cells; the single block has no weight of its own.
+  assert.equal(PIECES.length, 46);
+  assert.deepEqual(PIECES[0], [[0, 0]]);
+  assert.deepEqual(PIECES[1], [[0, 0], [0, 1]]);
+  assert.equal(Math.max(...PIECES.map((cells) => cells.length)), 7);
+  assert.equal(PIECE_WEIGHTS[0], 0);
+  assert.equal(PIECE_WEIGHTS[5], 1950); // the T of four cells is the commonest piece
+  const w = mk();
+  const p = w.players.get(1)!;
+
+  for (let i = 0; i < PIECE_INTERVAL * HAND_SIZE; i++) {
+    w.step();
+  }
+
+  // One piece a second until every slot is taken. The very first draw is a single block, and the
+  // window is never left without one for long.
+  assert.equal(p.hand.length, HAND_SIZE);
+  assert.equal(p.hand[0]!.piece, 0);
+  assert.equal(p.piecesDrawn, HAND_SIZE);
+  // Draws 6 and 7 go into the last free slot: a single block, then a domino.
+  p.hand = p.hand.filter((entry) => entry.piece > 1).slice(0, HAND_SIZE - 1);
+
+  while (p.hand.length < HAND_SIZE - 1) {
+    p.hand.push({ piece: 5, age: 0 });
+  }
+
+  for (let i = 0; i < PIECE_INTERVAL; i++) {
+    w.step();
+  }
+
+  assert.equal(p.hand.at(-1)!.piece, 0);
+  p.hand.pop();
+  p.hand.push({ piece: 0, age: 0 });
+  p.hand.shift();
+
+  for (let i = 0; i < PIECE_INTERVAL; i++) {
+    w.step();
+  }
+
+  assert.equal(p.hand.at(-1)!.piece, 1);
 });
 
 test("energy must come from a nearby source of the unit's own alignment", () => {
@@ -256,17 +303,17 @@ test('bridge needs an unbroken attachment to the Temple; attaching to a geyser c
   const w = mk();
   const p = w.players.get(1)!;
   bridge(w, 51, 76);
-  p.hand.push({ piece: 7, age: PIECE_HARDEN }, { piece: 7, age: PIECE_HARDEN }); // dominoes
+  p.hand.push({ piece: 1, age: PIECE_HARDEN }, { piece: 1, age: PIECE_HARDEN }); // dominoes, laid flat with rot 1
   w.terrain[40 * 256 + 55] = 0; // cut the bridge
   w.owner[40 * 256 + 55] = 0;
-  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 77, y: 40, rot: 0 }),
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 77, y: 40, rot: 1 }),
     'not connected');
   bridge(w, 55, 55);
   assert.equal(w.owner[39 * 256 + 80], 0);
-  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 77, y: 40, rot: 0 }), null);
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 77, y: 40, rot: 1 }), null);
   // The geyser islet (79..81 × 39..41) now belongs to the player and carries the connection on.
   assert.equal(w.owner[39 * 256 + 80], 1);
-  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 82, y: 40, rot: 0 }), null);
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 82, y: 40, rot: 1 }), null);
 });
 
 test('a piece hardens in the window; explosions and salvage crack solid bridge and collapse cracked', () => {
@@ -285,9 +332,9 @@ test('a piece hardens in the window; explosions and salvage crack solid bridge a
   }
 
   assert.equal(p.hand[0]!.age, PIECE_HARDEN);
-  p.hand = [{ piece: 7, age: PIECE_HARDEN }, { piece: 7, age: 0 }];
-  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null);
-  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 53, y: 40, rot: 0 }), null);
+  p.hand = [{ piece: 1, age: PIECE_HARDEN }, { piece: 1, age: 0 }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null);
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 53, y: 40, rot: 1 }), null);
   assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [2, 2, 3, 3]);
   // A cannon off the bridge, touching one solid cell (52) and two cracked cells (53, 54).
   assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 52, y: 41 }), null);
@@ -304,17 +351,42 @@ test('a piece hardens in the window; explosions and salvage crack solid bridge a
   assert.ok(!w.entities.has(rider.id));
   assert.ok(w.entities.has(stander.id));
   // Nothing can be laid beyond the gap: it would not be attached to the Temple.
-  p.hand = [{ piece: 7, age: PIECE_HARDEN }];
-  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 55, y: 40, rot: 0 }),
+  p.hand = [{ piece: 1, age: PIECE_HARDEN }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 55, y: 40, rot: 1 }),
     'not connected');
+});
+
+test('a piece turns hard in the window; hard bridge survives an explosion next to it', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  const at = (x: number, y: number) => w.terrain[y * 256 + x];
+
+  for (let i = 0; i < PIECE_INTERVAL + PIECE_HARD + 1; i++) {
+    w.step();
+  }
+
+  // Cracked, then normal after PIECE_HARDEN, then hard: the age stops there.
+  assert.equal(p.hand[0]!.age, PIECE_HARD);
+  p.hand = [{ piece: 1, age: PIECE_HARD }, { piece: 1, age: PIECE_HARDEN }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null);
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 53, y: 40, rot: 1 }), null);
+  assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [4, 4, 2, 2]);
+  // A cannon touching one hard cell (52) and two normal cells (53, 54).
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 52, y: 41 }), null);
+  const cannon = w.buildingsOf(1).find((b) => b.type === 'suncannon')!;
+  assert.equal(w.apply({ t: 'salvage', player: 1, target: cannon.id }), null);
+  assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [4, 4, 3, 3]);
+  // Hard bridge is still bridge: it carries the connection to the Temple.
+  p.hand = [{ piece: 1, age: 0 }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 55, y: 40, rot: 1 }), null);
 });
 
 test('a priest left without ground hangs in place until bridge is laid under him', () => {
   const w = mk();
   const p = w.players.get(1)!;
   const priest = w.priestOf(1)!;
-  p.hand = [{ piece: 7, age: 0 }];
-  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null);
+  p.hand = [{ piece: 1, age: 0 }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null);
   w.occupant[w.at(priest.x, priest.y)] = 0;
   priest.x = 51;
   priest.y = 40;
@@ -328,8 +400,8 @@ test('a priest left without ground hangs in place until bridge is laid under him
   assert.equal(w.apply({ t: 'movePriest', player: 1, x: 45, y: 40 }), 'priest unavailable');
   w.step();
   assert.deepEqual([priest.x, priest.y], [51, 40]);
-  p.hand = [{ piece: 7, age: PIECE_HARDEN }];
-  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 0 }), null);
+  p.hand = [{ piece: 1, age: PIECE_HARDEN }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null);
   assert.equal(w.apply({ t: 'movePriest', player: 1, x: 45, y: 40 }), null);
 });
 

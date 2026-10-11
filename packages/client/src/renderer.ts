@@ -98,7 +98,7 @@ export function createWorldRenderer(
   }
 
   function tileKey(terrain: number, owner: number, x: number, y: number): string {
-    if (terrain === Terrain.Bridge) {
+    if (terrain === Terrain.Bridge || terrain === Terrain.HardBridge) {
       return 'bridge:solid';
     }
 
@@ -283,7 +283,7 @@ function footprintOf(
 }
 
 function terrainColor(terrain: number, owner: number, me: number): number {
-  if (terrain === Terrain.Bridge) {
+  if (terrain === Terrain.Bridge || terrain === Terrain.HardBridge) {
     return COLOR.bridge;
   }
 

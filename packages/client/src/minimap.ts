@@ -66,7 +66,7 @@ export function createMinimap(
       const owner = world.owner[i];
       let color: readonly number[] = SKY;
 
-      if (terrain === Terrain.Bridge) {
+      if (terrain === Terrain.Bridge || terrain === Terrain.HardBridge) {
         color = PIXELS.bridge;
       } else if (terrain === Terrain.CrackedBridge) {
         color = PIXELS.crackedBridge;

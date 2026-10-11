@@ -1,7 +1,17 @@
 import type { World } from '../world.js';
 import type { WorldView } from '../view.js';
 import type { Command, CommandError } from '../commands.js';
-import { W, H, Terrain, DIRS, PIECES, PIECE_HARDEN, rotatePiece, type Building } from '../state.js';
+import {
+  W,
+  H,
+  Terrain,
+  DIRS,
+  PIECES,
+  PIECE_HARD,
+  PIECE_HARDEN,
+  rotatePiece,
+  type Building,
+} from '../state.js';
 
 /** Cells of the player's ground joined to the Temple by an unbroken run of own island and bridge. */
 function connectedToTemple(world: WorldView, player: number): Uint8Array | null {
@@ -119,11 +129,17 @@ export function dropPiece(
   const { cells } = site;
   const entry = pl.hand[c.hand]!;
 
+  // The bridge keeps the strength the piece had reached in the window.
+  let strength = Terrain.HardBridge;
+
+  if (entry.age < PIECE_HARDEN) {
+    strength = Terrain.CrackedBridge;
+  } else if (entry.age < PIECE_HARD) {
+    strength = Terrain.Bridge;
+  }
+
   for (const [x, y] of cells) {
-    // A piece laid before it hardened in the window makes a cracked bridge.
-    world.terrain[world.at(x, y)] = entry.age < PIECE_HARDEN
-      ? Terrain.CrackedBridge
-      : Terrain.Bridge;
+    world.terrain[world.at(x, y)] = strength;
     world.owner[world.at(x, y)] = c.player;
   }
 
@@ -141,7 +157,9 @@ export function dropPiece(
 
 /** "When a unit explodes cracked bridge nearby will also crumble. Normal bridge that was adjacent to
  * the unit will crack." Salvaging affects bridge "in the same way". Applies to the cells sharing an
- * edge with the unit's footprint; how far "nearby" reaches in the original is unknown. */
+ * edge with the unit's footprint, which is where the original looks too. Hard bridge is left as it
+ * is: the original neither changes its look nor lets it decay. See docs/game-rules.md for what the
+ * original does beyond this. */
 export function shakeBridges(world: World, b: Building): void {
   let changed = false;
 

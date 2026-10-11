@@ -3,12 +3,19 @@ import type { Theme } from './defs.js';
 export const TPS = 10; // simulation ticks per second
 export const W = 256;
 export const H = 256; // world size in cells
-const PIECE_INTERVAL_SECONDS = 6;
-export const PIECE_INTERVAL = PIECE_INTERVAL_SECONDS * TPS; // temple emits a bridge piece every 6 s      TODO verify
-// Invented: a new piece is cracked and "becomes more solid" after "a few seconds" in the window.
-const PIECE_HARDEN_SECONDS = 3;
+// From the original's Production Window code (netstorm.game 10.82): a free bridge slot is refilled
+// once per bridgeDrawRate, which defaults to 1 and is added to a clock that counts seconds.
+const PIECE_INTERVAL_SECONDS = 1;
+export const PIECE_INTERVAL = PIECE_INTERVAL_SECONDS * TPS;
+// A piece in the window has three strengths, as in the original: cracked, then normal, then hard.
+// It moves from normal to hard when a timer of 60 tenths of a second runs out (same code). How long
+// the first step, from cracked to normal, takes is not established (`?`); 6 s is assumed for it too.
+const PIECE_HARDEN_SECONDS = 6;
+/** Ticks in the window after which a piece is no longer cracked. */
 export const PIECE_HARDEN = PIECE_HARDEN_SECONDS * TPS;
-export const HAND_SIZE = 6; // bridge slots in the Production Window, as seen in the campaign // pieces a player can hold                   TODO verify
+/** Ticks in the window after which a piece is hard. */
+export const PIECE_HARD = PIECE_HARDEN + PIECE_HARDEN;
+export const HAND_SIZE = 6; // "Bridge Slots" battle option: 2, 4 or 6; six in the campaign
 // The official help gives neither number (the stock is the "Money per Geyser" battle option);
 // both come from the .type files and are unconfirmed. See docs/game-rules.md.
 export const CRYSTAL_VALUE = 200; // Storm Power per crystal
@@ -43,16 +50,19 @@ export const enum Terrain {
   Bridge = 2,
   /** Laid from a piece that had not hardened yet: it crumbles where a solid bridge only cracks. */
   CrackedBridge = 3,
+  /** Laid from a piece that had turned hard: explosions and Salvage next to it leave it as it is. */
+  HardBridge = 4,
 }
 
 export function isBridge(terrain: number | undefined): boolean {
-  return terrain === Terrain.Bridge || terrain === Terrain.CrackedBridge;
+  return terrain === Terrain.Bridge || terrain === Terrain.CrackedBridge
+    || terrain === Terrain.HardBridge;
 }
 
 /** A bridge piece waiting in the Production Window. */
 export interface HandPiece {
   piece: number; // index into PIECES
-  age: number; // ticks in the window, capped at PIECE_HARDEN
+  age: number; // ticks in the window, capped at PIECE_HARD
 }
 export type Facing = 0 | 1 | 2 | 3; // N, E, S, W
 export const DIRS: ReadonlyArray<readonly [number, number]> = [
@@ -62,55 +72,76 @@ export const DIRS: ReadonlyArray<readonly [number, number]> = [
   [-1, 0],
 ];
 
-/** Bridge pieces: 7 tetrominoes + a 2-cell domino, as cell offsets. Rotations are generated. */
-export const PIECES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
-  [
-    [0, 0],
-    [1, 0],
-    [2, 0],
-    [3, 0], // oxlint-disable-line no-magic-numbers -- piece cell offset
-  ], // I
-  [
-    [0, 0],
-    [1, 0],
-    [0, 1],
-    [1, 1],
-  ], // O
-  [
-    [0, 0],
-    [1, 0],
-    [2, 0],
-    [1, 1],
-  ], // T
-  [
-    [0, 0],
-    [1, 0],
-    [2, 0],
-    [2, 1],
-  ], // L
-  [
-    [0, 0],
-    [1, 0],
-    [2, 0],
-    [0, 1],
-  ], // J
-  [
-    [1, 0],
-    [2, 0],
-    [0, 1],
-    [1, 1],
-  ], // S
-  [
-    [0, 0],
-    [1, 0],
-    [1, 1],
-    [2, 1],
-  ], // Z
-  [
-    [0, 0],
-    [1, 0],
-  ], // domino
+/**
+ * The 46 bridge pieces of the original (netstorm.game 10.82), in its own order: the weight of the
+ * piece in the "Standard" bridge set, then the rows of its shape, '#' being a bridge cell. Mirror
+ * images are separate pieces; a few shapes appear twice and differ only in artwork. The weights of
+ * the other bridge sets (Traditional, Simplified, Crazy) are listed in docs/game-rules.md.
+ */
+/* oxlint-disable no-magic-numbers -- the weights are data of the original */
+const CANONS: ReadonlyArray<readonly [weight: number, ...rows: string[]]> = [
+  [0, '#'],
+  [600, '#', '#'],
+  [200, '#', '#', '#'],
+  [40, '#', '#', '#', '#'],
+  [160, '##', '.#'],
+  [1950, '#.', '##', '#.'],
+  [50, '#.', '##', '#.'],
+  [10, '##.', '.##'],
+  [10, '.##', '##.'],
+  [80, '#.', '#.', '##'],
+  [80, '.#', '.#', '##'],
+  [850, '#..', '###', '.#.'],
+  [50, '#..', '###', '.#.'],
+  [850, '..#', '###', '.#.'],
+  [50, '..#', '###', '.#.'],
+  [10, '#.', '#.', '#.', '##'],
+  [10, '.#', '.#', '.#', '##'],
+  [0, '##..', '.###'],
+  [0, '..##', '###.'],
+  [300, '#..', '###', '#..'],
+  [40, '.##', '##.', '.##'],
+  [0, '..#', '..#', '###'],
+  [0, '..#', '.##', '##.'],
+  [1, '.#.', '###', '.#.'],
+  [300, '#.', '##', '#.', '#.'],
+  [300, '#.', '#.', '##', '#.'],
+  [60, '.##', '.#.', '##.'],
+  [60, '##.', '.#.', '.##'],
+  [1, '##', '#.', '##', '#.'],
+  [1, '#.', '##', '#.', '##'],
+  [20, '.##', '.#.', '.#.', '##.'],
+  [20, '##.', '.#.', '.#.', '.##'],
+  [40, '..#', '###', '.#.', '.#.'],
+  [40, '#..', '###', '.#.', '.#.'],
+  [40, '#..', '#..', '###', '.#.'],
+  [40, '..#', '..#', '###', '.#.'],
+  [0, '##', '#.', '##'],
+  [0, '###', '.#.', '.##'],
+  [0, '.##', '.#.', '###'],
+  [10, '.#.', '.##', '##.', '.#.'],
+  [10, '.#.', '##.', '.##', '.#.'],
+  [5, '.#.', '##.', '.#.', '.##'],
+  [5, '.#.', '.##', '.#.', '##.'],
+  [5, '.#.', '.#.', '##.', '.##'],
+  [5, '.#.', '.#.', '.##', '##.'],
+  [0, '#.#', '###', '#.#'],
 ];
+/* oxlint-enable no-magic-numbers */
+
+/** Bridge pieces as cell offsets. Rotations are generated. */
+export const PIECES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = CANONS.map((
+  [, ...rows],
+) =>
+  rows.flatMap((row, y) =>
+    [...row].flatMap((cell, x): (readonly [number, number])[] => cell === '#' ? [[x, y]] : [])
+  )
+);
+/** Chance of each piece relative to the others when the Temple draws one. */
+export const PIECE_WEIGHTS: readonly number[] = CANONS.map(([weight]) => weight);
+// The two pieces the Temple hands out on a schedule when the window lacks them (rules/economy.ts).
+export const SINGLE_PIECE = 0;
+export const DOMINO_PIECE = 1;
 
 export function rotatePiece(
   cells: ReadonlyArray<readonly [number, number]>,
@@ -135,6 +166,8 @@ export interface Player {
   tech: Set<string>; // unit ids the player knows
   hand: HandPiece[];
   pieceTimer: number;
+  /** Pieces the Temple has drawn so far; drives the guaranteed single block and domino. */
+  piecesDrawn: number;
   /** Unit types laid down recently, with the ticks left before they can be laid again. */
   refresh: { type: string; ticks: number; }[];
   alive: boolean;

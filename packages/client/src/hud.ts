@@ -1,5 +1,6 @@
 import {
   PIECES,
+  PIECE_HARD,
   PIECE_HARDEN,
   RUNES,
   TPS,
@@ -124,13 +125,12 @@ export function createHud(
       ? player.hand.map((h, index) => {
         const cells = rotatePiece(PIECES[h.piece]!, index === handTool ? ui.rot : 0);
         const cracked = h.age < PIECE_HARDEN;
+        const hard = h.age >= PIECE_HARD;
         return `<button data-action="hand" data-value="${index}" class="piece${
           index === handTool ? ' on' : ''
-        }${cracked ? ' cracked' : ''}" title="${
-          cracked
-            ? 'Свіжий сегмент: покладений зараз, стане тріснутим мостом'
-            : 'Міцний сегмент'
-        } (${index + 1})">${pieceGrid(cells)}</button>`;
+        }${cracked ? ' cracked' : ''}${hard ? ' hard' : ''}" title="${pieceTitle(cracked, hard)} (${
+          index + 1
+        })">${pieceGrid(cells)}</button>`;
       }).join('')
       : '<span class="muted">Храм ще не видав сегментів</span>');
 
@@ -154,6 +154,14 @@ export function createHud(
       root.replaceChildren();
     },
   };
+}
+
+function pieceTitle(cracked: boolean, hard: boolean): string {
+  if (cracked) {
+    return 'Свіжий сегмент: покладений зараз, стане тріснутим мостом';
+  }
+
+  return hard ? 'Твердий сегмент: вибухи поруч його не тріскають' : 'Звичайний сегмент';
 }
 
 function pieceGrid(cells: [number, number][]): string {

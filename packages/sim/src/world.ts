@@ -3,7 +3,7 @@
  *
  * Rules reproduced from the original (see project doc "Ядро механіки"):
  *  - the world is a 256×256 cell grid of sky; players own islands; everything else is reached by bridges
- *  - the temple hands out random bridge pieces (tetromino-like); a piece may only be dropped on sky cells
+ *  - the temple hands out the original's bridge pieces, drawn by weight; a piece may only be dropped on sky cells
  *    touching the player's own island or bridges
  *  - combat units are buildings: placed on own island/bridge cells, never move. They fire separate shots at
  *    the closest target and stay locked on it. Cannons fire along a line (the Sun Cannon turns itself to
@@ -133,6 +133,7 @@ export class World {
       tech: new Set(tech.map((t) => t.toLowerCase())),
       hand: [],
       pieceTimer: PIECE_INTERVAL,
+      piecesDrawn: 0,
       refresh: [],
       alive: true,
     };

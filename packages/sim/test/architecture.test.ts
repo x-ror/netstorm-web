@@ -24,15 +24,15 @@ const mk = () =>
   ], [[80, 40]]);
 const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
-// Pins the current rules (RULES_VERSION 13). Re-pin deliberately whenever state shape or rules change.
+// Pins the current rules (RULES_VERSION 15). Re-pin deliberately whenever state shape or rules change.
 test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
-    [1, 1015014493],
-    [60, 647552629],
-    [101, 1088987564],
-    [200, 3539693503],
-    [400, 239555574],
+    [1, 3961197963],
+    [60, 2284316203],
+    [101, 1544086528],
+    [200, 2190606633],
+    [400, 1527188274],
   ]);
 
   for (let index = 0; index < 400; index++) {
@@ -244,7 +244,7 @@ test('malformed snapshots fail explicitly instead of silently normalizing state'
       snapshot.terrain.pop();
     },
     (snapshot) => {
-      snapshot.terrain[0] = 4;
+      snapshot.terrain[0] = 5;
     },
     (snapshot) => {
       snapshot.owner[0] = 7;
