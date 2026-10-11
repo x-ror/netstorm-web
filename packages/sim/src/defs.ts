@@ -63,12 +63,6 @@ export interface UnitDef {
 
 export type DefTable = Map<string, UnitDef>;
 
-/** Where data/units.json (parsed from .type files) disagrees with the official help, the help wins.
- * See docs/game-rules.md. */
-const OFFICIAL_LEVELS: Readonly<Record<string, number>> = {
-  rainwalker: 1, // Crystal Crab: level 2 in .type, level 1 in help.english
-};
-
 export function loadDefs(raw: unknown): DefTable {
   if (!Array.isArray(raw)) {
     throw new TypeError('Unit definitions must be an array');
@@ -97,7 +91,7 @@ export function loadDefs(raw: unknown): DefTable {
       theme: (['sun', 'wind', 'rain', 'thunder'].includes(theme ?? '')
         ? theme
         : null) as Theme | null,
-      level: OFFICIAL_LEVELS[id] ?? num(r.level),
+      level: num(r.level),
       cost: num(r.cost),
       hp: num(r.maxHitPoints),
       range: num(r.range),

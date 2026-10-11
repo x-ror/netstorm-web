@@ -150,7 +150,7 @@
 | Заклинання з'являються обелісками на нейтральних островах; транспорт підбирає одне й чаклує за Storm Power скільки завгодно разів | help 1316–1334 | ❌ |
 | Outpost (лише мультиплеєр): дозволяє мости з острова, захищає від ворожого будівництва, приймає кристали, телепортує юніти; островом володіє той, у кого більше Outpost | help 2285–2303 | ❌ |
 
-Рівні юнітів за новою версією довідки (help 1127–1211): Sun 1 — Golem, Sun Generator, Disc Thrower, Sun Cannon, Stone Tower, Sun Barricade; Sun 2 — Whirligig, Whirlibase, Balloon. Wind 1 — Generator; 2 — Sail Skater, Crossbow, Wind Tower; 3 — Dust Devil, Devil Maker, Air Ship. Rain 1 — Generator, Crystal Crab, Acid Barricade; 2 — Ice Cannon, Ice Tower; 3 — Man o' War, Pool, Cloud Floater. Thunder 1 — Generator, Bulf, Arc Spire; 2 — Thunder Cannon, Bulwark; 3 — Vander Tower. З `data/units.json` розходиться лише Crystal Crab: у довідці рівень 1, а у файлі гри `rainwalker.type` — `level = 2`. Зараз код бере рівень із довідки; яке джерело тут головне, ще не вирішено.
+Рівні юнітів за новою версією довідки (help 1127–1211): Sun 1 — Golem, Sun Generator, Disc Thrower, Sun Cannon, Stone Tower, Sun Barricade; Sun 2 — Whirligig, Whirlibase, Balloon. Wind 1 — Generator; 2 — Sail Skater, Crossbow, Wind Tower; 3 — Dust Devil, Devil Maker, Air Ship. Rain 1 — Generator, Crystal Crab, Acid Barricade; 2 — Ice Cannon, Ice Tower; 3 — Man o' War, Pool, Cloud Floater. Thunder 1 — Generator, Bulf, Arc Spire; 2 — Thunder Cannon, Bulwark; 3 — Vander Tower. З `data/units.json` розходиться лише Crystal Crab: у довідці рівень 1, а у файлі гри `rainwalker.type` — `level = 2`. Код бере рівень 2 із файлу гри: де довідка й дані розходяться, діють дані, бо саме їх виконує гра.
 
 ## Що ще показали файли гри
 
