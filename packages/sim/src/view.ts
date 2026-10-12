@@ -12,6 +12,7 @@ export interface WorldView {
   readonly tick: number;
   readonly terrainRevision: number;
   readonly winner: number | null;
+  readonly bridgeSet: number;
   readonly terrain: ArrayLike<number>;
   readonly owner: ArrayLike<number>;
   readonly links: ArrayLike<number>;

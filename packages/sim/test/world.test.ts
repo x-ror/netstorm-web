@@ -12,6 +12,9 @@ import {
   BRIDGE_SCAN,
   PIECES,
   PIECE_WEIGHTS,
+  BRIDGE_SETS,
+  BRIDGE_SET_WEIGHTS,
+  World,
   HAND_SIZE,
   CRYSTAL_VALUE,
   type Transport,
@@ -279,6 +282,33 @@ test('the Temple fills the window with the original pieces, small ones guarantee
   }
 
   assert.equal(p.hand.at(-1)!.piece, 1);
+});
+
+test('the Bridges option picks the set of pieces the Temple draws from', () => {
+  assert.deepEqual(BRIDGE_SETS, ['standard', 'traditional', 'simplified', 'crazy']);
+  const drawn = (bridges: (typeof BRIDGE_SETS)[number]) => {
+    const w = createSkirmish(defs, 3, players, [[80, 40]], { bridges });
+    const p = w.players.get(1)!;
+    const seen = new Set<number>();
+
+    for (let i = 0; i < 3000; i++) {
+      w.step();
+      p.hand.forEach((entry) => seen.add(entry.piece));
+      p.hand = [];
+    }
+
+    return seen;
+  };
+  // Simplified has nine pieces with a weight; the single block comes on its schedule besides.
+  const simplified = drawn('simplified');
+  assert.ok([...simplified].every((piece) => piece === 0 || BRIDGE_SET_WEIGHTS[2]![piece]! > 0));
+  assert.ok(simplified.size <= 10);
+  // Crazy gives every piece the same weight, so far more of the 46 turn up.
+  assert.ok(drawn('crazy').size > 40);
+  // The choice is part of the saved state.
+  const w = createSkirmish(defs, 3, players, [[80, 40]], { bridges: 'traditional' });
+  assert.equal(w.bridgeSet, 1);
+  assert.equal(World.fromSnapshot(JSON.parse(JSON.stringify(w.snapshot()))).bridgeSet, 1);
 });
 
 test("energy must come from a nearby source of the unit's own alignment", () => {

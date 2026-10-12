@@ -93,6 +93,8 @@ export class World {
   private readonly pathfinder = new Pathfinder();
   readonly rng: Rng;
   winner: number | null = null;
+  /** Bridge set the Temples draw pieces from, an index into BRIDGE_SETS. */
+  bridgeSet = 0;
 
   constructor(
     public readonly defs: DefTable,
@@ -107,6 +109,7 @@ export class World {
     world.tick = snapshot.tick;
     world.nextId = snapshot.nextId;
     world.winner = snapshot.winner;
+    world.bridgeSet = snapshot.bridgeSet;
     world.terrain.set(snapshot.terrain);
     world.owner.set(snapshot.owner);
     world.links.set(snapshot.links);
@@ -134,6 +137,7 @@ export class World {
       rngState: this.rng.state(),
       nextId: this.nextId,
       winner: this.winner,
+      bridgeSet: this.bridgeSet,
       terrain: Array.from(this.terrain),
       owner: Array.from(this.owner),
       links: Array.from(this.links),

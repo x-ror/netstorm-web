@@ -1,6 +1,7 @@
 import { UNIT_CLASSES, UNIT_GROUPS, type UnitDef } from './defs.js';
 import type { Entity, Player } from './state.js';
 import {
+  BRIDGE_SETS,
   LINK_ALL,
   WEAR_FULL,
   W,
@@ -25,8 +26,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 13;
-export const RULES_VERSION = 26;
+export const SNAPSHOT_VERSION = 14;
+export const RULES_VERSION = 27;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -38,6 +39,7 @@ export interface WorldSnapshot {
   rngState: number;
   nextId: number;
   winner: number | null;
+  bridgeSet: number;
   terrain: number[];
   owner: number[];
   links: number[];
@@ -288,6 +290,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     'rngState',
     'nextId',
     'winner',
+    'bridgeSet',
     'terrain',
     'owner',
     'links',
@@ -321,6 +324,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     rngState: integer(value.rngState, 'snapshot.rngState', 0, MAX_UINT32),
     nextId,
     winner: nullableId(value.winner, 'snapshot.winner'),
+    bridgeSet: integer(value.bridgeSet, 'snapshot.bridgeSet', 0, BRIDGE_SETS.length - 1),
     terrain: grid(value.terrain, 'terrain', Terrain.HardBridge),
     owner: grid(value.owner, 'owner', MAX_PLAYERS),
     links: grid(value.links, 'links', LINK_ALL),

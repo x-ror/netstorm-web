@@ -4,12 +4,12 @@ import {
   HAND_SIZE,
   PIECE_HARD,
   PIECE_INTERVAL,
-  PIECE_WEIGHTS,
+  BRIDGE_SET_WEIGHTS,
   SINGLE_PIECE,
   type Player,
 } from '../state.js';
 
-const PIECE_WEIGHT_TOTAL = PIECE_WEIGHTS.reduce((sum, weight) => sum + weight, 0);
+const SET_TOTALS = BRIDGE_SET_WEIGHTS.map((weights) => weights.reduce((sum, w) => sum + w, 0));
 // Every third draw into the last free slot is a single block and the draw after it a domino, and
 // every fifth draw into any other slot is a single block, each only if the window has none.
 const LAST_SLOT_CYCLE = 3;
@@ -17,18 +17,19 @@ const OTHER_SLOT_CYCLE = 5;
 
 /** One piece by weight. The running total is compared with `>=`, as the original does. */
 function drawPiece(world: World): number {
-  const roll = world.rng.int(PIECE_WEIGHT_TOTAL);
+  const weights = BRIDGE_SET_WEIGHTS[world.bridgeSet]!;
+  const roll = world.rng.int(SET_TOTALS[world.bridgeSet]!);
   let total = 0;
 
-  for (let piece = 0; piece < PIECE_WEIGHTS.length; piece++) {
-    total += PIECE_WEIGHTS[piece]!;
+  for (let piece = 0; piece < weights.length; piece++) {
+    total += weights[piece]!;
 
     if (total >= roll) {
       return piece;
     }
   }
 
-  return PIECE_WEIGHTS.length - 1;
+  return weights.length - 1;
 }
 
 /** The piece for a free slot, as the original's Production Window picks it: a weighted draw,
