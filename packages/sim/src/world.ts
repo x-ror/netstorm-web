@@ -230,6 +230,9 @@ export class World {
       runeTimer: 0,
       path: [],
       move: 0,
+      carrying: null,
+      goal: 'idle',
+      target: null,
     };
     this.entities.set(p.id, p);
     this.occupant[y * W + x] = p.id;
@@ -424,6 +427,11 @@ export class World {
   }
 
   /** Internal rule hook; gameplay callers must use commands. */
+  /** Transports standing on a cell, in entity order. */
+  transportsAt(x: number, y: number): readonly Transport[] {
+    return this.transports.at(x, y) ?? [];
+  }
+
   moveTransportIndex(transport: Transport, previousX: number, previousY: number): void {
     this.transports.move(transport, previousX, previousY);
   }
@@ -528,7 +536,7 @@ export class World {
   }
 
   /** Internal rule hook; a crystal only forms in the hands of the transport mining a geyser. */
-  spawnCrystal(carrier: Transport, value: number): Crystal {
+  spawnCrystal(carrier: Transport | Priest, value: number): Crystal {
     const c: Crystal = {
       id: this.nextId++,
       kind: 'crystal',

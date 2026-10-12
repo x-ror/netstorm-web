@@ -155,7 +155,8 @@ export function createControls(options: {
       return false;
     }
 
-    if (selected.kind === 'transport' && target) {
+    // The Priest fetches crystals as a transport does; everything else is for transports only.
+    if ((selected.kind === 'transport' || selected.kind === 'priest') && target) {
       const transport = selected.id;
 
       if (target.kind === 'geyser') {
@@ -168,7 +169,7 @@ export function createControls(options: {
         return true;
       }
 
-      if (target.kind === 'priest' && target.state === 'down') {
+      if (selected.kind === 'transport' && target.kind === 'priest' && target.state === 'down') {
         submit({ t: 'capturePriest', player: me, transport, target: target.id });
         return true;
       }

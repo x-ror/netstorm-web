@@ -1,7 +1,17 @@
 import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
-import { arriveAtAltar, arriveAtPriest, releasePriest } from './capture.js';
-import { TPS, CRYSTAL_VALUE, type Transport, type Priest, type Geyser } from '../state.js';
+import { arriveAtAltar, arriveAtPriest, releasePriest, takeCaptive } from './capture.js';
+import { TPS, CRYSTAL_VALUE, Terrain, type Transport, type Priest, type Geyser } from '../state.js';
+
+// From carrier.cpp of netstorm.game 10.82.
+const GOLEM = 'sunwalker';
+const BULF = 'bulf';
+const CRYSTAL_CRAB = 'rainwalker';
+/** "The Bulf ... carries two Storm Crystals at a time": it takes both from the geyser at once. */
+const BULF_CRYSTALS = 2;
+
+/** Whoever carries crystals: a transport, or the Priest, who "also serves as a Transport". */
+type Carrier = Transport | Priest;
 
 const MOVE_SCALE = 100; // fixed-point progress needed to enter the next cell
 // A diagonal step is longer by the square root of two, so speed in cells per second stays the same.
@@ -31,6 +41,13 @@ export function advance(world: World, e: Transport | Priest, speed: number): boo
       || (e.kind === 'priest' && world.occupant[world.at(x, y)])
     ) {
       e.path = [];
+
+      // "Golem are dumb, and they will walk straight off a bridge if it is broken. All other
+      // Transports stop before falling to their deaths."
+      if (e.kind === 'transport' && e.type === GOLEM && fallsAt(world, x, y)) {
+        e.hp = 0;
+      }
+
       return false;
     }
 
@@ -52,6 +69,60 @@ export function advance(world: World, e: Transport | Priest, speed: number): boo
   return true;
 }
 
+function fallsAt(world: World, x: number, y: number): boolean {
+  return world.inside(x, y) && world.terrain[world.at(x, y)] === Terrain.Sky;
+}
+
+/**
+ * "If it encounters another Transport other than a fellow Crab, it will stun it, and steal what
+ * it's carrying, whether Priest or Storm Crystal." A Crab with nothing on it robs an enemy
+ * transport that stands on its cell. The victim loses its errand. From a Bulf with two crystals
+ * the Crab takes one, which is all it can carry.
+ */
+function steal(world: World, crab: Transport): void {
+  const onFoot = world.entities.get(world.occupant[world.at(crab.x, crab.y)] ?? 0);
+  const victims: Carrier[] = [...world.transportsAt(crab.x, crab.y)];
+
+  if (onFoot?.kind === 'priest') {
+    victims.push(onFoot);
+  }
+
+  for (const victim of victims) {
+    const cargo = victim.carrying === null ? undefined : world.entities.get(victim.carrying);
+    const fellow = victim.kind === 'transport' && victim.type === CRYSTAL_CRAB;
+
+    if (victim.owner === crab.owner || fellow || victim.hp <= 0 || !cargo) {
+      continue;
+    }
+
+    if (cargo.kind === 'priest' && victim.kind === 'transport') {
+      // It cannot carry its owner's Priest, and here it takes one only if it has an altar to go to.
+      if (cargo.owner === crab.owner || !takeCaptive(world, victim, crab, cargo)) {
+        continue;
+      }
+    } else if (cargo.kind === 'crystal') {
+      if (cargo.value > CRYSTAL_VALUE) {
+        cargo.value -= CRYSTAL_VALUE;
+        crab.carrying = world.spawnCrystal(crab, CRYSTAL_VALUE).id;
+      } else {
+        victim.carrying = null;
+        cargo.carriedBy = crab.id;
+        crab.carrying = cargo.id;
+      }
+
+      crab.target = null;
+      goHome(world, crab);
+    }
+
+    if (victim.carrying === null) {
+      victim.path = [];
+      stop(victim);
+    }
+
+    return;
+  }
+}
+
 export function tickTransport(world: World, t: Transport): void {
   if (t.hp <= 0) {
     removeTransport(world, t);
@@ -61,21 +132,38 @@ export function tickTransport(world: World, t: Transport): void {
 
   advance(world, t, world.def(t.type).speed);
 
+  if (t.type === CRYSTAL_CRAB && t.carrying === null) {
+    steal(world, t);
+  }
+
   if (t.path.length) {
     return;
   }
 
+  if (arrive(world, t)) {
+    return;
+  }
+
+  if (t.goal === 'capture') {
+    arriveAtPriest(world, t);
+  } else if (t.goal === 'altar') {
+    arriveAtAltar(world, t);
+  }
+}
+
+/** What a carrier of crystals does at the end of its way; false if it was on another errand. */
+export function arrive(world: World, t: Carrier): boolean {
   if (t.goal === 'collect') {
     arriveAtGeyser(world, t);
   } else if (t.goal === 'pickup') {
     arriveAtCrystal(world, t);
   } else if (t.goal === 'home') {
     deliver(world, t);
-  } else if (t.goal === 'capture') {
-    arriveAtPriest(world, t);
-  } else if (t.goal === 'altar') {
-    arriveAtAltar(world, t);
+  } else {
+    return false;
   }
+
+  return true;
 }
 
 /** Take a transport off the map; whatever it carried is left behind. */
@@ -88,12 +176,12 @@ function nextTo(a: { x: number; y: number; }, b: { x: number; y: number; }): boo
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;
 }
 
-function stop(t: Transport): void {
+function stop(t: Carrier): void {
   t.goal = 'idle';
   t.target = null;
 }
 
-function arriveAtGeyser(world: World, t: Transport): void {
+function arriveAtGeyser(world: World, t: Carrier): void {
   const g = t.target === null ? undefined : world.entities.get(t.target);
 
   // Stopped short of the geyser: the path was cut on the way.
@@ -108,13 +196,14 @@ function arriveAtGeyser(world: World, t: Transport): void {
   }
 
   // Taking the crystal is instant here; the help does not say how long it takes in the original.
-  const value = Math.min(CRYSTAL_VALUE, g.stock);
+  const crystals = t.kind === 'transport' && t.type === BULF ? BULF_CRYSTALS : 1;
+  const value = Math.min(crystals * CRYSTAL_VALUE, g.stock);
   g.stock -= value;
   t.carrying = world.spawnCrystal(t, value).id;
   goHome(world, t);
 }
 
-function arriveAtCrystal(world: World, t: Transport): void {
+function arriveAtCrystal(world: World, t: Carrier): void {
   const c = t.target === null ? undefined : world.entities.get(t.target);
   t.target = null;
 
@@ -132,10 +221,11 @@ function arriveAtCrystal(world: World, t: Transport): void {
 }
 
 /** Head for the Temple with the cargo. `target` is kept so the transport returns to the same geyser. */
-function goHome(world: World, t: Transport): void {
+function goHome(world: World, t: Carrier): void {
   const home = world.templeOf(t.owner);
   const path = home
-    ? world.findPath(t.owner, t.x, t.y, (cell) => world.adjacentTo(cell[0], cell[1], home))
+    ? world.findPath(t.owner, t.x, t.y, (cell) => world.adjacentTo(cell[0], cell[1], home),
+      t.kind === 'priest')
     : null;
 
   if (!path) {
@@ -147,7 +237,7 @@ function goHome(world: World, t: Transport): void {
   t.goal = 'home';
 }
 
-function deliver(world: World, t: Transport): void {
+function deliver(world: World, t: Carrier): void {
   const home = world.templeOf(t.owner);
 
   if (t.carrying === null || !home || !world.adjacentTo(t.x, t.y, home)) {
@@ -181,8 +271,9 @@ function deliver(world: World, t: Transport): void {
   seekGeyser(world, t);
 }
 
-function sendToGeyser(world: World, t: Transport, g: Geyser): boolean {
-  const path = world.findPath(t.owner, t.x, t.y, (cell) => nextTo(g, { x: cell[0], y: cell[1] }));
+function sendToGeyser(world: World, t: Carrier, g: Geyser): boolean {
+  const path = world.findPath(t.owner, t.x, t.y, (cell) => nextTo(g, { x: cell[0], y: cell[1] }),
+    t.kind === 'priest');
 
   if (!path) {
     return false;
@@ -195,7 +286,7 @@ function sendToGeyser(world: World, t: Transport, g: Geyser): boolean {
 }
 
 /** Pick the reachable non-depleted geyser closest to the owner's Temple, even in enemy territory. */
-function seekGeyser(world: World, t: Transport): void {
+function seekGeyser(world: World, t: Carrier): void {
   const home = world.templeOf(t.owner);
 
   if (!home) {
@@ -225,7 +316,7 @@ function seekGeyser(world: World, t: Transport): void {
   stop(t);
 }
 
-function dropCargo(world: World, t: Transport): void {
+export function dropCargo(world: World, t: Carrier): void {
   if (t.carrying === null) {
     return;
   }
@@ -245,13 +336,19 @@ function dropCargo(world: World, t: Transport): void {
   }
 }
 
-function ownTransport(world: World, player: number, id: number): Transport | null {
+/** The player's transport, or his Priest on his feet, with nothing in its hands. */
+function ownCarrier(world: World, player: number, id: number): Carrier | null {
   const t = world.entities.get(id);
-  return t?.kind === 'transport' && t.owner === player && t.carrying === null ? t : null;
+
+  if (!t || (t.kind !== 'transport' && t.kind !== 'priest') || t.owner !== player) {
+    return null;
+  }
+
+  return t.carrying === null && (t.kind === 'transport' || t.state === 'normal') ? t : null;
 }
 
 export function collect(world: World, c: Extract<Command, { t: 'collect'; }>): CommandError | null {
-  const t = ownTransport(world, c.player, c.transport);
+  const t = ownCarrier(world, c.player, c.transport);
   const g = world.entities.get(c.geyser);
 
   if (!t || !g || g.kind !== 'geyser') {
@@ -270,7 +367,7 @@ export function pickupCrystal(
   world: World,
   c: Extract<Command, { t: 'pickupCrystal'; }>,
 ): CommandError | null {
-  const t = ownTransport(world, c.player, c.transport);
+  const t = ownCarrier(world, c.player, c.transport);
   const crystal = world.entities.get(c.crystal);
 
   if (!t || !crystal || crystal.kind !== 'crystal' || crystal.carriedBy !== null) {
@@ -282,7 +379,8 @@ export function pickupCrystal(
   }
 
   const path = world.findPath(c.player, t.x, t.y,
-    (cell) => Math.abs(cell[0] - crystal.x) + Math.abs(cell[1] - crystal.y) <= 1);
+    (cell) => Math.abs(cell[0] - crystal.x) + Math.abs(cell[1] - crystal.y) <= 1,
+    t.kind === 'priest');
 
   if (!path) {
     return 'no path';

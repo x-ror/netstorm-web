@@ -452,6 +452,11 @@ export interface Priest {
   runeTimer: number; // ticks spent on the current rune
   path: [number, number][];
   move: number;
+  /** "Like the Golem, your Priest also serves as a Transport": the crystal he carries. */
+  carrying: number | null;
+  goal: 'idle' | 'collect' | 'pickup' | 'home';
+  /** Geyser he mines or the crystal he was sent for, as for a transport. */
+  target: number | null;
 }
 export interface Crystal {
   id: number;

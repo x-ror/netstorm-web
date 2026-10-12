@@ -453,3 +453,112 @@ test('a hostile Sun Barricade between two posts disables their field', () => {
   world.step();
   assert.ok(behind.hp < behind.hpMax);
 });
+
+test('a Bulf takes two crystals from a geyser at once', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'thunder', 0, []);
+  world.addIsland(0, 0, 100, 100, 1);
+  world.spawnBuilding('thundervortex', 1, 20, 20);
+  const bulf = world.spawnTransport('bulf', 1, 30, 30);
+  const geyser = world.addGeyser(60, 40);
+  const stock = geyser.stock;
+  assert.equal(world.apply({ t: 'collect', player: 1, transport: bulf.id, geyser: geyser.id }),
+    null);
+
+  while (bulf.carrying === null) {
+    world.step();
+  }
+
+  assert.equal(stock - geyser.stock, 400);
+
+  while (bulf.carrying !== null) {
+    world.step();
+  }
+
+  assert.equal(world.players.get(1)!.storm, 400);
+});
+
+test('a Crystal Crab robs an enemy transport on its cell, but not a fellow Crab', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'rain', 0, []);
+  world.addPlayer(2, 'Red', 'thunder', 0, []);
+  world.addIsland(0, 0, 100, 100, 1);
+  world.spawnBuilding('rainvortex', 1, 20, 20);
+  const load = (type: string, x: number, value: number) => {
+    const victim = world.spawnTransport(type, 2, x, 50);
+    victim.carrying = world.spawnCrystal(victim, value).id;
+    victim.path = [[x, 51]];
+    return victim;
+  };
+  const golem = load('sunwalker', 50, 200);
+  const bulf = load('bulf', 60, 400);
+  const fellow = load('rainwalker', 70, 200);
+  const crabs = [50, 60, 70].map((x) => world.spawnTransport('rainwalker', 1, x, 50));
+  world.step();
+  // The Golem is left with nothing and stands still.
+  assert.equal(golem.carrying, null);
+  assert.deepEqual([golem.goal, golem.path.length], ['idle', 0]);
+  assert.equal(crabs[0]!.goal, 'home');
+  // A Crab carries one crystal, so the Bulf keeps the other of its two.
+  const kept = world.entities.get(bulf.carrying!)!;
+  const taken = world.entities.get(crabs[1]!.carrying!)!;
+  assert.ok(kept.kind === 'crystal' && taken.kind === 'crystal');
+  assert.deepEqual([kept.value, taken.value], [200, 200]);
+  assert.notEqual(fellow.carrying, null);
+  assert.equal(crabs[2]!.carrying, null);
+});
+
+test('a Golem walks off a broken bridge; other transports stop at the gap', () => {
+  const world = mk();
+  world.addIsland(0, 30, 50, 20, 1);
+  const send = (type: string, y: number) => {
+    for (let x = 50; x < 56; x++) {
+      world.terrain[world.at(x, y)] = 2;
+    }
+
+    const t = world.spawnTransport(type, 1, 49, y);
+    t.path = [50, 51, 52, 53, 54].map((x) => [x, y] as [number, number]);
+    world.terrain[world.at(53, y)] = 0;
+    return t;
+  };
+  const golem = send('sunwalker', 40);
+  const bulf = send('bulf', 44);
+
+  for (let i = 0; i < 5 * TPS; i++) {
+    world.step();
+  }
+
+  assert.ok(!world.entities.has(golem.id));
+  assert.deepEqual([bulf.x, bulf.hp], [52, bulf.hpMax]);
+});
+
+test('the Priest carries crystals like a transport, and drops his load when he goes down', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 0, []);
+  world.addIsland(0, 0, 100, 100, 1);
+  world.spawnBuilding('windvortex', 1, 20, 20);
+  const priest = world.addPriest(1, 30, 30);
+  const geyser = world.addGeyser(40, 30);
+  assert.equal(world.apply({ t: 'collect', player: 1, transport: priest.id, geyser: geyser.id }),
+    null);
+
+  while (world.players.get(1)!.storm === 0) {
+    world.step();
+  }
+
+  assert.equal(world.players.get(1)!.storm, 200);
+  // He goes back for more, as a transport does.
+  assert.equal(priest.goal, 'collect');
+
+  while (priest.carrying === null) {
+    world.step();
+  }
+
+  const crystal = world.entities.get(priest.carrying!)!;
+  priest.hp = 10;
+  world.step();
+  assert.equal(priest.state, 'down');
+  assert.equal(priest.carrying, null);
+  assert.ok(crystal.kind === 'crystal' && crystal.carriedBy === null);
+  assert.deepEqual([crystal.x, crystal.y], [priest.x, priest.y]);
+});

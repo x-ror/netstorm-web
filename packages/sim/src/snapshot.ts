@@ -30,8 +30,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 17;
-export const RULES_VERSION = 31;
+export const SNAPSHOT_VERSION = 18;
+export const RULES_VERSION = 32;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -211,8 +211,19 @@ function parseEntity(raw: unknown): Entity {
     };
   }
 
-  keys(value, [...living, 'state', 'carriedBy', 'chainedAt', 'runes', 'runeTimer', 'path', 'move'],
-    'priest');
+  keys(value, [
+    ...living,
+    'state',
+    'carriedBy',
+    'chainedAt',
+    'runes',
+    'runeTimer',
+    'path',
+    'move',
+    'carrying',
+    'goal',
+    'target',
+  ], 'priest');
   return {
     id,
     kind,
@@ -228,6 +239,9 @@ function parseEntity(raw: unknown): Entity {
     runeTimer: integer(value.runeTimer, 'priest.runeTimer'),
     path: parsePath(value.path),
     move: integer(value.move, 'priest.move'),
+    carrying: nullableId(value.carrying, 'priest.carrying'),
+    goal: choice(value.goal, ['idle', 'collect', 'pickup', 'home'], 'priest.goal'),
+    target: nullableId(value.target, 'priest.target'),
   };
 }
 

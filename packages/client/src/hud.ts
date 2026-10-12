@@ -268,14 +268,20 @@ function info(world: WorldView, me: number, ui: UiState): string {
       );
     }
   } else if (entity.kind === 'priest') {
-    lines.push(PRIEST_STATES[entity.state] ?? entity.state);
+    lines.push(
+      `${PRIEST_STATES[entity.state] ?? entity.state}${
+        entity.carrying === null ? '' : ', з кристалом'
+      }`,
+    );
 
     if (entity.state === 'chained') {
       lines.push(`руни: ${entity.runes} з ${RUNES}`);
     }
 
     if (entity.owner === me && entity.state === 'normal') {
-      lines.push('<span class="muted">Клацніть землю, щоб жрець пішов туди</span>');
+      lines.push(
+        '<span class="muted">Клацніть землю, щоб жрець пішов туди, або гейзер чи кристал</span>',
+      );
     }
   } else if (entity.kind === 'geyser') {
     lines.push(entity.stock > 0 ? `запас ${entity.stock} Storm Power` : 'вичерпаний');

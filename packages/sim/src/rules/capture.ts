@@ -149,6 +149,28 @@ export function arriveAtPriest(world: World, t: Transport): void {
   world.emit({ what: 'captured', who: t.owner, data: { priest: p.id } });
 }
 
+/**
+ * Hand a captive over from the transport that carries him to another one, which sets off for its
+ * owner's altar. Refused, with nothing changed, when that owner has no altar to reach.
+ */
+export function takeCaptive(world: World, from: Transport, to: Transport, p: Priest): boolean {
+  const altar = ownAltar(world, to.owner);
+  const path = altar
+    && world.findPath(to.owner, to.x, to.y, (cell) => world.adjacentTo(cell[0], cell[1], altar));
+
+  if (!altar || !path) {
+    return false;
+  }
+
+  from.carrying = null;
+  p.carriedBy = to.id;
+  to.carrying = p.id;
+  to.path = path;
+  to.goal = 'altar';
+  to.target = altar.id;
+  return true;
+}
+
 /** Transport carrying a priest reached the end of its way to the altar. */
 export function arriveAtAltar(world: World, t: Transport): void {
   const p = t.carrying === null ? undefined : world.entities.get(t.carrying);

@@ -1,7 +1,7 @@
 import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
 import { TPS, Terrain, type Priest } from '../state.js';
-import { advance } from './movement.js';
+import { advance, arrive, dropCargo } from './movement.js';
 import { tickRitual } from './capture.js';
 
 const PRIEST_SPEED = 1.8; // cells per second
@@ -64,6 +64,9 @@ export function tickPriest(world: World, p: Priest): void {
   if (p.hp < p.hpMax / 2) {
     p.state = 'down';
     p.path = [];
+    p.goal = 'idle';
+    p.target = null;
+    dropCargo(world, p); // a paralysed Priest holds nothing
     world.emit({ what: 'priest down', who: p.owner });
     return;
   }
@@ -75,6 +78,10 @@ export function tickPriest(world: World, p: Priest): void {
   }
 
   advance(world, p, PRIEST_SPEED);
+
+  if (!p.path.length) {
+    arrive(world, p);
+  }
 }
 
 export function movePriest(
@@ -94,6 +101,9 @@ export function movePriest(
     return 'no path';
   }
 
+  // An order to walk ends his errand; a crystal he holds is banked if the walk ends at his Temple.
   p.path = path;
+  p.goal = p.carrying === null ? 'idle' : 'home';
+  p.target = null;
   return null;
 }

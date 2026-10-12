@@ -1,5 +1,5 @@
 import type { DeepReadonly, WorldView } from './view.js';
-import { W, H, Terrain, MAX_ID, MAX_PLAYERS, type Transport } from './state.js';
+import { W, H, Terrain, MAX_ID, MAX_PLAYERS, type Priest, type Transport } from './state.js';
 
 function fail(message: string): never {
   throw new Error(`World invariant: ${message}`);
@@ -103,6 +103,18 @@ export function assertWorldInvariants(world: WorldView): void {
         fail(`invalid ritual progress for priest ${id}`);
       }
 
+      if (entity.carrying !== null) {
+        const cargo = world.entities.get(entity.carrying);
+
+        if (cargo?.kind !== 'crystal' || cargo.carriedBy !== id || entity.state !== 'normal') {
+          fail(`invalid priest cargo for ${id}`);
+        }
+      }
+
+      if (!validTransportTarget(world, entity)) {
+        fail(`invalid priest target for ${id}`);
+      }
+
       if (!held && world.occupant[world.at(entity.x, entity.y)] !== id) {
         fail(`priest ${id} missing from its cell`);
       }
@@ -136,7 +148,10 @@ export function assertWorldInvariants(world: WorldView): void {
       if (entity.carriedBy !== null) {
         const carrier = world.entities.get(entity.carriedBy);
 
-        if (!carrier || carrier.kind !== 'transport' || carrier.carrying !== id) {
+        const carries = (carrier?.kind === 'transport' || carrier?.kind === 'priest')
+          && carrier.carrying === id;
+
+        if (!carries) {
           fail(`invalid crystal carrier for ${id}`);
         }
       }
@@ -201,7 +216,7 @@ export function assertWorldInvariants(world: WorldView): void {
   }
 }
 
-function validTransportTarget(world: WorldView, t: DeepReadonly<Transport>): boolean {
+function validTransportTarget(world: WorldView, t: DeepReadonly<Transport | Priest>): boolean {
   const kind = t.target === null ? undefined : world.entities.get(t.target)?.kind;
 
   switch (t.goal) {
