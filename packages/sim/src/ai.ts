@@ -19,6 +19,7 @@ import {
   W,
   H,
   isBridge,
+  oppositeDir,
   pieceEnds,
   rotatePiece,
   type Facing,
@@ -85,13 +86,17 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
   let head: Head | null = null;
   let piece: Extract<Command, { t: 'dropPiece'; }> | null = null;
 
+  // Ground the transports can walk to now; joining anything else is what a bridge is for.
+  const home = world.templeOf(me);
+  const reached = home ? walkableFrom(world, me, home) : null;
+
   // Grow toward the first target a piece can be laid toward. When none can, the last target, the
   // enemy, still decides where units go.
   for (const candidate of bridgeTargets(world, me, attack)) {
     const field = skyField(world, candidate);
     target = candidate;
-    head = bounds ? bridgeHead(world, me, field, bounds) : null;
-    piece = head ? bestPiece(world, me, head, field) : null;
+    head = bounds && reached ? bridgeHead(world, me, field, bounds, reached) : null;
+    piece = head && reached ? bestPiece(world, me, head, field, reached) : null;
 
     if (piece) {
       break;
@@ -187,6 +192,24 @@ function capture(world: WorldView, move: Move, transports: View<Transport>[]): v
 
   const free = transports.find((t) => t.carrying === null && t.goal === 'idle')
     ?? transports.find((t) => t.carrying === null);
+  const home = world.templeOf(move.me);
+
+  // He has to be within a step of ground the transports can walk to: a bridge that merely lies
+  // beside his island does not lead onto it.
+  if (!home) {
+    return;
+  }
+
+  const reached = walkableFrom(world, move.me, home);
+  const near = (x: number, y: number): boolean =>
+    world.inside(x, y) && reached[world.at(x, y)] === 1;
+
+  if (
+    !near(captive.x, captive.y)
+    && !DIRS.some(([dx, dy]) => near(captive.x + dx, captive.y + dy))
+  ) {
+    return;
+  }
 
   if (free) {
     move.commands.push({
@@ -282,8 +305,11 @@ function walkableFrom(world: WorldView, me: number, from: View<Building>): Uint8
     const x = i % W;
     const y = (i / W) | 0;
 
-    for (const [dx, dy] of DIRS) {
-      if (world.walkable(me, x + dx, y + dy) && !reached[world.at(x + dx, y + dy)]) {
+    for (const [dir, [dx, dy]] of DIRS.entries()) {
+      if (
+        world.walkable(me, x + dx, y + dy) && world.joined(x, y, dir)
+        && !reached[world.at(x + dx, y + dy)]
+      ) {
         reached[world.at(x + dx, y + dy)] = 1;
         queue[tail++] = world.at(x + dx, y + dy);
       }
@@ -467,14 +493,20 @@ function skyField(world: WorldView, target: Target): Int32Array {
 
 /** The own walkable ground cell that borders the sky closest (along the field) to the target:
  * the head the bridge grows from, with the bridge it still needs. */
-function bridgeHead(world: WorldView, me: number, field: Int32Array, bounds: Bounds): Head | null {
+function bridgeHead(
+  world: WorldView,
+  me: number,
+  field: Int32Array,
+  bounds: Bounds,
+  reached: Uint8Array,
+): Head | null {
   let best: Head | null = null;
 
   for (let y = bounds.y0; y <= bounds.y1; y++) {
     for (let x = bounds.x0; x <= bounds.x1; x++) {
-      // Only ground a transport can walk on: bridging off a unit's islet would leave a bridge
-      // that cannot be reached past the unit.
-      if (world.owner[y * W + x] !== me || !world.walkable(me, x, y)) {
+      // Only ground a transport can walk to from the Temple: a bridge carried on from behind a
+      // unit's islet, or from a stretch that is not joined to the rest, could not be used.
+      if (world.owner[y * W + x] !== me || reached[y * W + x] !== 1) {
         continue;
       }
 
@@ -501,6 +533,7 @@ function bestPiece(
   me: number,
   head: Head,
   field: Int32Array,
+  reached: Uint8Array,
 ): Extract<Command, { t: 'dropPiece'; }> | null {
   const hand = world.players.get(me)!.hand;
   let best: Extract<Command, { t: 'dropPiece'; }> | null = null;
@@ -512,7 +545,7 @@ function bestPiece(
       const ends = pieceEnds(hand[index]!.piece, rot);
 
       for (const [x, y] of nearby(head, SEARCH_RADIUS)) {
-        const need = needAfter(world, field, cells, ends, x, y);
+        const need = needAfter(world, me, field, reached, cells, ends, x, y);
 
         if (
           need < bestNeed
@@ -529,11 +562,19 @@ function bestPiece(
   return best;
 }
 
+/** Better than reaching the target's surroundings: an open end joined to new ground. */
+const JOINED = -1;
+
 /** Bridge still needed once the piece lies at (x, y): none if it reaches the target's surroundings,
- * otherwise the least from the sky beyond one of its open ends, where the next piece can attach. */
+ * otherwise the least from the sky beyond one of its open ends, where the next piece can attach.
+ * A piece whose open end meets ground the transports cannot walk to yet counts for more than
+ * either: only a joined bridge claims a geyser's islet or lets a transport onto an island, and a
+ * bridge that stops a cell short of the shore does neither. */
 function needAfter(
   world: WorldView,
+  me: number,
   field: Int32Array,
+  reached: Uint8Array,
   cells: [number, number][],
   ends: [number, number, number][],
   x: number,
@@ -541,6 +582,19 @@ function needAfter(
 ): number {
   const at = (cx: number, cy: number): number =>
     world.inside(cx, cy) ? field[world.at(cx, cy)]! : -1;
+
+  const joinsNewGround = ends.some(([ex, ey, dir]) => {
+    const cx = x + ex + DIRS[dir]![0];
+    const cy = y + ey + DIRS[dir]![1];
+    // Ground a transport could stand on and that takes the join from this side: not a unit's
+    // islet, and not the flank of someone's bridge.
+    return world.walkable(me, cx, cy) && reached[world.at(cx, cy)] !== 1
+      && joins(world, world.at(cx, cy), oppositeDir(dir));
+  });
+
+  if (joinsNewGround) {
+    return JOINED;
+  }
 
   if (cells.some(([dx, dy]) => at(x + dx, y + dy) === 0)) {
     return 0;

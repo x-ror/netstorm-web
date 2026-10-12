@@ -344,6 +344,25 @@ test('pieces join end to end, never side to side', () => {
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 56, y: 42, rot: 0 }), null);
 });
 
+test('transports walk across joins only: bridges lying side by side are not a way across', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  const flat = { t: 'dropPiece', player: 1, hand: 0, rot: 1 } as const;
+  // Two dominoes off the east shore (x = 50), one right under the other. Each is joined to the
+  // island by its west end; their long sides only touch.
+  p.hand = [{ piece: 1, age: 0 }];
+  assert.equal(w.apply({ ...flat, x: 51, y: 40 }), null);
+  p.hand = [{ piece: 1, age: 0 }];
+  assert.equal(w.apply({ ...flat, x: 51, y: 41 }), null);
+  assert.equal(w.joined(51, 40, 3), true); // west, onto the island
+  assert.equal(w.joined(51, 40, 1), true); // east, along the piece
+  assert.equal(w.joined(52, 40, 2), false); // south, onto the other bridge
+  // From the far cell of one to the far cell of the other is one step as the crow flies, and five
+  // by the only way there is: back to the island and out again.
+  const path = w.findPath(1, 52, 40, (cell) => cell[0] === 52 && cell[1] === 41);
+  assert.deepEqual(path, [[51, 40], [50, 40], [50, 41], [51, 41], [52, 41]]);
+});
+
 test('a unit goes at an open end of a bridge, not beside it', () => {
   const w = mk();
   const p = w.players.get(1)!;

@@ -23,6 +23,7 @@ export interface WorldView {
   readonly at: (x: number, y: number) => number;
   readonly isOwnGround: (player: number, x: number, y: number) => boolean;
   readonly walkable: (player: number, x: number, y: number) => boolean;
+  readonly joined: (x: number, y: number, dir: number) => boolean;
   readonly def: (type: string) => Readonly<UnitDef>;
   readonly priestOf: (player: number) => DeepReadonly<Priest> | undefined;
   readonly templeOf: (player: number) => DeepReadonly<Building> | undefined;

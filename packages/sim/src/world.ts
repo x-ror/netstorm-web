@@ -21,7 +21,7 @@
  *    not consume it permanently (original: "once built units don't consume energy")
  */
 import { hashWorld } from './checksum.js';
-import { dropPiece, pieceSite, type PieceCommand } from './rules/bridges.js';
+import { dropPiece, joins, pieceSite, type PieceCommand } from './rules/bridges.js';
 import { tickBuilding } from './rules/combat.js';
 import { tickPlayer } from './rules/economy.js';
 import { energy, canBuild, build, salvage } from './rules/building.js';
@@ -48,6 +48,8 @@ import {
   type Geyser,
   type Entity,
   type Facing,
+  DIRS,
+  oppositeDir,
 } from './state.js';
 import type { Command, CommandError, CommandResult } from './commands.js';
 import type { Event, EventInput } from './events.js';
@@ -272,6 +274,25 @@ export class World {
       && this.terrain[this.at(x, y)] !== Terrain.Sky
       && this.owner[this.at(x, y)] === p
     );
+  }
+
+  /** Whether the ground at (x, y) carries on into its neighbour on the side `dir`, an index into
+   * DIRS: both cells are ground and each joins on the side that faces the other. Island joins on
+   * every side, bridge only where its piece does, so two bridges lying side by side are not
+   * joined. The original's pathfinder asks the same of every step. */
+  joined(x: number, y: number, dir: number): boolean {
+    const [dx, dy] = DIRS[dir]!;
+    const nx = x + dx;
+    const ny = y + dy;
+
+    if (!this.inside(x, y) || !this.inside(nx, ny)) {
+      return false;
+    }
+
+    const from = this.at(x, y);
+    const to = this.at(nx, ny);
+    return this.terrain[from] !== Terrain.Sky && this.terrain[to] !== Terrain.Sky
+      && joins(this, from, dir) && joins(this, to, oppositeDir(dir));
   }
 
   /** Walkable for a transport/priest: any island or bridge cell without a building, whoever owns it.

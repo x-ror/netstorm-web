@@ -51,11 +51,12 @@ export class Pathfinder {
         return out.reverse();
       }
 
-      for (const [dx, dy] of DIRS) {
+      for (const [dir, [dx, dy]] of DIRS.entries()) {
         const nx = x + dx;
         const ny = y + dy;
 
-        if (!world.walkable(p, nx, ny)) {
+        // A step needs ground to stand on and a join between the two cells.
+        if (!world.walkable(p, nx, ny) || !world.joined(x, y, dir)) {
           continue;
         }
 
