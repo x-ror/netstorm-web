@@ -255,6 +255,7 @@ export class World {
       cooldown: 0,
       killer: 0,
       islet: false,
+      regrow: 0,
     };
     this.entities.set(b.id, b);
     this.forFoot(b, (i) => {
@@ -564,6 +565,7 @@ export class World {
       && (occ.kind === 'building' || occ.kind === 'priest')
       && occ.owner !== me
       && occ.owner !== 0
+      && !(occ.kind === 'building' && occ.regrow > 0)
     ) {
       return occ;
     }

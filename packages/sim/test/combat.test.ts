@@ -226,13 +226,13 @@ test('shot timing follows the fire animations of the original', () => {
   world.spawnBuilding('thundercannon', 1, 48, 39, 1);
   world.step();
   assert.equal(tower.hpMax - tower.hp, 160);
-  // The Vander Tower is anti-air: a hit is 0.6 of its 35 per second, not a second of it.
+  // The Vander Tower shoots at flyers only: a unit on the ground beside it is left alone.
   const other = mk();
   other.addIsland(0, 0, 100, 100, 2);
   const near = other.spawnBuilding('suncannon', 2, 54, 39, 1);
   other.spawnBuilding('thunderarcher', 1, 48, 39, 1);
   other.step();
-  assert.equal(near.hpMax - near.hp, 21);
+  assert.equal(near.hp, near.hpMax);
 });
 
 test('a destroyed shooter hurts everything next to it and can set off a chain', () => {
@@ -290,4 +290,68 @@ test('transports cut across island ground diagonally, but step onto bridge strai
   // A building in the way of one of the straight steps closes the diagonal past its corner.
   world.spawnBuilding('suncannon', 1, 10, 9);
   assert.equal(world.findPath(1, 9, 9, to(10, 8))!.length, 2);
+});
+
+test('the Crossbow shoots into an arc of thirty degrees either side of its facing', () => {
+  const world = mk();
+  world.addIsland(0, 0, 100, 100, 2);
+  // Facing east from (40..42, 40..42); its centre cell is (41, 41).
+  world.spawnBuilding('windarcher', 1, 40, 40, 1);
+  const behind = world.spawnBuilding('sunblocker', 2, 30, 40);
+  const abeam = world.spawnBuilding('sunblocker', 2, 40, 50);
+  const wide = world.spawnBuilding('sunblocker', 2, 46, 47); // 5 east, 6 south: outside 30°
+  world.step();
+  assert.deepEqual([behind.hp, abeam.hp, wide.hp], [behind.hpMax, abeam.hpMax, wide.hpMax]);
+  const ahead = world.spawnBuilding('sunblocker', 2, 50, 43); // 9 east, 2 south: inside
+  world.step();
+  assert.ok(ahead.hp < ahead.hpMax);
+  assert.deepEqual([behind.hp, abeam.hp, wide.hp], [behind.hpMax, abeam.hpMax, wide.hpMax]);
+});
+
+test('the Wind Tower takes nothing from the side its back is turned to', () => {
+  const world = mk();
+  world.addIsland(0, 0, 100, 100, 2);
+  // Two towers in a row, each with a Sun Cannon firing at it from the west.
+  const turned = world.spawnBuilding('windblocker', 2, 50, 40, 3); // back to the west
+  const open = world.spawnBuilding('windblocker', 2, 50, 50, 1); // back to the east
+  world.spawnBuilding('suncannon', 1, 40, 40, 1);
+  world.spawnBuilding('suncannon', 1, 40, 50, 1);
+  world.step();
+  assert.equal(turned.hp, turned.hpMax);
+  assert.ok(open.hp < open.hpMax);
+  // An explosion beside it is no shot from a side: it hurts either way.
+  const bomb = world.spawnBuilding('suncannon', 2, 47, 40, 1);
+  bomb.hp = 0;
+  world.step();
+  assert.equal(turned.hpMax - turned.hp, 301);
+});
+
+test('a destroyed Ice Tower grows back in forty seconds, and nothing is paid for it', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 0, []);
+  world.addPlayer(2, 'Red', 'rain', 0, []);
+  world.addIsland(0, 0, 100, 100, 2);
+  const tower = world.spawnBuilding('rainblocker', 2, 50, 40);
+  const cannon = world.spawnBuilding('suncannon', 1, 40, 40, 1);
+  tower.hp = 1;
+  world.step();
+  world.step();
+  // It is down but still stands there, and the cannon has let go of it.
+  assert.ok(world.entities.has(tower.id));
+  assert.equal(tower.hp, 0);
+  assert.equal(tower.regrow > 0, true);
+  assert.equal(world.players.get(1)!.storm, 0);
+  assert.equal(cannon.target, null);
+
+  for (let i = 0; i < 40 * TPS - 2; i++) {
+    world.step();
+  }
+
+  assert.equal(tower.hp, 0);
+  // Hold the cannon's fire, or it greets the new tower with a shot at once.
+  cannon.cooldown = 10 * TPS;
+  world.step();
+  world.step();
+  assert.equal(tower.regrow, 0);
+  assert.equal(tower.hp, tower.hpMax);
 });

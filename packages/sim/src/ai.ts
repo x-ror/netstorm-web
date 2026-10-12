@@ -26,6 +26,7 @@ import {
   type Facing,
 } from './state.js';
 import { joins } from './rules/bridges.js';
+import { facesWhenLaid } from './rules/combat.js';
 import type { DeepReadonly, WorldView } from './view.js';
 import type { Building, Entity, Geyser, Priest, Transport } from './state.js';
 
@@ -696,7 +697,7 @@ function bestUnit(
   let short = false;
 
   for (const def of shooters) {
-    const spot = place(world, move, def, head, def.group === 'cannon' ? facing : undefined);
+    const spot = place(world, move, def, head, facesWhenLaid(def) ? facing : undefined);
 
     if (spot.placed) {
       return;

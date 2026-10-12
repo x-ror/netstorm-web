@@ -43,8 +43,22 @@ function selfAiming(def: UnitDef): boolean {
 }
 
 export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void {
+  if (b.regrow > 0) {
+    regrow(b);
+    return;
+  }
+
   if (b.hp <= 0) {
     if (world.blasted.has(b.id)) {
+      return;
+    }
+
+    if (b.type === ICE_TOWER) {
+      // It "regenerates by itself if destroyed": the tower stays where it is, out of the fight,
+      // and its islet with it. Bridge around it is shaken as by any destroyed unit.
+      b.regrow = REGROW_SECONDS * TPS;
+      b.target = null;
+      shakeBridges(world, { ...b, islet: false });
       return;
     }
 
@@ -82,8 +96,80 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
   // interval of it. Other groups deal a fixed share of the rate with every hit.
   const interval = shotInterval(def);
   const amount = def.group === 'anti-air' ? def.dps * FLAT_SHOT_SHARE : (def.dps * interval) / TPS;
-  damage(world, b.owner, target, amount);
+  damage(world, b.owner, target, amount, b);
   b.cooldown = interval;
+}
+
+// From the unit classes of netstorm.game 10.82.
+const ICE_TOWER = 'rainblocker';
+const WIND_TOWER = 'windblocker';
+const CROSSBOW = 'windarcher';
+const VANDER_TOWER = 'thunderarcher';
+const ARC_SPIRE = 'thunderfence';
+/** A destroyed Ice Tower is replaced by a growing one that plays its animation in 40 s. */
+const REGROW_SECONDS = 40;
+
+function regrow(b: Building): void {
+  b.regrow--;
+
+  if (b.regrow === 0) {
+    b.hp = b.hpMax;
+    b.killer = 0;
+  }
+}
+
+/** Units that are aimed when they are laid: cannons along their line of fire, the Crossbow into
+ * its arc, the Wind Tower with its invulnerable back. */
+export function facesWhenLaid(def: UnitDef): boolean {
+  return def.group === 'cannon' || def.id === CROSSBOW || def.id === WIND_TOWER;
+}
+
+/** Twice the centre of an entity, to keep the halves of even footprints whole numbers. */
+function centre2(e: Entity): [number, number] {
+  const width = e.kind === 'building' ? e.fx : 1;
+  const height = e.kind === 'building' ? e.fy : 1;
+  return [e.x + e.x + width - 1, e.y + e.y + height - 1];
+}
+
+/** How far `to` lies from `from` along the facing and across it, in half cells. */
+function alongAcross(from: Entity, to: Entity, facing: Facing): [number, number] {
+  const [fx, fy] = centre2(from);
+  const [tx, ty] = centre2(to);
+  const [dx, dy] = DIRS[facing]!;
+  return [(tx - fx) * dx + (ty - fy) * dy, (tx - fx) * dy - (ty - fy) * dx];
+}
+
+// tan²(30°) is a third: a target is within 30° of the facing when 3·across² <= along².
+const ARC_RATIO = 3;
+
+/** "The Crossbow will target the closest unit in an arc": 30° either side of the way it faces. */
+function inArc(b: Building, target: Entity): boolean {
+  const [along, across] = alongAcross(b, target, b.facing);
+  return along > 0 && ARC_RATIO * across * across <= along * along;
+}
+
+/** Whether this gun aims at such a target at all, wherever it stands. */
+function aimsAt(b: Building, target: Entity): boolean {
+  // The Vander Tower shoots at flyers only, and there are none in the simulation yet.
+  if (b.type === VANDER_TOWER) {
+    return false;
+  }
+
+  return b.type !== CROSSBOW || inArc(b, target);
+}
+
+/** "On three sides it takes normal damage, but on its curved back it is utterly invulnerable":
+ * the Wind Tower takes nothing from a ground unit that stands on the side it was faced to, the
+ * Arc Spire excepted. */
+function shielded(target: Entity, from: Building | undefined): boolean {
+  if (
+    target.kind !== 'building' || target.type !== WIND_TOWER || !from || from.type === ARC_SPIRE
+  ) {
+    return false;
+  }
+
+  const [along, across] = alongAcross(target, from, target.facing);
+  return along > 0 && Math.abs(across) <= along;
 }
 
 // Damage a destroyed Temple deals to everything around it (netstorm.game 10.82).
@@ -143,8 +229,13 @@ export function removeBuilding(world: World, b: Building): void {
   world.entities.delete(b.id);
 }
 
-function damage(world: World, by: number, entity: Entity, amount: number): void {
-  if (!('hp' in entity)) {
+function damage(world: World, by: number, entity: Entity, amount: number, from?: Building): void {
+  if (!('hp' in entity) || shielded(entity, from)) {
+    return;
+  }
+
+  // A growing Ice Tower has nothing to hit.
+  if (entity.kind === 'building' && entity.regrow > 0) {
     return;
   }
 
@@ -159,7 +250,11 @@ function damage(world: World, by: number, entity: Entity, amount: number): void 
 
   // "When you destroy an enemy unit you get 25% of its Storm Power value." A priest is never
   // destroyed by units, and only the shot that brings the unit down is paid.
-  if (entity.kind === 'priest' || before <= 0 || entity.hp > 0) {
+  // Nor is anything paid for an Ice Tower, which grows back.
+  if (
+    entity.kind === 'priest' || before <= 0 || entity.hp > 0
+    || (entity.kind === 'building' && entity.type === ICE_TOWER)
+  ) {
     return;
   }
 
@@ -183,7 +278,7 @@ function lockedTarget(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt)
     return lineTarget(world, b, def, enemyAt, b.facing)?.entity === target ? target : null;
   }
 
-  return targetable(b, target) && inRadius(b, def, target) ? target : null;
+  return targetable(b, target) && inRadius(b, def, target) && aimsAt(b, target) ? target : null;
 }
 
 /** "All units will always choose the closest available target." */
@@ -213,7 +308,7 @@ function acquire(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt): Ent
 function targetable(b: Building, target: Entity): boolean {
   switch (target.kind) {
     case 'building':
-      return target.owner !== b.owner && target.owner !== 0;
+      return target.owner !== b.owner && target.owner !== 0 && target.regrow === 0;
     case 'priest':
       return target.owner !== b.owner && (target.state === 'normal' || target.state === 'down');
     case 'transport':
@@ -282,6 +377,10 @@ export function lineTarget(
 export function radiusTarget(b: Building, def: UnitDef, enemyAt: EnemyAt): Entity | null {
   const cx = b.x + (b.fx >> 1);
   const cy = b.y + (b.fy >> 1);
+  const seen: EnemyAt = (owner, x, y) => {
+    const hit = enemyAt(owner, x, y);
+    return hit && aimsAt(b, hit) ? hit : null;
+  };
 
   for (let r = 1; r <= def.range; r++) {
     const left = cx - r;
@@ -290,7 +389,7 @@ export function radiusTarget(b: Building, def: UnitDef, enemyAt: EnemyAt): Entit
     const bottom = cy + r;
 
     for (let x = left; x <= right; x++) {
-      const hit = enemyAt(b.owner, x, top);
+      const hit = seen(b.owner, x, top);
 
       if (hit) {
         return hit;
@@ -298,13 +397,13 @@ export function radiusTarget(b: Building, def: UnitDef, enemyAt: EnemyAt): Entit
     }
 
     for (let y = top + 1; y < bottom; y++) {
-      const first = enemyAt(b.owner, left, y);
+      const first = seen(b.owner, left, y);
 
       if (first) {
         return first;
       }
 
-      const last = enemyAt(b.owner, right, y);
+      const last = seen(b.owner, right, y);
 
       if (last) {
         return last;
@@ -312,7 +411,7 @@ export function radiusTarget(b: Building, def: UnitDef, enemyAt: EnemyAt): Entit
     }
 
     for (let x = left; x <= right; x++) {
-      const hit = enemyAt(b.owner, x, bottom);
+      const hit = seen(b.owner, x, bottom);
 
       if (hit) {
         return hit;

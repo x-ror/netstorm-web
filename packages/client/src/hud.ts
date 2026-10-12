@@ -55,7 +55,7 @@ export function createHud(
     <aside id="panel">
       <h3 title="Сегмент приєднується лише кінцями, позначеними жовтим">Мости <span class="muted">1–${world.bridgeSlots}, R — поворот</span></h3>
       <div id="hand"></div>
-      <h3>Виробництво <span class="muted">F — напрям гармати</span></h3>
+      <h3>Виробництво <span class="muted">F — напрям юніта</span></h3>
       <div id="units"></div>
       <div id="tools"></div>
       <div id="info"></div>
@@ -251,6 +251,10 @@ function info(world: WorldView, me: number, ui: UiState): string {
 
   if (entity.kind === 'building') {
     lines.push(...combatLines(world.defs.get(entity.type), entity.hpMax));
+
+    if (entity.regrow > 0) {
+      lines.push(`відростає: ще ${Math.ceil(entity.regrow / TPS)} с`);
+    }
   }
 
   if (entity.kind === 'transport') {

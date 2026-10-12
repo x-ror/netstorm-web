@@ -416,6 +416,8 @@ export interface Building {
   killer: number;
   /** Laid off a bridge, it stands on an islet of its own, which falls with it. */
   islet: boolean;
+  /** Ticks until a destroyed Ice Tower has grown back; 0 while the building stands. */
+  regrow: number;
 }
 export interface Transport {
   id: number;

@@ -4,6 +4,7 @@ import {
   type Facing,
   type UnitDef,
   type WorldView,
+  facesWhenLaid,
 } from '@netstorm/sim';
 
 /** What a left click on the map does. */
@@ -58,8 +59,9 @@ export function placeable(def: Readonly<UnitDef>): boolean {
 }
 
 /** Cannons are laid facing one of four directions. */
+/** Units the player aims while laying them: cannons, the Crossbow and the Wind Tower. */
 export function hasFacing(def: Readonly<UnitDef>): boolean {
-  return def.group === 'cannon';
+  return facesWhenLaid(def);
 }
 
 /** Top-left cell of a footprint centred on the cursor. */

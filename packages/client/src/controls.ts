@@ -22,6 +22,7 @@ const ZOOM_OUT = 0.9;
 const PAN_STEP = 48; // screen pixels per arrow key press
 const DRAG_THRESHOLD = 6; // screen pixels a press may move and still count as a click
 const CELL_HALF = 0.5;
+const ARC_TAN = 0.577; // tan 30°, half the width of the Crossbow's arc at a distance of one
 // Size, in cells, of the mark at an open end of a piece: across the edge and along it.
 const END_DEPTH = 0.3;
 const END_WIDTH = 0.6;
@@ -416,6 +417,21 @@ export function createControls(options: {
     const cx = x + (def.footX >> 1);
     const cy = y + (def.footY >> 1);
     const style = { color: COLOR.reach, alpha: ENERGY_ALPHA, width: 1 };
+
+    if (def.id === 'windarcher') {
+      // The Crossbow's arc: 30° either side of the way it faces.
+      const [ax, ay] = DIRS[facing]!;
+      const reach = def.range;
+      const spread = reach * ARC_TAN;
+      const corner = (side: number) =>
+        project(cx + CELL_HALF + ax * reach - ay * spread * side,
+          cy + CELL_HALF + ay * reach + ax * spread * side);
+      const tip = project(cx + CELL_HALF, cy + CELL_HALF);
+      const left = corner(-1);
+      const right = corner(1);
+      overlay.poly([tip.sx, tip.sy, left.sx, left.sy, right.sx, right.sy]).stroke(style);
+      return;
+    }
 
     if (def.group !== 'cannon') {
       overlay.poly(rectPoly(cx - def.range, cy - def.range, def.range * 2 + 1, def.range * 2 + 1))
