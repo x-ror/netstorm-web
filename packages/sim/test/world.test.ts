@@ -382,6 +382,58 @@ test('a loose end of bridge wears away; bridge joined at both ends and hard brid
   assert.deepEqual([at(51, 45), at(52, 45)], [2, 2]);
 });
 
+test('the Priest and the Crystal Crab step off bridge that is about to fall; a Golem does not', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  const priest = w.priestOf(1)!;
+
+  // Three normal dominoes off the east shore (x = 50), each with a loose end at x = 52.
+  for (const y of [34, 38, 42]) {
+    p.hand = [{ piece: 1, age: PIECE_HARDEN }];
+    assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y, rot: 1 }), null);
+  }
+
+  w.occupant[w.at(priest.x, priest.y)] = 0;
+  priest.x = 52;
+  priest.y = 34;
+  w.occupant[w.at(52, 34)] = priest.id;
+  const crab = w.spawnTransport('rainwalker', 1, 52, 38);
+  const golem = w.spawnTransport('sunwalker', 1, 52, 42);
+
+  // The end has seven steps at the first look and five at the third: time to go.
+  while (w.tick < 3 * BRIDGE_SCAN - 1) {
+    w.step();
+  }
+
+  assert.deepEqual([priest.x, crab.x, golem.x], [52, 52, 52]);
+
+  while (w.tick < 4 * BRIDGE_SCAN) {
+    w.step();
+  }
+
+  // One cell back is enough: that cell does not wear yet.
+  assert.deepEqual([priest.x, priest.y], [51, 34]);
+  assert.deepEqual([crab.x, crab.y], [51, 38]);
+  assert.deepEqual([golem.x, golem.y], [52, 42]);
+
+  while (w.tick < 8 * BRIDGE_SCAN + 1) {
+    w.step();
+  }
+
+  // The ends fell; the Golem went down with his.
+  assert.equal(w.terrain[34 * 256 + 52], 0);
+  assert.ok(!w.entities.has(golem.id));
+  assert.ok(w.entities.has(crab.id));
+
+  // Then the cells they stand on are the loose ends, and they move on to the island.
+  while (w.tick < 12 * BRIDGE_SCAN) {
+    w.step();
+  }
+
+  assert.deepEqual([priest.x, priest.y], [50, 34]);
+  assert.deepEqual([crab.x, crab.y], [50, 38]);
+});
+
 test('a short stretch of bridge left hanging in the sky falls at the next look', () => {
   const w = mk();
   const p = w.players.get(1)!;

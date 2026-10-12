@@ -396,6 +396,65 @@ function wearTo(world: World, i: number, left: number): void {
   if (left <= WEAR_CRACKED && world.terrain[i] === Terrain.Bridge) {
     world.terrain[i] = Terrain.CrackedBridge;
   }
+
+  if (left <= FLEE_AT) {
+    flee(world, i);
+  }
+}
+
+// "If a Priest or a Crystal Crab is standing on a dangerous bridge, it will try to move
+// automatically to a safer position." From bridge.cpp and carrier.cpp: the two are told to move
+// when the cell under them has five steps left or fewer; bridge is dangerous while it wears and
+// has fewer than seven left; they look five cells around.
+const FLEE_AT = 5;
+const FLEE_REACH = 5;
+const CRYSTAL_CRAB = 'rainwalker';
+
+/** Bridge that has begun to wear and is past its first step. */
+function dangerous(world: WorldView, i: number): boolean {
+  return isBridge(world.terrain[i]) && world.wear[i]! > 0 && world.wear[i]! < WEAR_FULL;
+}
+
+/** Send the Priest or Crystal Crab standing still on the cell `i` to the nearest safe ground it
+ * can walk to. Other transports stay and fall with the bridge. */
+function flee(world: World, i: number): void {
+  const x = i % W;
+  const y = (i / W) | 0;
+
+  // ponytail: scans every entity when a cell gets this worn; use the cell index if it shows up.
+  for (const e of world.entities.values()) {
+    const minds = (e.kind === 'priest' && e.state === 'normal')
+      || (e.kind === 'transport' && e.type === CRYSTAL_CRAB && e.goal === 'idle');
+
+    if (!minds || e.x !== x || e.y !== y || e.path.length > 0) {
+      continue;
+    }
+
+    const spots: [number, number, number][] = [];
+
+    for (let cy = y - FLEE_REACH; cy <= y + FLEE_REACH; cy++) {
+      for (let cx = x - FLEE_REACH; cx <= x + FLEE_REACH; cx++) {
+        if (
+          (cx !== x || cy !== y) && world.walkable(e.owner, cx, cy)
+          && !dangerous(world, world.at(cx, cy))
+        ) {
+          spots.push([cx, cy, (cx - x) ** 2 + (cy - y) ** 2]);
+        }
+      }
+    }
+
+    spots.sort((a, b) => a[2] - b[2] || a[1] - b[1] || a[0] - b[0]);
+
+    for (const [cx, cy] of spots) {
+      const path = world.findPath(e.owner, x, y, (cell) => cell[0] === cx && cell[1] === cy,
+        e.kind === 'priest');
+
+      if (path) {
+        e.path = path;
+        break;
+      }
+    }
+  }
 }
 
 /** Bridge that hangs in the sky in a stretch of fewer than five cells falls at once. */
