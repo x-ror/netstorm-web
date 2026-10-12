@@ -15,6 +15,7 @@ import {
   DIRS,
   MAX_FACING,
   PIECES,
+  PIECE_HARD,
   Terrain,
   W,
   H,
@@ -95,8 +96,19 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
   for (const candidate of bridgeTargets(world, me, attack)) {
     const field = skyField(world, candidate);
     target = candidate;
-    head = bounds && reached ? bridgeHead(world, me, field, bounds, reached) : null;
-    piece = head && reached ? bestPiece(world, me, head, field, reached) : null;
+    const heads = bounds && reached ? bridgeHeads(world, me, field, bounds, reached) : [];
+    head = heads[0] ?? null;
+    piece = null;
+
+    // The nearest head may sit in a pocket of the AI's own bridge, where every piece only leads
+    // further from the target; then the bridge goes on from the next head that a piece improves.
+    for (const from of heads) {
+      piece = reached ? bestPiece(world, me, from, field, reached) : null;
+
+      if (piece) {
+        break;
+      }
+    }
 
     if (piece) {
       break;
@@ -491,16 +503,19 @@ function skyField(world: WorldView, target: Target): Int32Array {
   return field;
 }
 
-/** The own walkable ground cell that borders the sky closest (along the field) to the target:
- * the head the bridge grows from, with the bridge it still needs. */
-function bridgeHead(
+/** The own ground cells the bridge can grow from, each with the bridge it still needs: ground a
+ * transport can walk to that borders the sky on a side it joins on. */
+/** How many heads a move tries, the nearest to the target first (invented). */
+const HEADS = 8;
+
+function bridgeHeads(
   world: WorldView,
   me: number,
   field: Int32Array,
   bounds: Bounds,
   reached: Uint8Array,
-): Head | null {
-  let best: Head | null = null;
+): Head[] {
+  const all: Head[] = [];
 
   for (let y = bounds.y0; y <= bounds.y1; y++) {
     for (let x = bounds.x0; x <= bounds.x1; x++) {
@@ -517,14 +532,32 @@ function bridgeHead(
           ? field[world.at(x + dx, y + dy)]!
           : -1;
 
-        if (step >= 0 && (!best || step + 1 < best.need)) {
-          best = { x, y, need: step + 1 };
+        if (step >= 0) {
+          all.push({ x, y, need: step + 1 });
         }
       }
     }
   }
 
-  return best;
+  // Nearest first, and no two within reach of the same search for a piece.
+  all.sort((a, b) => a.need - b.need || a.y - b.y || a.x - b.x);
+  const heads: Head[] = [];
+
+  for (const head of all) {
+    if (heads.length === HEADS) {
+      break;
+    }
+
+    if (
+      heads.every((kept) =>
+        Math.max(Math.abs(kept.x - head.x), Math.abs(kept.y - head.y)) > SEARCH_RADIUS
+      )
+    ) {
+      heads.push(head);
+    }
+  }
+
+  return heads;
 }
 
 /** The piece placement near the head that shortens the bridge still needed the most. */
@@ -540,6 +573,12 @@ function bestPiece(
   let bestNeed = head.need;
 
   for (let index = 0; index < hand.length; index++) {
+    // Only pieces that have turned hard in the window: a loose end of anything softer wears away
+    // within a minute and a half, and the bridge would have to be laid again.
+    if (hand[index]!.age < PIECE_HARD) {
+      continue;
+    }
+
     for (let rot = 0; rot < ROTATIONS; rot++) {
       const cells = rotatePiece(PIECES[hand[index]!.piece]!, rot);
       const ends = pieceEnds(hand[index]!.piece, rot);
