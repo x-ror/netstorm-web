@@ -2,7 +2,6 @@ import { type Application, type Container, type Graphics } from 'pixi.js';
 import {
   DIRS,
   ENERGY_RANGE,
-  HAND_SIZE,
   PIECES,
   pieceEnds,
   ROTATION_MASK,
@@ -329,7 +328,7 @@ export function createControls(options: {
       options.togglePause();
     } else if (key === 'delete') {
       salvage(ui.selected === null ? undefined : world.entities.get(ui.selected));
-    } else if (Number.isInteger(slot) && slot >= 1 && slot <= HAND_SIZE) {
+    } else if (Number.isInteger(slot) && slot >= 1 && slot <= world.bridgeSlots) {
       ui.tool = { kind: 'piece', hand: slot - 1 };
     } else {
       return;

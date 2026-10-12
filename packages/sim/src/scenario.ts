@@ -2,7 +2,7 @@
  *  geyser positions can be taken from data/forts.json (decoded by tools/unfort.py). */
 import { World } from './world.js';
 import type { Theme, DefTable } from './defs.js';
-import { BRIDGE_SETS, type BridgeSet } from './state.js';
+import { BRIDGE_SETS, BRIDGE_SLOTS, HAND_SIZE, type BridgeSet } from './state.js';
 
 export interface SkirmishPlayer {
   id: number;
@@ -32,10 +32,11 @@ export function createSkirmish(
   seed: number,
   players: SkirmishPlayer[],
   geysers: [number, number][],
-  options: { bridges?: BridgeSet; } = {},
+  options: { bridges?: BridgeSet; slots?: number; } = {},
 ): World {
   const w = new World(defs, seed);
   w.bridgeSet = Math.max(0, BRIDGE_SETS.indexOf(options.bridges ?? 'standard'));
+  w.bridgeSlots = BRIDGE_SLOTS.find((slots) => slots === options.slots) ?? HAND_SIZE;
 
   for (const p of players) {
     if (p.theme === 'sun') {

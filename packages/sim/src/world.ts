@@ -57,6 +57,7 @@ import {
   type Facing,
   DIRS,
   oppositeDir,
+  HAND_SIZE,
 } from './state.js';
 import type { Command, CommandError, CommandResult } from './commands.js';
 import type { Event, EventInput } from './events.js';
@@ -95,6 +96,8 @@ export class World {
   winner: number | null = null;
   /** Bridge set the Temples draw pieces from, an index into BRIDGE_SETS. */
   bridgeSet = 0;
+  /** Bridge pieces a player's Production Window holds: 2, 4 or 6. */
+  bridgeSlots: number = HAND_SIZE;
 
   constructor(
     public readonly defs: DefTable,
@@ -110,6 +113,7 @@ export class World {
     world.nextId = snapshot.nextId;
     world.winner = snapshot.winner;
     world.bridgeSet = snapshot.bridgeSet;
+    world.bridgeSlots = snapshot.bridgeSlots;
     world.terrain.set(snapshot.terrain);
     world.owner.set(snapshot.owner);
     world.links.set(snapshot.links);
@@ -138,6 +142,7 @@ export class World {
       nextId: this.nextId,
       winner: this.winner,
       bridgeSet: this.bridgeSet,
+      bridgeSlots: this.bridgeSlots,
       terrain: Array.from(this.terrain),
       owner: Array.from(this.owner),
       links: Array.from(this.links),

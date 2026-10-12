@@ -1,7 +1,6 @@
 import type { World } from '../world.js';
 import {
   DOMINO_PIECE,
-  HAND_SIZE,
   PIECE_HARD,
   PIECE_INTERVAL,
   BRIDGE_SET_WEIGHTS,
@@ -46,7 +45,7 @@ function nextPiece(world: World, player: Player): number {
   const lacks = (wanted: number): boolean => !player.hand.some((entry) => entry.piece === wanted);
   const turn = player.piecesDrawn++;
 
-  if (player.hand.length === HAND_SIZE - 1) {
+  if (player.hand.length === world.bridgeSlots - 1) {
     if (turn % LAST_SLOT_CYCLE === 0) {
       return lacks(SINGLE_PIECE) ? SINGLE_PIECE : piece;
     }
@@ -78,7 +77,7 @@ export function tickPlayer(world: World, player: Player): void {
   ) {
     player.pieceTimer = PIECE_INTERVAL;
 
-    if (player.hand.length < HAND_SIZE) {
+    if (player.hand.length < world.bridgeSlots) {
       player.hand.push({ piece: nextPiece(world, player), age: 0 });
     }
   }

@@ -311,6 +311,25 @@ test('the Bridges option picks the set of pieces the Temple draws from', () => {
   assert.equal(World.fromSnapshot(JSON.parse(JSON.stringify(w.snapshot()))).bridgeSet, 1);
 });
 
+test('the Bridge Slots option sets how many pieces the window holds', () => {
+  for (const slots of [2, 4, 6]) {
+    const w = createSkirmish(defs, 5, players, [[80, 40]], { slots });
+    const p = w.players.get(1)!;
+
+    for (let i = 0; i < PIECE_INTERVAL * 10; i++) {
+      w.step();
+    }
+
+    assert.equal(p.hand.length, slots);
+    // The single block still comes on its schedule into the last free slot.
+    assert.ok(p.hand.some((entry) => entry.piece === 0));
+    assert.equal(World.fromSnapshot(JSON.parse(JSON.stringify(w.snapshot()))).bridgeSlots, slots);
+  }
+
+  // Anything else falls back to six.
+  assert.equal(createSkirmish(defs, 5, players, [[80, 40]], { slots: 3 }).bridgeSlots, 6);
+});
+
 test("energy must come from a nearby source of the unit's own alignment", () => {
   const w = mk();
   const p = w.players.get(1)!;

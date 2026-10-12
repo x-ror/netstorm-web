@@ -1,4 +1,4 @@
-import { BRIDGE_SETS, type BridgeSet, type Theme } from '@netstorm/sim';
+import { BRIDGE_SETS, BRIDGE_SLOTS, HAND_SIZE, type BridgeSet, type Theme } from '@netstorm/sim';
 import { type Mission } from './game-data.js';
 
 export type PlayableTheme = Exclude<Theme, 'sun'>;
@@ -14,6 +14,8 @@ export interface MatchOptions {
   opponent: Opponent;
   /** The "Bridges" battle option: which set of pieces the Temples hand out. */
   bridges: BridgeSet;
+  /** The "Bridge Slots" battle option: pieces the Production Window holds. */
+  slots: number;
 }
 
 export type Opponent = 'ai' | 'idle';
@@ -43,6 +45,7 @@ export const DEFAULT_OPTIONS: MatchOptions = {
   seed: DEFAULT_SEED,
   opponent: 'ai',
   bridges: 'standard',
+  slots: HAND_SIZE,
 };
 
 /** Show the skirmish setup and resolve with the chosen options when the player starts. */
@@ -66,6 +69,9 @@ export function showMenu(root: HTMLElement, missions: Mission[]): Promise<MatchO
           <label>Набір мостів <select name="bridges">${
     BRIDGE_SETS.map((id) => `<option value="${id}">${BRIDGE_LABELS[id]}</option>`).join('')
   }</select></label>
+          <label>Слотів для сегментів <select name="slots">${
+    BRIDGE_SLOTS.map((slots) => `<option value="${slots}">${slots}</option>`).join('')
+  }</select></label>
           <label>Storm Power на старті
             <input name="storm" type="number" min="0" max="${MAX_STORM}" step="100"></label>
           <label>Зерно випадковості <input name="seed" type="number" min="0" max="${MAX_SEED}"></label>
@@ -86,6 +92,7 @@ export function showMenu(root: HTMLElement, missions: Mission[]): Promise<MatchO
   field<HTMLInputElement>('seed').value = String(saved.seed);
   field<HTMLSelectElement>('opponent').value = saved.opponent;
   field<HTMLSelectElement>('bridges').value = saved.bridges;
+  field<HTMLSelectElement>('slots').value = String(saved.slots);
 
   const showBriefing = () => {
     const mission = missions.find((m) => m.id === field<HTMLSelectElement>('mission').value);
@@ -117,6 +124,7 @@ export function showMenu(root: HTMLElement, missions: Mission[]): Promise<MatchO
         seed: clamp(Number(field<HTMLInputElement>('seed').value), MAX_SEED, DEFAULT_SEED),
         opponent: field<HTMLSelectElement>('opponent').value === 'idle' ? 'idle' : 'ai',
         bridges: bridgeSet(field<HTMLSelectElement>('bridges').value),
+        slots: bridgeSlots(Number(field<HTMLSelectElement>('slots').value)),
       };
       saveOptions(options);
       root.hidden = true;
@@ -137,6 +145,10 @@ function clamp(value: number, max: number, fallback: number): number {
 
 function isTheme(value: unknown): value is PlayableTheme {
   return typeof value === 'string' && value in THEMES;
+}
+
+function bridgeSlots(value: unknown): number {
+  return BRIDGE_SLOTS.find((slots) => slots === value) ?? DEFAULT_OPTIONS.slots;
 }
 
 function bridgeSet(value: unknown): BridgeSet {
@@ -161,6 +173,7 @@ function loadOptions(missions: Mission[]): MatchOptions {
       options.seed = clamp(Number(value.seed), MAX_SEED, options.seed);
       options.opponent = value.opponent === 'idle' ? 'idle' : 'ai';
       options.bridges = bridgeSet(value.bridges);
+      options.slots = bridgeSlots(value.slots);
     }
   } catch {
     // Private windows and blocked storage fall back to the defaults.

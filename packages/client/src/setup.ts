@@ -40,5 +40,8 @@ export function createMatchWorld(
       ...HOMES[ENEMY],
       storm: options.storm,
     },
-  ], geysers.length ? geysers : [[FALLBACK_X, FALLBACK_Y]], { bridges: options.bridges });
+  ], geysers.length ? geysers : [[FALLBACK_X, FALLBACK_Y]], {
+    bridges: options.bridges,
+    slots: options.slots,
+  });
 }

@@ -53,7 +53,7 @@ export function createHud(
   root.innerHTML = `
     <header id="topbar"></header>
     <aside id="panel">
-      <h3 title="Сегмент приєднується лише кінцями, позначеними жовтим">Мости <span class="muted">1–6, R — поворот</span></h3>
+      <h3 title="Сегмент приєднується лише кінцями, позначеними жовтим">Мости <span class="muted">1–${world.bridgeSlots}, R — поворот</span></h3>
       <div id="hand"></div>
       <h3>Виробництво <span class="muted">F — напрям гармати</span></h3>
       <div id="units"></div>
