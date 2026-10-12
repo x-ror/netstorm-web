@@ -24,7 +24,7 @@ const mk = () =>
   ], [[80, 40]]);
 const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
-// Pins the current rules (RULES_VERSION 22). Re-pin deliberately whenever state shape or rules change.
+// Pins the current rules (RULES_VERSION 23). Re-pin deliberately whenever state shape or rules change.
 test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
@@ -163,8 +163,8 @@ test('snapshot continuation preserves movement and crystal ownership through del
     assert.equal(restored.hash(), world.hash());
   }
 
-  // Four round trips: the transport keeps mining without further commands.
-  assert.equal(world.players.get(1)!.storm, 2800);
+  // Five round trips: the transport keeps mining without further commands.
+  assert.equal(world.players.get(1)!.storm, 3000);
 });
 
 /** A world where Blue's transport has chained Red's priest on Blue's altar. */

@@ -4,6 +4,15 @@ import { arriveAtAltar, arriveAtPriest, releasePriest } from './capture.js';
 import { TPS, CRYSTAL_VALUE, type Transport, type Priest, type Geyser } from '../state.js';
 
 const MOVE_SCALE = 100; // fixed-point progress needed to enter the next cell
+// A diagonal step is longer by the square root of two, so speed in cells per second stays the same.
+// Whether the original slows diagonal steps this way is not established.
+const DIAGONAL_SCALE = 141;
+
+/** Progress needed to step from where the unit stands to the next cell of its path. */
+function stepCost(e: Transport | Priest): number {
+  const next = e.path[0];
+  return next && next[0] !== e.x && next[1] !== e.y ? DIAGONAL_SCALE : MOVE_SCALE;
+}
 
 export function advance(world: World, e: Transport | Priest, speed: number): boolean {
   if (!e.path.length) {
@@ -12,8 +21,8 @@ export function advance(world: World, e: Transport | Priest, speed: number): boo
 
   e.move += Math.round((speed * MOVE_SCALE) / TPS);
 
-  while (e.move >= MOVE_SCALE && e.path.length) {
-    e.move -= MOVE_SCALE;
+  while (e.path.length && e.move >= stepCost(e)) {
+    e.move -= stepCost(e);
     const [x, y] = e.path.shift()!;
 
     // A priest occupies its cell, so it stops rather than overwrite a geyser or another priest.

@@ -16,8 +16,10 @@ export const PIECE_HARDEN = PIECE_HARDEN_SECONDS * TPS;
 /** Ticks in the window after which a piece is hard. */
 export const PIECE_HARD = PIECE_HARDEN + PIECE_HARDEN;
 export const HAND_SIZE = 6; // "Bridge Slots" battle option: 2, 4 or 6; six in the campaign
-// The official help gives neither number (the stock is the "Money per Geyser" battle option);
-// both come from the .type files and are unconfirmed. See docs/game-rules.md.
+// Both as the original computes them (netstorm.game 10.82): mining a crystal subtracts the cost
+// in nugget.type from the geyser's stock, and outside a battle with options the stock starts at
+// the cost in geyser.type. A battle takes it from the "Money per Geyser" option instead: 2000,
+// 3000, 4000 or 5000. See docs/game-rules.md.
 export const CRYSTAL_VALUE = 200; // Storm Power per crystal
 export const GEYSER_STOCK = 2000; // Storm Power a geyser holds before it is depleted
 export const PRIEST_HP = 100;

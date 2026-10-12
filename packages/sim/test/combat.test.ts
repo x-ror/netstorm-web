@@ -11,6 +11,7 @@ const defs = loadDefs(
 );
 const mk = () => new World(defs, 42);
 const seconds = (id: string) => shotInterval(defs.get(id)!) / TPS;
+const to = (x: number, y: number) => (cell: [number, number]) => cell[0] === x && cell[1] === y;
 
 test('stacked transports keep entity order after an earlier transport moves into their cell', () => {
   const world = mk();
@@ -274,4 +275,19 @@ test('a destroyed Temple deals 400 around it; a generator does not explode', () 
   battery.hp = 0;
   world.step();
   assert.equal(beside.hp, beside.hpMax);
+});
+
+test('transports cut across island ground diagonally, but step onto bridge straight', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 0, []);
+  world.addIsland(0, 0, 20, 20, 1);
+  // Three diagonal steps instead of six straight ones.
+  assert.deepEqual(world.findPath(1, 2, 2, to(5, 5)), [[3, 3], [4, 4], [5, 5]]);
+  // A bridge off the east shore (x = 19) is entered straight on, never across its corner.
+  world.terrain[5 * 256 + 20] = 2;
+  world.owner[5 * 256 + 20] = 1;
+  assert.deepEqual(world.findPath(1, 19, 4, to(20, 5)), [[19, 5], [20, 5]]);
+  // A building in the way of one of the straight steps closes the diagonal past its corner.
+  world.spawnBuilding('suncannon', 1, 10, 9);
+  assert.equal(world.findPath(1, 9, 9, to(10, 8))!.length, 2);
 });

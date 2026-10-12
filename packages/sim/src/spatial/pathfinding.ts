@@ -1,5 +1,5 @@
 import type { WorldView } from '../view.js';
-import { W, H, DIRS } from '../state.js';
+import { W, H, DIRS, Terrain } from '../state.js';
 
 export class Pathfinder {
   private readonly pathPrevious = new Int32Array(W * H);
@@ -51,6 +51,8 @@ export class Pathfinder {
         return out.reverse();
       }
 
+      let open = 0; // sides a straight step can be taken on, as bits by direction
+
       for (const [dir, [dx, dy]] of DIRS.entries()) {
         const nx = x + dx;
         const ny = y + dy;
@@ -66,7 +68,39 @@ export class Pathfinder {
           continue;
         }
 
+        open |= 1 << dir;
+
         if (visited[j] !== epoch) {
+          visited[j] = epoch;
+          prev[j] = i;
+          q[tail++] = j;
+        }
+      }
+
+      // Diagonal steps, as in the original: only across island ground (bridge frames have no
+      // diagonal joins), and only where both straight steps beside the diagonal can be taken.
+      if (world.terrain[i] !== Terrain.Island) {
+        continue;
+      }
+
+      for (const [dir, [dx, dy]] of DIRS.entries()) {
+        const next = (dir + 1) % DIRS.length;
+        const nx = x + dx + DIRS[next]![0];
+        const ny = y + dy + DIRS[next]![1];
+
+        if (
+          (open & (1 << dir)) === 0 || (open & (1 << next)) === 0
+          || !world.walkable(p, nx, ny)
+        ) {
+          continue;
+        }
+
+        const j = world.at(nx, ny);
+
+        if (
+          world.terrain[j] === Terrain.Island && visited[j] !== epoch
+          && !(avoidOccupied && world.occupant[j])
+        ) {
           visited[j] = epoch;
           prev[j] = i;
           q[tail++] = j;
