@@ -1,6 +1,15 @@
 import type { World } from '../world.js';
 import type { UnitDef } from '../defs.js';
 import { shakeBridges } from './bridges.js';
+import {
+  ACID_BARRICADE,
+  ARC_SPIRE,
+  band,
+  barriersOf,
+  fieldStops,
+  line,
+  overlaps,
+} from './fences.js';
 import { TPS, DIRS, FACINGS, type Entity, type Building, type Facing } from '../state.js';
 
 export type EnemyAt = (owner: number, x: number, y: number) => Entity | null;
@@ -71,6 +80,11 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
 
   const def = world.def(b.type);
 
+  if (def.group === 'fence') {
+    tickFence(world, b, def);
+    return;
+  }
+
   if (!def.dps) {
     return;
   }
@@ -96,8 +110,67 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
   // interval of it. Other groups deal a fixed share of the rate with every hit.
   const interval = shotInterval(def);
   const amount = def.group === 'anti-air' ? def.dps * FLAT_SHOT_SHARE : (def.dps * interval) / TPS;
-  damage(world, b.owner, target, amount, b);
   b.cooldown = interval;
+
+  // A shot into a hostile force field is spent on it.
+  if (!fieldStops(world, b, target)) {
+    damage(world, b.owner, target, amount, b);
+  }
+}
+
+/* oxlint-disable no-magic-numbers -- timings and amounts read from the original */
+/** Seconds between the pulses of an Arc Spire and between the checks of an Acid Barricade. */
+const FENCE_SECONDS: Readonly<Record<string, number>> = { [ARC_SPIRE]: 1, [ACID_BARRICADE]: 0.2 };
+/** What the acid deals to a Priest, whom it cannot dissolve. */
+const ACID_ON_PRIEST = 1000;
+/* oxlint-enable no-magic-numbers */
+/** "Arc Spires deal twice as much damage to large structures": Temples, workshops and altars. */
+const LARGE: ReadonlySet<string> = new Set(['Energy', 'Production', 'Altar']);
+
+/**
+ * A fence post does nothing alone. Joined to another, an Arc Spire sends a pulse once a second
+ * that deals its damage rate to every enemy unit in the band between the two, and an Acid
+ * Barricade dissolves every enemy unit on the line between them. The Sun Barricade's force field
+ * only stops shots, see `fieldStops`.
+ */
+function tickFence(world: World, b: Building, def: UnitDef): void {
+  const seconds = FENCE_SECONDS[b.type];
+
+  if (!seconds) {
+    return;
+  }
+
+  if (b.cooldown > 0) {
+    b.cooldown--;
+    return;
+  }
+
+  b.cooldown = Math.round(seconds * TPS) - 1;
+
+  for (const barrier of barriersOf(world, b)) {
+    const reach = b.type === ARC_SPIRE ? band(barrier) : line(barrier);
+
+    for (const entity of world.entities.values()) {
+      if (targetable(b, entity) && overlaps(entity, reach)) {
+        damage(world, b.owner, entity, fenceDamage(world, b, def, entity, seconds), b);
+      }
+    }
+  }
+}
+
+function fenceDamage(
+  world: World,
+  b: Building,
+  def: UnitDef,
+  entity: Entity,
+  seconds: number,
+): number {
+  if (b.type === ACID_BARRICADE) {
+    return entity.kind === 'priest' || !('hp' in entity) ? ACID_ON_PRIEST : entity.hp;
+  }
+
+  const large = entity.kind === 'building' && LARGE.has(world.def(entity.type).cls);
+  return def.dps * seconds * (large ? 2 : 1);
 }
 
 // From the unit classes of netstorm.game 10.82.
@@ -105,7 +178,6 @@ const ICE_TOWER = 'rainblocker';
 const WIND_TOWER = 'windblocker';
 const CROSSBOW = 'windarcher';
 const VANDER_TOWER = 'thunderarcher';
-const ARC_SPIRE = 'thunderfence';
 /** A destroyed Ice Tower is replaced by a growing one that plays its animation in 40 s. */
 const REGROW_SECONDS = 40;
 

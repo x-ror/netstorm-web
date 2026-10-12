@@ -8,6 +8,7 @@ import {
   H,
   isBridge,
   GEYSER_ISLAND_SIZE,
+  barriers,
 } from '@netstorm/sim';
 import { EXPLOSION_FRAMES, GROUND_FRAMES } from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
@@ -44,8 +45,18 @@ const COLOR = {
   barGood: 0x7bd36b,
   barLow: 0xff5a4a,
   tracer: 0xfff2b0,
+  sunField: 0xffd166,
+  acidField: 0x8ee06b,
+  arcField: 0x9fd8ff,
 } as const;
 const LOW_HP = 0.35;
+const FIELD_WIDTH = 2;
+const FIELD_ALPHA = 0.7;
+const FIELD_COLOR: Readonly<Record<string, number>> = {
+  sunfence: COLOR.sunField,
+  rainfence: COLOR.acidField,
+  thunderfence: COLOR.arcField,
+};
 
 export function createWorldRenderer(
   world: WorldView,
@@ -185,7 +196,22 @@ export function createWorldRenderer(
       }
     }
 
+    drawBarriers();
     drawTracers();
+  }
+
+  /** A line between every two fence posts that are joined into a barrier. */
+  function drawBarriers(): void {
+    for (const { from, to } of barriers(world)) {
+      const a = sprites.get(from.id);
+      const b = sprites.get(to.id);
+
+      if (a && b) {
+        bars.moveTo(a.x, a.y - a.height / 2)
+          .lineTo(b.x, b.y - b.height / 2)
+          .stroke({ color: FIELD_COLOR[from.type], width: FIELD_WIDTH, alpha: FIELD_ALPHA });
+      }
+    }
   }
 
   /** A line from each shooter that fired this tick to its target. Shots are not simulated as

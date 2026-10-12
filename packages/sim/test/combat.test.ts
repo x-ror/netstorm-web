@@ -355,3 +355,101 @@ test('a destroyed Ice Tower grows back in forty seconds, and nothing is paid for
   assert.equal(tower.regrow, 0);
   assert.equal(tower.hp, tower.hpMax);
 });
+
+test('two Arc Spires pulse once a second at every enemy unit in the band between them', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'thunder', 0, []);
+  world.addPlayer(2, 'Red', 'rain', 0, []);
+  world.addIsland(0, 0, 120, 100, 2);
+  const lone = world.spawnBuilding('thunderfence', 1, 20, 80);
+  const near = world.spawnTransport('sunwalker', 2, 24, 81);
+  world.spawnBuilding('thunderfence', 1, 20, 40);
+  world.spawnBuilding('thunderfence', 1, 60, 40);
+  const inside = world.spawnTransport('sunwalker', 2, 40, 42); // the band is three cells wide
+  const outside = world.spawnTransport('sunwalker', 2, 40, 43);
+  const own = world.spawnTransport('sunwalker', 1, 41, 41);
+  const temple = world.spawnBuilding('rainvortex', 2, 30, 35); // its bottom row is in the band
+  const tower = world.spawnBuilding('rainblocker', 2, 50, 41);
+  world.step();
+  assert.equal(inside.hpMax - inside.hp, 50);
+  assert.equal(tower.hpMax - tower.hp, 50);
+  assert.equal(temple.hpMax - temple.hp, 100); // twice as much to a large structure
+  assert.equal(outside.hp, outside.hpMax);
+  assert.equal(own.hp, own.hpMax);
+  // A post alone does nothing, however near the enemy stands.
+  assert.equal(near.hp, near.hpMax);
+  assert.equal(lone.target, null);
+
+  for (let i = 0; i < TPS - 1; i++) {
+    world.step();
+  }
+
+  assert.equal(tower.hpMax - tower.hp, 50);
+  world.step();
+  assert.equal(tower.hpMax - tower.hp, 100);
+});
+
+test('Arc Spires join only on one row or column and within their range', () => {
+  const world = mk();
+  world.addIsland(0, 0, 200, 100, 2);
+  world.spawnBuilding('thunderfence', 1, 20, 40);
+  world.spawnBuilding('thunderfence', 1, 71, 40); // 51 cells away, range is 50
+  world.spawnBuilding('thunderfence', 1, 40, 61); // a row lower than the next one
+  world.spawnBuilding('thunderfence', 1, 60, 60);
+  const far = world.spawnTransport('sunwalker', 2, 40, 41);
+  const skew = world.spawnTransport('sunwalker', 2, 50, 61);
+  world.step();
+  assert.equal(far.hp, far.hpMax);
+  assert.equal(skew.hp, skew.hpMax);
+});
+
+test('Acid Barricades dissolve enemy units on the line between them, but not a Priest', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'rain', 0, []);
+  world.addPlayer(2, 'Red', 'wind', 0, []);
+  world.addIsland(0, 0, 100, 100, 2);
+  world.spawnBuilding('rainfence', 1, 40, 20);
+  world.spawnBuilding('rainfence', 1, 40, 50);
+  const walker = world.spawnTransport('sunwalker', 2, 41, 35);
+  const beside = world.spawnTransport('sunwalker', 2, 42, 35); // the line is one cell wide
+  const priest = world.addPriest(2, 41, 40);
+  world.step();
+  world.step();
+  assert.ok(!world.entities.has(walker.id));
+  assert.equal(beside.hp, beside.hpMax);
+  assert.equal(priest.hp, 1);
+});
+
+test('a Sun Barricade field stops enemy shots and lets its owner fire through', () => {
+  const world = mk();
+  world.addIsland(0, 0, 100, 100, 2);
+  world.spawnBuilding('sunfence', 2, 50, 20);
+  const post = world.spawnBuilding('sunfence', 2, 50, 60);
+  world.spawnBuilding('suncannon', 1, 40, 40, 1);
+  const behind = world.spawnBuilding('rainblocker', 2, 60, 40);
+  world.spawnBuilding('suncannon', 2, 60, 50, 3);
+  const attacker = world.spawnBuilding('rainblocker', 1, 40, 50);
+  world.step();
+  assert.equal(behind.hp, behind.hpMax);
+  assert.ok(attacker.hp < attacker.hpMax);
+  // With one post gone the field is gone too.
+  world.entities.delete(post.id);
+
+  for (let i = 0; i <= seconds('suncannon') * TPS; i++) {
+    world.step();
+  }
+
+  assert.ok(behind.hp < behind.hpMax);
+});
+
+test('a hostile Sun Barricade between two posts disables their field', () => {
+  const world = mk();
+  world.addIsland(0, 0, 100, 100, 2);
+  world.spawnBuilding('sunfence', 2, 50, 20);
+  world.spawnBuilding('sunfence', 2, 50, 60);
+  world.spawnBuilding('sunfence', 1, 50, 30);
+  world.spawnBuilding('suncannon', 1, 40, 40, 1);
+  const behind = world.spawnBuilding('rainblocker', 2, 60, 40);
+  world.step();
+  assert.ok(behind.hp < behind.hpMax);
+});

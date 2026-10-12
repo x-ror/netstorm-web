@@ -10,3 +10,4 @@ export * from './replay.js';
 export * from './ai.js';
 export { BRIDGE_SCAN } from './rules/bridges.js';
 export { blastDamage, facesWhenLaid, shotInterval } from './rules/combat.js';
+export { barriers, type Barrier } from './rules/fences.js';
