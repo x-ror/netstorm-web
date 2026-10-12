@@ -15,8 +15,18 @@ const PIECE_HARDEN_SECONDS = 6;
 export const PIECE_HARDEN = PIECE_HARDEN_SECONDS * TPS;
 /** Ticks in the window after which a piece is hard. */
 export const PIECE_HARD = PIECE_HARDEN + PIECE_HARDEN;
-/* oxlint-disable-next-line no-magic-numbers -- the values of the "Bridge Slots" battle option */
+/* oxlint-disable no-magic-numbers -- the values of battle options in netstorm.game 10.82 */
 export const BRIDGE_SLOTS = [2, 4, 6] as const;
+/** "Unit Rate": seconds a unit type stays dimmed after it is laid (Slow, Medium, Fast, Very Fast). */
+export const UNIT_RATES = [30, 15, 8, 4] as const;
+/** "Kill Reward": per cent of a destroyed enemy unit's cost paid to the player who destroyed it. */
+export const KILL_REWARDS = [0, 25, 50, 75, 100, 150] as const;
+/** "Money per Geyser": Storm Power a geyser holds. */
+export const GEYSER_STOCKS = [2000, 3000, 4000, 5000] as const;
+/* oxlint-enable no-magic-numbers */
+/** What the options are when nothing chooses them: the campaign's values. */
+export const DEFAULT_UNIT_RATE = 4;
+export const DEFAULT_KILL_REWARD = 25;
 export const HAND_SIZE = 6; // the most bridge slots there can be, and the number in the campaign
 // Both as the original computes them (netstorm.game 10.82): mining a crystal subtracts the cost
 // in nugget.type from the geyser's stock, and outside a battle with options the stock starts at
@@ -39,8 +49,7 @@ export const RUNE_INTERVAL = RUNE_SECONDS * TPS;
 // "When you lay a unit down in the game its image in the Production Window will stay dimmed for a
 // while" (Unit Rate option). The campaign default is stuffRefreshRate = 4 in setup.cfg, read as
 // seconds; the unit of that number is not stated anywhere (`?`).
-const UNIT_REFRESH_SECONDS = 4;
-export const UNIT_REFRESH = UNIT_REFRESH_SECONDS * TPS;
+export const UNIT_REFRESH = DEFAULT_UNIT_RATE * TPS;
 export const MAX_PLAYERS = 8;
 export const MAX_ID = 0x7fffffff; // ids fit a signed 32-bit integer
 export const MAX_UINT32 = 0xffffffff;

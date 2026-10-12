@@ -27,6 +27,9 @@ export function hashWorld(world: WorldView, rngState: number, nextId: number): n
   text(JSON.stringify(world.winner));
   uint(world.bridgeSet);
   uint(world.bridgeSlots);
+  uint(world.unitRate);
+  uint(world.killReward);
+  uint(world.geyserStock);
 
   for (let i = 0; i < W * H; i++) {
     byte(world.terrain[i]!);

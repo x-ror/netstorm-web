@@ -14,6 +14,9 @@ export interface WorldView {
   readonly winner: number | null;
   readonly bridgeSet: number;
   readonly bridgeSlots: number;
+  readonly unitRate: number;
+  readonly killReward: number;
+  readonly geyserStock: number;
   readonly terrain: ArrayLike<number>;
   readonly owner: ArrayLike<number>;
   readonly links: ArrayLike<number>;

@@ -58,6 +58,8 @@ import {
   DIRS,
   oppositeDir,
   HAND_SIZE,
+  DEFAULT_UNIT_RATE,
+  DEFAULT_KILL_REWARD,
 } from './state.js';
 import type { Command, CommandError, CommandResult } from './commands.js';
 import type { Event, EventInput } from './events.js';
@@ -98,6 +100,12 @@ export class World {
   bridgeSet = 0;
   /** Bridge pieces a player's Production Window holds: 2, 4 or 6. */
   bridgeSlots: number = HAND_SIZE;
+  /** Seconds a unit type cannot be laid again after one is laid (the Unit Rate option). */
+  unitRate: number = DEFAULT_UNIT_RATE;
+  /** Per cent of an enemy unit's cost paid for destroying it (the Kill Reward option). */
+  killReward: number = DEFAULT_KILL_REWARD;
+  /** Storm Power a new geyser holds (the Money per Geyser option). */
+  geyserStock: number = GEYSER_STOCK;
 
   constructor(
     public readonly defs: DefTable,
@@ -114,6 +122,9 @@ export class World {
     world.winner = snapshot.winner;
     world.bridgeSet = snapshot.bridgeSet;
     world.bridgeSlots = snapshot.bridgeSlots;
+    world.unitRate = snapshot.unitRate;
+    world.killReward = snapshot.killReward;
+    world.geyserStock = snapshot.geyserStock;
     world.terrain.set(snapshot.terrain);
     world.owner.set(snapshot.owner);
     world.links.set(snapshot.links);
@@ -143,6 +154,9 @@ export class World {
       winner: this.winner,
       bridgeSet: this.bridgeSet,
       bridgeSlots: this.bridgeSlots,
+      unitRate: this.unitRate,
+      killReward: this.killReward,
+      geyserStock: this.geyserStock,
       terrain: Array.from(this.terrain),
       owner: Array.from(this.owner),
       links: Array.from(this.links),
@@ -186,7 +200,7 @@ export class World {
     }
   }
 
-  addGeyser(x: number, y: number, stock = GEYSER_STOCK): Geyser {
+  addGeyser(x: number, y: number, stock = this.geyserStock): Geyser {
     this.addIsland(x - 1, y - 1, GEYSER_ISLAND_SIZE, GEYSER_ISLAND_SIZE, 0);
     const g: Geyser = {
       id: this.nextId++,

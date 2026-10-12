@@ -1,4 +1,13 @@
-import { BRIDGE_SETS, BRIDGE_SLOTS, HAND_SIZE, type BridgeSet, type Theme } from '@netstorm/sim';
+import {
+  BRIDGE_SETS,
+  BRIDGE_SLOTS,
+  GEYSER_STOCKS,
+  HAND_SIZE,
+  KILL_REWARDS,
+  UNIT_RATES,
+  type BridgeSet,
+  type Theme,
+} from '@netstorm/sim';
 import { type Mission } from './game-data.js';
 
 export type PlayableTheme = Exclude<Theme, 'sun'>;
@@ -16,6 +25,12 @@ export interface MatchOptions {
   bridges: BridgeSet;
   /** The "Bridge Slots" battle option: pieces the Production Window holds. */
   slots: number;
+  /** "Unit Rate": seconds before the same unit can be laid again. */
+  unitRate: number;
+  /** "Kill Reward": per cent of a destroyed enemy unit's cost. */
+  killReward: number;
+  /** "Money per Geyser": Storm Power a geyser holds. */
+  geyserStock: number;
 }
 
 export type Opponent = 'ai' | 'idle';
@@ -31,6 +46,11 @@ const BRIDGE_LABELS: Record<BridgeSet, string> = {
   simplified: 'Simplified — лише найкорисніші',
   crazy: 'Crazy — усі форми порівну',
 };
+const UNIT_RATE_NAMES = ['Slow', 'Medium', 'Fast', 'Very Fast'];
+// The campaign's values, which the simulation takes when an option is left alone.
+const DEFAULT_UNIT_RATE = 4;
+const DEFAULT_KILL_REWARD = 25;
+const DEFAULT_GEYSER_STOCK = 2000;
 const STORAGE_KEY = 'netstorm.menu';
 const DEFAULT_SEED = 42;
 const DEFAULT_STORM = 2000;
@@ -46,6 +66,9 @@ export const DEFAULT_OPTIONS: MatchOptions = {
   opponent: 'ai',
   bridges: 'standard',
   slots: HAND_SIZE,
+  unitRate: DEFAULT_UNIT_RATE,
+  killReward: DEFAULT_KILL_REWARD,
+  geyserStock: DEFAULT_GEYSER_STOCK,
 };
 
 /** Show the skirmish setup and resolve with the chosen options when the player starts. */
@@ -72,6 +95,17 @@ export function showMenu(root: HTMLElement, missions: Mission[]): Promise<MatchO
           <label>Слотів для сегментів <select name="slots">${
     BRIDGE_SLOTS.map((slots) => `<option value="${slots}">${slots}</option>`).join('')
   }</select></label>
+          <label>Пауза між однаковими юнітами <select name="unitRate">${
+    UNIT_RATES.map((seconds, i) =>
+      `<option value="${seconds}">${UNIT_RATE_NAMES[i]} — ${seconds} с</option>`
+    ).join('')
+  }</select></label>
+          <label>Нагорода за знищення <select name="killReward">${
+    KILL_REWARDS.map((share) => `<option value="${share}">${share} % вартості</option>`).join('')
+  }</select></label>
+          <label>Запас гейзера <select name="geyserStock">${
+    GEYSER_STOCKS.map((stock) => `<option value="${stock}">${stock}</option>`).join('')
+  }</select></label>
           <label>Storm Power на старті
             <input name="storm" type="number" min="0" max="${MAX_STORM}" step="100"></label>
           <label>Зерно випадковості <input name="seed" type="number" min="0" max="${MAX_SEED}"></label>
@@ -93,6 +127,9 @@ export function showMenu(root: HTMLElement, missions: Mission[]): Promise<MatchO
   field<HTMLSelectElement>('opponent').value = saved.opponent;
   field<HTMLSelectElement>('bridges').value = saved.bridges;
   field<HTMLSelectElement>('slots').value = String(saved.slots);
+  field<HTMLSelectElement>('unitRate').value = String(saved.unitRate);
+  field<HTMLSelectElement>('killReward').value = String(saved.killReward);
+  field<HTMLSelectElement>('geyserStock').value = String(saved.geyserStock);
 
   const showBriefing = () => {
     const mission = missions.find((m) => m.id === field<HTMLSelectElement>('mission').value);
@@ -125,6 +162,12 @@ export function showMenu(root: HTMLElement, missions: Mission[]): Promise<MatchO
         opponent: field<HTMLSelectElement>('opponent').value === 'idle' ? 'idle' : 'ai',
         bridges: bridgeSet(field<HTMLSelectElement>('bridges').value),
         slots: bridgeSlots(Number(field<HTMLSelectElement>('slots').value)),
+        unitRate: oneOf(UNIT_RATES, Number(field<HTMLSelectElement>('unitRate').value),
+          DEFAULT_UNIT_RATE),
+        killReward: oneOf(KILL_REWARDS, Number(field<HTMLSelectElement>('killReward').value),
+          DEFAULT_KILL_REWARD),
+        geyserStock: oneOf(GEYSER_STOCKS, Number(field<HTMLSelectElement>('geyserStock').value),
+          DEFAULT_GEYSER_STOCK),
       };
       saveOptions(options);
       root.hidden = true;
@@ -145,6 +188,11 @@ function clamp(value: number, max: number, fallback: number): number {
 
 function isTheme(value: unknown): value is PlayableTheme {
   return typeof value === 'string' && value in THEMES;
+}
+
+/** The value if the option has it, otherwise the fallback. */
+function oneOf(values: readonly number[], value: unknown, fallback: number): number {
+  return values.find((allowed) => allowed === value) ?? fallback;
 }
 
 function bridgeSlots(value: unknown): number {
@@ -174,6 +222,9 @@ function loadOptions(missions: Mission[]): MatchOptions {
       options.opponent = value.opponent === 'idle' ? 'idle' : 'ai';
       options.bridges = bridgeSet(value.bridges);
       options.slots = bridgeSlots(value.slots);
+      options.unitRate = oneOf(UNIT_RATES, value.unitRate, DEFAULT_UNIT_RATE);
+      options.killReward = oneOf(KILL_REWARDS, value.killReward, DEFAULT_KILL_REWARD);
+      options.geyserStock = oneOf(GEYSER_STOCKS, value.geyserStock, DEFAULT_GEYSER_STOCK);
     }
   } catch {
     // Private windows and blocked storage fall back to the defaults.

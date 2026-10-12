@@ -43,5 +43,8 @@ export function createMatchWorld(
   ], geysers.length ? geysers : [[FALLBACK_X, FALLBACK_Y]], {
     bridges: options.bridges,
     slots: options.slots,
+    unitRate: options.unitRate,
+    killReward: options.killReward,
+    geyserStock: options.geyserStock,
   });
 }

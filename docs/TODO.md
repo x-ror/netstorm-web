@@ -44,7 +44,7 @@
 - [x] Юніт ставиться лише біля відкритого кінця мосту — [?] перевірити в грі, чи оригінал перевіряє це так само
 - [x] Опція Bridges: набори Standard, Traditional, Simplified, Crazy у меню сутички
 - [x] Опція Bridge Slots: 2, 4 або 6 слотів сегментів у меню сутички
-- [ ] Опції Unit Rate, Kill Reward, Money per Geyser (значення є в game-rules.md)
+- [x] Опції Unit Rate, Kill Reward і Money per Geyser у меню сутички
 - [ ] [?] Що стається з будівлями й островом переможеного гравця
 
 Далі — нові механіки:

@@ -330,6 +330,35 @@ test('the Bridge Slots option sets how many pieces the window holds', () => {
   assert.equal(createSkirmish(defs, 5, players, [[80, 40]], { slots: 3 }).bridgeSlots, 6);
 });
 
+test('Unit Rate, Kill Reward and Money per Geyser follow the battle options', () => {
+  const w = createSkirmish(defs, 5, players, [[80, 40]], {
+    unitRate: 15,
+    killReward: 150,
+    geyserStock: 5000,
+  });
+  assert.deepEqual([w.unitRate, w.killReward, w.geyserStock], [15, 150, 5000]);
+  const geyser = [...w.entities.values()].find((e) => e.kind === 'geyser')!;
+  assert.equal(geyser.kind === 'geyser' && geyser.stock, 5000);
+  // Unit Rate: the cannon's type stays dimmed for fifteen seconds.
+  const cannon = { t: 'build', player: 1, type: 'suncannon' } as const;
+  assert.equal(w.apply({ ...cannon, x: 32, y: 36 }), null);
+  assert.equal(w.players.get(1)!.refresh[0]!.ticks, 15 * TPS);
+  // Kill Reward: one and a half times the cost of what was destroyed.
+  w.addIsland(190, 190, 40, 12, 2);
+  w.spawnBuilding('suncannon', 1, 192, 194, 1);
+  const victim = w.spawnBuilding('sunarcher', 2, 205, 194);
+  victim.hp = 1;
+  const before = w.players.get(1)!.storm;
+  w.step();
+  assert.equal(w.players.get(1)!.storm - before, (defs.get('sunarcher')!.cost * 150) / 100);
+  // The options are part of the saved state.
+  const again = World.fromSnapshot(JSON.parse(JSON.stringify(w.snapshot())));
+  assert.deepEqual([again.unitRate, again.killReward, again.geyserStock], [15, 150, 5000]);
+  // Left alone, or given a value the option does not have, they are the campaign's.
+  const plain = createSkirmish(defs, 5, players, [[80, 40]], { unitRate: 7, killReward: 33 });
+  assert.deepEqual([plain.unitRate, plain.killReward, plain.geyserStock], [4, 25, 2000]);
+});
+
 test("energy must come from a nearby source of the unit's own alignment", () => {
   const w = mk();
   const p = w.players.get(1)!;

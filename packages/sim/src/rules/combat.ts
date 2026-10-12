@@ -1,18 +1,11 @@
 import type { World } from '../world.js';
 import type { UnitDef } from '../defs.js';
 import { shakeBridges } from './bridges.js';
-import {
-  TPS,
-  DIRS,
-  FACINGS,
-  REFUND_SHARE,
-  type Entity,
-  type Building,
-  type Facing,
-} from '../state.js';
+import { TPS, DIRS, FACINGS, type Entity, type Building, type Facing } from '../state.js';
 
 export type EnemyAt = (owner: number, x: number, y: number) => Entity | null;
 
+const PER_CENT = 100;
 const HP_DECIMALS = 4; // hp is rounded to keep the simulation deterministic
 // Invented, for anything that shoots without a delay in its data and without an entry below.
 const DEFAULT_SHOT_SECONDS = 1;
@@ -170,7 +163,7 @@ function damage(world: World, by: number, entity: Entity, amount: number): void 
     return;
   }
 
-  const amountPaid = Math.floor(world.def(entity.type).cost * REFUND_SHARE);
+  const amountPaid = Math.floor((world.def(entity.type).cost * world.killReward) / PER_CENT);
   const player = world.players.get(by);
 
   if (player && amountPaid > 0) {

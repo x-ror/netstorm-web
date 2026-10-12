@@ -8,7 +8,7 @@ import {
   MAX_FACING,
   REFUND_SHARE,
   Terrain,
-  UNIT_REFRESH,
+  TPS,
   isBridge,
   oppositeDir,
 } from '../state.js';
@@ -301,7 +301,7 @@ export function build(world: World, c: Extract<Command, { t: 'build'; }>): Comma
 
   const def = world.def(c.type);
   pl.storm -= def.cost;
-  pl.refresh.push({ type: def.id, ticks: UNIT_REFRESH });
+  pl.refresh.push({ type: def.id, ticks: world.unitRate * TPS });
 
   // "When a Workshop creates a unit ... the unit will be created on the spot": a transport walks
   // away from where it was laid.

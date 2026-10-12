@@ -3,6 +3,9 @@ import type { Entity, Player } from './state.js';
 import {
   BRIDGE_SETS,
   BRIDGE_SLOTS,
+  GEYSER_STOCKS,
+  KILL_REWARDS,
+  UNIT_RATES,
   LINK_ALL,
   WEAR_FULL,
   W,
@@ -27,8 +30,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 15;
-export const RULES_VERSION = 28;
+export const SNAPSHOT_VERSION = 16;
+export const RULES_VERSION = 29;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -42,6 +45,9 @@ export interface WorldSnapshot {
   winner: number | null;
   bridgeSet: number;
   bridgeSlots: number;
+  unitRate: number;
+  killReward: number;
+  geyserStock: number;
   terrain: number[];
   owner: number[];
   links: number[];
@@ -294,6 +300,9 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     'winner',
     'bridgeSet',
     'bridgeSlots',
+    'unitRate',
+    'killReward',
+    'geyserStock',
     'terrain',
     'owner',
     'links',
@@ -329,6 +338,9 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     winner: nullableId(value.winner, 'snapshot.winner'),
     bridgeSet: integer(value.bridgeSet, 'snapshot.bridgeSet', 0, BRIDGE_SETS.length - 1),
     bridgeSlots: choice(value.bridgeSlots, BRIDGE_SLOTS, 'snapshot.bridgeSlots'),
+    unitRate: choice(value.unitRate, UNIT_RATES, 'snapshot.unitRate'),
+    killReward: choice(value.killReward, KILL_REWARDS, 'snapshot.killReward'),
+    geyserStock: choice(value.geyserStock, GEYSER_STOCKS, 'snapshot.geyserStock'),
     terrain: grid(value.terrain, 'terrain', Terrain.HardBridge),
     owner: grid(value.owner, 'owner', MAX_PLAYERS),
     links: grid(value.links, 'links', LINK_ALL),

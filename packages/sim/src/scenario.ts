@@ -2,7 +2,35 @@
  *  geyser positions can be taken from data/forts.json (decoded by tools/unfort.py). */
 import { World } from './world.js';
 import type { Theme, DefTable } from './defs.js';
-import { BRIDGE_SETS, BRIDGE_SLOTS, HAND_SIZE, type BridgeSet } from './state.js';
+import {
+  BRIDGE_SETS,
+  BRIDGE_SLOTS,
+  DEFAULT_KILL_REWARD,
+  DEFAULT_UNIT_RATE,
+  GEYSER_STOCK,
+  GEYSER_STOCKS,
+  HAND_SIZE,
+  KILL_REWARDS,
+  UNIT_RATES,
+  type BridgeSet,
+} from './state.js';
+
+/** The battle options of a skirmish; what is left out, or is not a value of the option, takes the
+ * campaign's value. */
+export interface SkirmishOptions {
+  bridges?: BridgeSet;
+  slots?: number;
+  /** Seconds, one of UNIT_RATES. */
+  unitRate?: number;
+  /** Per cent, one of KILL_REWARDS. */
+  killReward?: number;
+  /** Storm Power, one of GEYSER_STOCKS. */
+  geyserStock?: number;
+}
+
+function pick(values: readonly number[], value: number | undefined, fallback: number): number {
+  return values.find((allowed) => allowed === value) ?? fallback;
+}
 
 export interface SkirmishPlayer {
   id: number;
@@ -32,11 +60,14 @@ export function createSkirmish(
   seed: number,
   players: SkirmishPlayer[],
   geysers: [number, number][],
-  options: { bridges?: BridgeSet; slots?: number; } = {},
+  options: SkirmishOptions = {},
 ): World {
   const w = new World(defs, seed);
   w.bridgeSet = Math.max(0, BRIDGE_SETS.indexOf(options.bridges ?? 'standard'));
-  w.bridgeSlots = BRIDGE_SLOTS.find((slots) => slots === options.slots) ?? HAND_SIZE;
+  w.bridgeSlots = pick(BRIDGE_SLOTS, options.slots, HAND_SIZE);
+  w.unitRate = pick(UNIT_RATES, options.unitRate, DEFAULT_UNIT_RATE);
+  w.killReward = pick(KILL_REWARDS, options.killReward, DEFAULT_KILL_REWARD);
+  w.geyserStock = pick(GEYSER_STOCKS, options.geyserStock, GEYSER_STOCK);
 
   for (const p of players) {
     if (p.theme === 'sun') {
