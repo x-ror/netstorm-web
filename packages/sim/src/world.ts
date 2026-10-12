@@ -21,7 +21,14 @@
  *    not consume it permanently (original: "once built units don't consume energy")
  */
 import { hashWorld } from './checksum.js';
-import { dropPiece, joins, pieceSite, type PieceCommand } from './rules/bridges.js';
+import {
+  BRIDGE_SCAN,
+  ageBridges,
+  dropPiece,
+  joins,
+  pieceSite,
+  type PieceCommand,
+} from './rules/bridges.js';
 import { tickBuilding } from './rules/combat.js';
 import { tickPlayer } from './rules/economy.js';
 import { energy, canBuild, build, salvage } from './rules/building.js';
@@ -71,6 +78,8 @@ export class World {
   /** Sides each bridge cell joins on (bits as in DIRS). 0 on bridge means it was laid without a
    * piece and joins on every side. */
   readonly links = new Uint8Array(W * H);
+  /** Time a bridge cell has left, 1 to 7, once it has begun to wear; 0 while it has not. */
+  readonly wear = new Uint8Array(W * H);
   readonly occupant = new Int32Array(W * H); // entity id occupying the cell, 0 = none
   readonly entities = new Map<number, Entity>();
   readonly players = new Map<number, Player>();
@@ -101,6 +110,7 @@ export class World {
     world.terrain.set(snapshot.terrain);
     world.owner.set(snapshot.owner);
     world.links.set(snapshot.links);
+    world.wear.set(snapshot.wear);
     world.occupant.set(snapshot.occupant);
 
     for (const entity of snapshot.entities) {
@@ -127,6 +137,7 @@ export class World {
       terrain: Array.from(this.terrain),
       owner: Array.from(this.owner),
       links: Array.from(this.links),
+      wear: Array.from(this.wear),
       occupant: Array.from(this.occupant),
       defs: [...this.defs.values()],
       entities: [...this.entities.values()],
@@ -468,6 +479,10 @@ export class World {
 
     for (const player of this.players.values()) {
       tickPlayer(this, player);
+    }
+
+    if (this.tick % BRIDGE_SCAN === 0) {
+      ageBridges(this);
     }
 
     const tickEntities = [...this.entities.values()];

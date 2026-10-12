@@ -2,6 +2,7 @@ import { UNIT_CLASSES, UNIT_GROUPS, type UnitDef } from './defs.js';
 import type { Entity, Player } from './state.js';
 import {
   LINK_ALL,
+  WEAR_FULL,
   W,
   H,
   PIECES,
@@ -24,8 +25,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 11;
-export const RULES_VERSION = 23;
+export const SNAPSHOT_VERSION = 12;
+export const RULES_VERSION = 24;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -40,6 +41,7 @@ export interface WorldSnapshot {
   terrain: number[];
   owner: number[];
   links: number[];
+  wear: number[];
   occupant: number[];
   defs: UnitDef[];
   entities: Entity[];
@@ -288,6 +290,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     'terrain',
     'owner',
     'links',
+    'wear',
     'occupant',
     'defs',
     'entities',
@@ -320,6 +323,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     terrain: grid(value.terrain, 'terrain', Terrain.HardBridge),
     owner: grid(value.owner, 'owner', MAX_PLAYERS),
     links: grid(value.links, 'links', LINK_ALL),
+    wear: grid(value.wear, 'wear', WEAR_FULL),
     occupant: grid(value.occupant, 'occupant', MAX_ID),
     defs,
     entities,

@@ -144,6 +144,10 @@ const LETTER_LINKS: Readonly<Record<string, number>> = {
   J: 5,
   K: 10,
 };
+// Wear of bridge, from bridge.cpp in netstorm.game 10.82. A cell that wears counts down from 7;
+// below 5 it looks cracked, and at 0 it falls. Bridge laid cracked starts at 4.
+export const WEAR_FULL = 7;
+export const WEAR_CRACKED = 4;
 /** A cell that joins on every side: island ground, and bridge laid without a piece. */
 export const LINK_ALL = 15;
 /* oxlint-enable no-magic-numbers */

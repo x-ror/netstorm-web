@@ -9,6 +9,7 @@ import {
   GEYSER_STOCK,
   PIECE_HARDEN,
   PIECE_HARD,
+  BRIDGE_SCAN,
   PIECES,
   PIECE_WEIGHTS,
   HAND_SIZE,
@@ -342,6 +343,68 @@ test('pieces join end to end, never side to side', () => {
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 55, y: 40, rot: 0 }), null);
   p.hand = [{ piece: 1, age: 0 }];
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 56, y: 42, rot: 0 }), null);
+});
+
+test('a loose end of bridge wears away; bridge joined at both ends and hard bridge stay', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  const at = (x: number, y: number) => w.terrain[y * 256 + x];
+  const lay = (age: number, y: number) => {
+    p.hand = [{ piece: 1, age }];
+    assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y, rot: 1 }), null);
+  };
+  const until = (tick: number) => {
+    while (w.tick < tick) {
+      w.step();
+    }
+  };
+  // Four dominoes off the east shore (x = 50), rows apart: cracked, normal, hard, and a normal one
+  // with a cannon at its end.
+  lay(0, 33);
+  lay(PIECE_HARDEN, 36);
+  lay(PIECE_HARD, 39);
+  lay(PIECE_HARDEN, 45);
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 53, y: 44 }), null);
+  assert.deepEqual([at(52, 33), at(52, 36), at(52, 39), at(52, 45)], [3, 2, 4, 2]);
+  // The look comes every ten seconds. Cracked bridge starts with four steps left.
+  until(4 * BRIDGE_SCAN);
+  assert.equal(at(52, 33), 0); // the cracked end is gone
+  assert.equal(at(51, 33), 3); // and the cell behind it is the loose end now
+  assert.equal(at(52, 36), 3); // the normal end has begun to look cracked
+  until(8 * BRIDGE_SCAN);
+  assert.equal(at(51, 33), 0);
+  assert.equal(at(52, 36), 0); // eighty seconds for normal bridge
+  assert.equal(at(51, 36), 2);
+  until(20 * BRIDGE_SCAN);
+  assert.deepEqual([at(51, 36), at(52, 36)], [0, 0]);
+  // Hard bridge never starts to wear, and neither does bridge with a unit at its end.
+  assert.deepEqual([at(51, 39), at(52, 39)], [4, 4]);
+  assert.deepEqual([at(51, 45), at(52, 45)], [2, 2]);
+});
+
+test('a short stretch of bridge left hanging in the sky falls at the next look', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  const at = (x: number, y: number) => w.terrain[y * 256 + x];
+
+  for (const x of [51, 53, 55]) {
+    p.hand = [{ piece: 1, age: PIECE_HARD }];
+    assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x, y: 40, rot: 1 }), null);
+  }
+
+  // Cut the first two cells out: four cells hang, joined to nothing. They are hard, which does
+  // not save them.
+  for (const x of [51, 52]) {
+    w.terrain[40 * 256 + x] = 0;
+    w.owner[40 * 256 + x] = 0;
+    w.links[40 * 256 + x] = 0;
+  }
+
+  while (w.tick < BRIDGE_SCAN) {
+    w.step();
+  }
+
+  assert.deepEqual([at(53, 40), at(54, 40), at(55, 40), at(56, 40)], [0, 0, 0, 0]);
 });
 
 test('transports walk across joins only: bridges lying side by side are not a way across', () => {

@@ -11,6 +11,7 @@ export function assertWorldInvariants(world: WorldView): void {
     world.terrain.length !== W * H
     || world.owner.length !== W * H
     || world.links.length !== W * H
+    || world.wear.length !== W * H
     || world.occupant.length !== W * H
   ) {
     fail('invalid grid dimensions');

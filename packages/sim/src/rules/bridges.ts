@@ -7,6 +7,10 @@ import {
   Terrain,
   DIRS,
   LINK_ALL,
+  TPS,
+  WEAR_CRACKED,
+  WEAR_FULL,
+  isBridge,
   PIECES,
   PIECE_HARD,
   PIECE_HARDEN,
@@ -166,6 +170,7 @@ export function dropPiece(
     world.terrain[world.at(x, y)] = strength;
     world.owner[world.at(x, y)] = c.player;
     world.links[world.at(x, y)] = links[index]!;
+    world.wear[world.at(x, y)] = strength === Terrain.CrackedBridge ? WEAR_CRACKED : 0;
   }
 
   // An island is attached to, and so claimed, only through an open end of the piece.
@@ -200,6 +205,7 @@ export function shakeBridges(world: World, b: Building): void {
 
     if (world.terrain[i] === Terrain.Bridge) {
       world.terrain[i] = Terrain.CrackedBridge;
+      world.wear[i] = WEAR_CRACKED;
       changed = true;
     } else if (world.terrain[i] === Terrain.CrackedBridge) {
       collapse(world, x, y);
@@ -229,6 +235,7 @@ function collapse(world: World, x: number, y: number): void {
   world.terrain[i] = Terrain.Sky;
   world.owner[i] = 0;
   world.links[i] = 0;
+  world.wear[i] = 0;
 
   for (const e of world.entities.values()) {
     if (e.x !== x || e.y !== y) {
@@ -241,4 +248,241 @@ function collapse(world: World, x: number, y: number): void {
       e.path = [];
     }
   }
+}
+
+// ---------- wear of loose bridge ends (bridge.cpp in netstorm.game 10.82)
+
+const SCAN_SECONDS = 10;
+/** Ticks between two looks at every bridge cell. */
+export const BRIDGE_SCAN = SCAN_SECONDS * TPS;
+/** A stretch of bridge that hangs in the sky with fewer cells than this falls at the next look. */
+const MIN_FRAGMENT = 5;
+/** Guard for the walk below: the original has none and relies on bridge not forming rings. */
+const MAX_WALK = 16;
+const CROSS = LINK_ALL;
+// Link masks of the two straight cells, bits as in DIRS.
+const NORTH_SOUTH = 5;
+const EAST_WEST = 10;
+
+/** Ground cells joined to the cell `i`. */
+function joinedTo(world: WorldView, i: number): number[] {
+  const x = i % W;
+  const y = (i / W) | 0;
+  const out: number[] = [];
+
+  for (const [dir, [dx, dy]] of DIRS.entries()) {
+    if (world.joined(x, y, dir)) {
+      out.push(world.at(x + dx, y + dy));
+    }
+  }
+
+  return out;
+}
+
+/** A corner, a tee or a cross of bridge: the walk goes on through these and stops at the rest,
+ * which are straight bridge, stubs and island ground. */
+function isJunction(world: WorldView, i: number): boolean {
+  if (!isBridge(world.terrain[i])) {
+    return false;
+  }
+
+  const links = world.links[i] || LINK_ALL;
+  const straight = links === NORTH_SOUTH || links === EAST_WEST;
+  return !straight && (links & (links - 1)) !== 0;
+}
+
+interface Walk {
+  /** Cells that wear together. */
+  cells: Set<number>;
+  /** The loose end is confirmed: the cells do wear. */
+  wears: boolean;
+  /** A junction beside the loose end has at most two joins itself. */
+  thin: boolean;
+}
+
+/** How many firm continuations lie beyond the junctions next to a loose end. With two or more the
+ * end is held and does not wear. */
+function supports(world: WorldView, walk: Walk, i: number, depth: number, from: number): number {
+  let count = 0;
+
+  if (depth > MAX_WALK) {
+    return count;
+  }
+
+  for (const n of joinedTo(world, i)) {
+    if (n === from) {
+      continue;
+    }
+
+    if (isJunction(world, n)) {
+      if (depth === 0 && joinedTo(world, n).length <= 2) {
+        walk.thin = true;
+      }
+
+      count += supports(world, walk, n, depth + 1, i);
+    } else if (depth > 1 || (depth === 1 && !walk.thin)) {
+      count += joinedTo(world, n).length > 1 ? 1 : 0;
+    }
+  }
+
+  return count;
+}
+
+/** Gather the cells that wear with the loose end `i`, and settle whether they wear at all. */
+function gather(
+  world: WorldView,
+  walk: Walk,
+  i: number,
+  depth: number,
+  from: number,
+  cross: boolean,
+): void {
+  if (depth > MAX_WALK) {
+    return;
+  }
+
+  const around = joinedTo(world, i);
+  let firm = 0;
+
+  for (const n of around) {
+    if (n === from) {
+      continue;
+    }
+
+    if (isBridge(world.terrain[n])) {
+      walk.cells.add(n);
+    }
+
+    if (isJunction(world, n)) {
+      if (depth === 0 && joinedTo(world, n).length <= 2) {
+        walk.thin = true;
+      }
+
+      gather(world, walk, n, depth + 1, i, (world.links[n] || LINK_ALL) === CROSS);
+    } else if (depth === 0 || (depth === 1 && walk.thin)) {
+      walk.wears = true;
+      walk.cells.delete(n);
+    } else if (joinedTo(world, n).length > 1) {
+      firm++;
+      walk.cells.delete(n);
+    } else {
+      walk.wears = true;
+    }
+  }
+
+  // A cross held on two sides stays, with everything around it.
+  if (cross && firm > 1) {
+    for (const n of around) {
+      walk.cells.delete(n);
+    }
+
+    walk.cells.delete(i);
+  }
+}
+
+/** Set the time a bridge cell has left; with none left it falls, below five it looks cracked. */
+function wearTo(world: World, i: number, left: number): void {
+  if (!isBridge(world.terrain[i])) {
+    return;
+  }
+
+  if (left <= 0) {
+    collapse(world, i % W, (i / W) | 0);
+    return;
+  }
+
+  world.wear[i] = left;
+
+  if (left <= WEAR_CRACKED && world.terrain[i] === Terrain.Bridge) {
+    world.terrain[i] = Terrain.CrackedBridge;
+  }
+}
+
+/** Bridge that hangs in the sky in a stretch of fewer than five cells falls at once. */
+function dropFragments(world: World, seen: Uint8Array): void {
+  for (let start = 0; start < W * H; start++) {
+    if (seen[start] || !isBridge(world.terrain[start])) {
+      continue;
+    }
+
+    const cells = [start];
+    let anchored = false;
+    seen[start] = 1;
+
+    for (let head = 0; head < cells.length; head++) {
+      for (const n of joinedTo(world, cells[head]!)) {
+        if (world.terrain[n] === Terrain.Island) {
+          anchored = true;
+        } else if (!seen[n]) {
+          seen[n] = 1;
+          cells.push(n);
+        }
+      }
+    }
+
+    if (!anchored && cells.length < MIN_FRAGMENT) {
+      for (const i of cells) {
+        collapse(world, i % W, (i / W) | 0);
+      }
+    }
+  }
+}
+
+/**
+ * The look the original takes at every bridge cell once in ten seconds. A cell joined to one thing
+ * only is a loose end, and a loose end wears: it and the cells the walk gathers with it are set a
+ * step below the least time any of them has left, starting from seven. So normal bridge left
+ * hanging falls in about eighty seconds and cracked bridge in forty, end first, and bridge joined
+ * at both ends, to an island or to a unit's islet, stays. Hard bridge never starts to wear.
+ */
+export function ageBridges(world: World): void {
+  dropFragments(world, new Uint8Array(W * H));
+
+  for (let i = 0; i < W * H; i++) {
+    const terrain = world.terrain[i];
+
+    if (terrain !== Terrain.Bridge && terrain !== Terrain.CrackedBridge) {
+      continue;
+    }
+
+    const around = joinedTo(world, i);
+
+    if (around.length === 0) {
+      wearTo(world, i, world.wear[i]! - 1);
+      continue;
+    }
+
+    if (around.length > 1) {
+      continue;
+    }
+
+    const walk: Walk = { cells: new Set([i]), wears: false, thin: false };
+
+    if (supports(world, walk, i, 0, -1) > 1) {
+      continue;
+    }
+
+    walk.thin = false;
+    gather(world, walk, i, 0, -1, false);
+
+    if (!walk.wears) {
+      continue;
+    }
+
+    let least = Infinity;
+
+    for (const cell of walk.cells) {
+      if (world.wear[cell]! > 0) {
+        least = Math.min(least, world.wear[cell]!);
+      }
+    }
+
+    const left = least === Infinity ? WEAR_FULL : least - 1;
+
+    for (const cell of walk.cells) {
+      wearTo(world, cell, left);
+    }
+  }
+
+  world.invalidateTerrain();
 }
