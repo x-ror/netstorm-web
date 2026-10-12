@@ -249,6 +249,8 @@ export interface Building {
   cooldown: number; // ticks until the next shot
   /** Player whose damage brought the building down, 0 until then; its explosion is his too. */
   killer: number;
+  /** Laid off a bridge, it stands on an islet of its own, which falls with it. */
+  islet: boolean;
 }
 export interface Transport {
   id: number;

@@ -312,7 +312,9 @@ export function build(world: World, c: Extract<Command, { t: 'build'; }>): Comma
   }
 
   // A unit laid off a bridge stands on an island of its own, from which more bridge can be built.
-  if (world.terrain[world.at(c.x, c.y)] === Terrain.Sky) {
+  const islet = world.terrain[world.at(c.x, c.y)] === Terrain.Sky;
+
+  if (islet) {
     for (let y = c.y; y < c.y + def.footY; y++) {
       for (let x = c.x; x < c.x + def.footX; x++) {
         world.terrain[world.at(x, y)] = Terrain.Island;
@@ -324,6 +326,7 @@ export function build(world: World, c: Extract<Command, { t: 'build'; }>): Comma
   }
 
   const b = world.spawnBuilding(def.id, c.player, c.x, c.y, c.facing ?? 0);
+  b.islet = islet;
   world.emit({ what: 'build', who: c.player, data: { id: b.id, type: def.id } });
   return null;
 }

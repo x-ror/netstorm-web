@@ -382,6 +382,43 @@ test('a loose end of bridge wears away; bridge joined at both ends and hard brid
   assert.deepEqual([at(51, 45), at(52, 45)], [2, 2]);
 });
 
+test('the islet of a destroyed unit falls and leaves the bridge a jagged end', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  const at = (x: number, y: number) => w.terrain[y * 256 + x];
+  // A normal domino off the east shore (x = 50) with a cannon at its end, and a hard single block
+  // laid off the far side of the cannon's islet.
+  p.hand = [{ piece: 1, age: PIECE_HARDEN }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null);
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 53, y: 39 }), null);
+  p.hand = [{ piece: 0, age: PIECE_HARD }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 56, y: 40, rot: 1 }), null);
+  const cannon = w.buildingsOf(1).find((b) => b.type === 'suncannon')!;
+  assert.equal(cannon.islet, true);
+  assert.deepEqual([at(52, 40), at(53, 40), at(56, 40)], [2, 1, 4]);
+  cannon.hp = 0;
+  w.step();
+  // The islet is gone. The cell that led to it is cracked and ends there: it joins on its west
+  // side only now.
+  assert.deepEqual([at(53, 39), at(54, 40), at(55, 41)], [0, 0, 0]);
+  assert.equal(at(52, 40), 3);
+  assert.equal(w.links[40 * 256 + 52], 8);
+  assert.equal(at(51, 40), 2);
+  // The block hung on the islet alone, and being hard did not save it.
+  assert.equal(at(56, 40), 0);
+  // Nothing can be laid where the islet stood without an end to attach to.
+  p.hand = [{ piece: 1, age: 0 }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 53, y: 39, rot: 1 }),
+    'not connected');
+  // The jagged end is a loose end with four steps left.
+
+  while (w.tick < 4 * BRIDGE_SCAN) {
+    w.step();
+  }
+
+  assert.equal(at(52, 40), 0);
+});
+
 test('the Priest and the Crystal Crab step off bridge that is about to fall; a Golem does not', () => {
   const w = mk();
   const p = w.players.get(1)!;
@@ -519,8 +556,9 @@ test('a piece hardens in the window; explosions and salvage crack solid bridge a
   const stander = w.spawnTransport('sunwalker', 1, 52, 40);
   const revision = w.terrainRevision;
   assert.equal(w.apply({ t: 'salvage', player: 1, target: cannon.id }), null);
-  // Solid cracks; cracked falls, and so does whatever stood on it.
-  assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [2, 3, 0, 0]);
+  // Solid cracks, the cell at the cannon's corner too; cracked falls, and so does whatever stood
+  // on it.
+  assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [3, 3, 0, 0]);
   assert.equal(w.owner[40 * 256 + 53], 0);
   assert.ok(w.terrainRevision > revision);
   w.step();

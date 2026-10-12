@@ -188,43 +188,91 @@ export function dropPiece(
   return null;
 }
 
-/** "When a unit explodes cracked bridge nearby will also crumble. Normal bridge that was adjacent to
- * the unit will crack." Salvaging affects bridge "in the same way". Applies to the cells sharing an
- * edge with the unit's footprint, which is where the original looks too. Hard bridge is left as it
- * is: the original neither changes its look nor lets it decay. See docs/game-rules.md for what the
- * original does beyond this. */
+/**
+ * "When a unit explodes cracked bridge nearby will also crumble. Normal bridge that was adjacent to
+ * the unit will crack, or become a jagged end." Salvaging affects bridge "in the same way". As the
+ * original does it (the death handlers of buildings and of islets in netstorm.game 10.82):
+ *  - the islet of a unit laid off a bridge falls with the unit;
+ *  - a straight bridge cell that was joined to the islet becomes an end that points away from it,
+ *    with four steps of wear left, or falls at once if nothing holds it on the far side;
+ *  - other bridge in the ring of cells around the unit cracks if it is normal and falls if it is
+ *    cracked. Hard bridge keeps its look.
+ * Call after the building is off the map.
+ */
 export function shakeBridges(world: World, b: Building): void {
-  let changed = false;
+  const joined = b.islet ? joinedToIslet(world, b) : new Map<number, number>();
 
-  const shake = (x: number, y: number): void => {
-    if (!world.inside(x, y)) {
-      return;
+  if (b.islet) {
+    for (let y = b.y; y < b.y + b.fy; y++) {
+      for (let x = b.x; x < b.x + b.fx; x++) {
+        world.terrain[world.at(x, y)] = Terrain.Sky;
+        world.owner[world.at(x, y)] = 0;
+      }
     }
-
-    const i = world.at(x, y);
-
-    if (world.terrain[i] === Terrain.Bridge) {
-      world.terrain[i] = Terrain.CrackedBridge;
-      world.wear[i] = WEAR_CRACKED;
-      changed = true;
-    } else if (world.terrain[i] === Terrain.CrackedBridge) {
-      collapse(world, x, y);
-      changed = true;
-    }
-  };
-
-  for (let x = b.x; x < b.x + b.fx; x++) {
-    shake(x, b.y - 1);
-    shake(x, b.y + b.fy);
   }
+
+  for (let y = b.y - 1; y <= b.y + b.fy; y++) {
+    for (let x = b.x - 1; x <= b.x + b.fx; x++) {
+      const i = world.inside(x, y) ? world.at(x, y) : -1;
+
+      if (i < 0 || !isBridge(world.terrain[i])) {
+        continue;
+      }
+
+      const side = joined.get(i);
+
+      if (side !== undefined) {
+        jag(world, x, y, side);
+      } else if (world.terrain[i] === Terrain.Bridge) {
+        world.terrain[i] = Terrain.CrackedBridge;
+        world.wear[i] = WEAR_CRACKED;
+      } else if (world.terrain[i] === Terrain.CrackedBridge) {
+        collapse(world, x, y);
+      }
+    }
+  }
+
+  world.invalidateTerrain();
+}
+
+/** Bridge cells joined to the building's islet, each with the side on which it joins it. */
+function joinedToIslet(world: WorldView, b: Building): Map<number, number> {
+  const joined = new Map<number, number>();
 
   for (let y = b.y; y < b.y + b.fy; y++) {
-    shake(b.x - 1, y);
-    shake(b.x + b.fx, y);
+    for (let x = b.x; x < b.x + b.fx; x++) {
+      for (const [dir, [dx, dy]] of DIRS.entries()) {
+        if (world.joined(x, y, dir) && isBridge(world.terrain[world.at(x + dx, y + dy)])) {
+          joined.set(world.at(x + dx, y + dy), oppositeDir(dir));
+        }
+      }
+    }
   }
 
-  if (changed) {
-    world.invalidateTerrain();
+  return joined;
+}
+
+/** The bridge cell at (x, y) loses the islet it was joined to on `side`. */
+function jag(world: World, x: number, y: number, side: number): void {
+  const i = world.at(x, y);
+  const hard = world.terrain[i] === Terrain.HardBridge;
+  const links = world.links[i] || LINK_ALL;
+
+  if (!hard) {
+    world.terrain[i] = Terrain.CrackedBridge;
+  }
+
+  world.wear[i] = WEAR_CRACKED;
+
+  if (links !== NORTH_SOUTH && links !== EAST_WEST) {
+    return;
+  }
+
+  // A straight cell with nothing on its other side has nothing left to hang on, hard or not.
+  if (!world.joined(x, y, oppositeDir(side))) {
+    collapse(world, x, y);
+  } else if (!hard) {
+    world.links[i] = links & ~(1 << side);
   }
 }
 

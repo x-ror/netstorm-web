@@ -231,6 +231,7 @@ export class World {
       target: null,
       cooldown: 0,
       killer: 0,
+      islet: false,
     };
     this.entities.set(b.id, b);
     this.forFoot(b, (i) => {

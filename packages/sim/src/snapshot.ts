@@ -25,8 +25,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 12;
-export const RULES_VERSION = 25;
+export const SNAPSHOT_VERSION = 13;
+export const RULES_VERSION = 26;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -149,7 +149,7 @@ function parseEntity(raw: unknown): Entity {
   const living = [...common, 'owner', 'hp', 'hpMax'];
 
   if (kind === 'building') {
-    keys(value, [...living, 'type', 'fx', 'fy', 'facing', 'target', 'cooldown', 'killer'],
+    keys(value, [...living, 'type', 'fx', 'fy', 'facing', 'target', 'cooldown', 'killer', 'islet'],
       'building');
     return {
       id,
@@ -166,6 +166,7 @@ function parseEntity(raw: unknown): Entity {
       target: nullableId(value.target, 'building.target'),
       cooldown: integer(value.cooldown, 'building.cooldown'),
       killer: integer(value.killer, 'building.killer', 0, MAX_PLAYERS),
+      islet: boolean(value.islet, 'building.islet'),
     };
   }
 
