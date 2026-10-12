@@ -10,8 +10,9 @@ import {
   Terrain,
   UNIT_REFRESH,
   isBridge,
+  oppositeDir,
 } from '../state.js';
-import { shakeBridges } from './bridges.js';
+import { joins, shakeBridges } from './bridges.js';
 import { removeBuilding } from './combat.js';
 import { removeTransport } from './movement.js';
 
@@ -260,12 +261,16 @@ function siteError(
 
       sky++;
 
-      for (const [dx, dy] of DIRS) {
+      // "Stationary units are placed at the end of bridges": the bridge cell beside the unit has
+      // to join on the side that faces it, as it would for another piece.
+      for (const [dir, [dx, dy]] of DIRS.entries()) {
         const nx = x + dx;
         const ny = y + dy;
 
         if (
-          world.isOwnGround(player, nx, ny) && isBridge(world.terrain[world.at(nx, ny)])
+          world.isOwnGround(player, nx, ny)
+          && isBridge(world.terrain[world.at(nx, ny)])
+          && joins(world, world.at(nx, ny), oppositeDir(dir))
         ) {
           offBridge = true;
         }
@@ -273,7 +278,7 @@ function siteError(
     }
   }
 
-  // Either entirely on own island, or entirely in the sky next to an own bridge.
+  // Either entirely on own island, or entirely in the sky at an open end of an own bridge.
   if (sky === 0) {
     return null;
   }

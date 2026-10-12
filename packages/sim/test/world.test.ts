@@ -344,6 +344,20 @@ test('pieces join end to end, never side to side', () => {
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 56, y: 42, rot: 0 }), null);
 });
 
+test('a unit goes at an open end of a bridge, not beside it', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  // A domino lying east of the island (x = 50): cells 51 and 52 of row 40, open end to the east.
+  p.hand = [{ piece: 1, age: 0 }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null);
+  const cannon = { t: 'build', player: 1, type: 'suncannon' } as const;
+  // Under the bridge the cannon touches only its long side.
+  assert.equal(w.canBuild({ ...cannon, x: 51, y: 41 }), 'not connected');
+  assert.equal(w.canBuild({ ...cannon, x: 51, y: 37 }), 'not connected');
+  // Past its east end it stands at the open end.
+  assert.equal(w.apply({ ...cannon, x: 53, y: 39 }), null);
+});
+
 test('a piece hardens in the window; explosions and salvage crack solid bridge and collapse cracked', () => {
   const w = mk();
   const p = w.players.get(1)!;
@@ -365,8 +379,8 @@ test('a piece hardens in the window; explosions and salvage crack solid bridge a
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 53, y: 40, rot: 1 }), null);
   assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [2, 2, 3, 3]);
   // A cannon off the bridge, touching one solid cell (52) and two cracked cells (53, 54).
-  assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 52, y: 41 }), null);
-  const cannon = w.buildingsOf(1).find((b) => b.type === 'suncannon')!;
+  // Put there directly: beside a bridge is not a place a player could build on.
+  const cannon = w.spawnBuilding('suncannon', 1, 52, 41);
   const rider = w.spawnTransport('sunwalker', 1, 53, 40);
   const stander = w.spawnTransport('sunwalker', 1, 52, 40);
   const revision = w.terrainRevision;
@@ -400,8 +414,8 @@ test('a piece turns hard in the window; hard bridge survives an explosion next t
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 53, y: 40, rot: 1 }), null);
   assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [4, 4, 2, 2]);
   // A cannon touching one hard cell (52) and two normal cells (53, 54).
-  assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 52, y: 41 }), null);
-  const cannon = w.buildingsOf(1).find((b) => b.type === 'suncannon')!;
+  // Put there directly: beside a bridge is not a place a player could build on.
+  const cannon = w.spawnBuilding('suncannon', 1, 52, 41);
   assert.equal(w.apply({ t: 'salvage', player: 1, target: cannon.id }), null);
   assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [4, 4, 3, 3]);
   // Hard bridge is still bridge: it carries the connection to the Temple.
