@@ -418,8 +418,9 @@ export function damage(
     return;
   }
 
-  // A growing Ice Tower has nothing to hit.
-  if (entity.kind === 'building' && entity.regrow > 0) {
+  // A growing Ice Tower has nothing to hit, and a unit being built takes its hit points from the
+  // progress of the work, whatever strikes it meanwhile.
+  if (entity.kind === 'building' && (entity.regrow > 0 || entity.rising > 0)) {
     return;
   }
 

@@ -86,6 +86,9 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
   const move: Move = { me, budget: player.storm, planned: new Set(), commands: [] };
   const transports = owned<Transport>(world, me, 'transport');
   const geysers = reachableGeysers(world, me);
+  // Ground the transports can walk to now; joining anything else is what a bridge is for.
+  const home = world.templeOf(me);
+  const reached = home ? walkableFrom(world, me, home) : null;
   collect(world, move, transports, geysers);
   buildAltar(world, move);
   capture(world, move, transports);
@@ -100,10 +103,6 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
   let target: Target | undefined;
   let head: Head | null = null;
   let piece: Extract<Command, { t: 'dropPiece'; }> | null = null;
-
-  // Ground the transports can walk to now; joining anything else is what a bridge is for.
-  const home = world.templeOf(me);
-  const reached = home ? walkableFrom(world, me, home) : null;
 
   // Grow toward the first target a piece can be laid toward. When none can, the last target, the
   // enemy, still decides where units go.
@@ -203,7 +202,13 @@ function collect(
       continue;
     }
 
-    const geysers = flies(world.def(t.type)) ? flown : walked;
+    // "Reachable from the Temple" is not "reachable by this transport": buildings can wall off a
+    // part of the island. One on foot is offered only the geysers it has a way to.
+    const geysers = flies(world.def(t.type))
+      ? flown
+      : walked.filter((g) =>
+        world.findPath(move.me, t.x, t.y, ([x, y]) => distance(x, y, g.x, g.y) === 1) !== null
+      );
 
     if (!geysers.length) {
       continue;
