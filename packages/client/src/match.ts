@@ -23,6 +23,7 @@ import { createMatchWorld, ME } from './setup.js';
 import { createWorldRenderer } from './renderer.js';
 import { createControls } from './controls.js';
 import { createHud } from './hud.js';
+import type { Atlas } from './assets.js';
 import { createMinimap } from './minimap.js';
 import { describeEvent } from './messages.js';
 import { centerOn } from './camera.js';
@@ -37,6 +38,8 @@ export interface GameData {
   maps: Maps;
   missions: Mission[];
   textures: Map<string, Texture>;
+  /** Where each texture lies in the atlas files, for pictures drawn outside the canvas. */
+  atlas: Atlas;
 }
 
 /** Play one local match. Resolves when the player leaves it for the menu. */
@@ -99,7 +102,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     dropSelected: () => controls.dropSelected(),
     page: (button) => press(shown[button]),
     exit: () => leave?.(),
-  });
+  }, data.atlas);
   const controls = createControls({
     world: view,
     me: ME,

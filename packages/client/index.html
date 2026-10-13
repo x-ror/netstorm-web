@@ -181,36 +181,15 @@
       button.piece {
         padding: 3px;
       }
-      button.piece.cracked .f {
-        background: #a08c6c;
-      }
-      button.piece.hard .f {
-        outline: 1px solid #fff;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(4, 7px);
-        grid-auto-rows: 7px;
-        gap: 1px;
-      }
-      .grid i {
+      /* A piece is drawn with the frames of the bridge it will be: cells cut out of the atlas. */
+      .planks {
         display: block;
+        position: relative;
+        image-rendering: pixelated;
       }
-      .grid .f {
-        background: #c9ced8;
-      }
-      /* The edges a piece attaches by. */
-      .grid .f.n {
-        border-top: 2px solid #ffd166;
-      }
-      .grid .f.e {
-        border-right: 2px solid #ffd166;
-      }
-      .grid .f.s {
-        border-bottom: 2px solid #ffd166;
-      }
-      .grid .f.w {
-        border-left: 2px solid #ffd166;
+      .planks i {
+        display: block;
+        position: absolute;
       }
       button.unit {
         display: flex;

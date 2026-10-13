@@ -1,6 +1,6 @@
 import {
   PIECES,
-  pieceEnds,
+  rotateLinks,
   OUTPOST,
   PIECE_HARD,
   PIECE_HARDEN,
@@ -14,10 +14,14 @@ import {
   type UnitDef,
   type WorldView,
 } from '@netstorm/sim';
+import type { Atlas } from './assets.js';
+import { TH, TW } from './projection.js';
+import { bridgeSlot } from './texture-selection.js';
 import { escapeHtml } from './menu.js';
 import { hasFacing, placeable, type Tool, type UiState } from './ui-state.js';
 
-const PIECE_GRID = 4; // a piece fits in 4×4 cells
+const PLANK_DROP = 9; // from the top of a cell down to the hot spot of its Bridge frame
+const PLANK_FACE = 7; // pixels of a frame's front face under its cell
 const SECONDS_PER_MINUTE = 60;
 const FACING_NAMES = ['північ', 'схід', 'південь', 'захід'];
 const GOALS: Record<string, string> = {
@@ -56,11 +60,12 @@ export function createHud(
   me: number,
   ui: UiState,
   actions: HudActions,
+  atlas: Atlas,
 ) {
   root.innerHTML = `
     <header id="topbar"></header>
     <aside id="panel">
-      <h3 title="Сегмент приєднується лише кінцями, позначеними жовтим">Мости <span class="muted">1–${world.bridgeSlots}, R — поворот</span></h3>
+      <h3 title="Сегмент приєднується лише відкритими кінцями — там, де немає стінки">Мости <span class="muted">1–${world.bridgeSlots}, R — поворот</span></h3>
       <div id="hand"></div>
       <h3>Виробництво <span class="muted">F — напрям юніта</span></h3>
       <div id="units"></div>
@@ -149,7 +154,9 @@ export function createHud(
           index === handTool ? ' on' : ''
         }${cracked ? ' cracked' : ''}${hard ? ' hard' : ''}" title="${pieceTitle(cracked, hard)} (${
           index + 1
-        })">${pieceGrid(cells, pieceEnds(h.piece, rot))}</button>`;
+        })">${
+          pieceArt(atlas, cells, rotateLinks(h.piece, rot), strengthOf(cracked, hard))
+        }</button>`;
       }).join('')
       : '<span class="muted">Храм ще не видав сегментів</span>');
 
@@ -185,6 +192,14 @@ export function createHud(
   };
 }
 
+function strengthOf(cracked: boolean, hard: boolean): 'whole' | 'cracked' | 'hard' {
+  if (cracked) {
+    return 'cracked';
+  }
+
+  return hard ? 'hard' : 'whole';
+}
+
 function pieceTitle(cracked: boolean, hard: boolean): string {
   if (cracked) {
     return 'Свіжий сегмент: покладений зараз, стане тріснутим мостом';
@@ -193,22 +208,44 @@ function pieceTitle(cracked: boolean, hard: boolean): string {
   return hard ? 'Твердий сегмент: вибухи поруч його не тріскають' : 'Звичайний сегмент';
 }
 
-const END_CLASSES = ['n', 'e', 's', 'w']; // by direction, as in DIRS
+/**
+ * A piece drawn as the bridge it will be: for each cell the Bridge frame of the sides it joins on,
+ * cut out of the atlas. The walls show which ends are open, as in the original's window.
+ */
+function pieceArt(
+  atlas: Atlas,
+  cells: [number, number][],
+  links: number[],
+  strength: 'whole' | 'cracked' | 'hard',
+): string {
+  const order = cells.map((cell, i) => [cell, links[i]!] as const)
+    // A frame hangs a little over the cell under it: rows are laid top to bottom.
+    .sort(([a], [b]) => a[1] - b[1] || a[0] - b[0]);
+  const wide = Math.max(...cells.map(([x]) => x)) + 1;
+  const tall = Math.max(...cells.map(([, y]) => y)) + 1;
+  const planks = order.map(([[x, y], joins]) => {
+    const frame = atlas.frames[`slot:bridge:${bridgeSlot(joins, strength, 1)}`];
 
-/** A piece in its 4×4 box; the edges it attaches by are marked. */
-function pieceGrid(cells: [number, number][], ends: [number, number, number][]): string {
-  const classes = new Map(cells.map(([x, y]) => [y * PIECE_GRID + x, 'f']));
+    if (!frame) {
+      return '';
+    }
 
-  for (const [x, y, dir] of ends) {
-    const cell = y * PIECE_GRID + x;
-    classes.set(cell, `${classes.get(cell)} ${END_CLASSES[dir]}`);
-  }
-
-  return `<span class="grid">${
-    Array.from({ length: PIECE_GRID * PIECE_GRID }, (_, i) =>
-      `<i${classes.has(i) ? ` class="${classes.get(i)}"` : ''}></i>`)
-      .join('')
-  }</span>`;
+    const [sheet, ax, ay, w, h, left = 0, top = 0] = frame as [
+      number,
+      number,
+      number,
+      number,
+      number,
+      number?,
+      number?,
+    ];
+    return `<i style="left:${x * TW + TW - 1 + left}px;top:${
+      y * TH + PLANK_DROP + top
+    }px;width:${w}px;height:${h}px;background:url(${atlas.atlases[sheet]}) -${ax}px -${ay}px"></i>`;
+  }).join('');
+  return `<span class="planks" style="width:${wide * TW}px;height:${
+    tall * TH + PLANK_FACE
+  }px">${planks}</span>`;
 }
 
 function tool(kind: 'select' | 'salvage', label: string, key: string, ui: UiState): string {

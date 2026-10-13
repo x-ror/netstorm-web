@@ -16,6 +16,7 @@ async function main() {
     maps,
     missions,
     textures: await loadTextures(manifest),
+    atlas: manifest,
   };
   const menu = document.getElementById('menu')!;
   const game = document.getElementById('game')!;
