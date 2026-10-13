@@ -1,10 +1,11 @@
-import { type Application, type Container, type Graphics } from 'pixi.js';
+import { type Application, type Container, type Graphics, Sprite, type Texture } from 'pixi.js';
 import {
   DIRS,
   ENERGY_RANGE,
   PIECES,
   pieceEnds,
   ROTATION_MASK,
+  rotateLinks,
   rotatePiece,
   type Command,
   type DeepReadonly,
@@ -14,6 +15,8 @@ import {
   type WorldView,
 } from '@netstorm/sim';
 import { project, TW, TH } from './projection.js';
+import { hotSpots } from './assets.js';
+import { bridgeSlot } from './texture-selection.js';
 import { cellAt, zoomAt } from './camera.js';
 import { anchorFor, entityAt, hasFacing, type Tool, type UiState } from './ui-state.js';
 
@@ -26,7 +29,10 @@ const ARC_TAN = 0.577; // tan 30°, half the width of the Crossbow's arc at a di
 // Size, in cells, of the mark at an open end of a piece: across the edge and along it.
 const END_DEPTH = 0.3;
 const END_WIDTH = 0.6;
+const PLANK_DROP = 9; // from the top of a cell down to the hot spot of its Bridge frame
+const PLANK_ALPHA = 0.75;
 const COLOR = {
+  plank: 0xffffff,
   valid: 0xffd166,
   invalid: 0xff4444,
   selection: 0xffffff,
@@ -76,12 +82,15 @@ export function createControls(options: {
   app: Application;
   camera: Container;
   overlay: Graphics;
+  /** Where the piece under the cursor is drawn, and the textures to draw it with. */
+  ghost: Container;
+  textures: ReadonlyMap<string, Texture>;
   submit: (command: Command) => void;
   /** Called after the interface state changed and the panels should be redrawn. */
   changed: () => void;
   togglePause: () => void;
 }) {
-  const { world, me, ui, app, camera, overlay, submit, changed } = options;
+  const { world, me, ui, app, camera, overlay, ghost, textures, submit, changed } = options;
   const abort = new AbortController();
   const signal = abort.signal;
 
@@ -359,6 +368,8 @@ export function createControls(options: {
     let cells: [number, number][] = [];
     let error = false;
 
+    ghost.removeChildren().forEach((plank) => plank.destroy());
+
     if (tool.kind === 'piece') {
       const piece = world.players.get(me)!.hand[handIndex(tool)];
       cells = piece
@@ -366,6 +377,11 @@ export function createControls(options: {
         : [];
       error = piece !== undefined
         && world.canDropPiece({ player: me, hand: handIndex(tool), x, y, rot: ui.rot }) !== null;
+
+      // The piece is shown as the bridge it will be, red where it cannot lie.
+      if (piece && drawPlanks(cells, rotateLinks(piece.piece, ui.rot), error)) {
+        return;
+      }
     } else if (tool.kind === 'build') {
       const def = world.def(tool.type);
       const anchor = anchorFor(def, x, y);
@@ -399,6 +415,31 @@ export function createControls(options: {
     if (tool.kind === 'piece') {
       drawEnds(x, y, handIndex(tool));
     }
+  }
+
+  /** Draw the cells of a piece with their Bridge frames, top row first; false if the frames are
+   * not there to draw with. */
+  function drawPlanks(cells: [number, number][], links: number[], error: boolean): boolean {
+    const rows = cells.map((cell, i) => [cell, links[i]!] as const)
+      .sort(([a], [b]) => a[1] - b[1] || a[0] - b[0]);
+
+    for (const [[cx, cy], joins] of rows) {
+      const texture = textures.get(`slot:bridge:${bridgeSlot(joins, 'whole', 1)}`);
+      const spot = texture && hotSpots.get(texture);
+
+      if (!texture || !spot) {
+        return false;
+      }
+
+      const plank = ghost.addChild(new Sprite(texture));
+      const { sx, sy } = project(cx, cy);
+      plank.anchor.set(spot.x, spot.y);
+      plank.position.set(sx + TW - 1, sy + PLANK_DROP);
+      plank.alpha = PLANK_ALPHA;
+      plank.tint = error ? COLOR.invalid : COLOR.plank;
+    }
+
+    return true;
   }
 
   /** Mark the open ends of the piece under the cursor: it attaches by these and nowhere else. */

@@ -68,7 +68,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const entityLayer = new Container();
   const bars = new Graphics();
   const overlay = new Graphics();
-  camera.addChild(terrainG, ground, entityLayer, bars, overlay);
+  const ghost = new Container();
+  camera.addChild(terrainG, ground, entityLayer, bars, ghost, overlay);
   const renderer = createWorldRenderer(view, ME, terrainG, ground, entityLayer, bars,
     data.textures);
 
@@ -110,6 +111,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     app,
     camera,
     overlay,
+    ghost,
+    textures: data.textures,
     submit: (command) => commands.push(command),
     changed: () => hud.render(),
     togglePause,
