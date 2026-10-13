@@ -11,7 +11,7 @@ import {
   barriers,
   FLYER_SCALE,
 } from '@netstorm/sim';
-import { EXPLOSION_FRAMES, GROUND_FRAMES } from './texture-selection.js';
+import { EXPLOSION_FRAMES, GROUND_FRAMES, SKY, shoreFrame } from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
 
 const SPRITE_ANCHOR_X = 0.5;
@@ -50,6 +50,19 @@ const COLOR = {
   acidField: 0x8ee06b,
   arcField: 0x9fd8ff,
 } as const;
+const SIDES: ReadonlyArray<readonly [number, number, number]> = [
+  [SKY.north, 0, -1],
+  [SKY.east, 1, 0],
+  [SKY.south, 0, 1],
+  [SKY.west, -1, 0],
+];
+/** The corner clockwise of each side: north stands for north-east, and so on round. */
+const CORNERS: typeof SIDES = [
+  [SKY.north, 1, -1],
+  [SKY.east, 1, 1],
+  [SKY.south, -1, 1],
+  [SKY.west, -1, -1],
+];
 const LOW_HP = 0.35;
 const AIR_Z = 1e6; // above any screen row
 const FIELD_WIDTH = 2;
@@ -89,9 +102,18 @@ export function createWorldRenderer(
 
         const owner = world.owner[y * W + x]!;
         const { sx, sy } = project(x, y);
-        const texture = textures.get(tileKey(terrain, owner, x, y));
+        const sides = terrain === Terrain.Island ? skyAround(x, y, SIDES) : 0;
+        const shore = sides || terrain !== Terrain.Island
+          ? shoreFrame(sides, 0, x + y)
+          : shoreFrame(0, skyAround(x, y, CORNERS), x + y);
+        const texture = (shore === undefined
+          ? undefined
+          : textures.get(`shore:${groundSet(owner)}:${shore}`))
+          ?? textures.get(tileKey(terrain, owner, x, y));
+        // The southern rim frames carry their own rock face.
+        const faced = shore !== undefined && (sides & SKY.south) !== 0;
 
-        if (y + 1 < H && !world.terrain[(y + 1) * W + x]) {
+        if (!faced && y + 1 < H && !world.terrain[(y + 1) * W + x]) {
           terrainG.rect(sx, sy + TH, TW, CLIFF_HEIGHT).fill(COLOR.cliff);
         }
 
@@ -101,7 +123,9 @@ export function createWorldRenderer(
         }
 
         const tile = new Sprite(texture);
-        tile.position.set(sx, sy);
+        // A rim frame is cut down to its picture: it keeps to the side its ground is on.
+        tile.position.set(sides & SKY.west ? sx + TW - texture.width : sx,
+          sides & SKY.north ? sy + TH - texture.height : sy);
         tile.tint = owner && owner !== me && !isBridge(terrain)
           ? COLOR.enemyGroundTint
           : COLOR.noTint;
@@ -109,6 +133,29 @@ export function createWorldRenderer(
         tiles.push(tile);
       }
     }
+  }
+
+  /** Where the island ends around a cell: SKY bits of the neighbours, given as [bit, dx, dy]. */
+  function skyAround(x: number, y: number, around: typeof SIDES): number {
+    let found = 0;
+
+    for (const [bit, dx, dy] of around) {
+      const nx = x + dx;
+      const ny = y + dy;
+      const island = nx >= 0 && ny >= 0 && nx < W && ny < H
+        && world.terrain[ny * W + nx] === Terrain.Island;
+
+      if (!island) {
+        found |= bit;
+      }
+    }
+
+    return found;
+  }
+
+  function groundSet(owner: number): string {
+    const theme = world.players.get(owner)?.theme;
+    return theme && theme !== 'sun' ? theme : 'neutral';
   }
 
   function tileKey(terrain: number, owner: number, x: number, y: number): string {
@@ -124,8 +171,7 @@ export function createWorldRenderer(
       return 'bridge:cracked';
     }
 
-    const theme = world.players.get(owner)?.theme;
-    const set = theme && theme !== 'sun' ? theme : 'neutral';
+    const set = groundSet(owner);
     // A fixed scatter of the grass variants, so a redraw does not reshuffle the ground.
     const frame = GROUND_FRAMES[((x * SCATTER_X) ^ (y * SCATTER_Y)) % GROUND_FRAMES.length]!;
     return `ground:${set}:${frame}`;

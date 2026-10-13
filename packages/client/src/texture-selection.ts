@@ -7,6 +7,65 @@ export const GROUND_TILES = {
 } as const;
 /** Frames of each grass set picked for variety; every set has these. */
 export const GROUND_FRAMES = [4, 5, 47, 48, 51, 52, 53, 54] as const;
+/** Rim tile sets of island ground, by owner's Fury as GROUND_TILES. */
+export const SHORE_TILES = {
+  wind: 'wiisle',
+  rain: 'raisle',
+  thunder: 'thisle',
+  neutral: 'risle',
+} as const;
+const SHORE_FRAME_COUNT = 37;
+/* oxlint-disable no-magic-numbers -- frame numbers of the rim sets, from isle.type */
+/** Sides a cell can have open sky on, as bits; a corner is the two sides it lies between. */
+export const SKY = { north: 1, east: 2, south: 4, west: 8 } as const;
+/**
+ * Frames of a rim set by the sides the sky is on, as isle.type groups them: the four edges, then
+ * the four outside corners. Every group has a few variants.
+ */
+const SHORE_EDGES: Readonly<Record<number, readonly number[]>> = {
+  [SKY.west]: [0, 1, 2, 3, 4],
+  [SKY.north]: [5, 6, 7, 8, 9],
+  [SKY.east]: [10, 11, 12, 13, 14],
+  [SKY.south]: [21, 22, 23, 24, 25, 26],
+  [SKY.north | SKY.west]: [19, 31],
+  [SKY.north | SKY.east]: [20, 32],
+  [SKY.south | SKY.east]: [15, 27],
+  [SKY.south | SKY.west]: [16, 28],
+};
+/** Inside corners: ground on every side and sky across one corner, named by the side clockwise
+ * of it (north: the north-east corner). Which frame is which corner is read off the pictures. */
+const SHORE_INSIDE: Readonly<Record<number, readonly number[]>> = {
+  [SKY.north]: [35, 36],
+  [SKY.east]: [18, 30],
+  [SKY.south]: [17, 29],
+  [SKY.west]: [33, 34],
+};
+/* oxlint-enable no-magic-numbers */
+
+/** For a cell the original's islands never have, with sky on three sides or on opposite ones: the
+ * corners and edges to settle for, the southern ones first because they carry the rock face. */
+const SHORE_FALLBACK: readonly number[] = [
+  SKY.south | SKY.west,
+  SKY.south | SKY.east,
+  SKY.north | SKY.west,
+  SKY.north | SKY.east,
+  SKY.south,
+  SKY.west,
+  SKY.east,
+  SKY.north,
+];
+
+/**
+ * The rim frame of an island cell, or undefined where plain grass goes. `sides` and `corners` are
+ * SKY bits of where the island ends; `pick` chooses among the variants.
+ */
+export function shoreFrame(sides: number, corners: number, pick: number): number | undefined {
+  const inside = Object.entries(SHORE_INSIDE).find(([corner]) => corners & Number(corner))?.[1];
+  const settled = SHORE_FALLBACK.find((bits) => (sides & bits) === bits);
+  const group = sides === 0 ? inside : SHORE_EDGES[sides] ?? SHORE_EDGES[settled ?? 0];
+  return group?.[pick % group.length];
+}
+
 export const BRIDGE_FRAMES = { solid: 0, cracked: 35, hard: 50 } as const;
 
 /** Every other frame of the small explosion. */
@@ -16,6 +75,10 @@ export const EXPLOSION_FRAMES = Array.from({ length: 11 }, (_, i) => 35 + i * 2)
 export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]> = [
   ...Object.entries(GROUND_TILES).flatMap(([owner, gif]) =>
     GROUND_FRAMES.map((frame) => [`ground:${owner}:${frame}`, 'isle', gif, frame] as const)
+  ),
+  ...Object.entries(SHORE_TILES).flatMap(([owner, gif]) =>
+    Array.from({ length: SHORE_FRAME_COUNT }, (_, frame) =>
+      [`shore:${owner}:${frame}`, 'isle', gif, frame] as const)
   ),
   ...EXPLOSION_FRAMES.map((frame, i) => [`explosion:${i}`, 'anim', 'xsmall', frame] as const),
   ...Object.entries(BRIDGE_FRAMES).map(([state, frame]) =>

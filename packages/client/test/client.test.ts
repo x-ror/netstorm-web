@@ -5,6 +5,7 @@ import { loadDefs } from '@netstorm/sim';
 import { mapsOf, outcome, reflow, slimMaps, slimMissions } from '../src/game-data.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS } from '../src/menu.js';
+import { SKY, shoreFrame } from '../src/texture-selection.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
 
@@ -182,4 +183,16 @@ test('a mission is won and lost as its file says', () => {
   assert.equal(outcome(undefined, plain, ME, new Set()), 'won');
   assert.equal(outcome(undefined, { ...plain, winner: 3 }, ME, new Set()), 'lost');
   assert.equal(outcome(undefined, { ...plain, winner: null }, ME, new Set()), null);
+});
+
+test('an island cell gets the rim frame of the sides the sky is on', () => {
+  assert.equal(shoreFrame(0, 0, 3), undefined); // inland: grass
+  assert.deepEqual([0, 1, 5].map((pick) => shoreFrame(SKY.west, 0, pick)), [0, 1, 0]);
+  assert.equal(shoreFrame(SKY.south, 0, 0), 21);
+  assert.equal(shoreFrame(SKY.north | SKY.west, 0, 1), 31);
+  // Ground all round and sky across the south-west corner: an inside corner.
+  assert.equal(shoreFrame(0, SKY.south, 0), 17);
+  // A spit one cell wide has no frame of its own: the nearest corner, with its rock face.
+  assert.equal(shoreFrame(SKY.north | SKY.south | SKY.west, 0, 0), 16);
+  assert.equal(shoreFrame(SKY.north | SKY.south | SKY.east | SKY.west, 0, 0), 16);
 });
