@@ -6,7 +6,7 @@
 packages/sim      — ядро симуляції: чистий TypeScript, детерміноване, без залежностей (npm test -w @netstorm/sim)
 packages/client   — PixiJS-клієнт (npm run dev -w @netstorm/client)
 data/             — units.json, missions.json, forts.json — зняті з оригінального netstorm.tarc
-scripts/          — smoke-browser.mjs: автоматичний browser smoke; check-size.mjs: бюджет збірки; untarc.py: розпаковує netstorm.tarc оригінальної гри
+scripts/          — smoke-browser.mjs: автоматичний browser smoke; check-size.mjs: бюджет збірки; untarc.py: розпаковує netstorm.tarc оригінальної гри; unshp.py: дістає всі спрайти з _shapes.shp
 ```
 
 Інструменти розпакування оригіналу (untarc / unshp / unfort / parse_*) і розпаковані асети — у `netstorm-extracted.zip` / у файлах проєкту.

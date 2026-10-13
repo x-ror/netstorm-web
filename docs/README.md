@@ -8,7 +8,7 @@
 | [TODO.md](TODO.md) | Черга робіт за пріоритетом | Щоб обрати наступну задачу |
 | [project.md](project.md) | Задум: мета, юридичні рамки, дані оригіналу, кампанія, асети, вибір стеку | Для контексту; правила тут лише оглядово |
 | [reference/](reference/) | Тексти оригінальної гри 10.82: `help.english.txt` (довідка), `tell.english.txt` (підказки й повідомлення) | Як першоджерело; не редагувати |
-| `original/` (поза git) | Сама гра 10.82 і розпаковані дані: `extracted/d/*.type`, `extracted/setup.cfg.txt`, `game/Netstorm/DevLog.txt` | Щоб перевірити число чи правило у файлах гри. Розпакування: `python3 scripts/untarc.py original/game/Netstorm/netstorm.tarc original/extracted` |
+| `original/` (поза git) | Сама гра 10.82 і розпаковані дані: `extracted/d/*.type`, `extracted/setup.cfg.txt`, `game/Netstorm/DevLog.txt` | Щоб перевірити число чи правило у файлах гри. Розпакування: `python3 scripts/untarc.py original/game/Netstorm/netstorm.tarc original/extracted`; усі спрайти з `_shapes.shp`: `python3 scripts/unshp.py original/game/Netstorm original/extracted original/all-assets/sprites` |
 
 ## Що чому вірити
 
