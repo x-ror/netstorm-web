@@ -41,6 +41,15 @@ SLOTS = {
     "dais": 59,  # the ring of an Altar through the five stages of a sacrifice
     "altar": 89,  # its horns, the captive struggling between them, then the sacrifice
     "windarcher": 80,  # for each facing: five frames of a shot, then twenty of turning
+    "anim": 88,  # the explosions: two large ones, a middling one and a small one
+    "bolt": 20,  # the missiles, a frame for each bearing
+    "raincannonmissile": 29,
+    "thundercannonmissile": 12,
+    "sundisc": 3,
+    "lightning": 1,
+    "healeffect": 9,  # what a Spell leaves on what it touches
+    "gravitationeffect": 10,
+    "meteoreffect": 15,
     "manabolt": 4,  # the bolt of Storm Power of each Fury: wind, rain, thunder, sun
     "fringe": 83,  # the rock that hangs under the southern rim of an island
 }

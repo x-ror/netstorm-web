@@ -12,16 +12,17 @@ import {
   barriers,
   FLYER_SCALE,
 } from '@netstorm/sim';
-import {
-  EXPLOSION_FRAMES,
-  FACING_FRAMES,
-  GROUND_FRAMES,
-  fringeSlot,
-  SKY,
-  shoreFrame,
-} from './texture-selection.js';
+import { FACING_FRAMES, GROUND_FRAMES, fringeSlot, SKY, shoreFrame } from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
 import { MANA_BOLTS, SACRIFICE, overlayOf, shadowOf, slotOf } from './animations.js';
+import {
+  MISSILES,
+  MISSILE_SPEED,
+  SPELL_BURSTS,
+  explosionFor,
+  missileSlot,
+  type Burst,
+} from './effects.js';
 import { hotSpots } from './assets.js';
 
 const SPRITE_ANCHOR_X = 0.5;
@@ -32,8 +33,8 @@ const CLIFF_HEIGHT = 6; // rock face drawn under an island's southern rim
 const SCATTER_X = 7;
 const SCATTER_Y = 13;
 const BAR_GAP = 2; // pixels between a sprite's top and its health bar
-const EXPLOSION_FRAME_MS = 70;
-const EXPLOSION_CELLS = 2; // footprint width the small explosion covers at scale 1
+const BEAM_LENGTH = 154; // pixels of the Lightning picture
+const BEAM_TICKS = 2;
 const TRACER_LIFT = 0.6; // share of a shooter's sprite height its shots leave from
 const MARKER_RADIUS = 4;
 const CELL_CENTER = 0.5;
@@ -219,10 +220,11 @@ export function createWorldRenderer(
   const sprites = new Map<number, Sprite | Graphics>();
   /** Cooldowns seen on the previous tick: a shooter whose cooldown went up has fired. */
   const cooldowns = new Map<number, number>();
-  const explosions: { sprite: Sprite; start: number; }[] = [];
   const widths = new Map<number, number>(); // footprint width in cells, kept for the explosion
   /** Pictures laid over an entity's own: the whirl of a Temple, the charge of a Thunder Cannon. */
   const overlays = new Map<number, Sprite>();
+  /** The middle of each thing that stands still, kept for its explosion. */
+  const centres = new Map<number, Point>();
   /** Which way each walker last went (animations.ts). */
   const headings = new Map<number, number>();
   const scene = { world, headings, aims: new Map<number, number>() };
@@ -323,6 +325,7 @@ export function createWorldRenderer(
       }
 
       sprite.visible = true;
+      centres.set(entity.id, middle(entity));
       // Large things stand on the bottom edge of their footprint, units on the middle of their cell.
       const foot = footprintOf(entity);
       const { sx, sy } = foot
@@ -356,11 +359,12 @@ export function createWorldRenderer(
         sprites.delete(id);
         cooldowns.delete(id);
         widths.delete(id);
+        centres.delete(id);
         headings.delete(id);
         scene.aims.delete(id);
 
         if (holding.delete(id)) {
-          effects.push({ at: sprite.position.clone(), z: sprite.zIndex, start: world.tick });
+          burst({ type: 'altar', ...SACRIFICE }, sprite.position, sprite.zIndex);
         }
 
         for (const layer of [overlays, shadows]) {
@@ -429,20 +433,23 @@ export function createWorldRenderer(
     }
   }
 
-  /** Sacrifices in progress: the frames of the Altar type played once where an altar stood. */
-  const effects: { at: { x: number; y: number; }; z: number; start: number; sprite?: Sprite; }[] =
-    [];
+  /** Runs of frames played once at a place: explosions, the sacrifice, the mark of a Spell. */
+  const bursts: (Burst & { at: Point; z: number; start: number; sprite?: Sprite; })[] = [];
+
+  function burst(run: Burst, at: Point, z: number): void {
+    bursts.push({ ...run, at: { x: at.x, y: at.y }, z, start: world.tick });
+  }
 
   function playEffects(): void {
-    for (let i = effects.length - 1; i >= 0; i--) {
-      const effect = effects[i]!;
+    for (let i = bursts.length - 1; i >= 0; i--) {
+      const effect = bursts[i]!;
       const frame = world.tick - effect.start;
-      const texture = textures.get(`slot:altar:${SACRIFICE.first + frame}`);
+      const texture = textures.get(`slot:${effect.type}:${effect.first + frame}`);
       const spot = texture && hotSpots.get(texture);
 
-      if (frame >= SACRIFICE.frames || !texture || !spot) {
+      if (frame >= effect.frames || !texture || !spot) {
         effect.sprite?.destroy();
-        effects.splice(i, 1);
+        bursts.splice(i, 1);
         continue;
       }
 
@@ -451,6 +458,31 @@ export function createWorldRenderer(
       effect.sprite.anchor.set(spot.x, spot.y);
       effect.sprite.position.set(effect.at.x, effect.at.y);
       effect.sprite.zIndex = effect.z;
+    }
+  }
+
+  /** Show what a Spell does: its mark on every unit in its range, or a blast at the caster. */
+  function cast(caster: number, spell: string): void {
+    const by = world.entities.get(caster);
+    const show = SPELL_BURSTS[spell];
+    const range = world.defs.get(spell)?.range ?? 0;
+
+    if (!by || !show) {
+      return;
+    }
+
+    if (show.here) {
+      burst(show.here, middle(by), AIR_Z);
+    }
+
+    for (const e of world.entities.values()) {
+      const flying = e.kind === 'flyer'
+        || (e.kind === 'transport' && sprites.get(e.id)?.zIndex === AIR_Z);
+      const near = Math.hypot(e.x - by.x, e.y - by.y) <= range;
+
+      if (show.each && 'hp' in e && e.id !== caster && near && (!show.air || flying)) {
+        burst(show.each, middle(e), AIR_Z);
+      }
     }
   }
 
@@ -470,6 +502,17 @@ export function createWorldRenderer(
 
   /** A line from each shooter that fired this tick to its target. Shots are not simulated as
    * projectiles, so this only shows who is shooting whom. */
+  /** Missiles on their way, and the bolts of lightning that are simply there for a moment. */
+  const missiles: {
+    sprite: Sprite;
+    shooter: string;
+    from: Point;
+    to: Point;
+    start: number;
+    ticks: number;
+  }[] = [];
+  const beams: { sprite: Sprite; until: number; }[] = [];
+
   function drawTracers(): void {
     for (const entity of world.entities.values()) {
       if (entity.kind !== 'building') {
@@ -481,48 +524,87 @@ export function createWorldRenderer(
       const fired = entity.hp > 0 && entity.cooldown > (cooldowns.get(entity.id) ?? Infinity);
       cooldowns.set(entity.id, entity.cooldown);
       const from = sprites.get(entity.id);
-      const to = entity.target === null ? undefined : sprites.get(entity.target);
+      const aim = entity.target === null ? undefined : world.entities.get(entity.target);
 
-      if (!fired || !from || !to) {
+      if (!fired || !from || !aim) {
         continue;
       }
 
-      bars.moveTo(from.x, from.y - from.height * TRACER_LIFT)
-        .lineTo(to.x, to.y - to.height / 2)
-        .stroke({ color: COLOR.tracer, width: 1 });
+      const start = { x: middle(entity).x, y: from.y - from.height * TRACER_LIFT };
+      const end = middle(aim);
+      shoot(entity.type, start, end);
     }
+
+    fly();
   }
 
-  /** Play the explosion where an entity's sprite stands; call before the next sync removes it. */
-  function explode(id: number): void {
-    const target = sprites.get(id);
-    const first = textures.get('explosion:0');
+  /** Send off what a shooter throws: its missile, a bolt of lightning, or a plain streak. */
+  function shoot(shooter: string, from: Point, to: Point): void {
+    const far = Math.hypot(to.x - from.x, to.y - from.y);
+    const lightning = textures.get('slot:lightning:0');
 
-    if (!target || !first) {
+    if (shooter in MISSILES) {
+      const first = textures.get(`slot:${MISSILES[shooter]!.type}:0`);
+
+      if (first) {
+        const sprite = entityLayer.addChild(new Sprite(first));
+        sprite.zIndex = AIR_Z;
+        // The speed is in cells; a cell is TW pixels wide.
+        const ticks = Math.max(1, Math.round((far / TW / MISSILE_SPEED) * TPS));
+        missiles.push({ sprite, shooter, from, to, start: world.tick, ticks });
+        return;
+      }
+    }
+
+    if (shooter === 'thunderarcher' && lightning && far > 0) {
+      // The Lightning type is one picture of a bolt: it is turned and stretched to its target.
+      const sprite = entityLayer.addChild(new Sprite(lightning));
+      sprite.anchor.set(0, SPRITE_ANCHOR_X);
+      sprite.position.set(from.x, from.y);
+      sprite.rotation = Math.atan2(to.y - from.y, to.x - from.x);
+      sprite.scale.x = far / BEAM_LENGTH;
+      sprite.zIndex = AIR_Z;
+      beams.push({ sprite, until: world.tick + BEAM_TICKS });
       return;
     }
 
-    const sprite = new Sprite(first);
-    sprite.anchor.set(SPRITE_ANCHOR_X, 1);
-    sprite.position.copyFrom(target.position);
-    sprite.scale.set(Math.max(1, (widths.get(id) ?? 1) / EXPLOSION_CELLS));
-    sprite.zIndex = target.zIndex + 1;
-    entityLayer.addChild(sprite);
-    explosions.push({ sprite, start: performance.now() });
+    bars.moveTo(from.x, from.y).lineTo(to.x, to.y).stroke({ color: COLOR.tracer, width: 1 });
   }
 
-  function animate(now: number): void {
-    for (let i = explosions.length - 1; i >= 0; i--) {
-      const { sprite, start } = explosions[i]!;
-      const frame = Math.floor((now - start) / EXPLOSION_FRAME_MS);
-      const texture = textures.get(`explosion:${frame}`);
+  function fly(): void {
+    for (let i = missiles.length - 1; i >= 0; i--) {
+      const { sprite, shooter, from, to, start, ticks } = missiles[i]!;
+      const done = (world.tick - start) / ticks;
+      const slot = missileSlot(shooter, to.x - from.x, to.y - from.y, world.tick);
+      const texture = textures.get(`slot:${MISSILES[shooter]!.type}:${slot}`);
+      const spot = texture && hotSpots.get(texture);
 
-      if (frame >= EXPLOSION_FRAMES.length || !texture) {
+      if (done >= 1 || !texture || !spot) {
         sprite.destroy();
-        explosions.splice(i, 1);
-      } else {
-        sprite.texture = texture;
+        missiles.splice(i, 1);
+        continue;
       }
+
+      sprite.texture = texture;
+      sprite.anchor.set(spot.x, spot.y);
+      sprite.position.set(from.x + (to.x - from.x) * done, from.y + (to.y - from.y) * done);
+    }
+
+    for (let i = beams.length - 1; i >= 0; i--) {
+      if (world.tick >= beams[i]!.until) {
+        beams[i]!.sprite.destroy();
+        beams.splice(i, 1);
+      }
+    }
+  }
+
+  /** Play the explosion of a unit where it stands; call before the next sync removes it. */
+  function explode(id: number): void {
+    const target = sprites.get(id);
+    const at = centres.get(id);
+
+    if (target && at) {
+      burst(explosionFor(widths.get(id) ?? 1), at, target.zIndex + 1);
     }
   }
 
@@ -537,9 +619,8 @@ export function createWorldRenderer(
   let entityTick = -1;
   return {
     explode,
+    cast,
     sync() {
-      animate(performance.now());
-
       if (terrainRevision !== world.terrainRevision) {
         drawTerrain();
         terrainRevision = world.terrainRevision;
@@ -551,6 +632,13 @@ export function createWorldRenderer(
       }
     },
   };
+}
+
+/** The middle of what an entity stands on, in screen pixels. */
+function middle(entity: DeepReadonly<Entity>): Point {
+  const foot = footprintOf(entity);
+  const at = foot ? project(foot.x + foot.w / 2, foot.y + foot.h / 2) : unitSpot(entity);
+  return { x: at.sx, y: at.sy };
 }
 
 /** Where a unit of one cell is drawn: a flyer at its exact place, the rest mid-cell. */

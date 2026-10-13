@@ -91,9 +91,6 @@ export function shoreFrame(sides: number, corners: number, pick: number): number
 
 export const BRIDGE_FRAMES = { solid: 0, cracked: 35, hard: 50 } as const;
 
-/** Every other frame of the small explosion. */
-export const EXPLOSION_FRAMES = Array.from({ length: 11 }, (_, i) => 35 + i * 2);
-
 /* oxlint-disable no-magic-numbers -- frame numbers from the .type files */
 /**
  * The frame of each facing (north, east, south, west) of the units that have one: the first frame
@@ -123,7 +120,6 @@ export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]>
     Array.from({ length: SHORE_FRAME_COUNT }, (_, frame) =>
       [`shore:${owner}:${frame}`, 'isle', gif, frame] as const)
   ),
-  ...EXPLOSION_FRAMES.map((frame, i) => [`explosion:${i}`, 'anim', 'xsmall', frame] as const),
   ...Object.entries(BRIDGE_FRAMES).map(([state, frame]) =>
     [`bridge:${state}`, 'bridge', 'bridge', frame] as const
   ),

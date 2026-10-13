@@ -14,6 +14,7 @@ import {
   shoreFrame,
 } from '../src/texture-selection.js';
 import { SLOT_COUNTS, heading, overlayOf, shadowOf, slotOf } from '../src/animations.js';
+import { MISSILES, SPELL_BURSTS, explosionFor, missileSlot } from '../src/effects.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
 
@@ -407,4 +408,37 @@ test('a mission gives its computer sides their orders, income and pace, and its 
   assert.equal(happened('ai3templedead', world, none, new Set([2])), false);
   assert.equal(happened('ai3templedead', world, none, new Set([2, 3])), true);
   assert.equal(happened('ai2priestcaptured', world, new Set([2]), none), true);
+});
+
+test('missiles point the way they fly, and effects are runs of shipped slots', () => {
+  // The Crossbow's bolt has twenty bearings from north: east is the fifth, south the tenth.
+  assert.deepEqual(
+    [[0, -1], [1, 0], [0, 1], [-1, 0]].map(([dx, dy]) => missileSlot('windarcher', dx!, dy!, 0)),
+    [0, 5, 10, 15],
+  );
+  // The Thunder Cannon's has four, with three frames to each.
+  assert.deepEqual([0, 1, 2, 3].map((tick) => missileSlot('thundercannon', 1, 0, tick)), [
+    3,
+    4,
+    5,
+    3,
+  ]);
+  assert.equal(missileSlot('sunarcher', -3, 2, 7), 0);
+  assert.deepEqual([1, 2, 3, 7].map((width) => explosionFor(width).first), [66, 58, 0, 0]);
+
+  const runs = [
+    ...Object.values(MISSILES).map((m) => ({
+      type: m.type,
+      first: 0,
+      frames: m.bearings * m.frames,
+    })),
+    ...[1, 2, 3].map(explosionFor),
+    ...Object.values(SPELL_BURSTS).flatMap((b) =>
+      [b.each, b.here].filter((run) => run !== undefined)
+    ),
+  ];
+
+  for (const run of runs) {
+    assert.ok(run.first + run.frames <= SLOT_COUNTS[run.type]!, run.type);
+  }
 });
