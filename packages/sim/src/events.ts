@@ -13,6 +13,7 @@ type Payloads = {
   chained: { priest: number; altar: number; };
   rune: { priest: number; runes: number; };
   released: { priest: number; };
+  saved: { priest: number; owner: number; };
   sacrifice: { victim: number; };
   rejected: { cmd: Command['t']; err: CommandError; };
   victory: undefined;

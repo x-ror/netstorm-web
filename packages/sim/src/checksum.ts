@@ -30,6 +30,7 @@ export function hashWorld(world: WorldView, rngState: number, nextId: number): n
   uint(world.unitRate);
   uint(world.killReward);
   uint(world.geyserStock);
+  byte(world.anyCapture ? 1 : 0);
 
   for (let i = 0; i < W * H; i++) {
     byte(world.terrain[i]!);

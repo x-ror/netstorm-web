@@ -86,17 +86,25 @@ export function capturePriest(
     || t.carrying !== null
     || !p
     || p.kind !== 'priest'
-    || !world.hostile(p.owner, c.player)
+    || p.owner === c.player
     || p.invisible > 0 // "nothing can be targeted or picked up while it is invisible"
   ) {
     return 'bad target';
   }
 
-  if (p.state !== 'down') {
-    return 'target not incapacitated';
-  }
+  // A mission with `allowAnyCapture` lets a friendly Priest be picked up as he stands and
+  // carried home: "bring me to safety by dropping me on your island".
+  if (!world.hostile(p.owner, c.player)) {
+    if (!world.anyCapture || (p.state !== 'normal' && p.state !== 'down')) {
+      return 'bad target';
+    }
 
-  if (!ownAltar(world, c.player)) {
+    if (!world.templeOf(c.player)) {
+      return 'no temple';
+    }
+  } else if (p.state !== 'down') {
+    return 'target not incapacitated';
+  } else if (!ownAltar(world, c.player)) {
     return 'no altar';
   }
 
@@ -115,13 +123,15 @@ export function capturePriest(
 /** Transport reached the priest it was sent for. */
 export function arriveAtPriest(world: World, t: Transport): void {
   const p = t.target === null ? undefined : world.entities.get(t.target);
-  const altar = ownAltar(world, t.owner);
+  const friend = p?.kind === 'priest' && !world.hostile(p.owner, t.owner);
+  // A friend is taken to the Temple, a captive to the Altar.
+  const altar = friend ? world.templeOf(t.owner) : ownAltar(world, t.owner);
 
   // A priest that regenerated above half of his Hit Points resists being captured.
   if (
     !p
     || p.kind !== 'priest'
-    || p.state !== 'down'
+    || (friend ? p.state !== 'normal' && p.state !== 'down' : p.state !== 'down')
     || Math.abs(p.x - t.x) + Math.abs(p.y - t.y) > 1
     || !altar
   ) {
@@ -179,12 +189,20 @@ export function arriveAtAltar(world: World, t: Transport): void {
   }
 
   const altar = t.target === null ? undefined : world.building(t.target);
+  const friend = !world.hostile(p.owner, t.owner);
 
-  // The altar is gone or the way to it was cut: the transport lets the priest go.
-  if (!altar || altar.owner !== t.owner || !world.adjacentTo(t.x, t.y, altar)) {
+  // The altar is gone or the way to it was cut: the transport lets the priest go. A friend is
+  // let go in any case, and beside the Temple he is saved. That the Temple is the place is our
+  // reading of "dropping me on your island" (`?`).
+  if (friend || !altar || altar.owner !== t.owner || !world.adjacentTo(t.x, t.y, altar)) {
     t.carrying = null;
     stop(t);
     releasePriest(world, p, t.x, t.y);
+
+    if (friend && altar && world.adjacentTo(t.x, t.y, altar)) {
+      world.emit({ what: 'saved', who: t.owner, data: { priest: p.id, owner: p.owner } });
+    }
+
     return;
   }
 

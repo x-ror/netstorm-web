@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadDefs } from '@netstorm/sim';
-import { mapsOf, reflow, slimMaps, slimMissions } from '../src/game-data.js';
+import { mapsOf, outcome, reflow, slimMaps, slimMissions } from '../src/game-data.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS } from '../src/menu.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
@@ -149,4 +149,37 @@ test('a mission sets up its sides: names, knowledge, Storm Power and alliances',
     'sunwalker',
   ]);
   assert.equal(first.players.get(ENEMY)!.storm, 0);
+});
+
+test('a mission is won and lost as its file says', () => {
+  const goals = (id: string) => {
+    const m = missions.find((mission) => mission.id === id)!;
+    return [m.rescue, m.wards, m.anyCapture];
+  };
+  assert.deepEqual(goals('thewarbegins'), [[], [], false]);
+  assert.deepEqual(goals('totherescue'), [[], [2], false]);
+  assert.deepEqual(goals('enemyterritory'), [[2], [2], true]);
+
+  const world = createMatchWorld(defs, maps, missions, {
+    ...DEFAULT_OPTIONS,
+    mission: 'enemyterritory',
+  });
+  const territory = missions.find((m) => m.id === 'enemyterritory')!;
+  assert.equal(world.anyCapture, true);
+  assert.equal(outcome(territory, world, ME, new Set()), null);
+  assert.equal(outcome(territory, world, ME, new Set([2])), 'won');
+  // The traitor is sacrificed: the mission is lost though the player still stands.
+  world.players.get(2)!.alive = false;
+  assert.equal(outcome(territory, world, ME, new Set([2])), 'lost');
+
+  // Without goals of its own a battle ends with its winner; allies win together.
+  const plain = {
+    winner: 2 as number | null,
+    players: world.players,
+    hostile: world.hostile.bind(world),
+  };
+  world.players.get(2)!.alive = true;
+  assert.equal(outcome(undefined, plain, ME, new Set()), 'won');
+  assert.equal(outcome(undefined, { ...plain, winner: 3 }, ME, new Set()), 'lost');
+  assert.equal(outcome(undefined, { ...plain, winner: null }, ME, new Set()), null);
 });

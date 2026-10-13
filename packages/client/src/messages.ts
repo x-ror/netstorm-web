@@ -95,11 +95,26 @@ export function describeEvent(
       };
     case 'delivered':
       return mine ? { text: 'Кристал доставлено до Храму', tone: 'good' } : null;
-    case 'captured':
+    case 'captured': {
+      const priest = world.entities.get(event.data.priest);
+      const friend = priest?.kind === 'priest' && !world.hostile(event.who, priest.owner);
+
+      if (friend) {
+        return mine
+          ? {
+            text: 'Союзного жерця взято на борт: транспорт везе його до вашого Храму',
+            tone: 'good',
+          }
+          : null;
+      }
+
       return {
         text: mine ? 'Ворожого жерця захоплено' : 'Вашого жерця захоплено!',
         tone: mine ? 'good' : 'bad',
       };
+    }
+    case 'saved':
+      return { text: `Жерця гравця ${player(event.data.owner)} врятовано`, tone: 'good' };
     case 'chained':
       return {
         text: mine ? 'Полоненого прикуто до Вівтаря' : 'Вашого жерця прикуто до ворожого Вівтаря!',

@@ -174,7 +174,14 @@ export function createControls(options: {
         return true;
       }
 
-      if (selected.kind === 'transport' && target.kind === 'priest' && target.state === 'down') {
+      // A fallen enemy Priest is carried off to the Altar; where the mission allows it, a friendly
+      // one is carried home to safety.
+      const friend = target.kind === 'priest' && !world.hostile(me, target.owner);
+
+      if (
+        selected.kind === 'transport' && target.kind === 'priest'
+        && (friend ? world.anyCapture : target.state === 'down')
+      ) {
         submit({ t: 'capturePriest', player: me, transport, target: target.id });
         return true;
       }

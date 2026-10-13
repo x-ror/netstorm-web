@@ -27,6 +27,8 @@ export interface SkirmishOptions {
   killReward?: number;
   /** Storm Power, one of GEYSER_STOCKS. */
   geyserStock?: number;
+  /** `allowAnyCapture` of a mission: friendly Priests may be carried off to safety. */
+  anyCapture?: boolean;
 }
 
 function pick(values: readonly number[], value: number | undefined, fallback: number): number {
@@ -63,6 +65,7 @@ export function applyOptions(w: World, options: SkirmishOptions): void {
   w.unitRate = pick(UNIT_RATES, options.unitRate, DEFAULT_UNIT_RATE);
   w.killReward = pick(KILL_REWARDS, options.killReward, DEFAULT_KILL_REWARD);
   w.geyserStock = pick(GEYSER_STOCKS, options.geyserStock, GEYSER_STOCK);
+  w.anyCapture = options.anyCapture ?? false;
 }
 
 /** What a player of a Fury knows at the start: the Sun units and those of his own Fury. */

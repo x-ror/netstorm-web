@@ -473,7 +473,13 @@
         },
         "next": [
             "ToTheRescue"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "breakingthrougheasy",
@@ -504,7 +510,13 @@
         },
         "next": [
             "ToTheRescueEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "breakingthroughhard",
@@ -535,7 +547,13 @@
         },
         "next": [
             "ToTheRescueHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "cidtest",
@@ -548,6 +566,10 @@
         },
         "sections": {
             "END": ""
+        },
+        "goals": {
+            "win": [],
+            "lose": []
         }
     },
     {
@@ -580,6 +602,10 @@
         "sections": {
             "Demo": "NetStorm Demo\n\nThe Dark Prince of Rain has started a vicious assault on the \nDuke of Thunder.\n\nCan the Duke defend himself long enough to\nbring his Thunder Cannons to bear and crush his assailant?\n\n$Timeout=15,DoNothing,0",
             "END": ""
+        },
+        "goals": {
+            "win": [],
+            "lose": []
         }
     },
     {
@@ -616,7 +642,13 @@
         },
         "next": [
             "TheNoose"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "dissolvedallianceeasy",
@@ -655,7 +687,13 @@
         },
         "next": [
             "TheNooseEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "dissolvedalliancehard",
@@ -693,7 +731,13 @@
         },
         "next": [
             "TheNooseHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "enemyterritory",
@@ -738,7 +782,15 @@
         },
         "next": [
             "FinalConfrontation"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "ai2priestsaved"
+            ],
+            "lose": [
+                "ai2priestdead"
+            ]
+        }
     },
     {
         "file": "enemyterritoryeasy",
@@ -786,7 +838,15 @@
         },
         "next": [
             "FinalConfrontationEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "ai2priestsaved"
+            ],
+            "lose": [
+                "ai2priestdead"
+            ]
+        }
     },
     {
         "file": "enemyterritoryhard",
@@ -834,7 +894,15 @@
         },
         "next": [
             "FinalConfrontationHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "ai2priestsaved"
+            ],
+            "lose": [
+                "ai2priestdead"
+            ]
+        }
     },
     {
         "file": "finalconfrontation",
@@ -872,6 +940,12 @@
             "Succeeded": "Success!\n\nLet it now be known that you alone rule in Nimbus!  Let all the world\nstand in the shadow of your ultimate power!  Let the Dark Lords \napproach you on their bellies to beg for their lives!  Let the \nFuries do your bidding forevermore!",
             "Failed": "Failure!\n\nYou were the last hope to rescue Nimbus from ultimate Darkness, \nbut you have failed.  For your insolence, the Dark Lords have \ndecreed that every Nimbian will live out an eternity of poverty,\nsickness, and servitude.",
             "END": ""
+        },
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
         }
     },
     {
@@ -917,6 +991,12 @@
             "Succeeded": "Success!\n\nLet it now be known that you alone rule in Nimbus!  Let all the world\nstand in the shadow of your ultimate power!  Let the Dark Lords \napproach you on their bellies to beg for their lives!  Let the \nFuries do your bidding forevermore!",
             "Failed": "Failure!\n\nYou were the last hope to rescue Nimbus from ultimate Darkness, \nbut you have failed.  For your insolence, the Dark Lords have \ndecreed that every Nimbian will live out an eternity of poverty,\nsickness, and servitude.",
             "END": ""
+        },
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
         }
     },
     {
@@ -963,6 +1043,12 @@
             "Succeeded": "Success!\n\nLet it now be known that you alone rule in Nimbus!  Let all the world\nstand in the shadow of your ultimate power!  Let the Dark Lords \napproach you on their bellies to beg for their lives!  Let the \nFuries do your bidding forevermore!",
             "Failed": "Failure!\n\nYou were the last hope to rescue Nimbus from ultimate Darkness, \nbut you have failed.  For your insolence, the Dark Lords have \ndecreed that every Nimbian will live out an eternity of poverty,\nsickness, and servitude.",
             "END": ""
+        },
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
         }
     },
     {
@@ -990,7 +1076,13 @@
         },
         "next": [
             "ThunderingPower"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "fragilefortuneeasy",
@@ -1019,7 +1111,13 @@
         },
         "next": [
             "ThunderingPowerEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "fragilefortunehard",
@@ -1048,7 +1146,13 @@
         },
         "next": [
             "ThunderingPowerHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "guardmyback",
@@ -1100,7 +1204,15 @@
         },
         "next": [
             "Surrounded"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": [
+                "ai2priestdead"
+            ]
+        }
     },
     {
         "file": "guardmybackeasy",
@@ -1155,7 +1267,15 @@
         },
         "next": [
             "SurroundedEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": [
+                "ai2priestdead"
+            ]
+        }
     },
     {
         "file": "guardmybackhard",
@@ -1210,7 +1330,15 @@
         },
         "next": [
             "SurroundedHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": [
+                "ai2priestdead"
+            ]
+        }
     },
     {
         "file": "help",
@@ -1242,6 +1370,10 @@
             "Demo": "NetStorm Demo\n\nThe Dark Prince of Rain has started a vicious assault on the \nDuke of Thunder.\n\nCan the Duke defend himself long enough to\nbring his Thunder Cannons to bear and crush his assailant?\n\n$Timeout=10,DoNothing,0",
             "A.": "",
             "END": ""
+        },
+        "goals": {
+            "win": [],
+            "lose": []
         }
     },
     {
@@ -1256,6 +1388,10 @@
         "sections": {
             "A.": "THIS IS A 10.70 PATCH UNIT TEST FILE!",
             "END": ""
+        },
+        "goals": {
+            "win": [],
+            "lose": []
         }
     },
     {
@@ -1283,7 +1419,13 @@
         },
         "next": [
             "SaveTheIsland"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "masterofwhirligigseasy",
@@ -1312,7 +1454,13 @@
         },
         "next": [
             "SaveTheIslandEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "masterofwhirligigshard",
@@ -1341,7 +1489,13 @@
         },
         "next": [
             "SaveTheIslandHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "offical1",
@@ -1556,7 +1710,13 @@
         },
         "next": [
             "RunForIt"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "rainvsraineasy",
@@ -1584,7 +1744,13 @@
         },
         "next": [
             "RunForItEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "rainvsrainhard",
@@ -1612,7 +1778,13 @@
         },
         "next": [
             "RunForItHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "runforit",
@@ -1640,7 +1812,13 @@
         },
         "next": [
             "GuardMyBack"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "runforiteasy",
@@ -1670,7 +1848,13 @@
         },
         "next": [
             "GuardMyBackEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "runforithard",
@@ -1700,7 +1884,13 @@
         },
         "next": [
             "GuardMyBackHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "savetheisland",
@@ -1728,7 +1918,13 @@
         },
         "next": [
             "FragileFortune"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "savetheislandeasy",
@@ -1757,7 +1953,13 @@
         },
         "next": [
             "FragileFortuneEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "savetheislandhard",
@@ -1786,7 +1988,13 @@
         },
         "next": [
             "FragileFortuneHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "surrounded",
@@ -1839,7 +2047,13 @@
         },
         "next": [
             "BreakingThrough"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "surroundedeasy",
@@ -1897,7 +2111,13 @@
         },
         "next": [
             "BreakingThroughEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "surroundedhard",
@@ -1959,7 +2179,13 @@
         },
         "next": [
             "BreakingThroughHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "tell",
@@ -2206,7 +2432,13 @@
         },
         "next": [
             "RainVsRain"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "thenooseeasy",
@@ -2235,7 +2467,13 @@
         },
         "next": [
             "RainVsRainEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "thenoosehard",
@@ -2264,7 +2502,13 @@
         },
         "next": [
             "RainVsRainHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "thewarbegins",
@@ -2291,7 +2535,13 @@
         },
         "next": [
             "MasterOfWhirligigs"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "thewarbeginseasy",
@@ -2320,7 +2570,13 @@
         },
         "next": [
             "MasterOfWhirligigsEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "thewarbeginshard",
@@ -2350,7 +2606,13 @@
         },
         "next": [
             "MasterOfWhirligigsHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "thunderingpower",
@@ -2393,7 +2655,13 @@
         },
         "next": [
             "DissolvedAlliance"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "thunderingpowereasy",
@@ -2439,7 +2707,13 @@
         },
         "next": [
             "DissolvedAllianceEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "thunderingpowerhard",
@@ -2485,7 +2759,13 @@
         },
         "next": [
             "DissolvedAllianceHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "totherescue",
@@ -2533,7 +2813,15 @@
         },
         "next": [
             "Vicious"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": [
+                "ai2priestdead"
+            ]
+        }
     },
     {
         "file": "totherescueeasy",
@@ -2584,7 +2872,15 @@
         },
         "next": [
             "ViciousEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": [
+                "ai2priestdead"
+            ]
+        }
     },
     {
         "file": "totherescuehard",
@@ -2636,7 +2932,15 @@
         },
         "next": [
             "ViciousHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": [
+                "ai2priestdead"
+            ]
+        }
     },
     {
         "file": "tutorial1",
@@ -2672,7 +2976,11 @@
         },
         "next": [
             "Tutorial2"
-        ]
+        ],
+        "goals": {
+            "win": [],
+            "lose": []
+        }
     },
     {
         "file": "tutorial2",
@@ -2714,7 +3022,11 @@
         },
         "next": [
             "Tutorial3"
-        ]
+        ],
+        "goals": {
+            "win": [],
+            "lose": []
+        }
     },
     {
         "file": "tutorial3",
@@ -2752,7 +3064,11 @@
         },
         "next": [
             "Tutorial4"
-        ]
+        ],
+        "goals": {
+            "win": [],
+            "lose": []
+        }
     },
     {
         "file": "tutorial4",
@@ -2789,7 +3105,11 @@
         },
         "next": [
             "Tutorial5"
-        ]
+        ],
+        "goals": {
+            "win": [],
+            "lose": []
+        }
     },
     {
         "file": "tutorial5",
@@ -2825,7 +3145,11 @@
         },
         "next": [
             "Tutorial6"
-        ]
+        ],
+        "goals": {
+            "win": [],
+            "lose": []
+        }
     },
     {
         "file": "tutorial6",
@@ -2853,6 +3177,10 @@
             "E.": "Barricades\n\"Between Nimbus and the Beyond stands an infinite, burning barrier.\" -Book of Nimbus.\n\nYour opponent in this mission has erected a Sun Barricade on his island. \nFour posts are generating a protection field which blocks all gun-fire\nbetween their endpoints. You can't succeed until you destroy \nthe Barricades.\n\nSurprisingly, the Crossbow alone is enough to defeat the enemy's island.  \nBe sure to stay out of the direct line of fire of the\nThunder Cannons since you do not have a blocker to use as a shield!\n\nThe tutorial will complete when you have destroyed all of the enemy\nThunder Cannons, Whirlibases, and Sun Disc Throwers.\nDo not worry about capturing the Priest for this battle.  Good luck!\n\n    \"Sun Barricade\"",
             "F.": "Mission Accomplished\n\n\"An uneducated man is harmless.\nA well-educated man is unbeatable.\nA half-educated man is merely dangerous.\"\n--Anonymous\n\nGood work! This completes the tutorial. Consider yourself half-educated.  \nTo complete your education, you'll have to pit your new skills against NetStorm's many\nsingle-player missions.\n\nThe world of Nimbus contains over twenty unique units \nyou can use in battle, each with its own strategic advantages. \nYou will learn about each of them as you continue with the Campaign missions.\nRemember to right-click and select About to view information\nabout each new unit as you encounter it.\n\nYou can continue with the Campaigns or play online now.\n\nHave fun!",
             "END": ""
+        },
+        "goals": {
+            "win": [],
+            "lose": []
         }
     },
     {
@@ -2891,7 +3219,13 @@
         },
         "next": [
             "EnemyTerritory"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "viciouseasy",
@@ -2919,7 +3253,13 @@
         },
         "next": [
             "EnemyTerritoryEasy"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "vicioushard",
@@ -2947,7 +3287,13 @@
         },
         "next": [
             "EnemyTerritoryHard"
-        ]
+        ],
+        "goals": {
+            "win": [
+                "badteamdead"
+            ],
+            "lose": []
+        }
     },
     {
         "file": "weptest",
@@ -3021,6 +3367,10 @@
             "@59": "Time 59",
             "@60": "Time 60",
             "END": ""
+        },
+        "goals": {
+            "win": [],
+            "lose": []
         }
     },
     {

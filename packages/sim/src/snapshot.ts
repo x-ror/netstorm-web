@@ -30,8 +30,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 23;
-export const RULES_VERSION = 45;
+export const SNAPSHOT_VERSION = 24;
+export const RULES_VERSION = 46;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -48,6 +48,7 @@ export interface WorldSnapshot {
   unitRate: number;
   killReward: number;
   geyserStock: number;
+  anyCapture: boolean;
   terrain: number[];
   owner: number[];
   links: number[];
@@ -424,6 +425,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     'unitRate',
     'killReward',
     'geyserStock',
+    'anyCapture',
     'terrain',
     'owner',
     'links',
@@ -462,6 +464,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     unitRate: choice(value.unitRate, UNIT_RATES, 'snapshot.unitRate'),
     killReward: choice(value.killReward, KILL_REWARDS, 'snapshot.killReward'),
     geyserStock: choice(value.geyserStock, GEYSER_STOCKS, 'snapshot.geyserStock'),
+    anyCapture: boolean(value.anyCapture, 'snapshot.anyCapture'),
     terrain: grid(value.terrain, 'terrain', Terrain.HardBridge),
     owner: grid(value.owner, 'owner', MAX_PLAYERS),
     links: grid(value.links, 'links', LINK_ALL),

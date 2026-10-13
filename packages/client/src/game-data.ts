@@ -29,6 +29,55 @@ export interface Mission {
   briefing: string;
   succeeded: string;
   failed: string;
+  /** Sides whose Priest has to be brought to safety to win ("[Succeeded][Ai2PriestSaved]"). With
+   * none, the mission is won when every enemy is defeated ("[Succeeded][BadTeamDead]"). */
+  rescue: number[];
+  /** Sides whose defeat loses the mission ("[Failed][Ai2PriestDead]"), besides the player's own. */
+  wards: number[];
+  /** `allowAnyCapture`: transports may pick up friendly Priests. */
+  anyCapture: boolean;
+}
+
+/** The side numbers in the events of one kind: "ai2priestsaved" gives 2 for "priestsaved". */
+function sidesIn(events: unknown, kind: string): number[] {
+  return (Array.isArray(events) ? events : []).flatMap((event) => {
+    const side = new RegExp(`^ai(\\d+)${kind}$`).exec(String(event))?.[1];
+    return side ? [Number(side)] : [];
+  });
+}
+
+/**
+ * How a mission stands for the player `me`: won, lost or still on. `saved` holds the sides whose
+ * Priest has been brought to safety.
+ */
+export function outcome(
+  mission: Pick<Mission, 'rescue' | 'wards'> | undefined,
+  world: {
+    winner: number | null;
+    players: ReadonlyMap<number, { alive: boolean; }>;
+    hostile: (a: number, b: number) => boolean;
+  },
+  me: number,
+  saved: ReadonlySet<number>,
+): 'won' | 'lost' | null {
+  const fallen = [me, ...(mission?.wards ?? [])].some((id) =>
+    world.players.get(id)?.alive === false
+  );
+
+  if (fallen) {
+    return 'lost';
+  }
+
+  if (mission?.rescue.length) {
+    return mission.rescue.every((id) => saved.has(id)) ? 'won' : null;
+  }
+
+  if (world.winner === null) {
+    return null;
+  }
+
+  // Allies win together.
+  return world.hostile(world.winner, me) ? 'lost' : 'won';
 }
 
 /** aiTimeBetweenMoves of the campaign missions that leave it out; most set 6. */
@@ -167,6 +216,9 @@ export function slimMissions(raw: unknown, maps: Maps): Mission[] {
       briefing: reflow(withoutTitle(text(sections, 'A.'), header.title)),
       succeeded: reflow(text(sections, 'Succeeded') || text(sections, 'succeeded')),
       failed: reflow(text(sections, 'Failed')),
+      rescue: sidesIn(asRecord(file.goals).win, 'priestsaved'),
+      wards: sidesIn(asRecord(file.goals).lose, 'priestdead'),
+      anyCapture: Number(header.allowAnyCapture) === 1,
     });
   }
 

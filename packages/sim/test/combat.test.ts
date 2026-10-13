@@ -922,3 +922,30 @@ test('an Ice Cannon throws ricochets to the side that take their share of its da
   // The stream is one: every shot is 4, whole or split in two.
   assert.equal((lost(target) + strayed) % 4, 0);
 });
+
+test('where a mission allows it, a transport carries a friendly Priest home to safety', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 0, [], [2]);
+  world.addPlayer(2, 'Friend', 'rain', 0, []);
+  world.addIsland(0, 0, 120, 100, 1);
+  world.spawnBuilding('windvortex', 1, 10, 10);
+  const golem = world.spawnTransport('sunwalker', 1, 30, 30);
+  const priest = world.addPriest(2, 32, 30);
+  const order = { t: 'capturePriest', player: 1, transport: golem.id, target: priest.id } as const;
+  assert.equal(world.apply(order), 'bad target');
+  world.anyCapture = true;
+  assert.equal(world.apply(order), null);
+  const events: string[] = [];
+
+  for (let i = 0; i < 60 * TPS; i++) {
+    world.step();
+    events.push(...world.drainEvents().map((event) => event.what));
+  }
+
+  assert.ok(events.includes('captured') && events.includes('saved'));
+  assert.equal(priest.state, 'normal');
+  // He is set down where the transport stopped, beside the Temple.
+  assert.ok(Math.abs(priest.x - golem.x) <= 1 && Math.abs(priest.y - golem.y) <= 1);
+  assert.ok(golem.x < 20 && golem.y < 20);
+  assert.equal(world.players.get(2)!.alive, true);
+});

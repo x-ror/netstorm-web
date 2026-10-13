@@ -17,6 +17,7 @@ export interface WorldView {
   readonly unitRate: number;
   readonly killReward: number;
   readonly geyserStock: number;
+  readonly anyCapture: boolean;
   readonly terrain: ArrayLike<number>;
   readonly owner: ArrayLike<number>;
   readonly links: ArrayLike<number>;

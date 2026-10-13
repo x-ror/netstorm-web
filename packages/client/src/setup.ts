@@ -36,6 +36,7 @@ export function createMatchWorld(
     unitRate: options.unitRate,
     killReward: options.killReward,
     geyserStock: options.geyserStock,
+    anyCapture: mission?.anyCapture ?? false,
   };
 
   // A mission is played on its map as the original stores it: the islands, bridges and units of

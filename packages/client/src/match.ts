@@ -9,7 +9,7 @@ import {
   type DefTable,
   type Event as SimEvent,
 } from '@netstorm/sim';
-import { DEFAULT_AI_DELAY, type Maps, type Mission } from './game-data.js';
+import { DEFAULT_AI_DELAY, outcome, type Maps, type Mission } from './game-data.js';
 import { type MatchOptions } from './menu.js';
 import { createMatchWorld, ME } from './setup.js';
 import { createWorldRenderer } from './renderer.js';
@@ -108,10 +108,15 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const pending: SimEvent[] = [];
 
   /** Take the tick's events: effects play at once, the log is written with the next HUD refresh. */
+  /** Sides whose Priest the player or an ally has brought to safety. */
+  const saved = new Set<number>();
+
   function takeEvents(): void {
     for (const event of match.drainEvents()) {
       if (event.what === 'destroyed') {
         renderer.explode(event.data.id);
+      } else if (event.what === 'saved' && !world.hostile(event.who, ME)) {
+        saved.add(event.data.owner);
       }
 
       pending.push(event);
@@ -186,13 +191,12 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       minimap.draw();
     }
 
-    const lost = !world.players.get(ME)!.alive;
+    const result = ended ? null : outcome(mission, world, ME, saved);
 
-    if (!ended && (world.winner !== null || lost)) {
+    if (result) {
       ended = true;
       renderLog();
-      // Allies win together.
-      const won = world.winner !== null && !lost && !world.hostile(world.winner, ME);
+      const won = result === 'won';
       hud.showEnd(won ? 'Перемога!' : 'Поразка', (won ? mission?.succeeded : mission?.failed)
         || (won ? 'Ворожого жерця принесено в жертву.' : 'Вашого жерця принесено в жертву.'));
     }

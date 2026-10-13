@@ -111,6 +111,8 @@ export class World {
   killReward: number = DEFAULT_KILL_REWARD;
   /** Storm Power a new geyser holds (the Money per Geyser option). */
   geyserStock: number = GEYSER_STOCK;
+  /** `allowAnyCapture` of a mission: a transport may carry off a friendly Priest, to save him. */
+  anyCapture = false;
 
   constructor(
     public readonly defs: DefTable,
@@ -130,6 +132,7 @@ export class World {
     world.unitRate = snapshot.unitRate;
     world.killReward = snapshot.killReward;
     world.geyserStock = snapshot.geyserStock;
+    world.anyCapture = snapshot.anyCapture;
     world.terrain.set(snapshot.terrain);
     world.owner.set(snapshot.owner);
     world.links.set(snapshot.links);
@@ -162,6 +165,7 @@ export class World {
       unitRate: this.unitRate,
       killReward: this.killReward,
       geyserStock: this.geyserStock,
+      anyCapture: this.anyCapture,
       terrain: Array.from(this.terrain),
       owner: Array.from(this.owner),
       links: Array.from(this.links),
