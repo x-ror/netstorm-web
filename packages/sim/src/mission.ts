@@ -24,6 +24,8 @@ export interface MissionPlayer {
   tech?: string[];
   /** The sides it is allied with. */
   allies?: number[];
+  /** Storm Power the side is given every second (`aiMoneyRechargeRate`). */
+  income?: number;
 }
 
 /* oxlint-disable no-magic-numbers -- the frame table of the original's bridge type */
@@ -112,7 +114,7 @@ export function createMission(
     const settings = side(id);
     const theme = templeTheme(defs, map, id) ?? settings.theme;
     const tech = settings.tech?.filter((type) => defs.has(type)) ?? skirmishTech(defs, theme);
-    w.addPlayer(id, settings.name, theme, settings.storm, tech, settings.allies);
+    w.addPlayer(id, settings.name, theme, settings.storm, tech, settings.allies, settings.income);
   }
 
   const specs: IslandSpec[] = map.islands.map(([shape, cx, cy, grain]) => ({

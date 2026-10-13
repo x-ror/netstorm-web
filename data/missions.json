@@ -478,7 +478,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -515,7 +516,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -552,7 +554,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -569,7 +572,8 @@
         },
         "goals": {
             "win": [],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -605,7 +609,8 @@
         },
         "goals": {
             "win": [],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -647,7 +652,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -692,7 +698,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -736,7 +743,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -789,6 +797,14 @@
             ],
             "lose": [
                 "ai2priestdead"
+            ],
+            "tell": [
+                {
+                    "on": [
+                        "ai2priestcaptured"
+                    ],
+                    "section": "Ai2PriestCaptured"
+                }
             ]
         }
     },
@@ -845,6 +861,14 @@
             ],
             "lose": [
                 "ai2priestdead"
+            ],
+            "tell": [
+                {
+                    "on": [
+                        "ai2priestcaptured"
+                    ],
+                    "section": "Ai2PriestCaptured"
+                }
             ]
         }
     },
@@ -901,6 +925,14 @@
             ],
             "lose": [
                 "ai2priestdead"
+            ],
+            "tell": [
+                {
+                    "on": [
+                        "ai2priestcaptured"
+                    ],
+                    "section": "Ai2PriestCaptured"
+                }
             ]
         }
     },
@@ -945,7 +977,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -996,7 +1029,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1048,7 +1082,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1081,7 +1116,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1116,7 +1152,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1151,7 +1188,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1211,6 +1249,27 @@
             ],
             "lose": [
                 "ai2priestdead"
+            ],
+            "tell": [
+                {
+                    "on": [
+                        "ai2priestcaptured",
+                        "ai2templehalf"
+                    ],
+                    "section": "Ai2TempleHalf"
+                },
+                {
+                    "on": [
+                        "ai3templedead"
+                    ],
+                    "section": "Ai3TempleDead"
+                },
+                {
+                    "on": [
+                        "ai4templedead"
+                    ],
+                    "section": "Ai4TempleDead"
+                }
             ]
         }
     },
@@ -1274,6 +1333,27 @@
             ],
             "lose": [
                 "ai2priestdead"
+            ],
+            "tell": [
+                {
+                    "on": [
+                        "ai2priestcaptured",
+                        "ai2templehalf"
+                    ],
+                    "section": "Ai2TempleHalf"
+                },
+                {
+                    "on": [
+                        "ai3templedead"
+                    ],
+                    "section": "Ai3TempleDead"
+                },
+                {
+                    "on": [
+                        "ai4templedead"
+                    ],
+                    "section": "Ai4TempleDead"
+                }
             ]
         }
     },
@@ -1337,6 +1417,27 @@
             ],
             "lose": [
                 "ai2priestdead"
+            ],
+            "tell": [
+                {
+                    "on": [
+                        "ai2priestcaptured",
+                        "ai2templehalf"
+                    ],
+                    "section": "Ai2TempleHalf"
+                },
+                {
+                    "on": [
+                        "ai3templedead"
+                    ],
+                    "section": "Ai3TempleDead"
+                },
+                {
+                    "on": [
+                        "ai4templedead"
+                    ],
+                    "section": "Ai4TempleDead"
+                }
             ]
         }
     },
@@ -1373,7 +1474,8 @@
         },
         "goals": {
             "win": [],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1391,7 +1493,8 @@
         },
         "goals": {
             "win": [],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1424,7 +1527,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1459,7 +1563,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1494,7 +1599,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1715,7 +1821,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1749,7 +1856,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1783,7 +1891,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1817,7 +1926,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1853,7 +1963,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1889,7 +2000,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1923,7 +2035,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1958,7 +2071,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -1993,7 +2107,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -2052,7 +2167,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -2116,7 +2232,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -2184,7 +2301,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -2437,7 +2555,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -2472,7 +2591,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -2507,7 +2627,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -2540,7 +2661,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -2575,7 +2697,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -2611,7 +2734,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -2660,7 +2784,45 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": [
+                {
+                    "on": [
+                        "@20"
+                    ],
+                    "section": "@20"
+                },
+                {
+                    "on": [
+                        "@120"
+                    ],
+                    "section": "@120"
+                },
+                {
+                    "on": [
+                        "@360"
+                    ],
+                    "section": "@360"
+                },
+                {
+                    "on": [
+                        "@500"
+                    ],
+                    "section": "@500"
+                },
+                {
+                    "on": [
+                        "@700"
+                    ],
+                    "section": "@700"
+                },
+                {
+                    "on": [
+                        "@900"
+                    ],
+                    "section": "@900"
+                }
+            ]
         }
     },
     {
@@ -2712,7 +2874,45 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": [
+                {
+                    "on": [
+                        "@20"
+                    ],
+                    "section": "@20"
+                },
+                {
+                    "on": [
+                        "@120"
+                    ],
+                    "section": "@120"
+                },
+                {
+                    "on": [
+                        "@360"
+                    ],
+                    "section": "@360"
+                },
+                {
+                    "on": [
+                        "@500"
+                    ],
+                    "section": "@500"
+                },
+                {
+                    "on": [
+                        "@700"
+                    ],
+                    "section": "@700"
+                },
+                {
+                    "on": [
+                        "@900"
+                    ],
+                    "section": "@900"
+                }
+            ]
         }
     },
     {
@@ -2764,7 +2964,45 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": [
+                {
+                    "on": [
+                        "@20"
+                    ],
+                    "section": "@20"
+                },
+                {
+                    "on": [
+                        "@120"
+                    ],
+                    "section": "@120"
+                },
+                {
+                    "on": [
+                        "@360"
+                    ],
+                    "section": "@360"
+                },
+                {
+                    "on": [
+                        "@500"
+                    ],
+                    "section": "@500"
+                },
+                {
+                    "on": [
+                        "@700"
+                    ],
+                    "section": "@700"
+                },
+                {
+                    "on": [
+                        "@900"
+                    ],
+                    "section": "@900"
+                }
+            ]
         }
     },
     {
@@ -2820,6 +3058,14 @@
             ],
             "lose": [
                 "ai2priestdead"
+            ],
+            "tell": [
+                {
+                    "on": [
+                        "@120"
+                    ],
+                    "section": "@120"
+                }
             ]
         }
     },
@@ -2879,6 +3125,14 @@
             ],
             "lose": [
                 "ai2priestdead"
+            ],
+            "tell": [
+                {
+                    "on": [
+                        "@120"
+                    ],
+                    "section": "@120"
+                }
             ]
         }
     },
@@ -2939,6 +3193,14 @@
             ],
             "lose": [
                 "ai2priestdead"
+            ],
+            "tell": [
+                {
+                    "on": [
+                        "@120"
+                    ],
+                    "section": "@120"
+                }
             ]
         }
     },
@@ -2979,7 +3241,8 @@
         ],
         "goals": {
             "win": [],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -3025,7 +3288,8 @@
         ],
         "goals": {
             "win": [],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -3067,7 +3331,8 @@
         ],
         "goals": {
             "win": [],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -3108,7 +3373,8 @@
         ],
         "goals": {
             "win": [],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -3148,7 +3414,8 @@
         ],
         "goals": {
             "win": [],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -3180,7 +3447,8 @@
         },
         "goals": {
             "win": [],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -3224,7 +3492,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -3258,7 +3527,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -3292,7 +3562,8 @@
             "win": [
                 "badteamdead"
             ],
-            "lose": []
+            "lose": [],
+            "tell": []
         }
     },
     {
@@ -3370,7 +3641,369 @@
         },
         "goals": {
             "win": [],
-            "lose": []
+            "lose": [],
+            "tell": [
+                {
+                    "on": [
+                        "@1"
+                    ],
+                    "section": "@1"
+                },
+                {
+                    "on": [
+                        "@2"
+                    ],
+                    "section": "@2"
+                },
+                {
+                    "on": [
+                        "@3"
+                    ],
+                    "section": "@3"
+                },
+                {
+                    "on": [
+                        "@4"
+                    ],
+                    "section": "@4"
+                },
+                {
+                    "on": [
+                        "@5"
+                    ],
+                    "section": "@5"
+                },
+                {
+                    "on": [
+                        "@6"
+                    ],
+                    "section": "@6"
+                },
+                {
+                    "on": [
+                        "@7"
+                    ],
+                    "section": "@7"
+                },
+                {
+                    "on": [
+                        "@8"
+                    ],
+                    "section": "@8"
+                },
+                {
+                    "on": [
+                        "@9"
+                    ],
+                    "section": "@9"
+                },
+                {
+                    "on": [
+                        "@10"
+                    ],
+                    "section": "@10"
+                },
+                {
+                    "on": [
+                        "@11"
+                    ],
+                    "section": "@11"
+                },
+                {
+                    "on": [
+                        "@12"
+                    ],
+                    "section": "@12"
+                },
+                {
+                    "on": [
+                        "@13"
+                    ],
+                    "section": "@13"
+                },
+                {
+                    "on": [
+                        "@14"
+                    ],
+                    "section": "@14"
+                },
+                {
+                    "on": [
+                        "@15"
+                    ],
+                    "section": "@15"
+                },
+                {
+                    "on": [
+                        "@16"
+                    ],
+                    "section": "@16"
+                },
+                {
+                    "on": [
+                        "@17"
+                    ],
+                    "section": "@17"
+                },
+                {
+                    "on": [
+                        "@18"
+                    ],
+                    "section": "@18"
+                },
+                {
+                    "on": [
+                        "@19"
+                    ],
+                    "section": "@19"
+                },
+                {
+                    "on": [
+                        "@20"
+                    ],
+                    "section": "@20"
+                },
+                {
+                    "on": [
+                        "@21"
+                    ],
+                    "section": "@21"
+                },
+                {
+                    "on": [
+                        "@22"
+                    ],
+                    "section": "@22"
+                },
+                {
+                    "on": [
+                        "@23"
+                    ],
+                    "section": "@23"
+                },
+                {
+                    "on": [
+                        "@24"
+                    ],
+                    "section": "@24"
+                },
+                {
+                    "on": [
+                        "@25"
+                    ],
+                    "section": "@25"
+                },
+                {
+                    "on": [
+                        "@26"
+                    ],
+                    "section": "@26"
+                },
+                {
+                    "on": [
+                        "@27"
+                    ],
+                    "section": "@27"
+                },
+                {
+                    "on": [
+                        "@28"
+                    ],
+                    "section": "@28"
+                },
+                {
+                    "on": [
+                        "@29"
+                    ],
+                    "section": "@29"
+                },
+                {
+                    "on": [
+                        "@30"
+                    ],
+                    "section": "@30"
+                },
+                {
+                    "on": [
+                        "@31"
+                    ],
+                    "section": "@31"
+                },
+                {
+                    "on": [
+                        "@32"
+                    ],
+                    "section": "@32"
+                },
+                {
+                    "on": [
+                        "@33"
+                    ],
+                    "section": "@33"
+                },
+                {
+                    "on": [
+                        "@34"
+                    ],
+                    "section": "@34"
+                },
+                {
+                    "on": [
+                        "@35"
+                    ],
+                    "section": "@35"
+                },
+                {
+                    "on": [
+                        "@36"
+                    ],
+                    "section": "@36"
+                },
+                {
+                    "on": [
+                        "@37"
+                    ],
+                    "section": "@37"
+                },
+                {
+                    "on": [
+                        "@38"
+                    ],
+                    "section": "@38"
+                },
+                {
+                    "on": [
+                        "@39"
+                    ],
+                    "section": "@39"
+                },
+                {
+                    "on": [
+                        "@40"
+                    ],
+                    "section": "@40"
+                },
+                {
+                    "on": [
+                        "@41"
+                    ],
+                    "section": "@41"
+                },
+                {
+                    "on": [
+                        "@42"
+                    ],
+                    "section": "@42"
+                },
+                {
+                    "on": [
+                        "@43"
+                    ],
+                    "section": "@43"
+                },
+                {
+                    "on": [
+                        "@44"
+                    ],
+                    "section": "@44"
+                },
+                {
+                    "on": [
+                        "@45"
+                    ],
+                    "section": "@45"
+                },
+                {
+                    "on": [
+                        "@46"
+                    ],
+                    "section": "@46"
+                },
+                {
+                    "on": [
+                        "@47"
+                    ],
+                    "section": "@47"
+                },
+                {
+                    "on": [
+                        "@48"
+                    ],
+                    "section": "@48"
+                },
+                {
+                    "on": [
+                        "@49"
+                    ],
+                    "section": "@49"
+                },
+                {
+                    "on": [
+                        "@50"
+                    ],
+                    "section": "@50"
+                },
+                {
+                    "on": [
+                        "@51"
+                    ],
+                    "section": "@51"
+                },
+                {
+                    "on": [
+                        "@52"
+                    ],
+                    "section": "@52"
+                },
+                {
+                    "on": [
+                        "@53"
+                    ],
+                    "section": "@53"
+                },
+                {
+                    "on": [
+                        "@54"
+                    ],
+                    "section": "@54"
+                },
+                {
+                    "on": [
+                        "@55"
+                    ],
+                    "section": "@55"
+                },
+                {
+                    "on": [
+                        "@56"
+                    ],
+                    "section": "@56"
+                },
+                {
+                    "on": [
+                        "@57"
+                    ],
+                    "section": "@57"
+                },
+                {
+                    "on": [
+                        "@58"
+                    ],
+                    "section": "@58"
+                },
+                {
+                    "on": [
+                        "@59"
+                    ],
+                    "section": "@59"
+                },
+                {
+                    "on": [
+                        "@60"
+                    ],
+                    "section": "@60"
+                }
+            ]
         }
     },
     {

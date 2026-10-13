@@ -9,6 +9,7 @@ import {
   playReplay,
   ReplayRecorder,
   TPS,
+  World,
 } from '../src/index.js';
 
 const read = (name: string): unknown =>
@@ -257,4 +258,60 @@ test('the AI fetches a Spell it can walk to, casts it at the enemy, and raises a
   const outpost = orders().find((c) => c.t === 'build' && c.type === 'outpost');
   assert.ok(outpost && world.execute(outpost).ok);
   assert.ok(!orders().some((c) => c.t === 'build' && c.type === 'outpost')); // one at a time
+});
+
+test('a mission can keep its AI from collecting, capturing and bridging to the enemy', () => {
+  const world = mk();
+  world.players.get(2)!.storm = 5000;
+  world.addGeyser(156, 96, undefined, false); // one on its own island, to walk to
+
+  for (let i = 0; i < 6 * TPS; i++) {
+    world.step(); // until its Temple has handed out bridge pieces
+  }
+
+  const kinds = (options: object) =>
+    new Set(aiMove(world.view(), { player: 2, ...options }).map((c) => c.t));
+  assert.ok(kinds({}).has('collect'));
+  assert.ok(!kinds({ collect: false }).has('collect'));
+  const priest = world.priestOf(1)!;
+  priest.hp = 10;
+  priest.state = 'down';
+  world.spawnBuilding('altar', 2, 142, 84);
+  // The fallen Priest stands on the AI's own island here, so a transport can walk to him.
+  world.occupant[world.at(priest.x, priest.y)] = 0;
+  priest.x = 152;
+  priest.y = 98;
+  world.occupant[world.at(priest.x, priest.y)] = priest.id;
+  assert.ok(kinds({}).has('capturePriest'));
+  assert.ok(!kinds({ capture: false }).has('capturePriest'));
+});
+
+test('a side with an income is given its Storm Power every second', () => {
+  const world = mk();
+  world.addPlayer(3, 'Paid', 'thunder', 100, [], [], 8);
+  const copy = World.fromSnapshot(JSON.parse(JSON.stringify(world.snapshot())));
+
+  for (let i = 0; i < 3 * TPS; i++) {
+    copy.step();
+  }
+
+  assert.equal(copy.players.get(3)!.storm, 100 + 3 * 8);
+});
+
+test('with the geysers it is asked for, the AI bridges to the enemy, unless told to keep off him', () => {
+  // Two islands close enough for a bridge to be worth starting.
+  const world = createSkirmish(defs, 42, [
+    { id: 1, name: 'Idle', theme: 'wind', x: 70, y: 150 },
+    { id: 2, name: 'AI', theme: 'rain', x: 100, y: 150 },
+  ], []);
+
+  // The AI lays a piece once it has hardened in the window.
+  for (let i = 0; i < 20 * TPS; i++) {
+    world.step();
+  }
+
+  const lays = (options: object) =>
+    aiMove(world.view(), { player: 2, ...options }).some((c) => c.t === 'dropPiece');
+  assert.ok(lays({ geysers: 0 }));
+  assert.ok(!lays({ geysers: 0, attack: false }));
 });

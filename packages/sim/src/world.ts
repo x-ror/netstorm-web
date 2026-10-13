@@ -185,6 +185,7 @@ export class World {
     storm: number,
     tech: string[],
     allies: number[] = [],
+    income = 0,
   ): Player {
     const p: Player = {
       id,
@@ -198,6 +199,7 @@ export class World {
       refresh: [],
       alive: true,
       allies: [...allies].sort((a, b) => a - b),
+      income,
     };
     this.players.set(id, p);
     return p;

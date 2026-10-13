@@ -71,8 +71,24 @@ const FENCE_POSTS = 4;
 const POST_GAP_MAX = 12;
 const POST_GAP_MIN = 4;
 
+/**
+ * How a mission sets its computer sides up, from the keys of its header. The original's AI is not
+ * read; these are the keys this one can honour.
+ */
 export interface AiOptions {
   player: number;
+  /** `!COLLECT_STORM_POWER`: false keeps it from mining geysers and buying transports. */
+  collect?: boolean;
+  /** `!ATTACH_TO_ENEMY_ISLAND`: false keeps its bridge away from the enemy. */
+  attack?: boolean;
+  /** `!SACRIFICE_ENEMY_PRIEST`: false keeps its transports from a fallen enemy Priest. */
+  capture?: boolean;
+  /** `aiCollectors`: transports it keeps. */
+  transports?: number;
+  /** `aiGeyserAttachments`: geysers it joins to its ground before it turns to the enemy. */
+  geysers?: number;
+  /** `aiNEnemy`: the side it goes for while that side stands. */
+  enemy?: number;
 }
 
 /** Commands for one move of an AI player. Call it every few seconds of game time. */
@@ -92,19 +108,28 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
   // Ground the transports can walk to now; joining anything else is what a bridge is for.
   const home = world.templeOf(me);
   const reached = home ? walkableFrom(world, me, home) : null;
-  collect(world, move, transports, geysers);
+
+  if (options.collect !== false) {
+    collect(world, move, transports, geysers);
+  }
+
   fetchSpell(world, move, transports, reached);
   castSpells(world, move, transports);
   buildAltar(world, move);
   buildOutpost(world, move, reached);
-  capture(world, move, transports);
+
+  if (options.capture !== false) {
+    capture(world, move, transports);
+  }
+
   const ward = wardSpot(world, me);
 
   if (ward) {
     move.commands.push({ t: 'movePriest', player: me, ...ward });
   }
 
-  const attack = geysers.length >= ENOUGH_GEYSERS || player.storm >= ATTACK_STORM;
+  const attack = geysers.length >= (options.geysers ?? ENOUGH_GEYSERS)
+    || player.storm >= ATTACK_STORM;
   const bounds = ownBounds(world, me);
   let target: Target | undefined;
   let head: Head | null = null;
@@ -112,7 +137,7 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
 
   // Grow toward the first target a piece can be laid toward. When none can, the last target, the
   // enemy, still decides where units go.
-  for (const candidate of bridgeTargets(world, me, attack)) {
+  for (const candidate of bridgeTargets(world, me, attack, options.enemy)) {
     const field = skyField(world, candidate);
     target = candidate;
     const heads = bounds && reached ? bridgeHeads(world, me, field, bounds, reached) : [];
@@ -122,7 +147,11 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
     // The nearest head may sit in a pocket of the AI's own bridge, where every piece only leads
     // further from the target; then the bridge goes on from the next head that a piece improves.
     for (const from of heads) {
-      piece = reached ? bestPiece(world, me, from, field, reached) : null;
+      // Told to keep off the enemy's island, it lays no bridge toward him; he still decides
+      // where its units go.
+      piece = reached && !(candidate.enemy && options.attack === false)
+        ? bestPiece(world, me, from, field, reached)
+        : null;
 
       if (piece) {
         break;
@@ -167,7 +196,7 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
     }
   }
 
-  if (transports.length < TRANSPORTS) {
+  if (options.collect !== false && transports.length < (options.transports ?? TRANSPORTS)) {
     newTransport(world, move, geysers.length === 0);
   }
 
@@ -613,7 +642,17 @@ type Target = { x: number; y: number; enemy: boolean; };
 /** Where the bridge may grow, best first: free geysers nearest the Temple (unless the AI is
  * attacking), then the nearest enemy's High Priest — knocking him down is how a battle is won —
  * or his Temple while the priest is carried. */
-function bridgeTargets(world: WorldView, me: number, attack: boolean): Target[] {
+function bridgeTargets(
+  world: WorldView,
+  me: number,
+  attack: boolean,
+  prefer?: number,
+): Target[] {
+  // The side a mission names as this one's enemy comes first while it stands.
+  const chosen = prefer !== undefined && world.players.get(prefer)?.alive
+      && world.hostile(prefer, me) && world.templeOf(prefer)
+    ? prefer
+    : undefined;
   const home = world.templeOf(me);
 
   if (!home) {
@@ -636,7 +675,8 @@ function bridgeTargets(world: WorldView, me: number, attack: boolean): Target[] 
   }
 
   for (const [id, other] of world.players) {
-    const enemy = !world.hostile(id, me) || !other.alive ? undefined : world.templeOf(id);
+    const foe = world.hostile(id, me) && other.alive && (chosen === undefined || chosen === id);
+    const enemy = foe ? world.templeOf(id) : undefined;
     const priest = world.priestOf(id);
 
     if (enemy) {

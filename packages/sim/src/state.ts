@@ -402,6 +402,8 @@ export interface Player {
   alive: boolean;
   /** Players this one is allied with. Two sides are allies when either names the other. */
   allies: number[];
+  /** Storm Power the side is given every second: `aiMoneyRechargeRate` of a mission. */
+  income: number;
 }
 
 export interface Building {

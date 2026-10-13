@@ -4,7 +4,9 @@
 A mission file names its sections in square brackets, and a section may carry a second name: the
 event that brings it up. "[Succeeded][BadTeamDead]" is shown, and the mission won, when every enemy
 is defeated; "[Failed][Ai2PriestDead]" when the Priest of side 2 is sacrificed. A section that only
-names an event is a failure too when its button leads to "TryAgain". data/missions.json keeps the
+names an event is a failure too when its button leads to "TryAgain"; any other is a message shown
+when the event comes ("[@120]": 120 seconds into the mission), listed under "tell" with the name
+its text has in the file. data/missions.json keeps the
 first name of each section only, so the events are read from the files again.
 
 Usage: mission-goals.py <dir with *.english> <data/missions.json>
@@ -19,25 +21,33 @@ WON = {"succeeded", "success"}
 LOST = {"failed"}
 
 
-def goals(text: str) -> dict[str, list[str]]:
-    found: dict[str, list[str]] = {"win": [], "lose": []}
+EVENT = re.compile(r"@\d+|ai\d+(priest|temple)\w+")
+
+
+def goals(text: str) -> dict:
+    found: dict = {"win": [], "lose": [], "tell": []}
     sections: list[tuple[set[str], list[str]]] = []
+    first: list[str] = []
 
     for line in text.replace("\r", "").split("\n"):
         head = HEAD.match(line)
 
         if head:
-            sections.append(({name.lower() for name in re.findall(r"\[([^\]]+)\]", head[1])}, []))
+            names = re.findall(r"\[([^\]]+)\]", head[1])
+            sections.append(({name.lower() for name in names}, []))
+            first.append(names[0])
         elif sections:
             sections[-1][1].append(line)
 
-    for names, body in sections:
+    for (names, body), section in zip(sections, first):
         events = sorted(names - WON - LOST)
 
         if names & WON:
             found["win"] += events
         elif names & LOST or (events and any("Tell,TryAgain" in line for line in body)):
             found["lose"] += [e for e in events if re.fullmatch(r"ai\d+(priest|temple)dead", e)]
+        elif any(EVENT.fullmatch(e) for e in events):
+            found["tell"].append({"on": [e for e in events if EVENT.fullmatch(e)], "section": section})
 
     return found
 

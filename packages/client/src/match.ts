@@ -9,7 +9,7 @@ import {
   type DefTable,
   type Event as SimEvent,
 } from '@netstorm/sim';
-import { DEFAULT_AI_DELAY, outcome, type Maps, type Mission } from './game-data.js';
+import { DEFAULT_AI_DELAY, happened, outcome, type Maps, type Mission } from './game-data.js';
 import { type MatchOptions } from './menu.js';
 import { createMatchWorld, ME } from './setup.js';
 import { createWorldRenderer } from './renderer.js';
@@ -67,14 +67,15 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     leave = resolve;
   });
   const clock = new FixedStepClock(TPS);
-  const aiInterval = Math.max(1, Math.round((mission?.aiDelay ?? DEFAULT_AI_DELAY) * TPS));
-  // Every other side is played by the computer. Its moves are commands like the player's, so the replay records them.
+  // Every other side is played by the computer, each at the pace and with the orders its mission
+  // gives it. Its moves are commands like the player's, so the replay records them.
   const aiCommands = () =>
-    options.opponent === 'ai' && world.tick % aiInterval === 0
-      ? [...world.players.keys()].filter((id) => id !== ME).flatMap((player) =>
-        aiMove(view, { player })
-      )
-      : [];
+    options.opponent !== 'ai' ? [] : [...world.players.keys()].flatMap((player) => {
+      const side = mission?.sides[player];
+      const delay = side?.delay ?? mission?.aiDelay ?? DEFAULT_AI_DELAY;
+      const due = player !== ME && world.tick % Math.max(1, Math.round(delay * TPS)) === 0;
+      return due ? aiMove(view, { ...side?.ai, player }) : [];
+    });
   const togglePause = () => {
     ui.paused = !ui.paused;
     clock.reset();
@@ -86,6 +87,11 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     salvageSelected: () => controls.salvageSelected(),
     meltdownSelected: () => controls.meltdownSelected(),
     castSelected: () => controls.castSelected(),
+    dismiss: () => {
+      ui.paused = false;
+      clock.reset();
+      hud.render();
+    },
     exit: () => leave?.(),
   });
   const controls = createControls({
@@ -108,6 +114,11 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const pending: SimEvent[] = [];
 
   /** Take the tick's events: effects play at once, the log is written with the next HUD refresh. */
+  /** Sides whose Priest has been carried off, and those that began with a Temple: what the
+   * events of the mission's script ask about. */
+  const captured = new Set<number>();
+  const temples = new Set([...world.players.keys()].filter((id) => world.templeOf(id)));
+  const unread = [...(mission?.messages ?? [])];
   /** Sides whose Priest the player or an ally has brought to safety. */
   const saved = new Set<number>();
 
@@ -117,6 +128,12 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
         renderer.explode(event.data.id);
       } else if (event.what === 'saved' && !world.hostile(event.who, ME)) {
         saved.add(event.data.owner);
+      } else if (event.what === 'captured') {
+        const priest = world.entities.get(event.data.priest);
+
+        if (priest?.kind === 'priest') {
+          captured.add(priest.owner);
+        }
       }
 
       pending.push(event);
@@ -192,6 +209,17 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     }
 
     const result = ended ? null : outcome(mission, world, ME, saved);
+    // One message of the script at a time, the game standing still while it is read.
+    const told = result || ui.paused
+      ? -1
+      : unread.findIndex((message) =>
+        message.on.some((event) => happened(event, world, captured, temples))
+      );
+
+    if (told >= 0) {
+      ui.paused = true;
+      hud.showMessage(unread.splice(told, 1)[0]!.text);
+    }
 
     if (result) {
       ended = true;

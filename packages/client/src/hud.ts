@@ -42,6 +42,8 @@ export interface HudActions {
   salvageSelected(): void;
   meltdownSelected(): void;
   castSelected(): void;
+  /** A message of the mission's script has been read. */
+  dismiss(): void;
   exit(): void;
 }
 
@@ -108,6 +110,9 @@ export function createHud(
       actions.meltdownSelected();
     } else if (action === 'cast-selected') {
       actions.castSelected();
+    } else if (action === 'dismiss') {
+      root.querySelector<HTMLElement>('#overlay')!.hidden = true;
+      actions.dismiss();
     } else if (action === 'pause') {
       actions.togglePause();
     } else if (action === 'exit') {
@@ -153,6 +158,14 @@ export function createHud(
 
   return {
     render,
+    /** Show a message of the mission's script over the map until the player reads it. */
+    showMessage(text: string): void {
+      const overlay = root.querySelector<HTMLElement>('#overlay')!;
+      overlay.hidden = false;
+      overlay.innerHTML = `<div class="menu-card"><pre>${
+        escapeHtml(text)
+      }</pre><button data-action="dismiss" class="primary">Продовжити</button></div>`;
+    },
     /** Show the end of the match with the mission text and the way back. */
     showEnd(title: string, text: string): void {
       const overlay = root.querySelector<HTMLElement>('#overlay')!;

@@ -30,8 +30,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 24;
-export const RULES_VERSION = 47;
+export const SNAPSHOT_VERSION = 25;
+export const RULES_VERSION = 48;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -352,6 +352,7 @@ function parsePlayer(raw: unknown): SnapshotPlayer {
     'refresh',
     'alive',
     'allies',
+    'income',
   ], 'player');
   const tech = list(value.tech, 'player.tech').map((entry) => text(entry, 'technology'));
   unique(tech, (entry) => entry, 'technology');
@@ -383,6 +384,7 @@ function parsePlayer(raw: unknown): SnapshotPlayer {
     allies: list(value.allies, 'player.allies').map((ally) =>
       integer(ally, 'player.ally', 1, MAX_PLAYERS)
     ),
+    income: finite(value.income, 'player.income'),
   };
 }
 

@@ -190,7 +190,22 @@
 | To The Rescue, Guard My Back | те саме | ще й `[Failed][Ai2PriestDead]`: принесено в жертву жерця союзника | ✅ |
 | Enemy Territory (`allowAnyCapture = 1`) | `[Succeeded][Ai2PriestSaved]`: жерця-зрадника привезено на свій острів | `[Ai2PriestDead]` (кнопка веде на «TryAgain») або власний жрець | ✅ транспорт бере союзного жерця командою `capturePriest` і везе до свого Храму; «врятовано» — коли довіз до Храму [?: в оригіналі досить висадити на своєму острові, і вантаж скидає гравець] |
 
-Чого немає: проміжні розділи-повідомлення (`[@120]`, `[Ai3TempleDead]`, `[Ai2PriestCaptured]` тощо) не показуються; `aiNEnemy`, `aiNOff`, `denySalvage` і здібності ШІ (`aiAbility`) не читаються; навчальні місії `bc*76` не в списку.
+Повідомлення сценарію: розділ, названий лише подією, показується, коли вона настає, і гра стоїть, доки його не прочитано. Клієнт знає `@N` (N секунд від початку), `aiNTempleDead`, `aiNTempleHalf` (Храм має половину HP або менше) і `aiNPriestCaptured`. Розділ `A1.` — друга сторінка брифінгу, вона дописується до першої.
+
+Ключі заголовка для сторін комп'ютера (`ai…` — спільні, `aiN…` — сторони N):
+
+| Ключ | Що робить у нас |
+|---|---|
+| `aiMoneyRechargeRate = 8` («One sun cannon per minute») | ✅ сторона щосекунди отримує стільки Storm Power (`Player.income`) |
+| `aiTimeBetweenMoves` | ✅ секунд між ходами саме цієї сторони |
+| `aiCollectors` | ✅ скільки транспортів тримає ШІ |
+| `aiGeyserAttachments` | ⚠ скільки гейзерів ШІ приєднує, перш ніж іти на ворога (наше прочитання назви) |
+| `aiNEnemy` | ⚠ на кого йде ШІ, поки той стоїть (наше прочитання) |
+| `aiAbility`: `!COLLECT_STORM_POWER`, `!ATTACH_TO_ENEMY_ISLAND`, `!SACRIFICE_ENEMY_PRIEST` | ✅ ШІ не збирає кристали й не купує транспортів; не веде міст до ворога; не забирає впалого жерця |
+| `aiAbility`: решта (`!ENCIRCLE_ENEMY_ISLAND`, `!USE_PRIEST_TO_COLLECT`, `!CONCENTRATE_FIRE`, `!REPEAT_SUCCESSFUL_DROPS`, `!STOP_COLLECTING_FROM_DANGEROUS_GEYSERS`) | ❌ наш ШІ такого й так не вміє |
+| `moreGeysers`, `aiBridgeDrawRate`, `aiStuffRefreshRate`, `aiColor` | ❌ не читаються |
+
+Сам ШІ оригіналу не читано: ключі лише вмикають і вимикають частини нашого, вигаданого. Чого ще немає: сторінки сценарію, до яких ведуть кнопки (`Wife`, `Surrender` у Thundering Power); `aiNOff` і `denySalvage` трапляються лише в навчальних місіях `bc*76`, яких немає в списку.
 
 ## Ритуал на записі з гри
 

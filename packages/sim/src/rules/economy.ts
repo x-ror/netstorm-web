@@ -5,6 +5,7 @@ import {
   PIECE_INTERVAL,
   BRIDGE_SET_WEIGHTS,
   SINGLE_PIECE,
+  TPS,
   type Player,
 } from '../state.js';
 
@@ -59,6 +60,11 @@ function nextPiece(world: World, player: Player): number {
 export function tickPlayer(world: World, player: Player): void {
   if (!player.alive) {
     return;
+  }
+
+  // "aiMoneyRechargeRate = 8 // One sun cannon per minute": Storm Power a second.
+  if (player.income > 0 && world.tick % TPS === 0) {
+    player.storm += player.income;
   }
 
   for (const entry of player.refresh) {

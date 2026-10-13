@@ -1,4 +1,4 @@
-import type { MissionMap } from '@netstorm/sim';
+import type { AiOptions, MissionMap } from '@netstorm/sim';
 
 /** Shapes of the game data the client ships, and the build step that trims the extracted originals
  * down to them. Shared by the dev server, the production build and the client. */
@@ -13,6 +13,19 @@ export interface MissionSide {
   /** Unit ids the side knows. */
   tech?: string[];
   allies?: number[];
+  /** Storm Power the side is given every second (`aiMoneyRechargeRate`). */
+  income?: number;
+  /** Seconds between the side's moves (`aiTimeBetweenMoves`). */
+  delay?: number;
+  /** What its header tells the computer that plays it. */
+  ai?: Omit<AiOptions, 'player'>;
+}
+
+/** A text of the mission's script and the events that bring it up: "@120" is 120 seconds into the
+ * mission, "ai3templedead" the fall of the Temple of side 3. */
+export interface MissionMessage {
+  on: string[];
+  text: string;
 }
 
 export interface Mission {
@@ -36,6 +49,7 @@ export interface Mission {
   wards: number[];
   /** `allowAnyCapture`: transports may pick up friendly Priests. */
   anyCapture: boolean;
+  messages: MissionMessage[];
 }
 
 /** The side numbers in the events of one kind: "ai2priestsaved" gives 2 for "priestsaved". */
@@ -170,19 +184,45 @@ function sidesOf(header: Record<string, unknown>): Record<string, MissionSide> {
     const allies = items(lower[`${prefix}allylist`])?.map(Number).filter(Number.isInteger);
     const name = lower[`${prefix}name`];
     const storm = lower[`${prefix}startmoney`];
+    // A value may carry a comment: "8    // One sun cannon per minute".
+    const count = (key: string): number | undefined => {
+      const value = Number.parseFloat(String(lower[`${prefix}${key}`] ?? ''));
+      return Number.isFinite(value) ? value : undefined;
+    };
+    const denied = new Set(items(lower[`${prefix}ability`]) ?? []);
+    const ai = {
+      ...(denied.has('!COLLECT_STORM_POWER') ? { collect: false } : {}),
+      ...(denied.has('!ATTACH_TO_ENEMY_ISLAND') ? { attack: false } : {}),
+      ...(denied.has('!SACRIFICE_ENEMY_PRIEST') ? { capture: false } : {}),
+      ...(count('collectors') === undefined ? {} : { transports: count('collectors')! }),
+      ...(count('geyserattachments') === undefined ? {} : { geysers: count('geyserattachments')! }),
+      ...(count('enemy') === undefined ? {} : { enemy: count('enemy')! }),
+    };
     return {
       ...(typeof name === 'string' && name ? { name: name.split('\n')[0] } : {}),
       ...(storm === undefined ? {} : { storm: Number(storm) || 0 }),
       ...(tech ? { tech } : {}),
       ...(allies ? { allies } : {}),
+      ...(count('moneyrechargerate') === undefined ? {} : { income: count('moneyrechargerate')! }),
+      ...(count('timebetweenmoves') === undefined ? {} : { delay: count('timebetweenmoves')! }),
+      ...(Object.keys(ai).length ? { ai } : {}),
     };
   };
   const shared = read('ai');
   const sides: Record<string, MissionSide> = { 1: { ...read('ai1'), ...read('my') } };
   delete sides[1]!.name; // the header calls him "Player"
 
+  // What the computer is told belongs to the computer sides only.
+  delete sides[1]!.ai;
+  delete sides[1]!.income;
+
   for (let id = 2; id <= SIDES; id++) {
-    sides[id] = { ...shared, ...read(`ai${id}`) };
+    const own = read(`ai${id}`);
+    sides[id] = {
+      ...shared,
+      ...own,
+      ...(shared.ai || own.ai ? { ai: { ...shared.ai, ...own.ai } } : {}),
+    };
   }
 
   return sides;
@@ -213,7 +253,10 @@ export function slimMissions(raw: unknown, maps: Maps): Mission[] {
       enemy: typeof header.aiName === 'string' ? header.aiName : '',
       aiDelay: Number(header.aiTimeBetweenMoves) || DEFAULT_AI_DELAY,
       sides: sidesOf(header),
-      briefing: reflow(withoutTitle(text(sections, 'A.'), header.title)),
+      // "A1." is the second page of the briefing.
+      briefing: [text(sections, 'A.'), text(sections, 'A1.')].filter(Boolean)
+        .map((page) => reflow(withoutTitle(page, header.title as string))).join('\n\n'),
+      messages: tells(asRecord(file.goals).tell, sections),
       succeeded: reflow(text(sections, 'Succeeded') || text(sections, 'succeeded')),
       failed: reflow(text(sections, 'Failed')),
       rescue: sidesIn(asRecord(file.goals).win, 'priestsaved'),
@@ -223,6 +266,52 @@ export function slimMissions(raw: unknown, maps: Maps): Mission[] {
   }
 
   return missions.sort((a, b) => a.title.localeCompare(b.title));
+}
+
+const SECOND_TICKS = 10; // TPS of the simulation; not imported, the build config loads this file
+
+/**
+ * Whether an event of a mission's script has come. `captured` holds the sides whose Priest has
+ * been carried off, `temples` those that had a Temple when the mission began.
+ */
+export function happened(
+  event: string,
+  world: {
+    tick: number;
+    templeOf: (player: number) => { hp: number; hpMax: number; } | undefined;
+  },
+  captured: ReadonlySet<number>,
+  temples: ReadonlySet<number>,
+): boolean {
+  const timed = /^@(\d+)$/.exec(event);
+
+  if (timed) {
+    return world.tick >= Number(timed[1]) * SECOND_TICKS;
+  }
+
+  const [, id, what] = /^ai(\d+)(templedead|templehalf|priestcaptured)$/.exec(event) ?? [];
+  const side = Number(id);
+  const temple = world.templeOf(side);
+
+  switch (what) {
+    case 'templedead':
+      return temples.has(side) && !temple;
+    case 'templehalf':
+      return temples.has(side) && (!temple || temple.hp * 2 <= temple.hpMax);
+    case 'priestcaptured':
+      return captured.has(side);
+    default:
+      return false;
+  }
+}
+
+/** The messages of the script, as scripts/mission-goals.py lists them, with their texts. */
+function tells(raw: unknown, sections: Record<string, unknown>): MissionMessage[] {
+  return (Array.isArray(raw) ? raw : []).flatMap((entry) => {
+    const { on, section } = asRecord(entry);
+    const body = reflow(text(sections, String(section)));
+    return Array.isArray(on) && body ? [{ on: on.map(String), text: body }] : [];
+  });
 }
 
 function text(sections: Record<string, unknown>, name: string): string {

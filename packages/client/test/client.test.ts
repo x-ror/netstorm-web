@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadDefs } from '@netstorm/sim';
-import { mapsOf, outcome, reflow, slimMaps, slimMissions } from '../src/game-data.js';
+import { happened, mapsOf, outcome, reflow, slimMaps, slimMissions } from '../src/game-data.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS } from '../src/menu.js';
 import {
@@ -338,4 +338,35 @@ test('animated entities show a slot of their type for the tick', () => {
   captive.runeTimer = 75; // half way through the third rune
   assert.deepEqual(slotOf(altar, 5, headings), ['dais', 2 * 11 + 4 + 5]);
   assert.deepEqual(slotOf(world.priestOf(ME)!, 5, headings), ['priest', 77 + 2 * 18 + 5]);
+});
+
+test('a mission gives its computer sides their orders, income and pace, and its script messages', () => {
+  const side = (id: string, n: number) => missions.find((m) => m.id === id)!.sides[n]!;
+  // "aiMoneyRechargeRate = 8" is shared by the computer sides, not the player.
+  assert.equal(side('enemyterritory', 3).income, 8);
+  assert.equal(side('enemyterritory', 1).income, undefined);
+  assert.deepEqual(side('enemyterritory', 2).ai, { collect: false, attack: false });
+  assert.equal(side('enemyterritory', 3).delay, 4);
+  assert.equal(side('guardmyback', 3).ai?.enemy, 2);
+  // The first mission: one collector, one geyser, and the keys this AI has no use for dropped.
+  assert.deepEqual(side('thewarbegins', 2).ai, { transports: 1, geysers: 1 });
+
+  const rescue = missions.find((m) => m.id === 'totherescue')!;
+  assert.deepEqual(rescue.messages.map((m) => m.on), [['@120']]);
+  assert.match(rescue.messages[0]!.text, /^A message arrives from the governor/);
+  assert.match(rescue.briefing, /Avert this crisis of confidence/); // the second page, "A1."
+  const guard = missions.find((m) => m.id === 'guardmyback')!;
+  assert.deepEqual(guard.messages[0]!.on, ['ai2priestcaptured', 'ai2templehalf']);
+
+  const temple = { hp: 100, hpMax: 400 };
+  const world = { tick: 1199, templeOf: (id: number) => (id === 2 ? temple : undefined) };
+  const none = new Set<number>();
+  assert.equal(happened('@120', world, none, none), false);
+  assert.equal(happened('@120', { ...world, tick: 1200 }, none, none), true);
+  assert.equal(happened('ai2templehalf', world, none, new Set([2])), true);
+  assert.equal(happened('ai2templedead', world, none, new Set([2])), false);
+  // A side that never had a Temple has not lost one.
+  assert.equal(happened('ai3templedead', world, none, new Set([2])), false);
+  assert.equal(happened('ai3templedead', world, none, new Set([2, 3])), true);
+  assert.equal(happened('ai2priestcaptured', world, new Set([2]), none), true);
 });
