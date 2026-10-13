@@ -279,14 +279,29 @@ test('animated entities show a slot of their type for the tick', () => {
   golem.path = [];
 
   assert.deepEqual(slotOf(golem, 4, headings), ['sunwalker', 2 * 8]); // stands as it stopped
+  // A full geyser is whole pictures; a spent one is its rock with a lower plume laid over it.
   const geyser = [...world.entities.values()].find((e) => e.kind === 'geyser')!;
-  assert.deepEqual(slotOf(geyser, 50, headings), ['geyser', 1]);
+  const view = world.view();
+  assert.deepEqual([slotOf(geyser, 18, headings), overlayOf(geyser, 18, view)], [
+    ['geyser', 1],
+    null,
+  ]);
 
   if (geyser.kind === 'geyser') {
+    geyser.stock = world.geyserStock / 2;
+    assert.deepEqual([slotOf(geyser, 18, headings), overlayOf(geyser, 18, view)], [
+      ['geyser', 49],
+      ['geyser', 17 + 2],
+    ]);
+    geyser.stock = 200;
+    assert.deepEqual(overlayOf(geyser, 18, view), ['geyser', 33 + 2]);
     geyser.stock = 0;
+    assert.deepEqual([slotOf(geyser, 18, headings), overlayOf(geyser, 18, view)], [
+      ['geyser', 49],
+      null,
+    ]);
   }
 
-  assert.deepEqual(slotOf(geyser, 50, headings), ['geyser', 49]);
   // A Wind Temple is a still picture with its whirl laid over it.
   const temple = world.templeOf(ME)!;
   assert.deepEqual(slotOf(temple, 14, headings), ['windvortex', 13]);

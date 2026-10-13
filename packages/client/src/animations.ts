@@ -43,8 +43,13 @@ const LOOPS: Readonly<Record<string, number>> = {
   sunbattery: 8,
   thundervortex: 8,
 };
-/** The eruption of a geyser; the slot after it is the geyser run dry. */
-const GEYSER_CYCLE = 49;
+/**
+ * A geyser is its rock (slot 49, the "baseframe" of geyser.type) and its steam. The first 17 slots
+ * are whole pictures, rock and a tall plume; the next two runs of 16 are the plume alone, lower
+ * each time, and go over the rock. That the plume sinks as the geyser is spent, by thirds of its
+ * stock, is our reading of the three heights (`?`).
+ */
+const GEYSER = { rock: 49, full: 17, plumes: [17, 33], plume: 16 } as const;
 const NUGGET_CYCLE = 9;
 
 /**
@@ -156,6 +161,13 @@ function turnTo(aims: Map<number, number>, id: number, want: number, size: numbe
   const next = ahead === 0 ? at : (at + (ahead * 2 <= size ? 1 : size - 1)) % size;
   aims.set(id, next);
   return next;
+}
+
+/** How far a geyser is spent: 0 while it has over two thirds of its stock, 1 over a third, 2 with
+ * anything left, 3 run dry. */
+function geyserLevel(stock: number, whole: number): number {
+  const THIRDS = 3;
+  return stock <= 0 ? THIRDS : Math.min(THIRDS - 1, Math.floor(((whole - stock) * THIRDS) / whole));
 }
 
 /** The slot of the shadow that lies under a slot, for the types that have shadows. */
@@ -287,7 +299,10 @@ export function slotOf(entity: DeepReadonly<Entity>, tick: number, scene: Scene)
   const { headings, world } = scene;
 
   if (entity.kind === 'geyser') {
-    return ['geyser', entity.stock > 0 ? tick % GEYSER_CYCLE : GEYSER_CYCLE];
+    return [
+      'geyser',
+      geyserLevel(entity.stock, world.geyserStock) === 0 ? tick % GEYSER.full : GEYSER.rock,
+    ];
   }
 
   if (entity.kind === 'crystal') {
@@ -386,6 +401,11 @@ export function overlayOf(
   tick: number,
   world: WorldView,
 ): Slot | null {
+  if (entity.kind === 'geyser') {
+    const plume = GEYSER.plumes[geyserLevel(entity.stock, world.geyserStock) - 1];
+    return plume === undefined ? null : ['geyser', plume + (tick % GEYSER.plume)];
+  }
+
   if (entity.kind !== 'building' || entity.rising > 0) {
     return null;
   }
