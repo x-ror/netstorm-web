@@ -6,7 +6,7 @@ import { mapsOf, outcome, reflow, slimMaps, slimMissions } from '../src/game-dat
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS } from '../src/menu.js';
 import { FACING_FRAMES, SKY, TEXTURES, parsePath, shoreFrame } from '../src/texture-selection.js';
-import { SLOT_COUNTS, heading, slotOf } from '../src/animations.js';
+import { SLOT_COUNTS, heading, overlayOf, slotOf } from '../src/animations.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
 
@@ -267,5 +267,31 @@ test('animated entities show a slot of their type for the tick', () => {
   }
 
   assert.deepEqual(slotOf(geyser, 50, headings), ['geyser', 49]);
-  assert.equal(slotOf(world.templeOf(ME)!, 1, headings), null);
+  // A Wind Temple is a still picture with its whirl laid over it.
+  const temple = world.templeOf(ME)!;
+  assert.deepEqual(slotOf(temple, 14, headings), ['windvortex', 13]);
+  assert.deepEqual(overlayOf(temple, 14), ['windvortex', 1]);
+  assert.equal(overlayOf(golem, 14), null);
+  // A Bulf has four headings: a step to the north-east shows the frames of east.
+  const bulf = world.spawnTransport('bulf', ME, 41, 41);
+  bulf.path = [[42, 40]];
+  assert.deepEqual(slotOf(bulf, 2, headings), ['bulf', 8 + 2]);
+  // A Thunder Cannon fires, rests on its gun and charges up to the next shot, 4 s later.
+  const cannon = world.spawnBuilding('thundercannon', ME, 60, 60, 1);
+  assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0)], [
+    ['thundercannon', 9],
+    null,
+  ]);
+  cannon.target = golem.id;
+  cannon.cooldown = 39;
+  assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0)], [
+    ['thundercannon', 16],
+    null,
+  ]);
+  cannon.cooldown = 1;
+  assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0)], [
+    ['thundercannon', 9],
+    ['thundercannon', 15],
+  ]);
+  assert.equal(slotOf(world.spawnBuilding('sunblocker', ME, 70, 60), 1, headings), null);
 });

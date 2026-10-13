@@ -25,6 +25,15 @@ SLOTS = {
     "nugget": 9,
     "rainwalker": 10,
     "raincannon": 12,  # three frames of firing for each facing
+    "windwalker": 16,  # four frames for each of four headings
+    "bulf": 32,  # eight frames for each of four headings
+    "windvortex": 14,  # the whirl, then the Temple under it
+    "rainvortex": 15,  # the Temple, then the pool in it
+    "thundervortex": 8,
+    "thundercannon": 36,  # for each facing: the gun, six frames of charge laid over it, two of fire
+    "suncannon": 28,  # the facings, the frames of turning, the frames of fire
+    "sunbattery": 8,
+    "thunderarcher": 2,
 }
 
 

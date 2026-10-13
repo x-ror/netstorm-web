@@ -19,7 +19,7 @@ import {
   shoreFrame,
 } from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
-import { slotOf } from './animations.js';
+import { overlayOf, slotOf } from './animations.js';
 import { hotSpots } from './assets.js';
 
 const SPRITE_ANCHOR_X = 0.5;
@@ -73,6 +73,7 @@ const CORNERS: typeof SIDES = [
 ];
 const LOW_HP = 0.35;
 const AIR_Z = 1e6; // above any screen row
+const OVERLAY_Z = 0.5; // an overlay lies just over its own entity
 const FIELD_WIDTH = 2;
 const FIELD_ALPHA = 0.7;
 const FIELD_COLOR: Readonly<Record<string, number>> = {
@@ -191,9 +192,41 @@ export function createWorldRenderer(
   const cooldowns = new Map<number, number>();
   const explosions: { sprite: Sprite; start: number; }[] = [];
   const widths = new Map<number, number>(); // footprint width in cells, kept for the explosion
+  /** Pictures laid over an entity's own: the whirl of a Temple, the charge of a Thunder Cannon. */
+  const overlays = new Map<number, Sprite>();
   /** Which way each walker last went (animations.ts). */
   const headings = new Map<number, number>();
   entityLayer.sortableChildren = true;
+
+  /** Show, hide or move the picture laid over an entity's own: both hang on the same hot spot. */
+  function layOver(entity: DeepReadonly<Entity>, under: Sprite | Graphics, bySpot: boolean): void {
+    const slot = bySpot ? overlayOf(entity, world.tick) : null;
+    const texture = slot ? textures.get(`slot:${slot[0]}:${slot[1]}`) : undefined;
+    const spot = texture ? hotSpots.get(texture) : undefined;
+    let over = overlays.get(entity.id);
+
+    if (!texture || !spot) {
+      if (over) {
+        over.visible = false;
+      }
+
+      return;
+    }
+
+    if (!over) {
+      over = new Sprite(texture);
+      entityLayer.addChild(over);
+      overlays.set(entity.id, over);
+    }
+
+    over.texture = texture;
+    over.visible = true;
+    over.anchor.set(spot.x, spot.y);
+    over.position.copyFrom(under.position);
+    over.zIndex = under.zIndex + OVERLAY_Z;
+    over.tint = under.tint;
+    over.alpha = under.alpha;
+  }
 
   function syncEntities() {
     bars.clear();
@@ -253,6 +286,7 @@ export function createWorldRenderer(
       sprite.zIndex = entity.kind === 'flyer' ? AIR_Z : sy;
       sprite.tint = entityTint(entity, me);
       sprite.alpha = entityAlpha(entity);
+      layOver(entity, sprite, bySpot);
 
       if ('hp' in entity && entity.hp < entity.hpMax) {
         const top = sprite instanceof Sprite ? sy - sprite.height * sprite.anchor.y : sy;
@@ -267,6 +301,8 @@ export function createWorldRenderer(
         cooldowns.delete(id);
         widths.delete(id);
         headings.delete(id);
+        overlays.get(id)?.destroy();
+        overlays.delete(id);
       }
     }
 
