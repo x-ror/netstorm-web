@@ -180,7 +180,7 @@ export const PIECES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = C
   [, ...rows],
 ) => canonCells(rows, (_letter, x, y): readonly [number, number] => [x, y]));
 /** Link mask of every cell of every piece, in the order of PIECES. */
-const PIECE_LINKS: ReadonlyArray<readonly number[]> = CANONS.map(([, ...rows]) =>
+export const PIECE_LINKS: ReadonlyArray<readonly number[]> = CANONS.map(([, ...rows]) =>
   canonCells(rows, (letter) => LETTER_LINKS[letter]!)
 );
 /** Chance of each piece relative to the others when the Temple draws one, in the Standard set. */

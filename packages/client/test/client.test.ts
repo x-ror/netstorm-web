@@ -11,11 +11,12 @@ import { describeEvent } from '../src/messages.js';
 const read = (name: string): unknown =>
   JSON.parse(readFileSync(new URL(`../../../data/${name}.json`, import.meta.url), 'utf8'));
 const defs = loadDefs(read('units'));
-const maps = slimMaps(read('forts'));
+const maps = slimMaps(read('forts'), read('islands'));
 const missions = slimMissions(read('missions'), maps);
 
-test('shipped data keeps geysers and the campaign briefings only', () => {
-  assert.deepEqual(Object.keys(maps.thewarbegins!), ['geysers']);
+test('shipped data keeps geysers, islands and the campaign briefings only', () => {
+  assert.deepEqual(Object.keys(maps.thewarbegins!), ['geysers', 'islands']);
+  assert.deepEqual(maps.thewarbegins!.islands, [[17, 5, 6, 240], [3, 8, 7, 146]]);
   assert.ok(maps.thewarbegins!.geysers.length > 0);
   const mission = missions.find((m) => m.id === 'thewarbegins')!;
   assert.equal(mission.title, 'The War Begins!');
@@ -54,8 +55,9 @@ test('the default match is the old demo skirmish', () => {
   assert.ok([...world.entities.values()].some((e) => e.kind === 'geyser'));
 });
 
-test('geysers that would cut into a home island are dropped', () => {
-  const world = createMatchWorld(defs, { test: { geysers: [[70, 150], [110, 120]] } }, [], {
+test('on a map without islands, geysers that would cut into a home island are dropped', () => {
+  const bare = { geysers: [[70, 150], [110, 120]] as [number, number][], islands: [] };
+  const world = createMatchWorld(defs, { test: bare }, [], {
     ...DEFAULT_OPTIONS,
     mission: 'test',
   });
@@ -110,4 +112,17 @@ test('the log speaks of the local player and hides the enemy routine', () => {
     who: ENEMY,
     data: { id: 9, type: 'suncannon' },
   })?.text, 'Знищено ворожий Sun Cannon');
+});
+
+test('a mission is played on the islands of its map, the opponent on one beside them', () => {
+  const world = createMatchWorld(defs, maps, missions, {
+    ...DEFAULT_OPTIONS,
+    mission: 'thewarbegins',
+  });
+  const mine = world.templeOf(ME)!;
+  const theirs = world.templeOf(ENEMY)!;
+  // The first island of the map starts at chunk (5, 6); its Temple stands in its second chunk.
+  assert.ok(mine.x >= 5 * 16 && mine.x < 9 * 16 && mine.y >= 6 * 16 && mine.y < 8 * 16);
+  assert.ok(world.isOwnGround(ENEMY, theirs.x, theirs.y));
+  assert.ok(Math.abs(theirs.x - mine.x) + Math.abs(theirs.y - mine.y) > 32);
 });

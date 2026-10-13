@@ -10,7 +10,7 @@ function readData(name: string): unknown {
 
 /** The trimmed data files the client loads, by published name. */
 function gameData(): Record<string, unknown> {
-  const maps = slimMaps(readData('forts'));
+  const maps = slimMaps(readData('forts'), readData('islands'));
   return {
     units: slimUnits(readData('units')),
     forts: maps,

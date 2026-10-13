@@ -72,10 +72,20 @@ try {
   const result = await page.evaluate(() => {
     const { world, match, ground, entityLayer } = window.ns;
     const before = ground.children.length;
-    match.step([
-      { t: 'dropPiece', player: 1, hand: 0, x: 10, y: 10, rot: 0 },
-      { t: 'dropPiece', player: 1, hand: 0, x: 81, y: 150, rot: 1 },
-    ]);
+    // The island is grown by the builder, so a place for the first piece is looked for.
+    const temple = world.templeOf(1);
+    let drop = null;
+
+    for (let y = temple.y - 40; y < temple.y + 40 && !drop; y++) {
+      for (let x = temple.x - 40; x < temple.x + 40 && !drop; x++) {
+        for (let rot = 0; rot < 4 && !drop; rot++) {
+          const command = { t: 'dropPiece', player: 1, hand: 0, x, y, rot };
+          drop = world.canDropPiece(command) === null ? command : null;
+        }
+      }
+    }
+
+    match.step([{ t: 'dropPiece', player: 1, hand: 0, x: 10, y: 10, rot: 0 }, drop]);
     const events = match.drainEvents();
     const rejected = events.find((event) => event.what === 'rejected')?.data.err;
     const accepted = events.some((event) => event.what === 'bridge');
@@ -115,7 +125,12 @@ try {
   assert.equal(await page.evaluate(() => window.ns.ui.selected), transport.id);
   const geyser = await page.evaluate(() => {
     const { world, camera } = window.ns;
-    const g = [...world.entities.values()].find((e) => e.kind === 'geyser');
+    // A geyser out in the open sky, not one that happens to sit on the island.
+    const open = (e) =>
+      [[-2, 0], [2, 0], [0, -2], [0, 2]].every(([dx, dy]) =>
+        world.terrain[(e.y + dy) * 256 + e.x + dx] === 0
+      );
+    const g = [...world.entities.values()].find((e) => e.kind === 'geyser' && open(e));
     camera.position.set(640 - (g.x + 0.5) * 16 * camera.scale.x,
       400 - (g.y + 0.5) * 11 * camera.scale.y);
     return { x: g.x, y: g.y };

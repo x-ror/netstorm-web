@@ -1,8 +1,12 @@
 /** Shapes of the game data the client ships, and the build step that trims the extracted originals
  * down to them. Shared by the dev server, the production build and the client. */
 
-/** Geysers of each original map, in map cells. Island shapes are not decoded yet. */
-export type Maps = Record<string, { geysers: [number, number][]; }>;
+/** Geysers of each original map, in map cells, and the islands its player owns: the shape, the
+ * chunk it is laid on and the seed, as the original's island builder takes them. */
+export type Maps = Record<string, {
+  geysers: [number, number][];
+  islands: [shape: number, cx: number, cy: number, seed: number][];
+}>;
 
 export interface Mission {
   /** File name of the mission and of its map in `forts.json`. */
@@ -59,9 +63,10 @@ export function slimUnits(raw: unknown): Record<string, unknown>[] {
   });
 }
 
-/** Keep only the geysers: the client does not read island cells yet. */
-export function slimMaps(raw: unknown): Maps {
+/** Keep the geysers of each map and add the islands read from its .fort file. */
+export function slimMaps(raw: unknown, islands: unknown = {}): Maps {
   const maps: Maps = {};
+  const byMap = asRecord(islands);
 
   for (const [name, value] of Object.entries(asRecord(raw))) {
     const geysers = asRecord(value).geysers;
@@ -69,6 +74,7 @@ export function slimMaps(raw: unknown): Maps {
       geysers: Array.isArray(geysers)
         ? geysers.filter(isCell).map(([x, y]) => [x, y])
         : [],
+      islands: Array.isArray(byMap[name]) ? byMap[name] as Maps[string]['islands'] : [],
     };
   }
 

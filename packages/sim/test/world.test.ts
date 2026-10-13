@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import {
   loadDefs,
   createSkirmish,
+  growIslands,
+  islandChunks,
   TPS,
   PIECE_INTERVAL,
   GEYSER_STOCK,
@@ -771,4 +773,73 @@ test('units without rules yet cannot be built', () => {
   // A flyer comes from its base, not from the Production Window.
   assert.equal(w.apply({ t: 'build', player: 1, type: 'sunflyer', x: 46, y: 46 }), 'cannot build');
   assert.equal(w.apply({ t: 'build', player: 1, type: 'geyser', x: 46, y: 44 }), 'cannot build');
+});
+
+test('the island builder grows the same islands from the same descriptions', () => {
+  // The two islands of the Raw Power map: a Z of four chunks and a shape of six.
+  const specs = [{ shape: 7, cx: 6, cy: 3, seed: 17 }, { shape: 20, cx: 8, cy: 5, seed: 68 }];
+  const ground = growIslands(specs);
+  const size = (island: number) => ground.reduce((n, of) => n + (of === island ? 1 : 0), 0);
+  assert.deepEqual([size(0), size(1)], [732, 1114]);
+  assert.deepEqual([...growIslands(specs)], [...ground]);
+  // Ground stays inside the chunks of its island.
+  const chunks = specs.map((spec) => new Set(islandChunks(spec).map(([cx, cy]) => cx * 16 + cy)));
+
+  for (const [i, island] of ground.entries()) {
+    if (island >= 0) {
+      assert.ok(chunks[island]!.has(((i % 256) >> 4) * 16 + (i >> 12)));
+    }
+  }
+
+  // The second chunk of an island holds a square of ten cells for the Temple.
+  const [cx, cy] = islandChunks(specs[0]!)[1]!;
+
+  for (let y = cy * 16 + 3; y < cy * 16 + 13; y++) {
+    for (let x = cx * 16 + 3; x < cx * 16 + 13; x++) {
+      assert.equal(ground[y * 256 + x], 0);
+    }
+  }
+});
+
+test('a skirmish on grown islands settles each player on ground of his own', () => {
+  const geysers: [number, number][] = [[128, 53], [144, 65]];
+  const w = createSkirmish(defs, 1, [
+    {
+      id: 1,
+      name: 'Blue',
+      theme: 'wind',
+      x: 0,
+      y: 0,
+      islands: [{ shape: 7, cx: 6, cy: 3, seed: 17 }],
+    },
+    {
+      id: 2,
+      name: 'Red',
+      theme: 'rain',
+      x: 0,
+      y: 0,
+      islands: [{ shape: 20, cx: 8, cy: 8, seed: 68 }],
+    },
+  ], geysers);
+
+  for (const player of [1, 2]) {
+    const buildings = w.buildingsOf(player);
+    assert.equal(buildings.length, 3);
+
+    for (const b of buildings) {
+      for (let y = b.y; y < b.y + b.fy; y++) {
+        for (let x = b.x; x < b.x + b.fx; x++) {
+          assert.ok(w.isOwnGround(player, x, y), `${b.type} at ${x},${y}`);
+        }
+      }
+    }
+
+    const priest = w.priestOf(player)!;
+    assert.ok(w.isOwnGround(player, priest.x, priest.y));
+  }
+
+  // The game runs on from there.
+  for (let i = 0; i < 5 * TPS; i++) {
+    w.step();
+  }
 });
