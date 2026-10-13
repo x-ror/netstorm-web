@@ -42,7 +42,14 @@ export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]>
   ['priest:down', 'priest', 'pchant'],
   ['geyser', 'geyser', 'f'],
   ['nugget', 'nugget', 'nugget'],
-  ['altar', 'altar', 'altar21'],
+  // The whole Altar as it stands before a sacrifice: the last frame of its ring.
+  ['altar', 'altar', 'altar01', 3],
+  // The default frame of each type, as its .type file names it.
+  ['sunbattery', 'sunbattery', 'sbattery', 1],
+  ['windbattery', 'windbattery', 'focus', 0],
+  ['rainbattery', 'rainbattery', 'focus', 2],
+  ['thunderbattery', 'thunderbattery', 'focus', 1],
+  ['sunblocker', 'sunblocker', 'sunblock', 0],
 ];
 
 export type Manifest = Record<string, Record<string, Record<string, string>>>;

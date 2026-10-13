@@ -30,8 +30,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 20;
-export const RULES_VERSION = 38;
+export const SNAPSHOT_VERSION = 21;
+export const RULES_VERSION = 39;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -78,6 +78,7 @@ function parseDef(raw: unknown): UnitDef {
     'lifeSpan',
     'airRange',
     'airDamage',
+    'createsIsland',
   ], 'definition');
   const id = text(value.id, 'definition.id');
 
@@ -105,6 +106,7 @@ function parseDef(raw: unknown): UnitDef {
     lifeSpan: finite(value.lifeSpan, 'definition.lifeSpan'),
     airRange: finite(value.airRange, 'definition.airRange'),
     airDamage: finite(value.airDamage, 'definition.airDamage'),
+    createsIsland: boolean(value.createsIsland, 'definition.createsIsland'),
   };
 }
 

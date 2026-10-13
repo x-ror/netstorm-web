@@ -816,3 +816,21 @@ test('half the shots at a Cloud Floater miss, and it mends while it carries a cr
   run(world, 10);
   assert.equal(fresh.hp, 150);
 });
+
+test('an Altar needs the ground of an island; a gun may stand off the end of a bridge', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 5000, ['suncannon']);
+  world.addIsland(0, 30, 30, 20, 1);
+  world.spawnBuilding('windvortex', 1, 10, 36);
+  world.addPriest(1, 28, 40);
+
+  for (let x = 30; x < 34; x++) {
+    world.terrain[world.at(x, 40)] = 2;
+    world.owner[world.at(x, 40)] = 1;
+  }
+
+  // In the sky past the end of the bridge.
+  assert.equal(world.canBuild({ player: 1, type: 'altar', x: 34, y: 37 }), 'blocked');
+  assert.equal(world.canBuild({ player: 1, type: 'suncannon', x: 34, y: 39 }), null);
+  assert.equal(world.canBuild({ player: 1, type: 'altar', x: 20, y: 31 }), null);
+});

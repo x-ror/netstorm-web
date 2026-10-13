@@ -44,6 +44,8 @@ const UNIT_FIELDS = [
   'useairdamage',
   'airdamage',
 ] as const;
+/** The one type flag the simulation reads. */
+const UNIT_FLAG = 'createsisland';
 
 /** Keep only what the simulation reads of each unit. */
 export function slimUnits(raw: unknown): Record<string, unknown>[] {
@@ -55,6 +57,13 @@ export function slimUnits(raw: unknown): Record<string, unknown>[] {
       if (from[field] !== undefined) {
         slim[field] = from[field];
       }
+    }
+
+    if (
+      Array.isArray(from.flags)
+      && from.flags.some((flag) => String(flag).toLowerCase() === UNIT_FLAG)
+    ) {
+      slim.flags = [UNIT_FLAG];
     }
 
     return slim;

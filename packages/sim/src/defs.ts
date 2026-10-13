@@ -61,6 +61,9 @@ export interface UnitDef {
   lifeSpan: number; // s, aerial attackers
   airRange: number; // cells, reach against air units; 0 = the same as `range`
   airDamage: number; // damage of one hit on an air unit; 0 = the usual damage
+  /** May be laid in open sky off the end of a bridge, on an islet of its own (`createsisland`).
+   * Temples, Workshops and Altars may not: they need the ground of an island. */
+  createsIsland: boolean;
 }
 
 export type DefTable = Map<string, UnitDef>;
@@ -116,6 +119,8 @@ export function loadDefs(raw: unknown): DefTable {
       lifeSpan: num(r.lifeSpan),
       airRange: num(r.airrange),
       airDamage: num(r.useairdamage) ? num(r.airdamage) : 0,
+      createsIsland: Array.isArray(r.flags)
+        && r.flags.some((flag) => String(flag).toLowerCase() === 'createsisland'),
     });
   }
 

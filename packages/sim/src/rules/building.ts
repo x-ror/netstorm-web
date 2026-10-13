@@ -324,7 +324,8 @@ function siteError(
     return null;
   }
 
-  if (sky !== def.footX * def.footY) {
+  // Only a unit that makes an islet for itself can stand off a bridge.
+  if (sky !== def.footX * def.footY || !def.createsIsland) {
     return 'blocked';
   }
 
