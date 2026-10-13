@@ -16,7 +16,7 @@ import {
 } from '@netstorm/sim';
 import { project, TW, TH } from './projection.js';
 import { hotSpots } from './assets.js';
-import type { Sounds } from './sound.js';
+import { unitSound, type Sounds } from './sound.js';
 import { bridgeSlot } from './texture-selection.js';
 import { cellAt, zoomAt } from './camera.js';
 import { anchorFor, entityAt, hasFacing, type Tool, type UiState } from './ui-state.js';
@@ -150,13 +150,29 @@ export function createControls(options: {
     }
 
     if (order(x, y, target)) {
+      // The unit answers its order: a carrier sent for something with its pickup sound.
+      voice(world.entities.get(ui.selected!), target ? 'pickup' : 'move');
       return;
     }
 
     ui.selected = target?.id ?? null;
-    sounds.play(target ? 'select' : undefined);
+    voice(target, 'move');
     changed();
     drawOverlay();
+  }
+
+  /**
+   * The sound of a unit the player has just picked or ordered. A unit is heard when the player
+   * turns to it, not for what it does by itself. One with no sound of its own, and anything that
+   * is not the player's, gives the plain click.
+   */
+  function voice(entity: View | undefined, what: 'move' | 'pickup' | 'drop'): void {
+    if (!entity) {
+      return;
+    }
+
+    const type = 'type' in entity ? entity.type : entity.kind; // a Priest's type is his kind
+    sounds.play((own(entity) ? unitSound(sounds.index, type, what) : undefined) ?? 'select');
   }
 
   /** Give the selected unit an order for the clicked spot; false when the click is a selection. */
@@ -564,6 +580,7 @@ export function createControls(options: {
     dropSelected() {
       if (ui.selected !== null) {
         submit({ t: 'dropCargo', player: me, transport: ui.selected });
+        voice(world.entities.get(ui.selected), 'drop');
       }
     },
     castSelected() {

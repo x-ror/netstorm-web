@@ -985,3 +985,50 @@ test('a carrier drops its cargo where it stands, and a friend set down on its is
   assert.deepEqual(carry(30, 30), ['released', 'saved']);
   assert.equal(priest.state, 'normal');
 });
+
+test('a geyser spent on an island is gone; one in open sky stays, empty', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 0, []);
+  world.addIsland(0, 0, 60, 60, 1);
+  world.spawnBuilding('windvortex', 1, 10, 10);
+  const inland = world.addGeyser(30, 30, 200, false);
+  const golem = world.spawnTransport('sunwalker', 1, 28, 30);
+  assert.equal(world.apply({ t: 'collect', player: 1, transport: golem.id, geyser: inland.id }),
+    null);
+
+  // It takes the last crystal: the geyser is gone and its ground is free, while the Golem carries
+  // the crystal home with nowhere to go back to. The state stays sound all the while.
+  for (let i = 0; i < 3 * TPS; i++) {
+    world.step();
+  }
+
+  assert.ok(!world.entities.has(inland.id));
+  assert.equal(world.occupant[world.at(30, 30)], 0);
+  assert.equal(golem.goal, 'home');
+  world.snapshot();
+
+  for (let i = 0; i < 60 * TPS; i++) {
+    world.step();
+  }
+
+  assert.equal(world.players.get(1)!.storm, 200);
+  assert.equal(golem.goal, 'idle');
+
+  // In open sky, on its own islet at the end of a bridge: it stays where it is, spent.
+  const adrift = world.addGeyser(70, 30, 200);
+
+  for (let x = 60; x < 69; x++) {
+    world.terrain[world.at(x, 30)] = 2;
+    world.owner[world.at(x, 30)] = 1;
+  }
+
+  assert.equal(world.apply({ t: 'collect', player: 1, transport: golem.id, geyser: adrift.id }),
+    null);
+
+  for (let i = 0; i < 90 * TPS; i++) {
+    world.step();
+  }
+
+  assert.equal(world.players.get(1)!.storm, 400);
+  assert.deepEqual([world.entities.has(adrift.id), adrift.stock], [true, 0]);
+});

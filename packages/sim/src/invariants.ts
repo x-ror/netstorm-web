@@ -227,7 +227,8 @@ function validTransportTarget(world: WorldView, t: DeepReadonly<Transport | Prie
     case 'collect':
       return kind === 'geyser';
     case 'home':
-      return t.target === null || kind === 'geyser';
+      // The geyser it will go back to; one spent meanwhile may be gone from its island.
+      return t.target === null || kind === 'geyser' || kind === undefined;
     // These targets may already be gone: a crystal delivered by someone else, a destroyed altar.
     case 'pickup':
     case 'obelisk':

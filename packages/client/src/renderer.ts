@@ -271,45 +271,22 @@ export function createWorldRenderer(
   const holding = new Set<number>();
   entityLayer.sortableChildren = true;
 
-  /** What each unit was doing a tick ago, to hear it start: walking, carrying, being built. */
-  const walking = new Set<number>();
-  const laden = new Set<number>();
+  /** Buildings under construction, to hear them finished. */
   const rising = new Set<number>();
 
-  /** Play what a unit starts to do: a transport sets off or takes something up, a building is
-   * finished. The sounds are those of its .type file; a building without one of its own gets the
-   * original's "buildDone" (ours). */
+  /** A building sounds when it is finished: with the sound of its .type file, or the original's
+   * "buildDone" (ours). Units do not sound for what they do by themselves: only when ordered. */
   function listen(entity: DeepReadonly<Entity>): void {
-    const at = centres.get(entity.id);
-
-    if (entity.kind === 'building') {
-      if (entity.rising > 0) {
-        rising.add(entity.id);
-      } else if (rising.delete(entity.id)) {
-        sounds.play(unitSound(sounds.index, entity.type, 'built') ?? 'builddone', at);
-      }
-
+    if (entity.kind !== 'building') {
       return;
     }
 
-    if (entity.kind !== 'transport' && entity.kind !== 'priest') {
-      return;
+    if (entity.rising > 0) {
+      rising.add(entity.id);
+    } else if (rising.delete(entity.id)) {
+      sounds.play(unitSound(sounds.index, entity.type, 'built') ?? 'builddone',
+        centres.get(entity.id));
     }
-
-    const type = entity.kind === 'priest' ? 'priest' : entity.type;
-    const turn = (was: Set<number>, now: boolean, what: 'move' | 'pickup') => {
-      if (now && !was.has(entity.id)) {
-        sounds.unit(type, what, at);
-      }
-
-      if (now) {
-        was.add(entity.id);
-      } else {
-        was.delete(entity.id);
-      }
-    };
-    turn(walking, entity.path.length > 0, 'move');
-    turn(laden, entity.carrying !== null, 'pickup');
   }
 
   /**
@@ -440,8 +417,6 @@ export function createWorldRenderer(
         cooldowns.delete(id);
         widths.delete(id);
         centres.delete(id);
-        walking.delete(id);
-        laden.delete(id);
         rising.delete(id);
         headings.delete(id);
         scene.aims.delete(id);
@@ -846,8 +821,7 @@ function entityAlpha(entity: DeepReadonly<Entity>): number {
       : MIN_ALPHA + ((1 - MIN_ALPHA) * entity.hp) / entity.hpMax;
   }
 
-  // A depleted geyser fades out.
-  return entity.kind === 'geyser' && entity.stock <= 0 ? MIN_ALPHA : 1;
+  return 1;
 }
 
 function entityTint(entity: DeepReadonly<Entity>, me: number): number {

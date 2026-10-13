@@ -35,6 +35,8 @@ EVENTS = [
     "thunderCrack", "iceCannonImpact1", "iceCannonImpact2", "iceCannonImpact3", "iceCannonImpact4",
     "enemyPriestCaptured", "ourPriestCaptured", "ourPriestImmobile", "priestFree", "dissolve",
     "priestSacrifice2", "altarBurnCollapse", "somethingCreated", "geyserMined1",
+    # The air of the Pyrosphere: a wind that never stops, and now and then something far off.
+    "distantWindQuiet", "thunderQuietDistant", "eagleScream", "whale",
 ]
 HUNDREDTHS_PER_BEL = 2000  # of amplitude: 20 dB is a factor of ten
 

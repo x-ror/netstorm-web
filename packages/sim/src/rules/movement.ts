@@ -229,6 +229,50 @@ function arriveAtGeyser(world: World, t: Carrier): void {
   g.stock -= value;
   t.carrying = world.spawnCrystal(t, value).id;
   goHome(world, t);
+
+  if (g.stock <= 0 && onIsland(world, g)) {
+    vanish(world, g);
+  }
+}
+
+/** Whether a geyser stands on an island, not on the islet of its own that a geyser in open sky
+ * has: there is ground past the three cells of that islet. */
+function onIsland(world: World, g: Geyser): boolean {
+  const RING = 2;
+
+  for (let dy = -RING; dy <= RING; dy++) {
+    for (let dx = -RING; dx <= RING; dx++) {
+      const rim = Math.max(Math.abs(dx), Math.abs(dy)) === RING;
+
+      if (
+        rim && world.inside(g.x + dx, g.y + dy)
+        && world.terrain[world.at(g.x + dx, g.y + dy)] === Terrain.Island
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * A geyser on an island is gone once it is spent, and its ground is free. One in open sky stays
+ * as an "Empty Storm Geyser" (emptygeyser.type), which keeps its islet. That the two differ so is
+ * how the game was seen to behave, not read from its code (`?`). Carriers on their way to it look
+ * for another; the one that took the last crystal does so after handing it in.
+ */
+function vanish(world: World, g: Geyser): void {
+  world.occupant[world.at(g.x, g.y)] = 0;
+  world.entities.delete(g.id);
+
+  for (const e of world.entities.values()) {
+    if (
+      (e.kind === 'transport' || e.kind === 'priest') && e.target === g.id && e.goal === 'collect'
+    ) {
+      seekGeyser(world, e);
+    }
+  }
 }
 
 function arriveAtCrystal(world: World, t: Carrier): void {

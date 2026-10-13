@@ -109,6 +109,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     toggleSound: () => {
       ui.muted = !ui.muted;
       data.sounds.muted = ui.muted;
+      data.sounds.ambience(true); // start the wind again, or still it
       hud.render();
     },
     salvageSelected: () => controls.salvageSelected(),
@@ -166,10 +167,6 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
         return sounds.unit(event.data.spell, 'active');
       case 'cast':
         return sounds.unit(event.data.spell, 'fire');
-      case 'delivered': {
-        const carrier = world.entities.get(event.data.transport);
-        return sounds.unit(carrier?.kind === 'transport' ? carrier.type : 'priest', 'drop');
-      }
       case 'captured':
         return sounds.play(mine ? 'enemypriestcaptured' : 'ourpriestcaptured');
       case 'priest down':
@@ -338,7 +335,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     }
   });
 
+  data.sounds.ambience(true);
   const next = await left;
+  data.sounds.ambience(false);
   controls.dispose();
   minimap.dispose();
   hud.dispose();

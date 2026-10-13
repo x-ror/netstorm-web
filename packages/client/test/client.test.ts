@@ -506,6 +506,10 @@ test('units sound as their .type files say, and every sound named is shipped', (
       'builddone',
       'select',
       'rotatepiece',
+      'distantwindquiet',
+      'thunderquietdistant',
+      'eaglescream',
+      'whale',
     ]
   ) {
     const file = index.files[name!];
