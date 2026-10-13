@@ -244,7 +244,9 @@ test('animated entities show a slot of their type for the tick', () => {
   // Every slot the animations may ask for is shipped, with the offset of its picture.
   for (const [type, count] of Object.entries(SLOT_COUNTS)) {
     for (let slot = 0; slot < count; slot++) {
-      assert.ok(parsePath(manifest[type]!['@']![slot]!).offset, `${type} ${slot}`);
+      // The Priest's 65th line is a blank frame, which has no picture.
+      const blank = type === 'priest' && slot === 64;
+      assert.ok(blank || parsePath(manifest[type]!['@']![slot]!).offset, `${type} ${slot}`);
     }
   }
 
@@ -261,7 +263,7 @@ test('animated entities show a slot of their type for the tick', () => {
   ]);
 
   const world = skirmish();
-  const headings = new Map<number, number>();
+  const headings = { world: world.view(), headings: new Map<number, number>() };
   const golem = world.spawnTransport('sunwalker', ME, 40, 40);
   // Standing, the Golem shows the default frame of its file; walking east, the frames of group C.
   assert.deepEqual(slotOf(golem, 3, headings), ['sunwalker', 5]);
@@ -284,28 +286,56 @@ test('animated entities show a slot of their type for the tick', () => {
   // A Wind Temple is a still picture with its whirl laid over it.
   const temple = world.templeOf(ME)!;
   assert.deepEqual(slotOf(temple, 14, headings), ['windvortex', 13]);
-  assert.deepEqual(overlayOf(temple, 14), ['windvortex', 1]);
-  assert.equal(overlayOf(golem, 14), null);
+  assert.deepEqual(overlayOf(temple, 14, world.view()), ['windvortex', 1]);
+  assert.equal(overlayOf(golem, 14, world.view()), null);
   // A Bulf has four headings: a step to the north-east shows the frames of east.
   const bulf = world.spawnTransport('bulf', ME, 41, 41);
   bulf.path = [[42, 40]];
   assert.deepEqual(slotOf(bulf, 2, headings), ['bulf', 8 + 2]);
   // A Thunder Cannon fires, rests on its gun and charges up to the next shot, 4 s later.
   const cannon = world.spawnBuilding('thundercannon', ME, 60, 60, 1);
-  assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0)], [
+  assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0, world.view())], [
     ['thundercannon', 9],
     null,
   ]);
   cannon.target = golem.id;
   cannon.cooldown = 39;
-  assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0)], [
+  assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0, world.view())], [
     ['thundercannon', 16],
     null,
   ]);
   cannon.cooldown = 1;
-  assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0)], [
+  assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0, world.view())], [
     ['thundercannon', 9],
     ['thundercannon', 15],
   ]);
   assert.equal(slotOf(world.spawnBuilding('sunblocker', ME, 70, 60), 1, headings), null);
+  // A Disc Thrower lays its arm over its base, turned to its target; flung out just after a shot.
+  const thrower = world.spawnBuilding('sunarcher', ME, 50, 70);
+  assert.deepEqual([slotOf(thrower, 0, headings), overlayOf(thrower, 0, world.view())], [
+    ['sunarcher', 32],
+    ['sunarcher', 0],
+  ]);
+  thrower.target = world.spawnBuilding('sunblocker', ENEMY, 60, 70).id; // due east
+  thrower.cooldown = 69;
+  assert.deepEqual(overlayOf(thrower, 0, world.view()), ['sunarcher', 16 + 4]);
+  thrower.cooldown = 10;
+  assert.deepEqual(overlayOf(thrower, 0, world.view()), ['sunarcher', 4]);
+  // An Altar shows the runes warded on its ring and the captive between its horns.
+  const altar = world.buildingsOf(ME).find((b) => b.type === 'altar')!;
+  assert.deepEqual([slotOf(altar, 0, headings), overlayOf(altar, 0, world.view())], [
+    ['dais', 3],
+    ['altar', 0],
+  ]);
+  const captive = world.priestOf(ENEMY)!;
+  captive.state = 'chained';
+  captive.chainedAt = altar.id;
+  captive.runes = 2;
+  assert.deepEqual([slotOf(altar, 5, headings), overlayOf(altar, 5, world.view())], [
+    ['dais', 25],
+    ['altar', 6],
+  ]);
+  captive.runeTimer = 75; // half way through the third rune
+  assert.deepEqual(slotOf(altar, 5, headings), ['dais', 2 * 11 + 4 + 5]);
+  assert.deepEqual(slotOf(world.priestOf(ME)!, 5, headings), ['priest', 77 + 2 * 18 + 5]);
 });

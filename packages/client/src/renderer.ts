@@ -219,11 +219,12 @@ export function createWorldRenderer(
   const overlays = new Map<number, Sprite>();
   /** Which way each walker last went (animations.ts). */
   const headings = new Map<number, number>();
+  const scene = { world, headings };
   entityLayer.sortableChildren = true;
 
   /** Show, hide or move the picture laid over an entity's own: both hang on the same hot spot. */
   function layOver(entity: DeepReadonly<Entity>, under: Sprite | Graphics, bySpot: boolean): void {
-    const slot = bySpot ? overlayOf(entity, world.tick) : null;
+    const slot = bySpot ? overlayOf(entity, world.tick, world) : null;
     const texture = slot ? textures.get(`slot:${slot[0]}:${slot[1]}`) : undefined;
     const spot = texture ? hotSpots.get(texture) : undefined;
     let over = overlays.get(entity.id);
@@ -256,7 +257,7 @@ export function createWorldRenderer(
 
     for (const entity of world.entities.values()) {
       let sprite = sprites.get(entity.id);
-      const slot = slotOf(entity, world.tick, headings);
+      const slot = slotOf(entity, world.tick, scene);
       const texture = (slot ? textures.get(`slot:${slot[0]}:${slot[1]}`) : undefined)
         ?? textures.get(textureKey(entity));
 
@@ -293,7 +294,10 @@ export function createWorldRenderer(
         }
       }
 
-      if (entity.kind === 'crystal' && entity.carriedBy !== null) {
+      // A carried crystal is not drawn, nor a Priest chained on an altar: its frames show him.
+      const chained = entity.kind === 'priest' && entity.state === 'chained';
+
+      if (chained || (entity.kind === 'crystal' && entity.carriedBy !== null)) {
         sprite.visible = false;
         continue;
       }

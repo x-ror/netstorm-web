@@ -16,7 +16,7 @@ import sys
 # How many slots of each type the client uses, from the first. See texture-selection.ts.
 SLOTS = {
     "sunwalker": 64,  # eight frames of walking for each of eight headings
-    "priest": 64,
+    "priest": 167,  # walking, then floating and the chant of each stage of a sacrifice
     "geyser": 50,  # the eruption, then the dry geyser
     "sunflyer": 8,
     "windflyer": 13,
@@ -34,6 +34,12 @@ SLOTS = {
     "suncannon": 28,  # the facings, the frames of turning, the frames of fire
     "sunbattery": 8,
     "thunderarcher": 2,
+    "sunarcher": 33,  # the arm of the Disc Thrower in sixteen bearings, wound and flung, then its base
+    "sunaviary": 27,  # the dome opening, then the Whirligig rising out of it
+    "windaviary": 6,
+    "rainaviary": 13,
+    "dais": 59,  # the ring of an Altar through the five stages of a sacrifice
+    "altar": 14,  # its horns, then the captive struggling between them
     "fringe": 83,  # the rock that hangs under the southern rim of an island
 }
 
@@ -48,7 +54,11 @@ def main() -> None:
         slots = {}
 
         for slot in range(count):
-            frame = index[kind][str(slot)]
+            frame = index[kind].get(str(slot))
+
+            if frame is None:  # a blank line of the .type file
+                continue
+
             target = public / "sprites" / frame["file"]
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source / frame["file"], target)

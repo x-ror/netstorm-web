@@ -3,34 +3,30 @@
  * frame's line in the .type file, as scripts/unshp.py counts them. scripts/anim-frames.py ships the
  * slots listed here. One frame is shown per tick; the original's frame rates are not read (`?`).
  */
-import type { Building, DeepReadonly, Entity } from '@netstorm/sim';
+import {
+  BUILD_SECONDS,
+  RUNE_INTERVAL,
+  RUNES,
+  TPS,
+  type Building,
+  type DeepReadonly,
+  type Entity,
+  type Priest,
+  type WorldView,
+} from '@netstorm/sim';
 
 type Slot = readonly [type: string, slot: number];
 
+export { SLOT_COUNTS } from './slots.js';
+
+/** What the choice of a frame may look at besides the entity itself. */
+export interface Scene {
+  world: WorldView;
+  /** Which way each walker last went, so that it stands as it stopped. */
+  headings: Map<number, number>;
+}
+
 /* oxlint-disable no-magic-numbers -- slot counts and frame groups of the .type files */
-/** Slots shipped of each type, from the first; the same table as in scripts/anim-frames.py. */
-export const SLOT_COUNTS: Readonly<Record<string, number>> = {
-  sunwalker: 64,
-  priest: 64,
-  geyser: 50,
-  sunflyer: 8,
-  windflyer: 13,
-  rainflyer: 16,
-  rainballoon: 20,
-  nugget: 9,
-  rainwalker: 10,
-  raincannon: 12,
-  windwalker: 16,
-  bulf: 32,
-  windvortex: 14,
-  rainvortex: 15,
-  thundervortex: 8,
-  thundercannon: 36,
-  suncannon: 28,
-  sunbattery: 8,
-  thunderarcher: 2,
-  fringe: 83,
-};
 /** Types whose first slots are one cycle played over and over, with its length. */
 const LOOPS: Readonly<Record<string, number>> = {
   sunflyer: 8,
@@ -77,6 +73,32 @@ const TEMPLES: Readonly<Record<string, { base: number; first: number; cycle: num
   windvortex: { base: 13, first: 0, cycle: 13 },
   rainvortex: { base: 0, first: 1, cycle: 14 },
 };
+/**
+ * The Disc Thrower is a base (slot 32) with an arm laid over it: sixteen bearings of the arm wound
+ * up (slots 0 to 15), then sixteen of it flung out (16 to 31), clockwise from north. Its shots
+ * are 7 s apart; the flung arm is held for the first half second.
+ */
+const DISC_THROWER = { base: 32, bearings: 16, flungFrom: 65 } as const;
+/**
+ * Air bases play their frames once over the time they take to send a flyer up (rules/flyers.ts),
+ * counted by their cooldown. The Whirlibase opens its dome (slots 0 to 10), then the Whirligig
+ * rises out of it, laid over (11 to 26). The Devil Maker turns its six frames round.
+ */
+const AIR_BASES: Readonly<Record<string, { ticks: number; frames: number; }>> = {
+  sunaviary: { ticks: 50, frames: 11 },
+  rainaviary: { ticks: 24, frames: 13 },
+};
+const WHIRLIGIG_RISE = { first: 11, frames: 16 } as const;
+const DEVIL_MAKER_FRAMES = 6;
+/**
+ * An Altar is two pictures: the ring (type Dais) and the horns over it (type Altar). The ring
+ * shows how many of the five runes are warded: a still for each count (slots 3, 14, 25, ...) and
+ * ten frames of the next one going. The horns hold the captive, who struggles through 13 frames.
+ * A Priest warding a rune chants the 18 frames of that stage, after his 77 other slots.
+ */
+const DAIS = { rising: 1, laid: 2, still: 3, going: 4, stage: 11, frames: 10 } as const;
+const HORNS = { empty: 0, struggle: 1, frames: 13 } as const;
+const CHANT = { first: 77, frames: 18 } as const;
 /* oxlint-enable no-magic-numbers */
 
 /** Heading of a step, 0 north and clockwise to 7 north-west; undefined for no step. */
@@ -91,8 +113,57 @@ function sinceShot(b: DeepReadonly<Building>): number {
   return b.target === null ? -1 : THUNDER_CANNON.cooldown - b.cooldown;
 }
 
-function buildingSlot(b: DeepReadonly<Building>, tick: number): Slot | null {
+/** The Priest chained on an altar, if any. */
+function captiveOf(world: WorldView, altar: number): DeepReadonly<Priest> | undefined {
+  for (const e of world.entities.values()) {
+    if (e.kind === 'priest' && e.chainedAt === altar) {
+      return e;
+    }
+  }
+
+  return undefined;
+}
+
+/** The ring of an Altar: being built, at rest, or with the next rune going. */
+function daisSlot(b: DeepReadonly<Building>, world: WorldView): Slot {
+  if (b.rising > 0) {
+    return [
+      'dais',
+      b.builder !== null || b.rising * 2 > BUILD_SECONDS * TPS ? DAIS.rising : DAIS.laid,
+    ];
+  }
+
+  const captive = captiveOf(world, b.id);
+  const warded = Math.min(captive?.runes ?? 0, RUNES);
+  const going = captive && captive.runeTimer > 0 && warded < RUNES
+    ? Math.min(DAIS.frames - 1, Math.floor((captive.runeTimer * DAIS.frames) / RUNE_INTERVAL))
+    : -1;
+  return ['dais', warded * DAIS.stage + (going < 0 ? DAIS.still : DAIS.going + going)];
+}
+
+/** Which of sixteen bearings, clockwise from north, a Disc Thrower's target lies on. Only the
+ * picture depends on it, so the arithmetic need not match between machines. */
+function bearing(b: DeepReadonly<Building>, world: WorldView): number {
+  const target = b.target === null ? undefined : world.entities.get(b.target);
+
+  if (!target) {
+    return 0;
+  }
+
+  const turn = Math.atan2(target.x - (b.x + b.fx / 2), b.y + b.fy / 2 - target.y) / (2 * Math.PI);
+  return (Math.round(turn * DISC_THROWER.bearings) + DISC_THROWER.bearings) % DISC_THROWER.bearings;
+}
+
+function buildingSlot(b: DeepReadonly<Building>, tick: number, world: WorldView): Slot | null {
   const working = b.rising === 0 && b.regrow === 0;
+  const base = AIR_BASES[b.type];
+
+  if (base) {
+    const frame = Math.floor(
+      (b.cooldown * base.frames * (b.type === 'sunaviary' ? 2 : 1)) / base.ticks,
+    );
+    return [b.type, working ? Math.min(base.frames - 1, frame) : 0];
+  }
 
   switch (b.type) {
     case 'raincannon':
@@ -118,6 +189,12 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number): Slot | null {
     }
     case 'thunderarcher':
       return [b.type, b.target === null ? 0 : tick % 2];
+    case 'sunarcher':
+      return [b.type, DISC_THROWER.base];
+    case 'windaviary':
+      return [b.type, working && b.cooldown > 0 ? tick % DEVIL_MAKER_FRAMES : 0];
+    case 'altar':
+      return daisSlot(b, world);
     default:
       break;
   }
@@ -136,11 +213,9 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number): Slot | null {
  * The type and slot an entity shows, or null when it has no animation and keeps its one picture.
  * `headings` remembers which way each walker last went, so that it stands as it stopped.
  */
-export function slotOf(
-  entity: DeepReadonly<Entity>,
-  tick: number,
-  headings: Map<number, number>,
-): Slot | null {
+export function slotOf(entity: DeepReadonly<Entity>, tick: number, scene: Scene): Slot | null {
+  const { headings, world } = scene;
+
   if (entity.kind === 'geyser') {
     return ['geyser', entity.stock > 0 ? tick % GEYSER_CYCLE : GEYSER_CYCLE];
   }
@@ -150,7 +225,7 @@ export function slotOf(
   }
 
   if (entity.kind === 'building') {
-    return buildingSlot(entity, tick);
+    return buildingSlot(entity, tick, world);
   }
 
   if (entity.kind === 'obelisk' || (entity.kind === 'priest' && entity.state !== 'normal')) {
@@ -178,15 +253,64 @@ export function slotOf(
     return [type, walker.groups[going]! * walker.frames + (tick % walker.frames)];
   }
 
+  // Standing by his altar while a rune is warded, the Priest chants.
+  const ritual = entity.kind === 'priest' ? ritualOf(world, entity.owner) : undefined;
+
+  if (ritual) {
+    return [
+      type,
+      CHANT.first + Math.min(ritual.runes, RUNES - 1) * CHANT.frames + (tick % CHANT.frames),
+    ];
+  }
+
   const stood = headings.get(entity.id);
   return [type, stood === undefined ? walker.idle : walker.groups[stood]! * walker.frames];
 }
 
+/** The captive whose rune a player's Priest is warding right now, if he is at it. */
+function ritualOf(world: WorldView, owner: number): DeepReadonly<Priest> | undefined {
+  for (const e of world.entities.values()) {
+    if (
+      e.kind === 'priest' && e.chainedAt !== null && e.runeTimer > 0
+      && world.entities.get(e.chainedAt)?.kind === 'building'
+      && (world.entities.get(e.chainedAt) as DeepReadonly<Building>).owner === owner
+    ) {
+      return e;
+    }
+  }
+
+  return undefined;
+}
+
 /** The slot laid over an entity's own picture, about the same hot spot: the whirl of a Temple,
  * the charge of a Thunder Cannon. Null when there is nothing over it. */
-export function overlayOf(entity: DeepReadonly<Entity>, tick: number): Slot | null {
+export function overlayOf(
+  entity: DeepReadonly<Entity>,
+  tick: number,
+  world: WorldView,
+): Slot | null {
   if (entity.kind !== 'building' || entity.rising > 0) {
     return null;
+  }
+
+  if (entity.type === 'altar') {
+    const held = captiveOf(world, entity.id);
+    return ['altar', held ? HORNS.struggle + (tick % HORNS.frames) : HORNS.empty];
+  }
+
+  if (entity.type === 'sunarcher') {
+    const flung = entity.target !== null && entity.cooldown >= DISC_THROWER.flungFrom;
+    return [entity.type, bearing(entity, world) + (flung ? DISC_THROWER.bearings : 0)];
+  }
+
+  if (entity.type === 'sunaviary') {
+    const rise = Math.floor(
+      ((entity.cooldown * 2 - AIR_BASES.sunaviary!.ticks) * WHIRLIGIG_RISE.frames)
+        / AIR_BASES.sunaviary!.ticks,
+    );
+    return rise < 0
+      ? null
+      : [entity.type, WHIRLIGIG_RISE.first + Math.min(WHIRLIGIG_RISE.frames - 1, rise)];
   }
 
   const temple = TEMPLES[entity.type];

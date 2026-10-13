@@ -1,4 +1,4 @@
-import { SLOT_COUNTS } from './animations.js';
+import { SLOT_COUNTS } from './slots.js';
 
 /** The pseudo-gif under which the manifest lists frames by slot. */
 export const SLOT_GIF = '@';
