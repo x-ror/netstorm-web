@@ -16,7 +16,7 @@
 
 ## Команди
 
-- `npm run check` — lint, формат, typecheck, тести, збірка, бюджет розміру. Запускати перед комітом.
+- `npm run check` — lint, формат, typecheck, тести, збірка, звіт про розмір. Запускати перед комітом.
 - `npm run test:browser` — smoke у Chromium, включно з replay.
 - `npm test` — тести симуляції й чистих модулів клієнта (без браузера).
 - `npm run lint:fix`, `npm run format` — автовиправлення oxlint і dprint.

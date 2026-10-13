@@ -9,7 +9,7 @@ export const GROUND_TILES = {
 export const GROUND_FRAMES = [4, 5, 47, 48, 51, 52, 53, 54] as const;
 export const BRIDGE_FRAMES = { solid: 0, cracked: 35, hard: 50 } as const;
 
-/** Every other frame of the small explosion, the only one the size budget leaves room for. */
+/** Every other frame of the small explosion. */
 export const EXPLOSION_FRAMES = Array.from({ length: 11 }, (_, i) => 35 + i * 2);
 
 /** Frames used by the current scene. Shared by the loader and production packaging. */
@@ -50,6 +50,30 @@ export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]>
   ['rainbattery', 'rainbattery', 'focus', 2],
   ['thunderbattery', 'thunderbattery', 'focus', 1],
   ['sunblocker', 'sunblocker', 'sunblock', 0],
+  ['windvortex', 'windvortex', 'wvortex', 13],
+  ['rainvortex', 'rainvortex', 'rvortex', 0],
+  ['thundervortex', 'thundervortex', 'tvortex2', 7],
+  ['sunfactory', 'sunfactory', 'sfactory', 0],
+  ['windfactory', 'windfactory', 'wfactory', 0],
+  ['rainfactory', 'rainfactory', 'rfactory', 0],
+  ['thunderfactory', 'thunderfactory', 'tfactory', 0],
+  ['windblocker', 'windblocker', 'wblocker', 0],
+  ['rainblocker', 'rainblocker', 'rblock', 14],
+  ['thunderblocker', 'thunderblocker', 'thblock', 1],
+  ['sunaviary', 'sunaviary', 'sflyer', 8],
+  ['windaviary', 'windaviary', 'wflyer', 42],
+  ['rainaviary', 'rainaviary', 'rflyer', 0],
+  ['sunfence', 'sunfence', 'sfence', 5],
+  ['rainfence', 'rainfence', 'sfence', 0],
+  ['thunderfence', 'thunderfence', 'tfence', 0],
+  ['raincannon', 'raincannon', 'rcannon', 0],
+  ['thunderarcher', 'thunderarcher', 'tarcher', 0],
+  ['sunballoon', 'sunballoon', 'sunbaloo', 0],
+  ['windballoon', 'windballoon', 'ship', 0],
+  ['rainballoon', 'rainballoon', 'rballoon', 0],
+  ['sunflyer', 'sunflyer', 'sflyer', 0],
+  ['windflyer', 'windflyer', 'wflyer', 0],
+  ['rainflyer', 'rainflyer', 'rflyer', 13],
 ];
 
 export type Manifest = Record<string, Record<string, Record<string, string>>>;
