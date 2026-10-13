@@ -12,7 +12,14 @@ import {
   barriers,
   FLYER_SCALE,
 } from '@netstorm/sim';
-import { FACING_FRAMES, GROUND_FRAMES, fringeSlot, SKY, shoreFrame } from './texture-selection.js';
+import {
+  FACING_FRAMES,
+  GROUND_FRAMES,
+  SKY,
+  bridgeSlot,
+  fringeSlot,
+  shoreFrame,
+} from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
 import { MANA_BOLTS, SACRIFICE, overlayOf, shadowOf, slotOf } from './animations.js';
 import {
@@ -28,6 +35,11 @@ import { hotSpots } from './assets.js';
 
 const SPRITE_ANCHOR_X = 0.5;
 const UNIT_ANCHOR_Y = 0.85; // a unit's feet sit a little above the bottom of its frame
+const STRENGTHS: Readonly<Record<number, 'whole' | 'cracked' | 'hard'>> = {
+  [Terrain.HardBridge]: 'hard',
+  [Terrain.CrackedBridge]: 'cracked',
+};
+const BRIDGE_DROP = 9; // from the top of a cell down to the hot spot of its Bridge frame
 const FRINGE_DROP = 44; // from the top of a rim cell down to the hot spot of its Fringe
 const FRINGE_SCATTER = 3;
 const CLIFF_HEIGHT = 6; // rock face drawn under an island's southern rim
@@ -126,6 +138,26 @@ export function createWorldRenderer(
 
         const owner = world.owner[y * W + x]!;
         const { sx, sy } = project(x, y);
+
+        // A cell of bridge shows the frame of the sides it joins on, walled where it does not.
+        // The frame is a cell and the face under it, hung on a hot spot nine rows down its side.
+        if (isBridge(terrain)) {
+          const strength = STRENGTHS[terrain] ?? 'whole';
+          const slot = bridgeSlot(world.links[y * W + x]!, strength,
+            (x * SCATTER_X) ^ (y * SCATTER_Y));
+          const plank = textures.get(`slot:bridge:${slot}`);
+          const hang = plank && hotSpots.get(plank);
+
+          if (plank && hang) {
+            const tile = new Sprite(plank);
+            tile.anchor.set(hang.x, hang.y);
+            tile.position.set(sx + TW - 1, sy + BRIDGE_DROP);
+            ground.addChild(tile);
+            tiles.push(tile);
+            continue;
+          }
+        }
+
         const sides = terrain === Terrain.Island ? skyAround(x, y, SIDES) : 0;
         const shore = sides || terrain !== Terrain.Island
           ? shoreFrame(sides, 0, x + y)

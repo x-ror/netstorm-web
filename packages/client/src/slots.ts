@@ -38,6 +38,7 @@ export const SLOT_COUNTS: Readonly<Record<string, number>> = {
   gravitationeffect: 10,
   meteoreffect: 15,
   manabolt: 4,
+  bridge: 59,
   fringe: 83,
 };
 /** The frame lines of each .type file that names shadows: the shadow of slot n is slot n plus

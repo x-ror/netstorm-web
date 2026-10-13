@@ -47,6 +47,55 @@ const SHORE_INSIDE: Readonly<Record<number, readonly number[]>> = {
 /* oxlint-enable no-magic-numbers */
 
 /**
+ * Slots of the Bridge type by the sides a cell joins on (bits: north 1, east 2, south 4, west 8):
+ * its whole frames, its cracked ones and its hard one. bridge.type has a letter for each way of
+ * joining, A to K, with the closed sides walled; the second whole frame of the T-pieces carries a
+ * grate. The letters L to O are the jagged stumps left when a neighbour falls: which stump hangs
+ * on which side is read off the pictures (`?`).
+ */
+const BRIDGE_SLOTS: Readonly<
+  Record<number, { whole: readonly number[]; cracked: readonly number[]; hard: number; }>
+> = {
+  15: { whole: [0], cracked: [1], hard: 2 },
+  7: { whole: [3, 4], cracked: [5, 6], hard: 7 },
+  14: { whole: [8, 9], cracked: [10, 11], hard: 12 },
+  13: { whole: [13, 14], cracked: [15, 16], hard: 17 },
+  11: { whole: [18, 19], cracked: [20, 21], hard: 22 },
+  6: { whole: [23], cracked: [24], hard: 25 },
+  12: { whole: [26], cracked: [27], hard: 28 },
+  9: { whole: [29], cracked: [30], hard: 31 },
+  3: { whole: [32], cracked: [33], hard: 34 },
+  5: { whole: [35, 36], cracked: [37, 38], hard: 40 },
+  10: { whole: [41, 42], cracked: [43, 44], hard: 46 },
+  4: { whole: [47], cracked: [48], hard: 49 },
+  8: { whole: [50], cracked: [51], hard: 52 },
+  1: { whole: [53], cracked: [54], hard: 55 },
+  2: { whole: [56], cracked: [57], hard: 58 },
+};
+/** One cell in this many takes the second frame of its letter, the one with the grate (ours). */
+const BRIDGE_SCATTER = 5;
+
+/**
+ * The Bridge slot of a cell that joins on `links`, by its strength. A cell laid without a piece
+ * (no links recorded) joins on every side. As bridge.type asks, a cracked cell keeps the variant
+ * of the whole one it was.
+ */
+export function bridgeSlot(
+  links: number,
+  strength: 'whole' | 'cracked' | 'hard',
+  pick: number,
+): number {
+  const letter = BRIDGE_SLOTS[links] ?? BRIDGE_SLOTS[15]!;
+
+  if (strength === 'hard') {
+    return letter.hard;
+  }
+
+  const frames = letter[strength];
+  return frames[pick % BRIDGE_SCATTER === 0 ? frames.length - 1 : 0]!;
+}
+
+/**
  * Slots of the Fringe type: the rock that hangs under an island's southern rim. fringe.type names
  * its groups after the rim frames they go with: EA under a southern edge, IA under a south-west
  * corner, HA under a south-east one. Each group also has frames with lit and unlit windows, and

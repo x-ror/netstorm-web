@@ -9,6 +9,7 @@ import {
   FACING_FRAMES,
   SKY,
   TEXTURES,
+  bridgeSlot,
   fringeSlot,
   parsePath,
   shoreFrame,
@@ -465,4 +466,19 @@ test('missiles point the way they fly, and effects are runs of shipped slots', (
   for (const run of runs) {
     assert.ok(run.first + run.frames <= SLOT_COUNTS[run.type]!, run.type);
   }
+});
+
+test('a cell of bridge shows the frame of the sides it joins on', () => {
+  // A straight north-south cell (the letter J of bridge.type): whole, cracked and hard.
+  assert.deepEqual(
+    (['whole', 'cracked', 'hard'] as const).map((strength) => bridgeSlot(5, strength, 1)),
+    [35, 37, 40],
+  );
+  // One cell in five takes the second frame of its letter, and keeps it when it cracks.
+  assert.deepEqual([bridgeSlot(7, 'whole', 0), bridgeSlot(7, 'cracked', 0)], [4, 6]);
+  assert.deepEqual([bridgeSlot(7, 'whole', 3), bridgeSlot(7, 'cracked', 3)], [3, 5]);
+  // A corner, a cross, a stump that hangs on its western neighbour.
+  assert.deepEqual([3, 15, 8].map((links) => bridgeSlot(links, 'whole', 1)), [32, 0, 50]);
+  // Bridge laid without a piece joins on every side.
+  assert.equal(bridgeSlot(0, 'whole', 1), 0);
 });
