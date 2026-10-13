@@ -128,3 +128,25 @@ test('the log speaks of the local player and hides the enemy routine', () => {
     data: { id: 9, type: 'suncannon' },
   })?.text, 'Знищено ворожий Sun Cannon');
 });
+
+test('a mission sets up its sides: names, knowledge, Storm Power and alliances', () => {
+  const rescue = missions.find((m) => m.id === 'totherescue')!;
+  // The governor fights beside the player; the two princes beside each other.
+  assert.deepEqual([2, 3, 4].map((id) => rescue.sides[id]!.allies), [[1], [4], [3]]);
+  assert.equal(rescue.sides[2]!.name, 'Governor Cherok');
+  const world = createMatchWorld(defs, maps, missions, {
+    ...DEFAULT_OPTIONS,
+    mission: 'totherescue',
+  });
+  assert.ok(!world.hostile(1, 2) && world.hostile(1, 3) && !world.hostile(3, 4));
+  assert.equal(world.players.get(3)!.name, 'Prince of Thunder');
+  // The first mission teaches four units and gives its jailer nothing to spend.
+  const first = createMatchWorld(defs, maps, missions, DEFAULT_OPTIONS);
+  assert.deepEqual([...first.players.get(ME)!.tech].sort(), [
+    'rainbattery',
+    'sunaviary',
+    'suncannon',
+    'sunwalker',
+  ]);
+  assert.equal(first.players.get(ENEMY)!.storm, 0);
+});

@@ -840,3 +840,58 @@ test('an Altar needs the ground of an island; a gun may stand off the end of a b
   assert.equal(world.canBuild({ player: 1, type: 'suncannon', x: 34, y: 39 }), null);
   assert.equal(world.canBuild({ player: 1, type: 'altar', x: 20, y: 31 }), null);
 });
+
+test('allies do not fight: guns hold their fire and a Priest cannot be carried off', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 0, [], [2]);
+  world.addPlayer(2, 'Friend', 'rain', 0, []);
+  world.addPlayer(3, 'Foe', 'thunder', 0, []);
+  world.addIsland(0, 0, 120, 100, 1);
+  world.spawnBuilding('altar', 1, 10, 10);
+  world.spawnBuilding('suncannon', 1, 40, 39, 1);
+  const friend = world.spawnBuilding('sunblocker', 2, 50, 39);
+  const foe = world.spawnBuilding('sunblocker', 3, 60, 39);
+  // One names the other: that is enough for both.
+  assert.ok(!world.hostile(1, 2) && !world.hostile(2, 1) && world.hostile(1, 3));
+  world.step();
+  assert.equal(friend.hp, friend.hpMax);
+  // The shot does not pass through the friend's tower either, so the foe behind it is safe.
+  assert.equal(foe.hp, foe.hpMax);
+  const golem = world.spawnTransport('sunwalker', 1, 30, 60);
+  const priest = world.addPriest(2, 31, 60);
+  priest.hp = 10;
+  world.step();
+  assert.equal(
+    world.apply({ t: 'capturePriest', player: 1, transport: golem.id, target: priest.id }),
+    'bad target',
+  );
+});
+
+test('a Meltdown costs the Generator, hurts the enemy beside it and breaks the bridge', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 0, []);
+  world.addPlayer(2, 'Red', 'rain', 0, []);
+  world.addIsland(0, 30, 30, 20, 1);
+
+  for (let x = 30; x < 36; x++) {
+    world.terrain[world.at(x, 40)] = 2;
+    world.owner[world.at(x, 40)] = 1;
+  }
+
+  const generator = world.spawnBuilding('windbattery', 1, 36, 39);
+  const foe = world.spawnBuilding('sunblocker', 2, 39, 39);
+  const own = world.spawnBuilding('sunblocker', 1, 36, 42);
+  const sun = world.spawnBuilding('sunbattery', 1, 10, 40);
+  const melt = (target: number) => world.apply({ t: 'meltdown', player: 1, target });
+  // "Sun Generators ... will never Meltdown", nor does a unit of another player or a badly hurt one.
+  assert.equal(melt(sun.id), 'bad target');
+  assert.equal(world.apply({ t: 'meltdown', player: 2, target: generator.id }), 'bad target');
+  generator.hp = generator.hpMax / 2;
+  assert.equal(melt(generator.id), 'bad target');
+  generator.hp = generator.hpMax;
+  assert.equal(melt(generator.id), null);
+  assert.ok(!world.entities.has(generator.id));
+  assert.equal(foe.hpMax - foe.hp, 100);
+  assert.equal(own.hp, own.hpMax);
+  assert.equal(world.terrain[world.at(35, 40)], 0);
+});

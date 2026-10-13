@@ -432,7 +432,7 @@ function enemyPriest(
   state: Priest['state'],
 ): View<Priest> | undefined {
   for (const entity of world.entities.values()) {
-    if (entity.kind === 'priest' && entity.owner !== me && entity.state === state) {
+    if (entity.kind === 'priest' && world.hostile(entity.owner, me) && entity.state === state) {
       return entity;
     }
   }
@@ -499,7 +499,7 @@ function bridgeTargets(world: WorldView, me: number, attack: boolean): Target[] 
   }
 
   for (const [id, other] of world.players) {
-    const enemy = id === me || !other.alive ? undefined : world.templeOf(id);
+    const enemy = !world.hostile(id, me) || !other.alive ? undefined : world.templeOf(id);
     const priest = world.priestOf(id);
 
     if (enemy) {
@@ -799,7 +799,7 @@ function bestUnit(
 /** Whether some other side has an air base, a flyer or an Aerial Transport. */
 function enemyFlies(world: WorldView, me: number): boolean {
   for (const e of world.entities.values()) {
-    if ('type' in e && e.owner !== me && e.owner !== 0) {
+    if ('type' in e && world.hostile(e.owner, me)) {
       const def = world.def(e.type);
 
       if (flies(def) || def.group === 'aviary') {

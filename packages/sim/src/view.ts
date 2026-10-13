@@ -38,6 +38,7 @@ export interface WorldView {
     goal: (cell: [number, number]) => boolean,
     avoidOccupied?: boolean,
   ) => [number, number][] | null;
+  readonly hostile: (a: number, b: number) => boolean;
   readonly priestOf: (player: number) => DeepReadonly<Priest> | undefined;
   readonly templeOf: (player: number) => DeepReadonly<Building> | undefined;
   readonly buildingsOf: (

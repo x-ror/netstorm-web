@@ -84,6 +84,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     setTool: (tool) => controls.setTool(tool),
     togglePause,
     salvageSelected: () => controls.salvageSelected(),
+    meltdownSelected: () => controls.meltdownSelected(),
     exit: () => leave?.(),
   });
   const controls = createControls({
@@ -189,7 +190,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     if (!ended && (world.winner !== null || lost)) {
       ended = true;
       renderLog();
-      const won = world.winner === ME;
+      // Allies win together.
+      const won = world.winner !== null && !lost && !world.hostile(world.winner, ME);
       hud.showEnd(won ? 'Перемога!' : 'Поразка', (won ? mission?.succeeded : mission?.failed)
         || (won ? 'Ворожого жерця принесено в жертву.' : 'Вашого жерця принесено в жертву.'));
     }

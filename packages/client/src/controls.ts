@@ -504,6 +504,11 @@ export function createControls(options: {
   return {
     setTool,
     drawOverlay,
+    meltdownSelected() {
+      if (ui.selected !== null) {
+        submit({ t: 'meltdown', player: me, target: ui.selected });
+      }
+    },
     salvageSelected() {
       salvage(ui.selected === null ? undefined : world.entities.get(ui.selected));
     },

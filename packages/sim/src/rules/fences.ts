@@ -57,7 +57,8 @@ function partner(world: World, post: Building, dx: number, dy: number): Building
     }
   }
 
-  return best?.owner === post.owner ? best : null;
+  // "Your allies can connect their Sun Barricade with yours and vice-versa."
+  return best && !world.hostile(best.owner, post.owner) ? best : null;
 }
 
 /** The barriers a post holds to the east and to the south of itself. */
@@ -136,7 +137,7 @@ function middle(e: Entity): Point {
  */
 export function fieldStops(world: World, shooter: Building, target: Entity): boolean {
   for (const e of world.entities.values()) {
-    if (!standing(e, SUN_BARRICADE) || e.owner === shooter.owner) {
+    if (!standing(e, SUN_BARRICADE) || !world.hostile(e.owner, shooter.owner)) {
       continue;
     }
 

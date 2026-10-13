@@ -41,10 +41,12 @@ export function createMatchWorld(
   // A mission is played on its map as the original stores it: the islands, bridges and units of
   // every side. A side with a Temple on the map follows that Temple's Fury.
   if (map?.islands.length) {
-    return createMission(defs, options.seed, map, [
-      { name: 'Ви', theme: options.theme, storm: options.storm },
-      { name: enemy, theme: options.enemyTheme, storm: options.storm },
-    ], battle);
+    return createMission(defs, options.seed, map, (id) => {
+      const side = mission?.sides[id] ?? {};
+      return id === ME
+        ? { ...side, name: 'Ви', theme: options.theme, storm: options.storm }
+        : { ...side, name: side.name || enemy, theme: options.enemyTheme, storm: side.storm ?? 0 };
+    }, battle);
   }
 
   // Without a map both bases are rectangles at fixed spots.

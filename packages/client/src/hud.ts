@@ -38,6 +38,7 @@ export interface HudActions {
   setTool(tool: Tool): void;
   togglePause(): void;
   salvageSelected(): void;
+  meltdownSelected(): void;
   exit(): void;
 }
 
@@ -100,6 +101,8 @@ export function createHud(
       actions.setTool({ kind: 'salvage' });
     } else if (action === 'salvage-selected') {
       actions.salvageSelected();
+    } else if (action === 'meltdown-selected') {
+      actions.meltdownSelected();
     } else if (action === 'pause') {
       actions.togglePause();
     } else if (action === 'exit') {
@@ -313,6 +316,16 @@ function info(world: WorldView, me: number, ui: UiState): string {
 
   if ((entity.kind === 'building' || entity.kind === 'transport') && entity.owner === me) {
     lines.push('<button data-action="salvage-selected">Розібрати <kbd>Del</kbd></button>');
+
+    // Offered as in the original: a Generator of a Fury, with more than half of its hit points.
+    const def = entity.kind === 'building' ? world.defs.get(entity.type) : undefined;
+
+    if (
+      entity.kind === 'building' && def?.group === 'battery' && def.theme !== 'sun'
+      && entity.rising === 0 && entity.hp * 2 > entity.hpMax
+    ) {
+      lines.push('<button data-action="meltdown-selected">Meltdown!</button>');
+    }
   }
 
   return lines.map((line) => `<div>${line}</div>`).join('');

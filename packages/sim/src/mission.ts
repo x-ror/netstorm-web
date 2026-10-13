@@ -19,6 +19,10 @@ export interface MissionPlayer {
   /** Followed by a player the map gives no Temple; with one, its Fury is the player's. */
   theme: Theme;
   storm: number;
+  /** What the side knows; left out, it knows the Sun units and those of its Fury. */
+  tech?: string[];
+  /** The sides it is allied with. */
+  allies?: number[];
 }
 
 /* oxlint-disable no-magic-numbers -- the frame table of the original's bridge type */
@@ -87,14 +91,14 @@ function templeTheme(defs: DefTable, map: MissionMap, owner: number): Theme | un
 }
 
 /**
- * Build the world of a mission. `players` are the human player and, after him, the settings every
- * other side of the map shares; the sides themselves come from the owners of the map's units.
+ * Build the world of a mission. The sides come from the owners of the map's units; `side` tells
+ * how each of them is set up.
  */
 export function createMission(
   defs: DefTable,
   seed: number,
   map: MissionMap,
-  players: readonly [MissionPlayer, MissionPlayer],
+  side: (id: number) => MissionPlayer,
   options: SkirmishOptions = {},
 ): World {
   const w = new World(defs, seed);
@@ -103,9 +107,10 @@ export function createMission(
     .sort((a, b) => a - b);
 
   for (const id of owners) {
-    const settings = players[id === 1 ? 0 : 1];
+    const settings = side(id);
     const theme = templeTheme(defs, map, id) ?? settings.theme;
-    w.addPlayer(id, settings.name, theme, settings.storm, skirmishTech(defs, theme));
+    const tech = settings.tech?.filter((type) => defs.has(type)) ?? skirmishTech(defs, theme);
+    w.addPlayer(id, settings.name, theme, settings.storm, tech, settings.allies);
   }
 
   const specs: IslandSpec[] = map.islands.map(([shape, cx, cy, grain]) => ({

@@ -32,7 +32,7 @@ import {
 import { tickBuilding } from './rules/combat.js';
 import { FLYER_SCALE, flightTicks, tickAirBase, tickFlyer } from './rules/flyers.js';
 import { tickPlayer } from './rules/economy.js';
-import { energy, canBuild, build, salvage } from './rules/building.js';
+import { energy, canBuild, build, meltdown, salvage } from './rules/building.js';
 import { tickTransport, collect, pickupCrystal } from './rules/movement.js';
 import { tickPriest, movePriest } from './rules/priest.js';
 import { capturePriest } from './rules/capture.js';
@@ -171,7 +171,14 @@ export class World {
   }
 
   // ---------- setup ----------
-  addPlayer(id: number, name: string, theme: Theme, storm: number, tech: string[]): Player {
+  addPlayer(
+    id: number,
+    name: string,
+    theme: Theme,
+    storm: number,
+    tech: string[],
+    allies: number[] = [],
+  ): Player {
     const p: Player = {
       id,
       name,
@@ -183,6 +190,7 @@ export class World {
       piecesDrawn: 0,
       refresh: [],
       alive: true,
+      allies: [...allies].sort((a, b) => a - b),
     };
     this.players.set(id, p);
     return p;
@@ -386,6 +394,16 @@ export class World {
     return undefined;
   }
 
+  /** Whether two sides fight each other: two different players, neither of whom names the other
+   * an ally. Things of nobody (owner 0) are nobody's enemy. */
+  hostile(a: number, b: number): boolean {
+    if (a === b || a === 0 || b === 0) {
+      return false;
+    }
+
+    return !this.players.get(a)?.allies.includes(b) && !this.players.get(b)?.allies.includes(a);
+  }
+
   /** The player's Temple: the building of class Energy. */
   templeOf(p: number): Building | undefined {
     return this.buildingsOf(p).find((b) => this.def(b.type).cls === 'Energy' && b.rising === 0);
@@ -493,6 +511,8 @@ export class World {
         return capturePriest(this, c);
       case 'salvage':
         return salvage(this, c);
+      case 'meltdown':
+        return meltdown(this, c);
     }
   }
 
@@ -614,8 +634,7 @@ export class World {
     if (
       occ
       && (occ.kind === 'building' || occ.kind === 'priest')
-      && occ.owner !== me
-      && occ.owner !== 0
+      && this.hostile(me, occ.owner)
       && !(occ.kind === 'building' && occ.regrow > 0)
     ) {
       return occ;
@@ -627,7 +646,8 @@ export class World {
       for (const transport of transports) {
         // An Aerial Transport is not found on the ground: only what shoots at the air sees it.
         if (
-          transport.owner !== me && transport.hp > 0 && this.entities.has(transport.id)
+          this.hostile(me, transport.owner) && transport.hp > 0
+          && this.entities.has(transport.id)
           && !flies(this.def(transport.type))
         ) {
           return transport;

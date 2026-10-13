@@ -176,13 +176,13 @@ function tickFence(world: World, b: Building, def: UnitDef): void {
     for (const entity of world.entities.values()) {
       if (airborne(world, entity)) {
         // The pulse passes under air units; the acid "dissolves every enemy unit", Dust Devils too.
-        const dissolves = b.type === ACID_BARRICADE && targetable(b, entity)
+        const dissolves = b.type === ACID_BARRICADE && targetable(world, b, entity)
           && overlaps(entity, band(barrier));
 
         if (dissolves && 'hp' in entity) {
           entity.hp = 0;
         }
-      } else if (targetable(b, entity) && overlaps(entity, reach)) {
+      } else if (targetable(world, b, entity) && overlaps(entity, reach)) {
         damage(world, b.owner, entity, fenceDamage(world, b, def, entity, seconds), b);
       }
     }
@@ -463,7 +463,7 @@ function lockedTarget(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt)
     return lineTarget(world, b, def, enemyAt, b.facing)?.entity === target ? target : null;
   }
 
-  return targetable(b, target) && inRadius(world, b, def, target) && aimsAt(world, b, target)
+  return targetable(world, b, target) && inRadius(world, b, def, target) && aimsAt(world, b, target)
     ? target
     : null;
 }
@@ -492,15 +492,16 @@ function acquire(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt): Ent
   return best?.entity ?? null;
 }
 
-export function targetable(b: { owner: number; }, target: Entity): boolean {
+export function targetable(world: World, b: { owner: number; }, target: Entity): boolean {
   switch (target.kind) {
     case 'building':
-      return target.owner !== b.owner && target.owner !== 0 && target.regrow === 0;
+      return world.hostile(b.owner, target.owner) && target.regrow === 0;
     case 'priest':
-      return target.owner !== b.owner && (target.state === 'normal' || target.state === 'down');
+      return world.hostile(b.owner, target.owner)
+        && (target.state === 'normal' || target.state === 'down');
     case 'transport':
     case 'flyer':
-      return target.owner !== b.owner && target.hp > 0;
+      return world.hostile(b.owner, target.owner) && target.hp > 0;
     case 'crystal':
     case 'geyser':
       return false;
@@ -572,7 +573,7 @@ function airTarget(world: World, b: Building, def: UnitDef): Entity | null {
 
   for (const e of world.entities.values()) {
     if (
-      !airborne(world, e) || !targetable(b, e) || !inRadius(world, b, def, e)
+      !airborne(world, e) || !targetable(world, b, e) || !inRadius(world, b, def, e)
       || !aimsAt(world, b, e)
     ) {
       continue;

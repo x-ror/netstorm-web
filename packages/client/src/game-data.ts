@@ -6,6 +6,15 @@ import type { MissionMap } from '@netstorm/sim';
 /** The original maps the client ships, as the mission builder of the simulation takes them. */
 export type Maps = Record<string, MissionMap>;
 
+/** A side of a mission as its file sets it up; what is left out takes the default. */
+export interface MissionSide {
+  name?: string;
+  storm?: number;
+  /** Unit ids the side knows. */
+  tech?: string[];
+  allies?: number[];
+}
+
 export interface Mission {
   /** File name of the mission and of its map in `maps.json`. */
   id: string;
@@ -15,6 +24,8 @@ export interface Mission {
   enemy: string;
   /** Seconds between the computer opponent's moves (aiTimeBetweenMoves). */
   aiDelay: number;
+  /** What the mission file says of each side, by player id; 1 is the human player. */
+  sides: Record<string, MissionSide>;
   briefing: string;
   succeeded: string;
   failed: string;
@@ -87,6 +98,44 @@ export function mapsOf(missions: Mission[], maps: Maps): Maps {
   return Object.fromEntries(missions.flatMap((m) => maps[m.id] ? [[m.id, maps[m.id]!]] : []));
 }
 
+const SIDES = 8;
+
+/** A list like "sunWalker;rainBattery" or "2;3" of a mission header. */
+function items(value: unknown): string[] | undefined {
+  return typeof value === 'string' && value.trim()
+    ? value.split(';').map((item) => item.trim()).filter(Boolean)
+    : undefined;
+}
+
+/**
+ * The sides of a mission. The header names the human player's settings `my…`, those every
+ * computer side shares `ai…`, and those of side N `aiN…`; the case of the names varies.
+ */
+function sidesOf(header: Record<string, unknown>): Record<string, MissionSide> {
+  const lower = Object.fromEntries(Object.entries(header).map(([k, v]) => [k.toLowerCase(), v]));
+  const read = (prefix: string): MissionSide => {
+    const tech = items(lower[`${prefix}tech`])?.map((type) => type.toLowerCase());
+    const allies = items(lower[`${prefix}allylist`])?.map(Number).filter(Number.isInteger);
+    const name = lower[`${prefix}name`];
+    const storm = lower[`${prefix}startmoney`];
+    return {
+      ...(typeof name === 'string' && name ? { name: name.split('\n')[0] } : {}),
+      ...(storm === undefined ? {} : { storm: Number(storm) || 0 }),
+      ...(tech ? { tech } : {}),
+      ...(allies ? { allies } : {}),
+    };
+  };
+  const shared = read('ai');
+  const sides: Record<string, MissionSide> = { 1: { ...read('ai1'), ...read('my') } };
+  delete sides[1]!.name; // the header calls him "Player"
+
+  for (let id = 2; id <= SIDES; id++) {
+    sides[id] = { ...shared, ...read(`ai${id}`) };
+  }
+
+  return sides;
+}
+
 /** The campaign missions (normal difficulty) that have a map, with their briefing texts. */
 export function slimMissions(raw: unknown, maps: Maps): Mission[] {
   if (!Array.isArray(raw)) {
@@ -111,6 +160,7 @@ export function slimMissions(raw: unknown, maps: Maps): Mission[] {
       storm: Number(header.myStartMoney) || 0,
       enemy: typeof header.aiName === 'string' ? header.aiName : '',
       aiDelay: Number(header.aiTimeBetweenMoves) || DEFAULT_AI_DELAY,
+      sides: sidesOf(header),
       briefing: reflow(withoutTitle(text(sections, 'A.'), header.title)),
       succeeded: reflow(text(sections, 'Succeeded') || text(sections, 'succeeded')),
       failed: reflow(text(sections, 'Failed')),

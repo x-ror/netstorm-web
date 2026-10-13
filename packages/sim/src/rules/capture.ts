@@ -86,7 +86,7 @@ export function capturePriest(
     || t.carrying !== null
     || !p
     || p.kind !== 'priest'
-    || p.owner === c.player
+    || !world.hostile(p.owner, c.player)
   ) {
     return 'bad target';
   }
@@ -260,10 +260,13 @@ function completeSacrifice(world: World, victim: Priest, altar: Building): void 
   // The altar is consumed: in the original it blows up a few seconds after the last rune.
   removeBuilding(world, altar);
   shakeBridges(world, altar);
+  // The battle is over when nobody left standing has an enemy. Of allies who win together, the
+  // one who made the sacrifice is named.
   const alive = [...world.players.values()].filter((player) => player.alive);
+  const fighting = alive.some((a) => alive.some((b) => world.hostile(a.id, b.id)));
 
-  if (alive.length === 1) {
-    world.winner = alive[0]!.id;
+  if (!fighting && alive.length) {
+    world.winner = alive.some((player) => player.id === by) ? by : alive[0]!.id;
     world.emit({ what: 'victory', who: world.winner });
   }
 }

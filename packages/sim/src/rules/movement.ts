@@ -109,7 +109,7 @@ function steal(world: World, crab: Transport): void {
     const fellow = victim.kind === 'transport'
       && (victim.type === CRYSTAL_CRAB || flies(world.def(victim.type)));
 
-    if (victim.owner === crab.owner || fellow || victim.hp <= 0 || !cargo) {
+    if (!world.hostile(victim.owner, crab.owner) || fellow || victim.hp <= 0 || !cargo) {
       continue;
     }
 

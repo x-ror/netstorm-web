@@ -14,7 +14,7 @@ import {
   oppositeDir,
 } from '../state.js';
 import { joins, shakeBridges } from './bridges.js';
-import { removeBuilding } from './combat.js';
+import { damage, removeBuilding } from './combat.js';
 import { removeTransport } from './movement.js';
 
 export function energy(world: WorldView, p: number): { own: number; total: number; } {
@@ -411,5 +411,49 @@ export function salvage(world: World, c: Extract<Command, { t: 'salvage'; }>): C
 
   world.players.get(c.player)!.storm += refund;
   world.emit({ what: 'salvaged', who: c.player, data: { id: unit.id, type: unit.type, refund } });
+  return null;
+}
+
+/** What a Meltdown deals to each enemy unit beside the Generator. Invented (`?`): the help says
+ * only that it will "slightly damage enemy units". */
+const MELTDOWN_DAMAGE = 100;
+
+/**
+ * "You can cause Generators to Meltdown to slightly damage enemy units or break through bridges";
+ * "Sun Generators ... will never Meltdown". The original offers it for a Generator of the player's
+ * own that has more than half of its hit points (netstorm.game 10.82). The Generator is lost, the
+ * bridge around it falls, and every enemy unit within a cell of it is hurt.
+ */
+export function meltdown(
+  world: World,
+  c: Extract<Command, { t: 'meltdown'; }>,
+): CommandError | null {
+  const b = world.building(c.target);
+  const def = b && world.def(b.type);
+
+  if (
+    !b || !def || b.owner !== c.player || def.group !== 'battery' || def.theme === 'sun'
+    || b.rising > 0 || b.hp * 2 <= b.hpMax
+  ) {
+    return 'bad target';
+  }
+
+  removeBuilding(world, b);
+  // Twice: sound bridge beside it cracks, and cracked bridge falls.
+  shakeBridges(world, b);
+  shakeBridges(world, { ...b, islet: false });
+
+  for (const e of world.entities.values()) {
+    const width = e.kind === 'building' ? e.fx : 1;
+    const height = e.kind === 'building' ? e.fy : 1;
+    const beside = e.x + width >= b.x && e.x <= b.x + b.fx && e.y + height >= b.y
+      && e.y <= b.y + b.fy;
+
+    if (beside && 'owner' in e && world.hostile(b.owner, e.owner)) {
+      damage(world, b.owner, e, MELTDOWN_DAMAGE);
+    }
+  }
+
+  world.emit({ what: 'destroyed', who: b.owner, data: { id: b.id, type: b.type } });
   return null;
 }

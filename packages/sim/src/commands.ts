@@ -8,7 +8,8 @@ export type Command =
   | { t: 'pickupCrystal'; player: number; transport: number; crystal: number; }
   | { t: 'movePriest'; player: number; x: number; y: number; }
   | { t: 'capturePriest'; player: number; transport: number; target: number; }
-  | { t: 'salvage'; player: number; target: number; };
+  | { t: 'salvage'; player: number; target: number; }
+  | { t: 'meltdown'; player: number; target: number; };
 
 export type CommandError =
   | 'no player'
@@ -46,6 +47,7 @@ export function parseCommand(raw: unknown): Command {
     'movePriest',
     'capturePriest',
     'salvage',
+    'meltdown',
   ], 'command type');
   const player = integer(value.player, 'command.player', 1, MAX_PLAYERS);
 
@@ -101,6 +103,7 @@ export function parseCommand(raw: unknown): Command {
         y: integer(value.y, 'command.y', -Number.MAX_SAFE_INTEGER),
       };
     case 'salvage':
+    case 'meltdown':
       keys(value, ['t', 'player', 'target'], 'command');
       return { t, player, target: integer(value.target, 'command.target', 1, MAX_ID) };
     case 'capturePriest':

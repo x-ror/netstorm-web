@@ -821,10 +821,11 @@ test('a mission is built from its map: islands, bridges, and the units of every 
       ['residence', 0, 45, 45, 0], // scenery is left out
     ],
   };
-  const w = createMission(defs, 1, map, [
-    { name: 'Blue', theme: 'thunder', storm: 1000 },
-    { name: 'Red', theme: 'thunder', storm: 500 },
-  ]);
+  const w = createMission(defs, 1, map, (id) =>
+    id === 1
+      ? { name: 'Blue', theme: 'thunder', storm: 1000 }
+      : { name: 'Red', theme: 'thunder', storm: 500, tech: ['suncannon', 'nosuchunit'] });
+  assert.deepEqual([...w.players.get(2)!.tech], ['suncannon']);
   // A side follows the Fury of the Temple the map gives it.
   assert.deepEqual([...w.players.values()].map((p) => [p.id, p.theme, p.storm]), [
     [1, 'wind', 1000],

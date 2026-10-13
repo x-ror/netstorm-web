@@ -398,6 +398,8 @@ export interface Player {
   /** Unit types laid down recently, with the ticks left before they can be laid again. */
   refresh: { type: string; ticks: number; }[];
   alive: boolean;
+  /** Players this one is allied with. Two sides are allies when either names the other. */
+  allies: number[];
 }
 
 export interface Building {

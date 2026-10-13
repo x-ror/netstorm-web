@@ -33,6 +33,7 @@ const COMMANDS: Record<string, string> = {
   movePriest: 'Жрець',
   capturePriest: 'Захоплення',
   salvage: 'Розбирання',
+  meltdown: 'Meltdown',
 };
 
 export type Tone = 'good' | 'bad' | 'info';
