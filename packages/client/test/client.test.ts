@@ -13,7 +13,7 @@ import {
   parsePath,
   shoreFrame,
 } from '../src/texture-selection.js';
-import { SLOT_COUNTS, heading, overlayOf, slotOf } from '../src/animations.js';
+import { SLOT_COUNTS, heading, overlayOf, shadowOf, slotOf } from '../src/animations.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
 
@@ -244,8 +244,8 @@ test('animated entities show a slot of their type for the tick', () => {
   // Every slot the animations may ask for is shipped, with the offset of its picture.
   for (const [type, count] of Object.entries(SLOT_COUNTS)) {
     for (let slot = 0; slot < count; slot++) {
-      // The Priest's 65th line is a blank frame, which has no picture.
-      const blank = type === 'priest' && slot === 64;
+      // Two lines are blank frames, which have no picture: the Priest's 65th and the Altar's 15th.
+      const blank = (type === 'priest' && slot === 64) || (type === 'altar' && slot === 14);
       assert.ok(blank || parsePath(manifest[type]!['@']![slot]!).offset, `${type} ${slot}`);
     }
   }
@@ -263,7 +263,11 @@ test('animated entities show a slot of their type for the tick', () => {
   ]);
 
   const world = skirmish();
-  const headings = { world: world.view(), headings: new Map<number, number>() };
+  const headings = {
+    world: world.view(),
+    headings: new Map<number, number>(),
+    aims: new Map<number, number>(),
+  };
   const golem = world.spawnTransport('sunwalker', ME, 40, 40);
   // Standing, the Golem shows the default frame of its file; walking east, the frames of group C.
   assert.deepEqual(slotOf(golem, 3, headings), ['sunwalker', 5]);
@@ -310,6 +314,20 @@ test('animated entities show a slot of their type for the tick', () => {
     ['thundercannon', 15],
   ]);
   assert.equal(slotOf(world.spawnBuilding('sunblocker', ME, 70, 60), 1, headings), null);
+  // A Sun Cannon swings through the frames between two facings, a step a tick, then rests.
+  const gun = world.spawnBuilding('suncannon', ME, 80, 80, 0);
+  assert.deepEqual(slotOf(gun, 0, headings), ['suncannon', 1]);
+  gun.facing = 1;
+  assert.deepEqual([1, 2, 3, 4].map((tick) => slotOf(gun, tick, headings)![1]), [22, 23, 3, 3]);
+  // A Bulf turns the shorter way round its 24 frames: from east to north, anticlockwise.
+  bulf.path = [[bulf.x, bulf.y - 1]];
+  assert.deepEqual([1, 2].map((tick) => slotOf(bulf, tick, headings)), [['bulf', 32 + 5], [
+    'bulf',
+    32 + 4,
+  ]]);
+  // A shadow is the slot of the same frame past the frame lines of the file.
+  assert.deepEqual(shadowOf(['sunwalker', 5]), ['sunwalker', 66 + 5]);
+  assert.equal(shadowOf(['thundercannon', 0]), null);
   // A Disc Thrower lays its arm over its base, turned to its target; flung out just after a shot.
   const thrower = world.spawnBuilding('sunarcher', ME, 50, 70);
   assert.deepEqual([slotOf(thrower, 0, headings), overlayOf(thrower, 0, world.view())], [

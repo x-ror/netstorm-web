@@ -17,6 +17,8 @@ import {
 
 type Slot = readonly [type: string, slot: number];
 
+import { SHADOW_BASE } from './slots.js';
+
 export { SLOT_COUNTS } from './slots.js';
 
 /** What the choice of a frame may look at besides the entity itself. */
@@ -24,6 +26,8 @@ export interface Scene {
   world: WorldView;
   /** Which way each walker last went, so that it stands as it stopped. */
   headings: Map<number, number>;
+  /** Where on its ring of turning frames each unit that turns has come to. */
+  aims: Map<number, number>;
 }
 
 /* oxlint-disable no-magic-numbers -- slot counts and frame groups of the .type files */
@@ -51,18 +55,51 @@ const NUGGET_CYCLE = 9;
  *    the east or the west group (ours: the files have none for it).
  */
 const WALKERS: Readonly<
-  Record<string, { groups: readonly number[]; frames: number; idle: number; }>
+  Record<string, { groups: readonly number[]; frames: number; idle: number; turn?: Turn; }>
 > = {
   sunwalker: { groups: [0, 1, 2, 3, 4, 5, 6, 7], frames: 8, idle: 5 },
   priest: { groups: [0, 1, 2, 3, 4, 5, 6, 7], frames: 8, idle: 18 },
-  bulf: { groups: [0, 1, 1, 1, 2, 3, 3, 3], frames: 8, idle: 10 },
-  windwalker: { groups: [0, 3, 3, 3, 2, 1, 1, 1], frames: 4, idle: 5 },
+  // The Bulf turns clockwise through 24 frames from north: six to a quarter turn.
+  bulf: {
+    groups: [0, 1, 1, 1, 2, 3, 3, 3],
+    frames: 8,
+    idle: 10,
+    turn: { first: 32, size: 24, step: 6 },
+  },
+  // The Sail Skater's 20 frames of turning go from north to west, south and east, the order of
+  // its groups: five to a quarter turn.
+  windwalker: {
+    groups: [0, 3, 3, 3, 2, 1, 1, 1],
+    frames: 4,
+    idle: 5,
+    turn: { first: 16, size: 20, step: 5 },
+  },
 };
+
+/** A ring of frames a unit turns through: its first slot, its length, and how far apart on it
+ * the unit's groups of frames lie. One step is taken per tick, the shorter way round (ours). */
+interface Turn {
+  first: number;
+  size: number;
+  step: number;
+}
+
+/**
+ * The Sun Cannon's barrel looks the same from either end, so its file has six frames between the
+ * four facings and each serves two bearings: clockwise from north, north (slot 1), NNE (22), ENE
+ * (23), east (3), ESE (20), SSE (21), south (0), SSW (22), WSW (23), west (2), WNW (20), NNW (21).
+ */
+const SUN_CANNON_RING = [1, 22, 23, 3, 20, 21, 0, 22, 23, 2, 20, 21] as const;
+/** The Crossbow has 25 frames to a facing: five of a shot, then twenty of turning to the next. */
+const CROSSBOW = { frames: 25, shot: 5 } as const;
+/** The frames of a sacrifice in the Altar type, after the horns and the struggling captive. */
+export const SACRIFICE = { first: 15, frames: 74 } as const;
 
 /** Slots of the Sun Cannon by facing (north, east, south, west): at rest, and firing. */
 const SUN_CANNON = { rest: [1, 3, 0, 2], fire: [25, 27, 24, 26] } as const;
 /** Its shots are 5 s apart (rules/combat.ts); the frame of fire is held for the first of them. */
 const SUN_CANNON_FIRE_FROM = 47;
+const CROSSBOW_COOLDOWN = 8;
 /** The Ice Cannon has three frames to a facing, the Thunder Cannon nine: the gun at rest, six
  * frames of charge that are laid over it, and two of fire. */
 const ICE_CANNON_FRAMES = 3;
@@ -100,6 +137,21 @@ const DAIS = { rising: 1, laid: 2, still: 3, going: 4, stage: 11, frames: 10 } a
 const HORNS = { empty: 0, struggle: 1, frames: 13 } as const;
 const CHANT = { first: 77, frames: 18 } as const;
 /* oxlint-enable no-magic-numbers */
+
+/** Move a unit one step round its ring toward where it should point; where it is now. */
+function turnTo(aims: Map<number, number>, id: number, want: number, size: number): number {
+  const at = aims.get(id) ?? want;
+  const ahead = (want - at + size) % size;
+  const next = ahead === 0 ? at : (at + (ahead * 2 <= size ? 1 : size - 1)) % size;
+  aims.set(id, next);
+  return next;
+}
+
+/** The slot of the shadow that lies under a slot, for the types that have shadows. */
+export function shadowOf(slot: Slot | null): Slot | null {
+  const base = slot ? SHADOW_BASE[slot[0]] : undefined;
+  return slot && base !== undefined ? [slot[0], base + slot[1]] : null;
+}
 
 /** Heading of a step, 0 north and clockwise to 7 north-west; undefined for no step. */
 export function heading(dx: number, dy: number): number | undefined {
@@ -154,7 +206,8 @@ function bearing(b: DeepReadonly<Building>, world: WorldView): number {
   return (Math.round(turn * DISC_THROWER.bearings) + DISC_THROWER.bearings) % DISC_THROWER.bearings;
 }
 
-function buildingSlot(b: DeepReadonly<Building>, tick: number, world: WorldView): Slot | null {
+function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Slot | null {
+  const { world } = scene;
   const working = b.rising === 0 && b.regrow === 0;
   const base = AIR_BASES[b.type];
 
@@ -172,13 +225,19 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number, world: WorldView)
         b.type,
         b.facing * ICE_CANNON_FRAMES + (b.target === null ? 0 : tick % ICE_CANNON_FRAMES),
       ];
-    case 'suncannon':
-      return [
-        b.type,
-        (b.target !== null && b.cooldown >= SUN_CANNON_FIRE_FROM
-          ? SUN_CANNON.fire
-          : SUN_CANNON.rest)[b.facing],
-      ];
+    case 'suncannon': {
+      // It swings round to a new facing through the frames between; it fires once it is there.
+      const quarter = SUN_CANNON_RING.length / SUN_CANNON.rest.length;
+      const at = turnTo(scene.aims, b.id, b.facing * quarter, SUN_CANNON_RING.length);
+      const fired = at === b.facing * quarter && b.target !== null
+        && b.cooldown >= SUN_CANNON_FIRE_FROM;
+      return [b.type, fired ? SUN_CANNON.fire[b.facing] : SUN_CANNON_RING[at]!];
+    }
+    case 'windarcher': {
+      // Its shots are 0.8 s apart: the frames of a shot follow each one.
+      const since = b.target === null ? CROSSBOW.shot : CROSSBOW_COOLDOWN - b.cooldown;
+      return [b.type, b.facing * CROSSBOW.frames + (since < CROSSBOW.shot - 1 ? since + 1 : 0)];
+    }
     case 'thundercannon': {
       const since = sinceShot(b);
       const firing = since >= 0 && since < THUNDER_CANNON.cooldown - THUNDER_CANNON.fired;
@@ -225,7 +284,7 @@ export function slotOf(entity: DeepReadonly<Entity>, tick: number, scene: Scene)
   }
 
   if (entity.kind === 'building') {
-    return buildingSlot(entity, tick, world);
+    return buildingSlot(entity, tick, scene);
   }
 
   if (entity.kind === 'obelisk' || (entity.kind === 'priest' && entity.state !== 'normal')) {
@@ -250,6 +309,21 @@ export function slotOf(entity: DeepReadonly<Entity>, tick: number, scene: Scene)
 
   if (going !== undefined) {
     headings.set(entity.id, going);
+  }
+
+  // A unit with frames of turning comes round to its heading before it shows that heading.
+  const facing = headings.get(entity.id);
+
+  if (walker.turn && facing !== undefined) {
+    const want = walker.groups[facing]! * walker.turn.step;
+    const at = turnTo(scene.aims, entity.id, want, walker.turn.size);
+
+    if (at !== want) {
+      return [type, walker.turn.first + at];
+    }
+  }
+
+  if (going !== undefined) {
     return [type, walker.groups[going]! * walker.frames + (tick % walker.frames)];
   }
 

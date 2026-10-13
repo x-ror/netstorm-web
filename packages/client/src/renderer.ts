@@ -20,7 +20,7 @@ import {
   shoreFrame,
 } from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
-import { overlayOf, slotOf } from './animations.js';
+import { SACRIFICE, overlayOf, shadowOf, slotOf } from './animations.js';
 import { hotSpots } from './assets.js';
 
 const SPRITE_ANCHOR_X = 0.5;
@@ -51,6 +51,7 @@ const COLOR = {
   enemyPriestTint: 0xff9999,
   enemyBuildingTint: 0xffb0b0,
   noTint: 0xffffff,
+  shadow: 0x000000,
   cliff: 0x3a2a1c,
   enemyGroundTint: 0xffc8c8,
   barBack: 0x1b1f2a,
@@ -76,7 +77,8 @@ const CORNERS: typeof SIDES = [
 ];
 const LOW_HP = 0.35;
 const AIR_Z = 1e6; // above any screen row
-const OVERLAY_Z = 0.5; // an overlay lies just over its own entity
+const OVERLAY_Z = 0.5; // an overlay lies just over its own entity, a shadow just under
+const SHADOW_ALPHA = 0.45; // the original draws shadows translucent; how much is not read (`?`)
 const FIELD_WIDTH = 2;
 const FIELD_ALPHA = 0.7;
 const FIELD_COLOR: Readonly<Record<string, number>> = {
@@ -219,37 +221,50 @@ export function createWorldRenderer(
   const overlays = new Map<number, Sprite>();
   /** Which way each walker last went (animations.ts). */
   const headings = new Map<number, number>();
-  const scene = { world, headings };
+  const scene = { world, headings, aims: new Map<number, number>() };
+  const shadows = new Map<number, Sprite>();
+  /** Altars with a captive on them. */
+  const holding = new Set<number>();
   entityLayer.sortableChildren = true;
 
-  /** Show, hide or move the picture laid over an entity's own: both hang on the same hot spot. */
-  function layOver(entity: DeepReadonly<Entity>, under: Sprite | Graphics, bySpot: boolean): void {
-    const slot = bySpot ? overlayOf(entity, world.tick, world) : null;
+  /**
+   * Show, hide or move a picture that goes with an entity's own on the same hot spot: one laid
+   * over it (the whirl of a Temple) or its shadow under it.
+   */
+  function attach(
+    layer: Map<number, Sprite>,
+    id: number,
+    slot: readonly [string, number] | null,
+    under: Sprite | Graphics,
+    z: number,
+    alpha: number,
+  ): void {
     const texture = slot ? textures.get(`slot:${slot[0]}:${slot[1]}`) : undefined;
     const spot = texture ? hotSpots.get(texture) : undefined;
-    let over = overlays.get(entity.id);
+    let sprite = layer.get(id);
 
     if (!texture || !spot) {
-      if (over) {
-        over.visible = false;
+      if (sprite) {
+        sprite.visible = false;
       }
 
       return;
     }
 
-    if (!over) {
-      over = new Sprite(texture);
-      entityLayer.addChild(over);
-      overlays.set(entity.id, over);
+    if (!sprite) {
+      sprite = new Sprite(texture);
+      entityLayer.addChild(sprite);
+      layer.set(id, sprite);
     }
 
-    over.texture = texture;
-    over.visible = true;
-    over.anchor.set(spot.x, spot.y);
-    over.position.copyFrom(under.position);
-    over.zIndex = under.zIndex + OVERLAY_Z;
-    over.tint = under.tint;
-    over.alpha = under.alpha;
+    sprite.texture = texture;
+    sprite.visible = true;
+    sprite.anchor.set(spot.x, spot.y);
+    sprite.position.copyFrom(under.position);
+    sprite.zIndex = under.zIndex + z;
+    sprite.alpha = under.alpha * alpha;
+    // A shadow keeps only its shape: the extraction leaves it in a flat palette colour.
+    sprite.tint = layer === shadows ? COLOR.shadow : COLOR.noTint;
   }
 
   function syncEntities() {
@@ -299,6 +314,7 @@ export function createWorldRenderer(
 
       if (chained || (entity.kind === 'crystal' && entity.carriedBy !== null)) {
         sprite.visible = false;
+        attach(shadows, entity.id, null, sprite, 0, 0);
         continue;
       }
 
@@ -313,7 +329,16 @@ export function createWorldRenderer(
       sprite.zIndex = entity.kind === 'flyer' ? AIR_Z : sy;
       sprite.tint = entityTint(entity, me);
       sprite.alpha = entityAlpha(entity);
-      layOver(entity, sprite, bySpot);
+      const over = bySpot ? overlayOf(entity, world.tick, world) : null;
+      attach(overlays, entity.id, over, sprite, OVERLAY_Z, 1);
+      attach(shadows, entity.id, bySpot ? shadowOf(slot) : null, sprite, -OVERLAY_Z, SHADOW_ALPHA);
+
+      // An Altar that holds a captive when it goes plays the sacrifice where it stood.
+      if (over?.[0] === 'altar' && over[1] > 0) {
+        holding.add(entity.id);
+      } else {
+        holding.delete(entity.id);
+      }
 
       if ('hp' in entity && entity.hp < entity.hpMax) {
         const top = sprite instanceof Sprite ? sy - sprite.height * sprite.anchor.y : sy;
@@ -328,13 +353,47 @@ export function createWorldRenderer(
         cooldowns.delete(id);
         widths.delete(id);
         headings.delete(id);
-        overlays.get(id)?.destroy();
-        overlays.delete(id);
+        scene.aims.delete(id);
+
+        if (holding.delete(id)) {
+          effects.push({ at: sprite.position.clone(), z: sprite.zIndex, start: world.tick });
+        }
+
+        for (const layer of [overlays, shadows]) {
+          layer.get(id)?.destroy();
+          layer.delete(id);
+        }
       }
     }
 
+    playEffects();
     drawBarriers();
     drawTracers();
+  }
+
+  /** Sacrifices in progress: the frames of the Altar type played once where an altar stood. */
+  const effects: { at: { x: number; y: number; }; z: number; start: number; sprite?: Sprite; }[] =
+    [];
+
+  function playEffects(): void {
+    for (let i = effects.length - 1; i >= 0; i--) {
+      const effect = effects[i]!;
+      const frame = world.tick - effect.start;
+      const texture = textures.get(`slot:altar:${SACRIFICE.first + frame}`);
+      const spot = texture && hotSpots.get(texture);
+
+      if (frame >= SACRIFICE.frames || !texture || !spot) {
+        effect.sprite?.destroy();
+        effects.splice(i, 1);
+        continue;
+      }
+
+      effect.sprite ??= entityLayer.addChild(new Sprite(texture));
+      effect.sprite.texture = texture;
+      effect.sprite.anchor.set(spot.x, spot.y);
+      effect.sprite.position.set(effect.at.x, effect.at.y);
+      effect.sprite.zIndex = effect.z;
+    }
   }
 
   /** A line between every two fence posts that are joined into a barrier. */

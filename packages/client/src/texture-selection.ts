@@ -1,4 +1,4 @@
-import { SLOT_COUNTS } from './slots.js';
+import { SHADOW_BASE, SLOT_COUNTS } from './slots.js';
 
 /** The pseudo-gif under which the manifest lists frames by slot. */
 export const SLOT_GIF = '@';
@@ -128,9 +128,12 @@ export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]>
     [`bridge:${state}`, 'bridge', 'bridge', frame] as const
   ),
   ...FACING_TEXTURES,
+  // Every slot, and its shadow where the type has shadows.
   ...Object.entries(SLOT_COUNTS).flatMap(([type, count]) =>
-    Array.from({ length: count }, (_, slot) =>
-      [`slot:${type}:${slot}`, type, SLOT_GIF, slot] as const)
+    [0, ...(type in SHADOW_BASE ? [SHADOW_BASE[type]!] : [])].flatMap((from) =>
+      Array.from({ length: count }, (_, slot) =>
+        [`slot:${type}:${from + slot}`, type, SLOT_GIF, from + slot] as const)
+    )
   ),
   ['sunwalker', 'sunwalker', 'golem'],
   ['windwalker', 'windwalker', 'wwalker'],

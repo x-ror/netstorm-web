@@ -25,8 +25,8 @@ SLOTS = {
     "nugget": 9,
     "rainwalker": 10,
     "raincannon": 12,  # three frames of firing for each facing
-    "windwalker": 16,  # four frames for each of four headings
-    "bulf": 32,  # eight frames for each of four headings
+    "windwalker": 36,  # four frames for each of four headings, then twenty of turning
+    "bulf": 56,  # eight frames for each of four headings, then twenty-four of turning
     "windvortex": 14,  # the whirl, then the Temple under it
     "rainvortex": 15,  # the Temple, then the pool in it
     "thundervortex": 8,
@@ -39,9 +39,14 @@ SLOTS = {
     "windaviary": 6,
     "rainaviary": 13,
     "dais": 59,  # the ring of an Altar through the five stages of a sacrifice
-    "altar": 14,  # its horns, then the captive struggling between them
+    "altar": 89,  # its horns, the captive struggling between them, then the sacrifice
+    "windarcher": 80,  # for each facing: five frames of a shot, then twenty of turning
     "fringe": 83,  # the rock that hangs under the southern rim of an island
 }
+
+
+# The frame lines of each .type file that names shadows: the shadow of slot n is slot n plus this.
+SHADOWS = {"sunwalker": 66, "priest": 168, "geyser": 51, "sunflyer": 9, "windflyer": 23, "rainflyer": 17, "rainballoon": 21, "nugget": 10, "rainwalker": 21, "raincannon": 13, "windwalker": 37, "bulf": 81, "windvortex": 21, "rainvortex": 29, "thundervortex": 16, "suncannon": 29, "sunbattery": 9, "thunderarcher": 3, "sunaviary": 32, "windaviary": 7, "rainaviary": 14, "windarcher": 101}
 
 
 def main() -> None:
@@ -53,7 +58,9 @@ def main() -> None:
     for kind, count in SLOTS.items():
         slots = {}
 
-        for slot in range(count):
+        shadows = range(SHADOWS[kind], SHADOWS[kind] + count) if kind in SHADOWS else []
+
+        for slot in [*range(count), *shadows]:
             frame = index[kind].get(str(slot))
 
             if frame is None:  # a blank line of the .type file
