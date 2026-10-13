@@ -20,6 +20,7 @@ export const REJECTIONS: Record<string, string> = {
   'no workshop': 'немає Майстерні цієї стихії',
   'cannot build': 'цей юніт ще не можна будувати',
   'not ready': 'юніт щойно встановлено, зачекайте',
+  casting: 'транспорт ще творить попереднє заклинання',
   'no path': 'туди не дійти',
   'priest unavailable': 'жрець недоступний або не може туди дійти',
   'target not incapacitated': 'жрець ще не знерухомлений',
@@ -34,6 +35,8 @@ const COMMANDS: Record<string, string> = {
   capturePriest: 'Захоплення',
   salvage: 'Розбирання',
   meltdown: 'Meltdown',
+  takeSpell: 'Обеліск',
+  castSpell: 'Заклинання',
 };
 
 export type Tone = 'good' | 'bad' | 'info';
@@ -79,6 +82,17 @@ export function describeEvent(
       return mine
         ? { text: `Розібрано ${name(event.data.type)}: +${event.data.refund}`, tone: 'info' }
         : null;
+    case 'spell':
+      return mine
+        ? { text: `Транспорт здобув заклинання ${name(event.data.spell)}`, tone: 'good' }
+        : null;
+    case 'cast':
+      return {
+        text: `${mine ? 'Ви застосували' : `${player(event.who)} застосовує`} ${
+          name(event.data.spell)
+        }`,
+        tone: mine ? 'info' : 'bad',
+      };
     case 'delivered':
       return mine ? { text: 'Кристал доставлено до Храму', tone: 'good' } : null;
     case 'captured':

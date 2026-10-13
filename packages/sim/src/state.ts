@@ -426,6 +426,10 @@ export interface Building {
   rising: number;
   /** The Priest who has to walk up before construction starts; null once it has. */
   builder: number | null;
+  /** Ticks of Paralysis left: it neither moves nor shoots meanwhile. */
+  paralyzed: number;
+  /** Ticks of Invisibility left: nothing can target it or pick it up meanwhile. */
+  invisible: number;
 }
 export interface Transport {
   id: number;
@@ -439,10 +443,18 @@ export interface Transport {
   carrying: number | null; // crystal id, or the enemy priest being carried to the altar
   path: [number, number][]; // remaining cells to walk
   move: number; // movement accumulator (×100)
-  goal: 'idle' | 'collect' | 'pickup' | 'home' | 'capture' | 'altar';
+  goal: 'idle' | 'collect' | 'pickup' | 'home' | 'capture' | 'altar' | 'obelisk';
   /** Geyser being mined (kept through 'home' so the transport loops), the crystal or priest to pick
-   * up, or the altar the captive is carried to. */
+   * up, the altar the captive is carried to, or the Obelisk it goes to for a Spell. */
   target: number | null;
+  /** The Spell it has acquired, a unit type; "each transport can possess one Spell". */
+  spell: string | null;
+  /** Ticks until the Spell it is casting goes off; it stands still meanwhile. 0: not casting. */
+  casting: number;
+  /** Ticks of Paralysis left: it neither moves nor shoots meanwhile. */
+  paralyzed: number;
+  /** Ticks of Invisibility left: nothing can target it or pick it up meanwhile. */
+  invisible: number;
 }
 export interface Priest {
   id: number;
@@ -465,6 +477,10 @@ export interface Priest {
   goal: 'idle' | 'collect' | 'pickup' | 'home' | 'build';
   /** Geyser he mines, the crystal he was sent for, or the building he walks to to construct. */
   target: number | null;
+  /** Ticks of Paralysis left: it neither moves nor shoots meanwhile. */
+  paralyzed: number;
+  /** Ticks of Invisibility left: nothing can target it or pick it up meanwhile. */
+  invisible: number;
 }
 export interface Crystal {
   id: number;
@@ -500,5 +516,19 @@ export interface Flyer {
   life: number; // ticks it has left in the air
   cooldown: number; // ticks until its next strike
   returning: boolean; // a Whirligig on its way back to refuel
+  /** Ticks of Paralysis left: it neither moves nor shoots meanwhile. */
+  paralyzed: number;
+  /** Ticks of Invisibility left: nothing can target it or pick it up meanwhile. */
+  invisible: number;
 }
-export type Entity = Building | Transport | Priest | Crystal | Geyser | Flyer;
+/** "Spells manifest in the world as Obelisks": a transport that walks up acquires its Spell. */
+export interface Obelisk {
+  id: number;
+  kind: 'obelisk';
+  x: number;
+  y: number;
+  spell: string; // unit type of the Spell
+}
+/** What has hit points and an owner, and what Spells work on. */
+export type Living = Building | Transport | Priest | Flyer;
+export type Entity = Living | Crystal | Geyser | Obelisk;

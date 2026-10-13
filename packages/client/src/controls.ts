@@ -169,6 +169,11 @@ export function createControls(options: {
         return true;
       }
 
+      if (selected.kind === 'transport' && target.kind === 'obelisk') {
+        submit({ t: 'takeSpell', player: me, transport, obelisk: target.id });
+        return true;
+      }
+
       if (selected.kind === 'transport' && target.kind === 'priest' && target.state === 'down') {
         submit({ t: 'capturePriest', player: me, transport, target: target.id });
         return true;
@@ -504,6 +509,11 @@ export function createControls(options: {
   return {
     setTool,
     drawOverlay,
+    castSelected() {
+      if (ui.selected !== null) {
+        submit({ t: 'castSpell', player: me, transport: ui.selected });
+      }
+    },
     meltdownSelected() {
       if (ui.selected !== null) {
         submit({ t: 'meltdown', player: me, target: ui.selected });

@@ -364,12 +364,18 @@ function textureKey(entity: DeepReadonly<Entity>): string {
       return 'geyser';
     case 'crystal':
       return 'nugget';
+    case 'obelisk':
+      return 'obelisk';
   }
 }
 
 function entityAlpha(entity: DeepReadonly<Entity>): number {
   if ('hp' in entity) {
-    return MIN_ALPHA + ((1 - MIN_ALPHA) * entity.hp) / entity.hpMax;
+    // An invisible unit is shown as a faint outline to everyone; hiding it from the enemy's
+    // screen is a matter for multiplayer.
+    return entity.invisible > 0
+      ? MIN_ALPHA
+      : MIN_ALPHA + ((1 - MIN_ALPHA) * entity.hp) / entity.hpMax;
   }
 
   // A depleted geyser fades out.

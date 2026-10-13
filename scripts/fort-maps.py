@@ -96,6 +96,9 @@ class Types:
             if owner is not None:
                 item["owner"] = data[rest + owner]
 
+            if name == "buried":
+                item["type"] = NAMES[data[rest] - FIRST_TYPE]  # an Obelisk: the Spell it holds
+
             return item, rest + length
 
         flags = self.flags[name.lower()]

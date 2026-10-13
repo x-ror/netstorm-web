@@ -495,15 +495,17 @@ function acquire(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt): Ent
 export function targetable(world: World, b: { owner: number; }, target: Entity): boolean {
   switch (target.kind) {
     case 'building':
-      return world.hostile(b.owner, target.owner) && target.regrow === 0;
+      return world.hostile(b.owner, target.owner) && target.regrow === 0
+        && target.invisible === 0;
     case 'priest':
-      return world.hostile(b.owner, target.owner)
+      return world.hostile(b.owner, target.owner) && target.invisible === 0
         && (target.state === 'normal' || target.state === 'down');
     case 'transport':
     case 'flyer':
-      return world.hostile(b.owner, target.owner) && target.hp > 0;
+      return world.hostile(b.owner, target.owner) && target.hp > 0 && target.invisible === 0;
     case 'crystal':
     case 'geyser':
+    case 'obelisk':
       return false;
   }
 }

@@ -54,6 +54,9 @@ const UNIT_FIELDS = [
   'airrange',
   'useairdamage',
   'airdamage',
+  'casttime',
+  'effecttime',
+  'spawns',
 ] as const;
 /** The one type flag the simulation reads. */
 const UNIT_FLAG = 'createsisland';

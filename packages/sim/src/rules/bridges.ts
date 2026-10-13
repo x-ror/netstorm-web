@@ -279,7 +279,7 @@ function jag(world: World, x: number, y: number, side: number): void {
 
 /** A bridge cell falls away. Transports on it are lost with it; a priest cannot be killed, so he is
  * left hanging in place and cannot move until bridge is laid under him again. */
-function collapse(world: World, x: number, y: number): void {
+export function collapse(world: World, x: number, y: number): void {
   const i = world.at(x, y);
   world.terrain[i] = Terrain.Sky;
   world.owner[i] = 0;

@@ -9,7 +9,9 @@ export type Command =
   | { t: 'movePriest'; player: number; x: number; y: number; }
   | { t: 'capturePriest'; player: number; transport: number; target: number; }
   | { t: 'salvage'; player: number; target: number; }
-  | { t: 'meltdown'; player: number; target: number; };
+  | { t: 'meltdown'; player: number; target: number; }
+  | { t: 'takeSpell'; player: number; transport: number; obelisk: number; }
+  | { t: 'castSpell'; player: number; transport: number; };
 
 export type CommandError =
   | 'no player'
@@ -30,6 +32,7 @@ export type CommandError =
   | 'no workshop'
   | 'cannot build'
   | 'not ready'
+  | 'casting'
   | 'no path'
   | 'priest unavailable'
   | 'target not incapacitated';
@@ -48,6 +51,8 @@ export function parseCommand(raw: unknown): Command {
     'capturePriest',
     'salvage',
     'meltdown',
+    'takeSpell',
+    'castSpell',
   ], 'command type');
   const player = integer(value.player, 'command.player', 1, MAX_PLAYERS);
 
@@ -106,6 +111,17 @@ export function parseCommand(raw: unknown): Command {
     case 'meltdown':
       keys(value, ['t', 'player', 'target'], 'command');
       return { t, player, target: integer(value.target, 'command.target', 1, MAX_ID) };
+    case 'takeSpell':
+      keys(value, ['t', 'player', 'transport', 'obelisk'], 'command');
+      return {
+        t,
+        player,
+        transport: integer(value.transport, 'command.transport', 1, MAX_ID),
+        obelisk: integer(value.obelisk, 'command.obelisk', 1, MAX_ID),
+      };
+    case 'castSpell':
+      keys(value, ['t', 'player', 'transport'], 'command');
+      return { t, player, transport: integer(value.transport, 'command.transport', 1, MAX_ID) };
     case 'capturePriest':
       keys(value, ['t', 'player', 'transport', 'target'], 'command');
       return {

@@ -190,7 +190,9 @@ export function assertWorldInvariants(world: WorldView): void {
         ) {
           fail(`building occupancy mismatch at ${cell}`);
         }
-      } else if (occupant.kind === 'geyser' || occupant.kind === 'priest') {
+      } else if (
+        occupant.kind === 'geyser' || occupant.kind === 'obelisk' || occupant.kind === 'priest'
+      ) {
         if (
           x !== occupant.x
           || y !== occupant.y
@@ -228,6 +230,7 @@ function validTransportTarget(world: WorldView, t: DeepReadonly<Transport | Prie
       return t.target === null || kind === 'geyser';
     // These targets may already be gone: a crystal delivered by someone else, a destroyed altar.
     case 'pickup':
+    case 'obelisk':
     case 'capture':
     case 'altar':
     case 'build':

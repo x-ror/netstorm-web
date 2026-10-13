@@ -26,6 +26,7 @@ const GOALS: Record<string, string> = {
   home: 'несе кристал до Храму',
   capture: 'іде по полоненого',
   altar: 'несе полоненого до Вівтаря',
+  obelisk: 'іде до обеліска',
 };
 const PRIEST_STATES: Record<string, string> = {
   normal: 'на ногах',
@@ -39,6 +40,7 @@ export interface HudActions {
   togglePause(): void;
   salvageSelected(): void;
   meltdownSelected(): void;
+  castSelected(): void;
   exit(): void;
 }
 
@@ -103,6 +105,8 @@ export function createHud(
       actions.salvageSelected();
     } else if (action === 'meltdown-selected') {
       actions.meltdownSelected();
+    } else if (action === 'cast-selected') {
+      actions.castSelected();
     } else if (action === 'pause') {
       actions.togglePause();
     } else if (action === 'exit') {
@@ -271,9 +275,27 @@ function info(world: WorldView, me: number, ui: UiState): string {
       `${GOALS[entity.goal] ?? entity.goal}${entity.carrying === null ? '' : ', з вантажем'}`,
     );
 
-    if (entity.owner === me) {
+    const spell = entity.spell === null ? undefined : world.defs.get(entity.spell);
+
+    if (spell) {
       lines.push(
-        '<span class="muted">Клацніть гейзер, кристал або знерухомленого ворожого жерця</span>',
+        `заклинання: ${escapeHtml(spell.name)}, радіус ${spell.range}${
+          entity.casting > 0 ? ` — творить, ще ${Math.ceil(entity.casting / TPS)} с` : ''
+        }`,
+      );
+    }
+
+    if (entity.owner === me) {
+      if (spell) {
+        lines.push(
+          `<button data-action="cast-selected">Застосувати ${
+            escapeHtml(spell.name)
+          } <small>${spell.cost}</small></button>`,
+        );
+      }
+
+      lines.push(
+        '<span class="muted">Клацніть гейзер, кристал, обеліск або знерухомленого ворожого жерця</span>',
       );
     }
   } else if (entity.kind === 'priest') {
@@ -312,6 +334,18 @@ function info(world: WorldView, me: number, ui: UiState): string {
     );
   } else if (entity.kind === 'geyser') {
     lines.push(entity.stock > 0 ? `запас ${entity.stock} Storm Power` : 'вичерпаний');
+  } else if (entity.kind === 'obelisk') {
+    const spell = world.defs.get(entity.spell);
+    lines.push(`${spell?.cls ?? ''}: радіус ${spell?.range}, ${spell?.cost} Storm Power за раз`);
+    lines.push('<span class="muted">Виберіть транспорт і клацніть обеліск, щоб здобути</span>');
+  }
+
+  if ('hp' in entity && entity.paralyzed > 0) {
+    lines.push(`паралізований: ще ${Math.ceil(entity.paralyzed / TPS)} с`);
+  }
+
+  if ('hp' in entity && entity.invisible > 0) {
+    lines.push(`невидимий: ще ${Math.ceil(entity.invisible / TPS)} с`);
   }
 
   if ((entity.kind === 'building' || entity.kind === 'transport') && entity.owner === me) {
@@ -381,5 +415,7 @@ export function entityName(world: WorldView, entity: DeepReadonly<Entity>): stri
       return 'Storm Geyser';
     case 'crystal':
       return `Кристал (${entity.value})`;
+    case 'obelisk':
+      return `Обеліск: ${world.defs.get(entity.spell)?.name ?? entity.spell}`;
   }
 }

@@ -30,8 +30,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 22;
-export const RULES_VERSION = 42;
+export const SNAPSHOT_VERSION = 23;
+export const RULES_VERSION = 43;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -79,6 +79,9 @@ function parseDef(raw: unknown): UnitDef {
     'airRange',
     'airDamage',
     'createsIsland',
+    'castTime',
+    'effectTime',
+    'spawns',
   ], 'definition');
   const id = text(value.id, 'definition.id');
 
@@ -107,6 +110,9 @@ function parseDef(raw: unknown): UnitDef {
     airRange: finite(value.airRange, 'definition.airRange'),
     airDamage: finite(value.airDamage, 'definition.airDamage'),
     createsIsland: boolean(value.createsIsland, 'definition.createsIsland'),
+    castTime: finite(value.castTime, 'definition.castTime'),
+    effectTime: finite(value.effectTime, 'definition.effectTime'),
+    spawns: integer(value.spawns, 'definition.spawns'),
   };
 }
 
@@ -124,8 +130,15 @@ function parsePath(raw: unknown): [number, number][] {
 
 function parseEntity(raw: unknown): Entity {
   const value = record(raw, 'entity');
-  const kind = choice(value.kind, ['building', 'transport', 'priest', 'crystal', 'geyser', 'flyer'],
-    'entity.kind');
+  const kind = choice(value.kind, [
+    'building',
+    'transport',
+    'priest',
+    'crystal',
+    'geyser',
+    'flyer',
+    'obelisk',
+  ], 'entity.kind');
   const id = integer(value.id, 'entity.id', 1, MAX_ID);
   const x = integer(value.x, 'entity.x', 0, W - 1);
   const y = integer(value.y, 'entity.y', 0, H - 1);
@@ -154,6 +167,11 @@ function parseEntity(raw: unknown): Entity {
     };
   }
 
+  if (kind === 'obelisk') {
+    keys(value, [...common, 'spell'], 'obelisk');
+    return { id, kind, x, y, spell: text(value.spell, 'obelisk.spell') };
+  }
+
   const owner = integer(value.owner, 'entity.owner', 0, MAX_PLAYERS);
   const hp = finite(value.hp, 'entity.hp');
   const hpMax = finite(value.hpMax, 'entity.hpMax');
@@ -162,7 +180,9 @@ function parseEntity(raw: unknown): Entity {
     throw new TypeError('Entity HP exceeds maximum');
   }
 
-  const living = [...common, 'owner', 'hp', 'hpMax'];
+  const living = [...common, 'owner', 'hp', 'hpMax', 'paralyzed', 'invisible'];
+  const paralyzed = integer(value.paralyzed, 'entity.paralyzed', 0);
+  const invisible = integer(value.invisible, 'entity.invisible', 0);
 
   if (kind === 'building') {
     keys(value, [
@@ -198,6 +218,8 @@ function parseEntity(raw: unknown): Entity {
       regrow: integer(value.regrow, 'building.regrow', 0),
       rising: integer(value.rising, 'building.rising', 0),
       builder: nullableId(value.builder, 'building.builder'),
+      paralyzed,
+      invisible,
     };
   }
 
@@ -233,11 +255,23 @@ function parseEntity(raw: unknown): Entity {
       life: integer(value.life, 'flyer.life'),
       cooldown: integer(value.cooldown, 'flyer.cooldown', 0),
       returning: boolean(value.returning, 'flyer.returning'),
+      paralyzed,
+      invisible,
     };
   }
 
   if (kind === 'transport') {
-    keys(value, [...living, 'type', 'carrying', 'path', 'move', 'goal', 'target'], 'transport');
+    keys(value, [
+      ...living,
+      'type',
+      'carrying',
+      'path',
+      'move',
+      'goal',
+      'target',
+      'spell',
+      'casting',
+    ], 'transport');
     return {
       id,
       kind,
@@ -250,9 +284,20 @@ function parseEntity(raw: unknown): Entity {
       carrying: nullableId(value.carrying, 'transport.carrying'),
       path: parsePath(value.path),
       move: integer(value.move, 'transport.move'),
-      goal: choice(value.goal, ['idle', 'collect', 'pickup', 'home', 'capture', 'altar'],
-        'transport.goal'),
+      goal: choice(value.goal, [
+        'idle',
+        'collect',
+        'pickup',
+        'home',
+        'capture',
+        'altar',
+        'obelisk',
+      ], 'transport.goal'),
       target: nullableId(value.target, 'transport.target'),
+      spell: value.spell === null ? null : text(value.spell, 'transport.spell'),
+      casting: integer(value.casting, 'transport.casting', 0),
+      paralyzed,
+      invisible,
     };
   }
 
@@ -287,6 +332,8 @@ function parseEntity(raw: unknown): Entity {
     carrying: nullableId(value.carrying, 'priest.carrying'),
     goal: choice(value.goal, ['idle', 'collect', 'pickup', 'home', 'build'], 'priest.goal'),
     target: nullableId(value.target, 'priest.target'),
+    paralyzed,
+    invisible,
   };
 }
 

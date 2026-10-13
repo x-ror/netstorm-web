@@ -7,6 +7,8 @@ type Payloads = {
   reward: { id: number; amount: number; };
   salvaged: { id: number; type: string; refund: number; };
   delivered: { transport: number; };
+  spell: { transport: number; spell: string; };
+  cast: { transport: number; spell: string; };
   captured: { priest: number; };
   chained: { priest: number; altar: number; };
   rune: { priest: number; runes: number; };

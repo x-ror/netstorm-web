@@ -1,6 +1,7 @@
 import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
 import { flies } from '../defs.js';
+import { arriveAtObelisk, cast } from './spells.js';
 import { arriveAtAltar, arriveAtPriest, releasePriest, takeCaptive } from './capture.js';
 import { TPS, CRYSTAL_VALUE, Terrain, type Transport, type Priest, type Geyser } from '../state.js';
 
@@ -148,6 +149,12 @@ export function tickTransport(world: World, t: Transport): void {
     return;
   }
 
+  // "Once you cast the Spell, your Transport will halt in place until the Spell is cast."
+  if (t.casting > 0) {
+    cast(world, t);
+    return;
+  }
+
   advance(world, t, world.def(t.type).speed);
   mend(world, t);
 
@@ -163,7 +170,9 @@ export function tickTransport(world: World, t: Transport): void {
     return;
   }
 
-  if (t.goal === 'capture') {
+  if (t.goal === 'obelisk') {
+    arriveAtObelisk(world, t);
+  } else if (t.goal === 'capture') {
     arriveAtPriest(world, t);
   } else if (t.goal === 'altar') {
     arriveAtAltar(world, t);

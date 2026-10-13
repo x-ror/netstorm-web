@@ -87,6 +87,7 @@ export function capturePriest(
     || !p
     || p.kind !== 'priest'
     || !world.hostile(p.owner, c.player)
+    || p.invisible > 0 // "nothing can be targeted or picked up while it is invisible"
   ) {
     return 'bad target';
   }

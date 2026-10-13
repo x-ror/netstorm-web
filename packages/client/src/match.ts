@@ -85,6 +85,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     togglePause,
     salvageSelected: () => controls.salvageSelected(),
     meltdownSelected: () => controls.meltdownSelected(),
+    castSelected: () => controls.castSelected(),
     exit: () => leave?.(),
   });
   const controls = createControls({

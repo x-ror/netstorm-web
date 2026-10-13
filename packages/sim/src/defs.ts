@@ -64,6 +64,9 @@ export interface UnitDef {
   /** May be laid in open sky off the end of a bridge, on an islet of its own (`createsisland`).
    * Temples, Workshops and Altars may not: they need the ground of an island. */
   createsIsland: boolean;
+  castTime: number; // s a transport stands still casting this Spell
+  effectTime: number; // s the Spell's effect lasts (Invisibility, Paralysis)
+  spawns: number; // flyers a Summons Spell calls up
 }
 
 export type DefTable = Map<string, UnitDef>;
@@ -121,6 +124,9 @@ export function loadDefs(raw: unknown): DefTable {
       airDamage: num(r.useairdamage) ? num(r.airdamage) : 0,
       createsIsland: Array.isArray(r.flags)
         && r.flags.some((flag) => String(flag).toLowerCase() === 'createsisland'),
+      castTime: num(r.casttime),
+      effectTime: num(r.effecttime),
+      spawns: num(r.spawns),
     });
   }
 

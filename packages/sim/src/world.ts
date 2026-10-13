@@ -36,6 +36,7 @@ import { energy, canBuild, build, meltdown, salvage } from './rules/building.js'
 import { tickTransport, collect, pickupCrystal } from './rules/movement.js';
 import { tickPriest, movePriest } from './rules/priest.js';
 import { capturePriest } from './rules/capture.js';
+import { castSpell, spellbound, takeSpell } from './rules/spells.js';
 import { Pathfinder, airPath } from './spatial/pathfinding.js';
 import { CellIndex } from './cell-index.js';
 import { Rng } from './rng.js';
@@ -54,6 +55,7 @@ import {
   type Priest,
   type Crystal,
   type Geyser,
+  type Obelisk,
   type Flyer,
   type Entity,
   type Facing,
@@ -228,6 +230,14 @@ export class World {
     return g;
   }
 
+  /** An Obelisk holding a Spell. It stands on the ground that is there. */
+  addObelisk(x: number, y: number, spell: string): Obelisk {
+    const o: Obelisk = { id: this.nextId++, kind: 'obelisk', x, y, spell: this.def(spell).id };
+    this.entities.set(o.id, o);
+    this.occupant[y * W + x] = o.id;
+    return o;
+  }
+
   addPriest(owner: number, x: number, y: number): Priest {
     const p: Priest = {
       id: this.nextId++,
@@ -247,6 +257,8 @@ export class World {
       carrying: null,
       goal: 'idle',
       target: null,
+      paralyzed: 0,
+      invisible: 0,
     };
     this.entities.set(p.id, p);
     this.occupant[y * W + x] = p.id;
@@ -275,6 +287,8 @@ export class World {
       regrow: 0,
       rising: 0,
       builder: null,
+      paralyzed: 0,
+      invisible: 0,
     };
     this.entities.set(b.id, b);
     this.forFoot(b, (i) => {
@@ -299,6 +313,10 @@ export class World {
       move: 0,
       goal: 'idle',
       target: null,
+      spell: null,
+      casting: 0,
+      paralyzed: 0,
+      invisible: 0,
     };
     this.entities.set(t.id, t);
     return t; // transports do not block cells
@@ -513,6 +531,10 @@ export class World {
         return salvage(this, c);
       case 'meltdown':
         return meltdown(this, c);
+      case 'takeSpell':
+        return takeSpell(this, c);
+      case 'castSpell':
+        return castSpell(this, c);
     }
   }
 
@@ -553,6 +575,10 @@ export class World {
         continue;
       }
 
+      if ('hp' in e && spellbound(e)) {
+        continue;
+      }
+
       if (e.kind === 'transport') {
         this.tickTransport(e);
       } else if (e.kind === 'priest') {
@@ -565,11 +591,13 @@ export class World {
     }
   }
 
-  /** Internal rule hook: an air base sends up its flyer. */
-  spawnFlyer(type: string, owner: number, base: Building): Flyer {
+  /** Internal rule hook: a flyer goes up over the middle of what sent it, an air base or the
+   * transport whose Spell summoned it. Only a base is a home to go back to. */
+  spawnFlyer(type: string, owner: number, from: Building | Transport): Flyer {
     const def = this.def(type);
-    const px = base.x * FLYER_SCALE + (base.fx * FLYER_SCALE) / 2;
-    const py = base.y * FLYER_SCALE + (base.fy * FLYER_SCALE) / 2;
+    const [fx, fy] = from.kind === 'building' ? [from.fx, from.fy] : [1, 1];
+    const px = from.x * FLYER_SCALE + (fx * FLYER_SCALE) / 2;
+    const py = from.y * FLYER_SCALE + (fy * FLYER_SCALE) / 2;
     const f: Flyer = {
       id: this.nextId++,
       kind: 'flyer',
@@ -582,13 +610,15 @@ export class World {
       // The Dust Devil has no hit points in its data: nothing can shoot it down.
       hp: def.hp || 1,
       hpMax: def.hp || 1,
-      home: base.id,
+      home: from.kind === 'building' ? from.id : null,
       hx: px,
       hy: py,
       target: null,
       life: flightTicks(def),
       cooldown: 0,
       returning: false,
+      paralyzed: 0,
+      invisible: 0,
     };
     this.entities.set(f.id, f);
     return f;
@@ -635,6 +665,7 @@ export class World {
       occ
       && (occ.kind === 'building' || occ.kind === 'priest')
       && this.hostile(me, occ.owner)
+      && occ.invisible === 0
       && !(occ.kind === 'building' && occ.regrow > 0)
     ) {
       return occ;
@@ -646,7 +677,7 @@ export class World {
       for (const transport of transports) {
         // An Aerial Transport is not found on the ground: only what shoots at the air sees it.
         if (
-          this.hostile(me, transport.owner) && transport.hp > 0
+          this.hostile(me, transport.owner) && transport.hp > 0 && transport.invisible === 0
           && this.entities.has(transport.id)
           && !flies(this.def(transport.type))
         ) {

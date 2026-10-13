@@ -4,6 +4,7 @@ import { GEYSER_ISLAND_SIZE, World } from './world.js';
 import type { DefTable, Theme, UnitDef } from './defs.js';
 import { growIslands, type IslandSpec } from './terrain.js';
 import { skirmishTech, type SkirmishOptions, applyOptions } from './scenario.js';
+import { isSpell } from './rules/spells.js';
 import { LINK_ALL, Terrain, W, type Facing } from './state.js';
 
 /** A map as the original stores it. Positions are the far (south-east) cell of a footprint. */
@@ -236,6 +237,13 @@ function freeNear(w: World, x: number, y: number): [number, number] | null {
 }
 
 function place(w: World, [type, owner, x, y, frame]: MissionMap['units'][number]): void {
+  // An Obelisk is saved as the Spell it holds, whoever the file says it belongs to.
+  if (isSpell(type) && w.inside(x, y) && !w.occupant[w.at(x, y)]) {
+    islet(w, x, y, 1, 1, 0);
+    w.addObelisk(x, y, type);
+    return;
+  }
+
   if (!w.players.has(owner) || !w.inside(x, y)) {
     return; // scenery and things of nobody are not modelled
   }
