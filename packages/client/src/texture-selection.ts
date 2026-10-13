@@ -25,7 +25,8 @@ export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]>
   ['suncannon:1', 'suncannon', 'scannon', 5],
   ['suncannon:2', 'suncannon', 'scannon', 0],
   ['suncannon:3', 'suncannon', 'scannon', 14],
-  ['sunarcher', 'sunarcher', 'f'],
+  // The base of the Disc Thrower; its arm is a set of small frames of its own, not drawn yet.
+  ['sunarcher', 'sunarcher', 'sarcher', 0],
   // The whole-body frame of each facing (N, E, S, W); the other frames of the set are small
   // overlays of the charging animation.
   ['thundercannon:0', 'thundercannon', 'tcannon', 19],
