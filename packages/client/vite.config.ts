@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import { TEXTURES, parsePath, selectFrame, type Manifest } from './src/texture-selection.js';
 import { mapsOf, slimMaps, slimMissions, slimUnits } from './src/game-data.js';
+import { buildAtlas } from './atlas.js';
 
 function readData(name: string): unknown {
   return JSON.parse(readFileSync(new URL(`../../data/${name}.json`, import.meta.url), 'utf8'));
@@ -19,58 +20,73 @@ function gameData(): Record<string, unknown> {
   };
 }
 
-/** Ship only frames loaded by the scene. Keep the complete extraction in public for development. */
+/** The atlases of the frames the scene loads, packed once. The complete extraction stays in
+ * `public` as their source and is never served as it is. */
+let packed: ReturnType<typeof buildAtlas> | undefined;
+
+function atlases(): ReturnType<typeof buildAtlas> {
+  if (packed) {
+    return packed;
+  }
+
+  const manifest: Manifest = JSON.parse(
+    readFileSync(new URL('./public/data/sprites.json', import.meta.url), 'utf8'),
+  );
+  const wanted = new Map<string, { file: string; offset?: [number, number]; }>();
+
+  for (const [key, type, gif, frame] of TEXTURES) {
+    const entry = selectFrame(manifest, type, gif, frame);
+
+    if (!entry) {
+      continue; // some original definitions have no extracted frames
+    }
+
+    const found = parsePath(entry[1]);
+
+    if (!found.file.startsWith('sprites/') || found.file.split('/').includes('..')) {
+      throw new Error(`Invalid sprite path: ${found.file}`);
+    }
+
+    wanted.set(key, found);
+  }
+
+  packed = buildAtlas(wanted, (file) => readFileSync(new URL(`./public/${file}`, import.meta.url)));
+  return packed;
+}
+
 function gameAssets(): Plugin {
   return {
     name: 'netstorm-game-assets',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const path = req.url?.split('?')[0];
-        const name = /^\/data\/(units|maps|missions)\.json$/.exec(path ?? '')?.[1];
+        const path = (req.url?.split('?')[0] ?? '').replace(/^\//, '');
+        const name = /^data\/(units|maps|missions)\.json$/.exec(path)?.[1];
 
-        if (!name) {
-          return next();
+        if (name) {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(gameData()[name]));
+        } else if (path === 'data/sprites.json') {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(atlases().atlas));
+        } else if (atlases().files.has(path)) {
+          res.setHeader('Content-Type', 'image/png');
+          res.end(atlases().files.get(path));
+        } else {
+          next();
         }
-
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify(gameData()[name]));
       });
     },
     generateBundle() {
-      const manifest: Manifest = JSON.parse(
-        readFileSync(new URL('./public/data/sprites.json', import.meta.url), 'utf8'),
-      );
-      const selected: Manifest = {};
-      const files = new Set<string>();
+      const { atlas, files } = atlases();
 
-      for (const [, type, gif, frame] of TEXTURES) {
-        const entry = selectFrame(manifest, type, gif, frame);
-
-        if (!entry) {
-          continue;
-        }
-
-        const [index, file] = entry;
-        ((selected[type] ??= {})[gif] ??= {})[index] = file;
-        files.add(parsePath(file).file);
-      }
-
-      for (const file of files) {
-        if (!file.startsWith('sprites/') || file.split('/').includes('..')) {
-          throw new Error(`Invalid sprite path: ${file}`);
-        }
-
-        this.emitFile({
-          type: 'asset',
-          fileName: file,
-          source: readFileSync(new URL(`./public/${file}`, import.meta.url)),
-        });
+      for (const [fileName, source] of files) {
+        this.emitFile({ type: 'asset', fileName, source });
       }
 
       this.emitFile({
         type: 'asset',
         fileName: 'data/sprites.json',
-        source: JSON.stringify(selected),
+        source: JSON.stringify(atlas),
       });
 
       for (const [name, data] of Object.entries(gameData())) {

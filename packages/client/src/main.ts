@@ -1,5 +1,5 @@
 import { loadDefs } from '@netstorm/sim';
-import { loadTextures, type Manifest } from './assets.js';
+import { loadTextures, type Atlas } from './assets.js';
 import { type Maps, type Mission } from './game-data.js';
 import { showMenu } from './menu.js';
 import { runMatch } from './match.js';
@@ -9,7 +9,7 @@ async function main() {
     fetchJson<unknown>('data/units.json'),
     fetchJson<Maps>('data/maps.json'),
     fetchJson<Mission[]>('data/missions.json'),
-    fetchJson<Manifest>('data/sprites.json'),
+    fetchJson<Atlas>('data/sprites.json'),
   ]);
   const data = {
     defs: loadDefs(unitsRaw),
