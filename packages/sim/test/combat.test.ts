@@ -895,3 +895,30 @@ test('a Meltdown costs the Generator, hurts the enemy beside it and breaks the b
   assert.equal(own.hp, own.hpMax);
   assert.equal(world.terrain[world.at(35, 40)], 0);
 });
+
+const lost = (b: { hp: number; hpMax: number; }) => b.hpMax - b.hp;
+
+test('an Ice Cannon throws ricochets to the side that take their share of its damage', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'rain', 0, []);
+  world.addPlayer(2, 'Red', 'wind', 0, []);
+  world.addIsland(0, 0, 120, 100, 1);
+  world.spawnBuilding('raincannon', 1, 40, 38, 1);
+  const target = world.spawnBuilding('thunderblocker', 2, 50, 39);
+  // Five cells to either side of the line of fire, the cannon's own unit among them.
+  const beside = [44, 46, 48, 50, 52, 54].flatMap((x) => [
+    world.spawnBuilding('sunblocker', x === 50 ? 1 : 2, x, 33),
+    world.spawnBuilding('sunblocker', 2, x, 44),
+  ]);
+  const floater = world.spawnTransport('rainballoon', 2, 50, 44);
+
+  for (let i = 0; i < 20 * TPS; i++) {
+    world.step();
+  }
+
+  const strayed = beside.reduce((sum, b) => sum + lost(b), 0);
+  assert.ok(strayed > 0 && lost(target) > strayed);
+  assert.equal(floater.hp, floater.hpMax);
+  // The stream is one: every shot is 4, whole or split in two.
+  assert.equal((lost(target) + strayed) % 4, 0);
+});

@@ -21,6 +21,7 @@ import {
   type Facing,
   OUTPOST,
   W,
+  type Living,
 } from '../state.js';
 
 export type EnemyAt = (owner: number, x: number, y: number) => Entity | null;
@@ -138,9 +139,80 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
   }
 
   // A shot into a hostile force field is spent on it.
-  if (!fieldStops(world, b, target)) {
-    damage(world, b.owner, target, amount, b);
+  if (fieldStops(world, b, target)) {
+    return;
   }
+
+  // The gun's damage runs at one rate whatever its shots hit, so what a ricochet strikes is taken
+  // out of the same stream. Here the shot is split in two; in the original the split follows the
+  // moments the two land (`?`).
+  const other = b.type === ICE_CANNON ? ricochet(world, b, target) : null;
+  damage(world, b.owner, target, other ? amount / 2 : amount, b);
+
+  if (other) {
+    damage(world, world.hostile(b.owner, other.owner) ? b.owner : 0, other, amount / 2);
+  }
+}
+
+const ICE_CANNON = 'raincannon';
+/* oxlint-disable no-magic-numbers -- the odds and angles of Missile.cpp in netstorm.game 10.82 */
+/** Out of a hundred hits of an Ice Cannon, those that throw a ricochet. */
+const RICOCHET_CHANCE = 80;
+/**
+ * Where a ricochet lands when the shot flew north and it glances off to the east: five cells
+ * (`range` of rainCannonMissile.type) from the hit, 30 to 150 degrees off the line of fire. The
+ * original draws the angle as a real number; these are its 15-degree steps in whole cells.
+ */
+const RICOCHET_SPOTS: ReadonlyArray<readonly [number, number]> = [
+  [3, -4],
+  [4, -4],
+  [4, -3],
+  [5, -1],
+  [5, 0],
+  [5, 1],
+  [4, 3],
+  [4, 4],
+  [3, 4],
+];
+/* oxlint-enable no-magic-numbers */
+
+/**
+ * "Its artillery fire splinters into shrapnel on impact, damaging other nearby targets." Four hits
+ * in five throw one ricochet to a spot beside the line of fire; it strikes the unit nearest to
+ * that spot, within a cell of it, whoever owns it, but neither an air unit nor the unit just hit.
+ */
+function ricochet(world: World, b: Building, target: Entity): Living | null {
+  if (world.rng.int(PER_CENT) >= RICOCHET_CHANCE) {
+    return null;
+  }
+
+  const [right, ahead] = RICOCHET_SPOTS[world.rng.int(RICOCHET_SPOTS.length)]!;
+  const side = world.rng.int(2) === 0 ? 1 : -1;
+  const [fx, fy] = DIRS[b.facing]!;
+  const [cx, cy] = centre2(target);
+  // Forward is (fx, fy); to its right is (-fy, fx).
+  const x = Math.floor(cx / 2) - ahead * fx - side * right * fy;
+  const y = Math.floor(cy / 2) - ahead * fy + side * right * fx;
+  let best: Living | null = null;
+  let nearest = Infinity;
+
+  // ponytail: scans every entity for each hit; index by cell if Ice Cannons get many.
+  for (const e of world.entities.values()) {
+    if (!('hp' in e) || e.id === target.id || e.hp <= 0 || airborne(world, e)) {
+      continue;
+    }
+
+    const [w, h] = e.kind === 'building' ? [e.fx, e.fy] : [1, 1];
+    const far = Math.max(e.x - x, x - (e.x + w - 1), e.y - y, y - (e.y + h - 1), 0);
+    const held = e.kind === 'priest' && (e.state === 'carried' || e.state === 'chained');
+
+    if (!held && far <= 1 && far < nearest) {
+      best = e;
+      nearest = far;
+    }
+  }
+
+  return best;
 }
 
 /* oxlint-disable no-magic-numbers -- timings and amounts read from the original */
