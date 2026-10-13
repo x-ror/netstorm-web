@@ -32,7 +32,7 @@ import {
   type Burst,
 } from './effects.js';
 import { hotSpots } from './assets.js';
-import type { Sounds } from './sound.js';
+import { unitSound, type Sounds } from './sound.js';
 
 const SPRITE_ANCHOR_X = 0.5;
 const UNIT_ANCHOR_Y = 0.85; // a unit's feet sit a little above the bottom of its frame
@@ -271,6 +271,47 @@ export function createWorldRenderer(
   const holding = new Set<number>();
   entityLayer.sortableChildren = true;
 
+  /** What each unit was doing a tick ago, to hear it start: walking, carrying, being built. */
+  const walking = new Set<number>();
+  const laden = new Set<number>();
+  const rising = new Set<number>();
+
+  /** Play what a unit starts to do: a transport sets off or takes something up, a building is
+   * finished. The sounds are those of its .type file; a building without one of its own gets the
+   * original's "buildDone" (ours). */
+  function listen(entity: DeepReadonly<Entity>): void {
+    const at = centres.get(entity.id);
+
+    if (entity.kind === 'building') {
+      if (entity.rising > 0) {
+        rising.add(entity.id);
+      } else if (rising.delete(entity.id)) {
+        sounds.play(unitSound(sounds.index, entity.type, 'built') ?? 'builddone', at);
+      }
+
+      return;
+    }
+
+    if (entity.kind !== 'transport' && entity.kind !== 'priest') {
+      return;
+    }
+
+    const type = entity.kind === 'priest' ? 'priest' : entity.type;
+    const turn = (was: Set<number>, now: boolean, what: 'move' | 'pickup') => {
+      if (now && !was.has(entity.id)) {
+        sounds.unit(type, what, at);
+      }
+
+      if (now) {
+        was.add(entity.id);
+      } else {
+        was.delete(entity.id);
+      }
+    };
+    turn(walking, entity.path.length > 0, 'move');
+    turn(laden, entity.carrying !== null, 'pickup');
+  }
+
   /**
    * Show, hide or move a picture that goes with an entity's own on the same hot spot: one laid
    * over it (the whirl of a Temple) or its shadow under it.
@@ -364,6 +405,7 @@ export function createWorldRenderer(
 
       sprite.visible = true;
       centres.set(entity.id, middle(entity));
+      listen(entity);
       // Large things stand on the bottom edge of their footprint, units on the middle of their cell.
       const foot = footprintOf(entity);
       const { sx, sy } = foot
@@ -398,6 +440,9 @@ export function createWorldRenderer(
         cooldowns.delete(id);
         widths.delete(id);
         centres.delete(id);
+        walking.delete(id);
+        laden.delete(id);
+        rising.delete(id);
         headings.delete(id);
         scene.aims.delete(id);
 
@@ -599,7 +644,7 @@ export function createWorldRenderer(
 
   /** Send off what a shooter throws: its missile, a bolt of lightning, or a plain streak. */
   function shoot(shooter: string, from: Point, to: Point): void {
-    sounds.unit(shooter, 'fire');
+    sounds.unit(shooter, 'fire', from);
     const missile = MISSILES[shooter];
     const first = missile ? textures.get(`slot:${missile.type}:0`) : undefined;
 
@@ -636,7 +681,7 @@ export function createWorldRenderer(
       return;
     }
 
-    sounds.play('thundercrack');
+    sounds.play('thundercrack', to);
     const sprite = entityLayer.addChild(new Sprite(lightning));
     sprite.anchor.set(0, SPRITE_ANCHOR_X);
     sprite.position.set(from.x, from.y);
@@ -657,9 +702,10 @@ export function createWorldRenderer(
       if (done >= 1 || !texture || !spot) {
         const blast = MISSILES[shooter]!.blast;
         // The game picks one of the Ice Cannon's impact sounds at random; here by the tick.
-        sounds.play(shooter === 'raincannon'
-          ? `icecannonimpact${1 + (world.tick % ICE_IMPACTS)}`
-          : undefined);
+        sounds.play(
+          shooter === 'raincannon' ? `icecannonimpact${1 + (world.tick % ICE_IMPACTS)}` : undefined,
+          to,
+        );
 
         if (blast) {
           burst(blast, to, AIR_Z);
@@ -690,6 +736,7 @@ export function createWorldRenderer(
 
     if (target && at) {
       burst(explosionFor(widths.get(id) ?? 1), at, target.zIndex + 1);
+      sounds.play('explosion', at);
     }
   }
 

@@ -16,6 +16,7 @@ import {
 } from '@netstorm/sim';
 import { project, TW, TH } from './projection.js';
 import { hotSpots } from './assets.js';
+import type { Sounds } from './sound.js';
 import { bridgeSlot } from './texture-selection.js';
 import { cellAt, zoomAt } from './camera.js';
 import { anchorFor, entityAt, hasFacing, type Tool, type UiState } from './ui-state.js';
@@ -86,11 +87,12 @@ export function createControls(options: {
   ghost: Container;
   textures: ReadonlyMap<string, Texture>;
   submit: (command: Command) => void;
+  sounds: Sounds;
   /** Called after the interface state changed and the panels should be redrawn. */
   changed: () => void;
   togglePause: () => void;
 }) {
-  const { world, me, ui, app, camera, overlay, ghost, textures, submit, changed } = options;
+  const { world, me, ui, app, camera, overlay, ghost, textures, submit, changed, sounds } = options;
   const abort = new AbortController();
   const signal = abort.signal;
 
@@ -152,6 +154,7 @@ export function createControls(options: {
     }
 
     ui.selected = target?.id ?? null;
+    sounds.play(target ? 'select' : undefined);
     changed();
     drawOverlay();
   }
@@ -342,6 +345,7 @@ export function createControls(options: {
       ev.preventDefault();
     } else if (key === 'r' || key === 'к') {
       ui.rot = (ui.rot + 1) & ROTATION_MASK;
+      sounds.play('rotatepiece');
     } else if (key === 'f' || key === 'а') {
       ui.facing = ((ui.facing + 1) & ROTATION_MASK) as Facing;
     } else if (key === 'escape') {

@@ -24,7 +24,7 @@ import { createWorldRenderer } from './renderer.js';
 import { createControls } from './controls.js';
 import { createHud } from './hud.js';
 import type { Atlas } from './assets.js';
-import type { Sounds } from './sound.js';
+import { loudness, type Sounds } from './sound.js';
 import { createMinimap } from './minimap.js';
 import { describeEvent } from './messages.js';
 import { centerOn } from './camera.js';
@@ -53,6 +53,12 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const commands: Command[] = [];
   const ui = createUiState();
   ui.muted = data.sounds.muted; // the choice outlives a match
+  // A sound is as loud as its place is near the middle of the screen, measured on the map.
+  data.sounds.heard = (at) =>
+    loudness(
+      Math.hypot(at.x - (window.innerWidth / 2 - camera.x) / camera.scale.x,
+        at.y - (window.innerHeight / 2 - camera.y) / camera.scale.y),
+    );
 
   const app = new Application();
   await app.init({
@@ -122,6 +128,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     ghost,
     textures: data.textures,
     submit: (command) => commands.push(command),
+    sounds: data.sounds,
     changed: () => hud.render(),
     togglePause,
   });
@@ -149,8 +156,6 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     const { sounds } = data;
 
     switch (event.what) {
-      case 'destroyed':
-        return sounds.play('explosion');
       case 'bridge':
         return sounds.play(mine ? 'droppiece' : undefined);
       case 'build':

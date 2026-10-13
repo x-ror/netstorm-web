@@ -16,7 +16,7 @@ import {
 } from '../src/texture-selection.js';
 import { SLOT_COUNTS, heading, overlayOf, shadowOf, slotOf } from '../src/animations.js';
 import { MISSILES, SPELL_BURSTS, explosionFor, missileSlot } from '../src/effects.js';
-import { unitSound, type SoundIndex } from '../src/sound.js';
+import { loudness, unitSound, type SoundIndex } from '../src/sound.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
 
@@ -492,9 +492,22 @@ test('units sound as their .type files say, and every sound named is shipped', (
   assert.equal(unitSound(index, 'sunblocker', 'fire'), undefined);
   // "thunderCannon-1000.wav" is the Thunder Cannon's shot, ten decibels down.
   assert.deepEqual(index.files.thundercannon, ['sounds/thundercannon.wav', 0.316]);
+  // A sound is heard in full near the middle of the screen and fades, never quite to nothing.
+  assert.deepEqual([0, 320, 800, 5000].map(loudness), [1, 1, 0.5, 0.08]);
   const named = Object.values(index.units).flatMap((sounds) => Object.values(sounds));
 
-  for (const name of [...named, 'explosion', 'thundercrack', 'icecannonimpact4', 'droppiece']) {
+  for (
+    const name of [
+      ...named,
+      'explosion',
+      'thundercrack',
+      'icecannonimpact4',
+      'droppiece',
+      'builddone',
+      'select',
+      'rotatepiece',
+    ]
+  ) {
     const file = index.files[name!];
     assert.ok(file && existsSync(new URL(`../public/${file[0]}`, import.meta.url)), name);
   }
