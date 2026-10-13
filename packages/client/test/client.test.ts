@@ -5,7 +5,8 @@ import { loadDefs } from '@netstorm/sim';
 import { mapsOf, outcome, reflow, slimMaps, slimMissions } from '../src/game-data.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS } from '../src/menu.js';
-import { FACING_FRAMES, SKY, TEXTURES, shoreFrame } from '../src/texture-selection.js';
+import { FACING_FRAMES, SKY, TEXTURES, parsePath, shoreFrame } from '../src/texture-selection.js';
+import { SLOT_COUNTS, heading, slotOf } from '../src/animations.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
 
@@ -218,4 +219,53 @@ test('every unit that faces a way has a frame for each of the four, in the shipp
   }, [], { ...DEFAULT_OPTIONS, mission: 'test' });
   const cannon = world.buildingsOf(ME).find((b) => b.type === 'raincannon');
   assert.equal(cannon?.facing, 2);
+});
+
+test('animated entities show a slot of their type for the tick', () => {
+  const manifest = read('../packages/client/public/data/sprites') as Record<
+    string,
+    Record<string, Record<string, string>>
+  >;
+
+  // Every slot the animations may ask for is shipped, with the offset of its picture.
+  for (const [type, count] of Object.entries(SLOT_COUNTS)) {
+    for (let slot = 0; slot < count; slot++) {
+      assert.ok(parsePath(manifest[type]!['@']![slot]!).offset, `${type} ${slot}`);
+    }
+  }
+
+  assert.deepEqual(parsePath('sprites/a/b.png#-5,-24'), {
+    file: 'sprites/a/b.png',
+    offset: [-5, -24],
+  });
+  assert.deepEqual(parsePath('sprites/a/b.png'), { file: 'sprites/a/b.png' });
+  assert.deepEqual([heading(0, -1), heading(1, 1), heading(-1, 0), heading(0, 0)], [
+    0,
+    3,
+    6,
+    undefined,
+  ]);
+
+  const world = skirmish();
+  const headings = new Map<number, number>();
+  const golem = world.spawnTransport('sunwalker', ME, 40, 40);
+  // Standing, the Golem shows the default frame of its file; walking east, the frames of group C.
+  assert.deepEqual(slotOf(golem, 3, headings), ['sunwalker', 5]);
+
+  golem.path = [[golem.x + 1, golem.y]];
+
+  assert.deepEqual(slotOf(golem, 3, headings), ['sunwalker', 2 * 8 + 3]);
+
+  golem.path = [];
+
+  assert.deepEqual(slotOf(golem, 4, headings), ['sunwalker', 2 * 8]); // stands as it stopped
+  const geyser = [...world.entities.values()].find((e) => e.kind === 'geyser')!;
+  assert.deepEqual(slotOf(geyser, 50, headings), ['geyser', 1]);
+
+  if (geyser.kind === 'geyser') {
+    geyser.stock = 0;
+  }
+
+  assert.deepEqual(slotOf(geyser, 50, headings), ['geyser', 49]);
+  assert.equal(slotOf(world.templeOf(ME)!, 1, headings), null);
 });

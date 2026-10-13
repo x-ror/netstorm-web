@@ -19,6 +19,8 @@ import {
   shoreFrame,
 } from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
+import { slotOf } from './animations.js';
+import { hotSpots } from './assets.js';
 
 const SPRITE_ANCHOR_X = 0.5;
 const UNIT_ANCHOR_Y = 0.85; // a unit's feet sit a little above the bottom of its frame
@@ -189,6 +191,8 @@ export function createWorldRenderer(
   const cooldowns = new Map<number, number>();
   const explosions: { sprite: Sprite; start: number; }[] = [];
   const widths = new Map<number, number>(); // footprint width in cells, kept for the explosion
+  /** Which way each walker last went (animations.ts). */
+  const headings = new Map<number, number>();
   entityLayer.sortableChildren = true;
 
   function syncEntities() {
@@ -196,8 +200,9 @@ export function createWorldRenderer(
 
     for (const entity of world.entities.values()) {
       let sprite = sprites.get(entity.id);
-      const key = textureKey(entity);
-      const texture = textures.get(key);
+      const slot = slotOf(entity, world.tick, headings);
+      const texture = (slot ? textures.get(`slot:${slot[0]}:${slot[1]}`) : undefined)
+        ?? textures.get(textureKey(entity));
 
       if (!sprite) {
         if (texture) {
@@ -219,6 +224,19 @@ export function createWorldRenderer(
         sprite.texture = texture;
       }
 
+      // A slot is drawn about the hot spot of its frame: the far corner of a footprint, the
+      // middle of the cell of a unit. Other pictures stand on the bottom edge of their place.
+      const spot = sprite instanceof Sprite ? hotSpots.get(sprite.texture) : undefined;
+      const bySpot = spot !== undefined;
+
+      if (sprite instanceof Sprite) {
+        if (spot) {
+          sprite.anchor.set(spot.x, spot.y);
+        } else {
+          sprite.anchor.set(SPRITE_ANCHOR_X, footprintOf(entity) ? 1 : UNIT_ANCHOR_Y);
+        }
+      }
+
       if (entity.kind === 'crystal' && entity.carriedBy !== null) {
         sprite.visible = false;
         continue;
@@ -228,7 +246,7 @@ export function createWorldRenderer(
       // Large things stand on the bottom edge of their footprint, units on the middle of their cell.
       const foot = footprintOf(entity);
       const { sx, sy } = foot
-        ? project(foot.x + foot.w / 2, foot.y + foot.h)
+        ? project(foot.x + (bySpot ? foot.w : foot.w / 2), foot.y + foot.h)
         : unitSpot(entity);
       sprite.position.set(sx, sy);
       // A flyer is drawn over everything on the ground.
@@ -248,6 +266,7 @@ export function createWorldRenderer(
         sprites.delete(id);
         cooldowns.delete(id);
         widths.delete(id);
+        headings.delete(id);
       }
     }
 

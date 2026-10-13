@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
-import { TEXTURES, selectFrame, type Manifest } from './src/texture-selection.js';
+import { TEXTURES, parsePath, selectFrame, type Manifest } from './src/texture-selection.js';
 import { mapsOf, slimMaps, slimMissions, slimUnits } from './src/game-data.js';
 
 function readData(name: string): unknown {
@@ -52,7 +52,7 @@ function gameAssets(): Plugin {
 
         const [index, file] = entry;
         ((selected[type] ??= {})[gif] ??= {})[index] = file;
-        files.add(file);
+        files.add(parsePath(file).file);
       }
 
       for (const file of files) {

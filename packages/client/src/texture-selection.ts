@@ -1,3 +1,7 @@
+import { SLOT_COUNTS } from './animations.js';
+
+/** The pseudo-gif under which the manifest lists frames by slot. */
+export const SLOT_GIF = '@';
 /** Grass tile sets of island ground by owner's Fury; `rgrass` is our guess for unowned rock. */
 export const GROUND_TILES = {
   wind: 'wigrass',
@@ -105,6 +109,10 @@ export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]>
     [`bridge:${state}`, 'bridge', 'bridge', frame] as const
   ),
   ...FACING_TEXTURES,
+  ...Object.entries(SLOT_COUNTS).flatMap(([type, count]) =>
+    Array.from({ length: count }, (_, slot) =>
+      [`slot:${type}:${slot}`, type, SLOT_GIF, slot] as const)
+  ),
   ['sunwalker', 'sunwalker', 'golem'],
   ['windwalker', 'windwalker', 'wwalker'],
   ['rainwalker', 'rainwalker', 'rcrab'],
@@ -147,7 +155,21 @@ export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]>
   ['rainflyer', 'rainflyer', 'rflyer', 13],
 ];
 
+/**
+ * Paths of the shipped frames by type, gif and frame number. Under the pseudo-gif "@" a type lists
+ * frames by slot instead, each path followed by "#x,y": where the picture lies from the hot spot
+ * of its frame (scripts/anim-frames.py).
+ */
 export type Manifest = Record<string, Record<string, Record<string, string>>>;
+
+/** A manifest path split into the file and, for a slot, the offset of its picture. */
+export function parsePath(entry: string): { file: string; offset?: [x: number, y: number]; } {
+  const [file = '', at] = entry.split('#');
+  const [x, y] = (at ?? '').split(',').map(Number);
+  return at === undefined || x === undefined || y === undefined
+    ? { file }
+    : { file, offset: [x, y] };
+}
 
 export function selectFrame(
   manifest: Manifest,
