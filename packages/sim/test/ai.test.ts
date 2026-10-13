@@ -218,3 +218,43 @@ test('the AI answers enemy air with anti-air guns, and does not buy them otherwi
   flown.spawnBuilding('sunaviary', 1, 62, 143);
   assert.ok(buys(flown).includes('thunderarcher'));
 });
+
+test('the AI fetches a Spell it can walk to, casts it at the enemy, and raises an Outpost', () => {
+  const world = mk();
+  const ai = world.players.get(2)!;
+  ai.storm = 5000;
+  const golem = [...world.entities.values()].find((e) => e.kind === 'transport' && e.owner === 2)!;
+  const obelisk = world.addObelisk(152, 96, 'bombIIMano');
+  const orders = () => aiMove(world.view(), { player: 2 });
+  assert.deepEqual(orders().find((c) => c.t === 'takeSpell'), {
+    t: 'takeSpell',
+    player: 2,
+    transport: golem.id,
+    obelisk: obelisk.id,
+  });
+  assert.ok(!orders().some((c) => c.t === 'castSpell'));
+
+  // With the Spell and an enemy unit within its range of 28, it casts; with nothing there, not.
+  if (golem.kind === 'transport') {
+    golem.spell = 'bombiimano';
+  }
+
+  assert.ok(!orders().some((c) => c.t === 'takeSpell' || c.t === 'castSpell'));
+  world.spawnBuilding('sunblocker', 1, 165, 105);
+  assert.deepEqual(orders().find((c) => c.t === 'castSpell'), {
+    t: 'castSpell',
+    player: 2,
+    transport: golem.id,
+  });
+  ai.storm = 900; // a Wave costs 1000
+  assert.ok(!orders().some((c) => c.t === 'castSpell'));
+
+  // Unowned island ground its transports can walk to: the Priest is told to raise an Outpost.
+  ai.storm = 5000;
+  assert.ok(!orders().some((c) => c.t === 'build' && c.type === 'outpost'));
+  world.addIsland(161, 82, 12, 12, 0);
+  world.invalidateTerrain();
+  const outpost = orders().find((c) => c.t === 'build' && c.type === 'outpost');
+  assert.ok(outpost && world.execute(outpost).ok);
+  assert.ok(!orders().some((c) => c.t === 'build' && c.type === 'outpost')); // one at a time
+});

@@ -10,12 +10,15 @@
  * Temple once none is left; put a shooter near the bridge head or a Generator when energy runs out.
  * It also sends Aerial Transports to geysers no bridge reaches, lays an air base within reach of
  * the enemy, answers enemy air with anti-air guns, and closes its bridge head with a barrier.
+ * One of its transports fetches a Spell from an Obelisk it can reach and casts it when enough
+ * stands in range, and its Priest raises an Outpost on unowned ground its transports can walk to.
  */
 import type { Command } from './commands.js';
 import { flies, type UnitDef } from './defs.js';
 import {
   DIRS,
   MAX_FACING,
+  OUTPOST,
   PIECES,
   PIECE_HARD,
   Terrain,
@@ -30,7 +33,7 @@ import {
 import { joins } from './rules/bridges.js';
 import { facesWhenLaid } from './rules/combat.js';
 import type { DeepReadonly, WorldView } from './view.js';
-import type { Building, Entity, Geyser, Priest, Transport } from './state.js';
+import type { Building, Entity, Geyser, Living, Priest, Transport } from './state.js';
 
 type View<T> = DeepReadonly<T>;
 
@@ -90,7 +93,10 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
   const home = world.templeOf(me);
   const reached = home ? walkableFrom(world, me, home) : null;
   collect(world, move, transports, geysers);
+  fetchSpell(world, move, transports, reached);
+  castSpells(world, move, transports);
   buildAltar(world, move);
+  buildOutpost(world, move, reached);
   capture(world, move, transports);
   const ward = wardSpot(world, me);
 
@@ -235,6 +241,137 @@ function buildAltar(world: WorldView, move: Move): void {
   }
 
   place(world, move, def, home ? centre(home) : priest, undefined, ALTAR_RADIUS);
+}
+
+/* oxlint-disable no-magic-numbers -- thresholds of an invented opponent */
+/**
+ * When a Spell is worth its Storm Power to the AI, given what stands in its range: enemies and
+ * friends on the ground and in the air, and friends with less than half of their hit points. All
+ * invented. Spells that are missing here (Invisibility, Bridge Harden) the AI does not use.
+ */
+type Reach = { foes: number; friends: number; foesAir: number; friendsAir: number; hurt: number; };
+const STRIKE = (r: Reach) => r.foes >= 2 && r.foes > r.friends * 2;
+const SUMMON = (r: Reach) => r.foes >= 1;
+const SPELL_USE: Readonly<Record<string, (r: Reach) => boolean>> = {
+  bombexplodesmall: STRIKE,
+  bombexplodemedium: STRIKE,
+  bombexplodelarge: STRIKE,
+  bomblightingwave: STRIKE,
+  bomblightingzap: STRIKE,
+  bombmeteor: STRIKE,
+  bombgraviton: (r) => r.foesAir >= 1 && r.friendsAir === 0,
+  bombheal: (r) => r.hurt >= 2 && r.foes + r.foesAir === 0,
+  bombparalyze: (r) => r.foes + r.foesAir >= 2 && r.friends + r.friendsAir === 0,
+  bombtreason: (r) => r.foes >= 2,
+  bombtwister: SUMMON,
+  bombiitwister: SUMMON,
+  bombiiitwister: SUMMON,
+  bombimano: SUMMON,
+  bombiimano: SUMMON,
+  bombiiimano: SUMMON,
+};
+/* oxlint-enable no-magic-numbers */
+
+/** Whether a unit stands within `range` cells of a caster, as rules/spells.ts measures it. */
+function inReach(t: View<Transport>, e: View<Living>, range: number): boolean {
+  const [fx, fy] = e.kind === 'building' ? [e.fx, e.fy] : [1, 1];
+  const dx = Math.max(e.x - t.x, 0, t.x - (e.x + fx - 1));
+  const dy = Math.max(e.y - t.y, 0, t.y - (e.y + fy - 1));
+  return dx * dx + dy * dy <= range * range;
+}
+
+/** What stands around a caster within the range of its Spell. */
+function inRange(world: WorldView, t: View<Transport>, range: number): Reach {
+  const reach: Reach = { foes: 0, friends: 0, foesAir: 0, friendsAir: 0, hurt: 0 };
+
+  for (const e of world.entities.values()) {
+    if (!('hp' in e) || e.id === t.id || e.hp <= 0 || !inReach(t, e, range)) {
+      continue;
+    }
+
+    const air = e.kind === 'flyer' || (e.kind === 'transport' && flies(world.def(e.type)));
+
+    if (world.hostile(t.owner, e.owner)) {
+      reach[air ? 'foesAir' : 'foes']++;
+    } else {
+      reach[air ? 'friendsAir' : 'friends']++;
+      reach.hurt += e.hp * 2 < e.hpMax ? 1 : 0;
+    }
+  }
+
+  return reach;
+}
+
+/** Cast the Spell of each transport that has one, where it stands, when it is worth it. */
+function castSpells(world: WorldView, move: Move, transports: View<Transport>[]): void {
+  for (const t of transports) {
+    const def = t.spell === null ? undefined : world.defs.get(t.spell);
+    const worth = t.spell === null ? undefined : SPELL_USE[t.spell];
+
+    if (!def || !worth || t.casting > 0 || t.paralyzed > 0 || def.cost > move.budget) {
+      continue;
+    }
+
+    if (worth(inRange(world, t, def.range))) {
+      move.budget -= def.cost;
+      move.commands.push({ t: 'castSpell', player: move.me, transport: t.id });
+    }
+  }
+}
+
+/** Send one idle transport to an Obelisk it can get to, while none of them has a Spell. */
+function fetchSpell(
+  world: WorldView,
+  move: Move,
+  transports: View<Transport>[],
+  reached: Uint8Array | null,
+): void {
+  const free = transports.find((t) => t.goal === 'idle' && t.carrying === null);
+
+  if (!free || transports.some((t) => t.spell !== null || t.goal === 'obelisk')) {
+    return;
+  }
+
+  const walked = (x: number, y: number): boolean =>
+    world.inside(x, y) && reached?.[world.at(x, y)] === 1;
+
+  for (const o of world.entities.values()) {
+    const usable = o.kind === 'obelisk' && o.spell in SPELL_USE;
+
+    if (
+      usable
+      && (flies(world.def(free.type)) || DIRS.some(([dx, dy]) => walked(o.x + dx, o.y + dy)))
+    ) {
+      move.commands.push({ t: 'takeSpell', player: move.me, transport: free.id, obelisk: o.id });
+      return;
+    }
+  }
+}
+
+/**
+ * "Neutral Islands can also be claimed as your own with an Outpost." A side that has the Outpost
+ * (in the original, in multiplayer only) has its Priest raise one on the first unowned island
+ * ground its transports can walk to, one at a time.
+ */
+function buildOutpost(world: WorldView, move: Move, reached: Uint8Array | null): void {
+  const def = world.defs.get(OUTPOST);
+  const mine = world.buildingsOf(move.me);
+
+  if (
+    !def || !reached || !world.players.get(move.me)!.tech.has(OUTPOST)
+    || move.budget < def.cost + TRANSPORT_SAVINGS
+    || mine.some((b) => b.type === OUTPOST && b.rising > 0)
+  ) {
+    return;
+  }
+
+  const free = reached.findIndex((walked, i) =>
+    walked === 1 && world.terrain[i] === Terrain.Island && world.owner[i] === 0
+  );
+
+  if (free >= 0) {
+    place(world, move, def, { x: free % W, y: Math.floor(free / W) });
+  }
 }
 
 /** Send one transport for a downed enemy priest, unless one is already on its way to him. */
