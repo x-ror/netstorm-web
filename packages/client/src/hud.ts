@@ -303,6 +303,10 @@ function info(world: WorldView, me: number, ui: UiState): string {
         }
       }
     }
+  } else if (entity.kind === 'flyer') {
+    lines.push(
+      entity.returning ? 'летить на заправку' : `у повітрі ще ${Math.ceil(entity.life / TPS)} с`,
+    );
   } else if (entity.kind === 'geyser') {
     lines.push(entity.stock > 0 ? `запас ${entity.stock} Storm Power` : 'вичерпаний');
   }
@@ -356,6 +360,7 @@ export function entityName(world: WorldView, entity: DeepReadonly<Entity>): stri
   switch (entity.kind) {
     case 'building':
     case 'transport':
+    case 'flyer':
       return world.defs.get(entity.type)?.name ?? entity.type;
     case 'priest':
       return 'High Priest';

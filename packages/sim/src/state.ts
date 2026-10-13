@@ -479,4 +479,24 @@ export interface Geyser {
   y: number;
   stock: number; // Storm Power left; 0 = depleted
 }
-export type Entity = Building | Transport | Priest | Crystal | Geyser;
+/** An Aerial Attacker: a Whirligig, a Dust Devil or a Man o' War. It flies over anything. */
+export interface Flyer {
+  id: number;
+  kind: 'flyer';
+  type: string;
+  owner: number;
+  x: number;
+  y: number; // the cell it is over
+  px: number;
+  py: number; // where it is, in hundredths of a cell
+  hp: number;
+  hpMax: number;
+  home: number | null; // the base that made it
+  hx: number;
+  hy: number; // where it was launched, in hundredths of a cell: the middle of its hunting ground
+  target: number | null;
+  life: number; // ticks it has left in the air
+  cooldown: number; // ticks until its next strike
+  returning: boolean; // a Whirligig on its way back to refuel
+}
+export type Entity = Building | Transport | Priest | Crystal | Geyser | Flyer;

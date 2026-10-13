@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { World, loadDefs, TPS } from '../src/index.js';
+import { World, loadDefs, TPS, type Flyer } from '../src/index.js';
 
 import { shotInterval } from '../src/rules/combat.js';
 import { ScanWorld } from './reference-world.js';
@@ -652,4 +652,119 @@ test('a site the Priest does not reach is taken away and paid back', () => {
   world.step();
   assert.equal(world.buildingsOf(1).length, 0);
   assert.equal(world.players.get(1)!.storm, 5000);
+});
+
+const flyerOf = (world: World, base: { id: number; }) =>
+  [...world.entities.values()].find((e): e is Flyer => e.kind === 'flyer' && e.home === base.id);
+const run = (world: World, secondsToRun: number) => {
+  for (let i = 0; i < secondsToRun * TPS; i++) {
+    world.step();
+  }
+};
+
+test('a Whirlibase sends up a Whirligig that bombs buildings, never transports, and refuels', () => {
+  const world = mk();
+  world.addIsland(0, 0, 120, 100, 2);
+  const base = world.spawnBuilding('sunaviary', 1, 20, 40);
+  const golem = world.spawnTransport('sunwalker', 2, 25, 41);
+  const tower = world.spawnBuilding('sunblocker', 2, 40, 40);
+  const far = world.spawnBuilding('sunblocker', 2, 60, 40); // beyond 35 + 1 cells of the base
+  run(world, 4.8);
+  assert.equal(flyerOf(world, base), undefined);
+  world.step();
+  world.step();
+  const gig = flyerOf(world, base)!;
+  // Twenty cells at two cells a second, then a bomb every two seconds for thirty hit points.
+  run(world, 11);
+  assert.equal(gig.target, tower.id);
+  assert.equal(tower.hpMax - tower.hp, 30);
+  run(world, 2);
+  assert.equal(tower.hpMax - tower.hp, 60);
+  assert.equal(golem.hp, golem.hpMax);
+  assert.equal(far.hp, far.hpMax);
+  // After 75 s in the air it flies home, and the base sends it up anew.
+  run(world, 75);
+  assert.ok(!world.entities.has(gig.id));
+  run(world, 6);
+  assert.ok(flyerOf(world, base));
+});
+
+test('no more than three flyers take one building, and one a transport', () => {
+  const world = mk();
+  world.addIsland(0, 0, 120, 100, 2);
+  const tower = world.spawnBuilding('sunblocker', 2, 40, 40);
+  const golem = world.spawnTransport('sunwalker', 2, 40, 60);
+  const pools = [0, 1, 2, 3, 4, 5].map((n) => world.spawnBuilding('rainaviary', 1, 20, 30 + n * 6));
+  run(world, 4);
+  const targets = pools.map((pool) => flyerOf(world, pool)!.target);
+  // The Man o' War likes a transport best, but only one may have it.
+  assert.equal(targets.filter((id) => id === golem.id).length, 1);
+  assert.equal(targets.filter((id) => id === tower.id).length, 3);
+  assert.equal(targets.filter((id) => id === null).length, 2);
+});
+
+test('a Dust Devil hurts what it passes over, cracks bridge and cannot be shot down', () => {
+  const world = mk();
+  world.addIsland(0, 30, 30, 20, 1);
+  world.addIsland(40, 30, 30, 20, 2);
+
+  for (let x = 30; x < 40; x++) {
+    world.terrain[world.at(x, 41)] = 2;
+  }
+
+  const maker = world.spawnBuilding('windaviary', 1, 20, 40);
+  const tower = world.spawnBuilding('sunblocker', 2, 45, 40);
+  const thrower = world.spawnBuilding('sunarcher', 2, 50, 40);
+  run(world, 7);
+  const devil = flyerOf(world, maker)!;
+  run(world, 12);
+  assert.ok(tower.hp < tower.hpMax);
+  assert.equal(world.terrain[world.at(35, 41)], 3);
+  assert.equal(devil.hp, devil.hpMax);
+  assert.equal(thrower.target, null);
+  // It lives 30 s less the 2 s it spins up, and the base makes another.
+  run(world, 16);
+  assert.ok(!world.entities.has(devil.id));
+});
+
+test("a Man o' War lives a minute and gains fifteen seconds for a kill that is no shooter", () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'rain', 0, []);
+  world.addIsland(0, 0, 120, 100, 2);
+  const pool = world.spawnBuilding('rainaviary', 1, 20, 40);
+  const golem = world.spawnTransport('sunwalker', 2, 24, 41);
+  run(world, 3);
+  const war = flyerOf(world, pool)!;
+  run(world, 1);
+  assert.ok(war.life < 60 * TPS - TPS);
+
+  while (golem.hp > 0) {
+    world.step();
+  }
+
+  // Fifty hit points fall in two strikes of 32; the life cannot pass the full minute.
+  assert.equal(war.life, 60 * TPS);
+});
+
+test('anti-air: the Vander Tower and the Disc Thrower hit flyers, a Bulwark shrugs them off', () => {
+  const world = mk();
+  world.addIsland(0, 0, 120, 100, 2);
+  const base = world.spawnBuilding('sunaviary', 1, 20, 40);
+  const bulwark = world.spawnBuilding('thunderblocker', 2, 30, 40);
+  run(world, 6);
+  const gig = flyerOf(world, base)!;
+  run(world, 10);
+  assert.equal(bulwark.hp, bulwark.hpMax);
+  const crossbow = world.spawnBuilding('windarcher', 2, 30, 46, 0);
+  run(world, 3);
+  assert.equal(crossbow.target, null);
+  assert.equal(gig.hp, gig.hpMax);
+  const thrower = world.spawnBuilding('sunarcher', 2, 34, 44);
+  thrower.cooldown = 0;
+  world.step();
+  assert.equal(gig.hpMax - gig.hp, 24);
+  const vander = world.spawnBuilding('thunderarcher', 2, 34, 36);
+  world.step();
+  assert.equal(vander.target, gig.id);
+  assert.equal(gig.hpMax - gig.hp, 24 + 21);
 });

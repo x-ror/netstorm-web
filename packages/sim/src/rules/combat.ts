@@ -123,7 +123,11 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
   // cannon deals that rate times the time since the gun's previous hit, so one shot carries a whole
   // interval of it. Other groups deal a fixed share of the rate with every hit.
   const interval = shotInterval(def);
-  const amount = def.group === 'anti-air' ? def.dps * FLAT_SHOT_SHARE : (def.dps * interval) / TPS;
+  const usual = def.group === 'anti-air'
+    ? def.dps * FLAT_SHOT_SHARE
+    : (def.dps * interval) / TPS;
+  // "Crucial for defense against air attack": the Disc Thrower's data sets its hit on air units.
+  const amount = target.kind === 'flyer' && def.airDamage ? def.airDamage : usual;
   b.cooldown = interval;
 
   // A shot into a hostile force field is spent on it.
@@ -165,7 +169,12 @@ function tickFence(world: World, b: Building, def: UnitDef): void {
     const reach = b.type === ARC_SPIRE ? band(barrier) : line(barrier);
 
     for (const entity of world.entities.values()) {
-      if (targetable(b, entity) && overlaps(entity, reach)) {
+      if (entity.kind === 'flyer') {
+        // The pulse passes under air units; the acid "dissolves every enemy unit", Dust Devils too.
+        if (b.type === ACID_BARRICADE && targetable(b, entity) && overlaps(entity, band(barrier))) {
+          entity.hp = 0;
+        }
+      } else if (targetable(b, entity) && overlaps(entity, reach)) {
         damage(world, b.owner, entity, fenceDamage(world, b, def, entity, seconds), b);
       }
     }
@@ -282,13 +291,14 @@ function inArc(b: Building, target: Entity): boolean {
 }
 
 /** Whether this gun aims at such a target at all, wherever it stands. */
-function aimsAt(b: Building, target: Entity): boolean {
-  // The Vander Tower shoots at flyers only, and there are none in the simulation yet.
-  if (b.type === VANDER_TOWER) {
-    return false;
+function aimsAt(world: World, b: Building, target: Entity): boolean {
+  // The Vander Tower shoots at flyers only; the Crossbow cannot hit them, and nothing can shoot
+  // down a Dust Devil.
+  if (target.kind === 'flyer') {
+    return b.type !== CROSSBOW && world.def(target.type).hp > 0;
   }
 
-  return b.type !== CROSSBOW || inArc(b, target);
+  return b.type !== VANDER_TOWER && (b.type !== CROSSBOW || inArc(b, target));
 }
 
 /** "On three sides it takes normal damage, but on its curved back it is utterly invulnerable":
@@ -326,6 +336,10 @@ function explode(world: World, b: Building): void {
 
   // ponytail: scans every entity for each explosion; use the cell index if blasts get frequent.
   for (const entity of world.entities.values()) {
+    if (entity.kind === 'flyer') {
+      continue; // the blast stays on the ground
+    }
+
     const width = entity.kind === 'building' ? entity.fx : 1;
     const height = entity.kind === 'building' ? entity.fy : 1;
 
@@ -362,8 +376,31 @@ export function removeBuilding(world: World, b: Building): void {
   world.entities.delete(b.id);
 }
 
-function damage(world: World, by: number, entity: Entity, amount: number, from?: Building): void {
+/** Units an air attack does nothing to: "invulnerable to air assault". */
+const AIR_PROOF: ReadonlySet<string> = new Set(['thunderblocker', 'bulf']);
+
+/**
+ * Take hit points off an entity for a player. `from` is the gun that fired, for the Wind Tower's
+ * back; `air` marks the strike of a flyer.
+ */
+export function damage(
+  world: World,
+  by: number,
+  entity: Entity,
+  amount: number,
+  from?: Building,
+  air = false,
+): void {
   if (!('hp' in entity) || shielded(entity, from)) {
+    return;
+  }
+
+  if (air && 'type' in entity && AIR_PROOF.has(entity.type)) {
+    return;
+  }
+
+  // The Dust Devil has no hit points to lose.
+  if (entity.kind === 'flyer' && world.def(entity.type).hp === 0) {
     return;
   }
 
@@ -385,7 +422,7 @@ function damage(world: World, by: number, entity: Entity, amount: number, from?:
   // destroyed by units, and only the shot that brings the unit down is paid.
   // Nor is anything paid for an Ice Tower, which grows back.
   if (
-    entity.kind === 'priest' || before <= 0 || entity.hp > 0
+    entity.kind === 'priest' || entity.kind === 'flyer' || before <= 0 || entity.hp > 0
     || (entity.kind === 'building' && entity.type === ICE_TOWER)
   ) {
     return;
@@ -411,13 +448,15 @@ function lockedTarget(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt)
     return lineTarget(world, b, def, enemyAt, b.facing)?.entity === target ? target : null;
   }
 
-  return targetable(b, target) && inRadius(b, def, target) && aimsAt(b, target) ? target : null;
+  return targetable(b, target) && inRadius(b, def, target) && aimsAt(world, b, target)
+    ? target
+    : null;
 }
 
 /** "All units will always choose the closest available target." */
 function acquire(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt): Entity | null {
   if (def.group !== 'cannon') {
-    return radiusTarget(b, def, enemyAt);
+    return airTarget(world, b, def) ?? radiusTarget(world, b, def, enemyAt);
   }
 
   if (!selfAiming(def)) {
@@ -438,13 +477,14 @@ function acquire(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt): Ent
   return best?.entity ?? null;
 }
 
-function targetable(b: Building, target: Entity): boolean {
+export function targetable(b: { owner: number; }, target: Entity): boolean {
   switch (target.kind) {
     case 'building':
       return target.owner !== b.owner && target.owner !== 0 && target.regrow === 0;
     case 'priest':
       return target.owner !== b.owner && (target.state === 'normal' || target.state === 'down');
     case 'transport':
+    case 'flyer':
       return target.owner !== b.owner && target.hp > 0;
     case 'crystal':
     case 'geyser':
@@ -453,13 +493,14 @@ function targetable(b: Building, target: Entity): boolean {
 }
 
 function inRadius(b: Building, def: UnitDef, target: Entity): boolean {
+  const range = target.kind === 'flyer' ? def.airRange || def.range : def.range;
   const cx = b.x + (b.fx >> 1);
   const cy = b.y + (b.fy >> 1);
   const width = target.kind === 'building' ? target.fx : 1;
   const height = target.kind === 'building' ? target.fy : 1;
   const dx = Math.max(target.x - cx, 0, cx - (target.x + width - 1));
   const dy = Math.max(target.y - cy, 0, cy - (target.y + height - 1));
-  return Math.max(dx, dy) <= def.range;
+  return Math.max(dx, dy) <= range;
 }
 
 /** First enemy along a straight line from the muzzle; any building in the way stops the shot. */
@@ -507,12 +548,40 @@ export function lineTarget(
 }
 
 /** Closest enemy by ring: rings grow outward, each scanned in row-major order. */
-export function radiusTarget(b: Building, def: UnitDef, enemyAt: EnemyAt): Entity | null {
+/** Archers and anti-air guns take an air unit before anything on the ground: the nearest one. */
+function airTarget(world: World, b: Building, def: UnitDef): Entity | null {
+  const cx = b.x + (b.fx >> 1);
+  const cy = b.y + (b.fy >> 1);
+  let best: Entity | null = null;
+  let nearest = Infinity;
+
+  for (const e of world.entities.values()) {
+    if (e.kind !== 'flyer' || !targetable(b, e) || !inRadius(b, def, e) || !aimsAt(world, b, e)) {
+      continue;
+    }
+
+    const far = Math.max(Math.abs(e.x - cx), Math.abs(e.y - cy));
+
+    if (far < nearest) {
+      best = e;
+      nearest = far;
+    }
+  }
+
+  return best;
+}
+
+export function radiusTarget(
+  world: World,
+  b: Building,
+  def: UnitDef,
+  enemyAt: EnemyAt,
+): Entity | null {
   const cx = b.x + (b.fx >> 1);
   const cy = b.y + (b.fy >> 1);
   const seen: EnemyAt = (owner, x, y) => {
     const hit = enemyAt(owner, x, y);
-    return hit && aimsAt(b, hit) ? hit : null;
+    return hit && aimsAt(world, b, hit) ? hit : null;
   };
 
   for (let r = 1; r <= def.range; r++) {

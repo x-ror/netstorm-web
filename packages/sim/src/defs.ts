@@ -59,6 +59,8 @@ export interface UnitDef {
   group: UnitGroup;
   delay: number; // delayBetweenShots (s)
   lifeSpan: number; // s, aerial attackers
+  airRange: number; // cells, reach against air units; 0 = the same as `range`
+  airDamage: number; // damage of one hit on an air unit; 0 = the usual damage
 }
 
 export type DefTable = Map<string, UnitDef>;
@@ -107,6 +109,8 @@ export function loadDefs(raw: unknown): DefTable {
       group: oneOf(r.group, UNIT_GROUPS, 'group'),
       delay: num(r.delayBetweenShots),
       lifeSpan: num(r.lifeSpan),
+      airRange: num(r.airrange),
+      airDamage: num(r.useairdamage) ? num(r.airdamage) : 0,
     });
   }
 

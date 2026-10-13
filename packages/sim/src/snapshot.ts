@@ -30,8 +30,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 19;
-export const RULES_VERSION = 33;
+export const SNAPSHOT_VERSION = 20;
+export const RULES_VERSION = 34;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -76,6 +76,8 @@ function parseDef(raw: unknown): UnitDef {
     'group',
     'delay',
     'lifeSpan',
+    'airRange',
+    'airDamage',
   ], 'definition');
   const id = text(value.id, 'definition.id');
 
@@ -101,6 +103,8 @@ function parseDef(raw: unknown): UnitDef {
     group: choice(value.group, UNIT_GROUPS, 'definition.group'),
     delay: finite(value.delay, 'definition.delay'),
     lifeSpan: finite(value.lifeSpan, 'definition.lifeSpan'),
+    airRange: finite(value.airRange, 'definition.airRange'),
+    airDamage: finite(value.airDamage, 'definition.airDamage'),
   };
 }
 
@@ -118,7 +122,7 @@ function parsePath(raw: unknown): [number, number][] {
 
 function parseEntity(raw: unknown): Entity {
   const value = record(raw, 'entity');
-  const kind = choice(value.kind, ['building', 'transport', 'priest', 'crystal', 'geyser'],
+  const kind = choice(value.kind, ['building', 'transport', 'priest', 'crystal', 'geyser', 'flyer'],
     'entity.kind');
   const id = integer(value.id, 'entity.id', 1, MAX_ID);
   const x = integer(value.x, 'entity.x', 0, W - 1);
@@ -192,6 +196,41 @@ function parseEntity(raw: unknown): Entity {
       regrow: integer(value.regrow, 'building.regrow', 0),
       rising: integer(value.rising, 'building.rising', 0),
       builder: nullableId(value.builder, 'building.builder'),
+    };
+  }
+
+  if (kind === 'flyer') {
+    keys(value, [
+      ...living,
+      'type',
+      'px',
+      'py',
+      'home',
+      'hx',
+      'hy',
+      'target',
+      'life',
+      'cooldown',
+      'returning',
+    ], 'flyer');
+    return {
+      id,
+      kind,
+      type: text(value.type, 'flyer.type'),
+      owner,
+      x,
+      y,
+      px: integer(value.px, 'flyer.px', 0),
+      py: integer(value.py, 'flyer.py', 0),
+      hp,
+      hpMax,
+      home: nullableId(value.home, 'flyer.home'),
+      hx: integer(value.hx, 'flyer.hx', 0),
+      hy: integer(value.hy, 'flyer.hy', 0),
+      target: nullableId(value.target, 'flyer.target'),
+      life: integer(value.life, 'flyer.life'),
+      cooldown: integer(value.cooldown, 'flyer.cooldown', 0),
+      returning: boolean(value.returning, 'flyer.returning'),
     };
   }
 

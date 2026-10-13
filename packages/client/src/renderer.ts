@@ -9,6 +9,7 @@ import {
   isBridge,
   GEYSER_ISLAND_SIZE,
   barriers,
+  FLYER_SCALE,
 } from '@netstorm/sim';
 import { EXPLOSION_FRAMES, GROUND_FRAMES } from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
@@ -50,6 +51,7 @@ const COLOR = {
   arcField: 0x9fd8ff,
 } as const;
 const LOW_HP = 0.35;
+const AIR_Z = 1e6; // above any screen row
 const FIELD_WIDTH = 2;
 const FIELD_ALPHA = 0.7;
 const FIELD_COLOR: Readonly<Record<string, number>> = {
@@ -175,9 +177,10 @@ export function createWorldRenderer(
       const foot = footprintOf(entity);
       const { sx, sy } = foot
         ? project(foot.x + foot.w / 2, foot.y + foot.h)
-        : project(entity.x + CELL_CENTER, entity.y + CELL_CENTER);
+        : unitSpot(entity);
       sprite.position.set(sx, sy);
-      sprite.zIndex = sy;
+      // A flyer is drawn over everything on the ground.
+      sprite.zIndex = entity.kind === 'flyer' ? AIR_Z : sy;
       sprite.tint = entityTint(entity, me);
       sprite.alpha = entityAlpha(entity);
 
@@ -299,6 +302,13 @@ export function createWorldRenderer(
   };
 }
 
+/** Where a unit of one cell is drawn: a flyer at its exact place, the rest mid-cell. */
+function unitSpot(entity: DeepReadonly<Entity>): { sx: number; sy: number; } {
+  return entity.kind === 'flyer'
+    ? project(entity.px / FLYER_SCALE, entity.py / FLYER_SCALE)
+    : project(entity.x + CELL_CENTER, entity.y + CELL_CENTER);
+}
+
 /** Cells a building or a geyser's islet covers; the sprite stands on their bottom edge, which
  * also orders drawing so that nearer things cover those behind. */
 function footprintOf(
@@ -346,6 +356,7 @@ function textureKey(entity: DeepReadonly<Entity>): string {
     case 'building':
       return FACING_SPRITES.has(entity.type) ? `${entity.type}:${entity.facing}` : entity.type;
     case 'transport':
+    case 'flyer':
       return entity.type;
     case 'priest':
       return entity.state === 'normal' ? 'priest' : 'priest:down';
@@ -370,7 +381,10 @@ function entityTint(entity: DeepReadonly<Entity>, me: number): number {
     return COLOR.enemyPriestTint;
   }
 
-  if ((entity.kind === 'building' || entity.kind === 'transport') && entity.owner !== me) {
+  if (
+    (entity.kind === 'building' || entity.kind === 'transport' || entity.kind === 'flyer')
+    && entity.owner !== me
+  ) {
     return COLOR.enemyBuildingTint;
   }
 

@@ -30,6 +30,7 @@ import {
   type PieceCommand,
 } from './rules/bridges.js';
 import { tickBuilding } from './rules/combat.js';
+import { FLYER_SCALE, flightTicks, tickAirBase, tickFlyer } from './rules/flyers.js';
 import { tickPlayer } from './rules/economy.js';
 import { energy, canBuild, build, salvage } from './rules/building.js';
 import { tickTransport, collect, pickupCrystal } from './rules/movement.js';
@@ -53,6 +54,7 @@ import {
   type Priest,
   type Crystal,
   type Geyser,
+  type Flyer,
   type Entity,
   type Facing,
   DIRS,
@@ -533,8 +535,39 @@ export class World {
         this.tickPriest(e);
       } else if (e.kind === 'building') {
         this.tickBuilding(e);
+      } else if (e.kind === 'flyer') {
+        tickFlyer(this, e);
       }
     }
+  }
+
+  /** Internal rule hook: an air base sends up its flyer. */
+  spawnFlyer(type: string, owner: number, base: Building): Flyer {
+    const def = this.def(type);
+    const px = base.x * FLYER_SCALE + (base.fx * FLYER_SCALE) / 2;
+    const py = base.y * FLYER_SCALE + (base.fy * FLYER_SCALE) / 2;
+    const f: Flyer = {
+      id: this.nextId++,
+      kind: 'flyer',
+      type: def.id,
+      owner,
+      x: Math.floor(px / FLYER_SCALE),
+      y: Math.floor(py / FLYER_SCALE),
+      px,
+      py,
+      // The Dust Devil has no hit points in its data: nothing can shoot it down.
+      hp: def.hp || 1,
+      hpMax: def.hp || 1,
+      home: base.id,
+      hx: px,
+      hy: py,
+      target: null,
+      life: flightTicks(def),
+      cooldown: 0,
+      returning: false,
+    };
+    this.entities.set(f.id, f);
+    return f;
   }
 
   /** Internal rule hook; a crystal only forms in the hands of the transport mining a geyser. */
@@ -561,6 +594,10 @@ export class World {
 
   private tickBuilding(building: Building): void {
     tickBuilding(this, building, (owner, x, y) => this.enemyAt(owner, x, y));
+
+    if (this.entities.has(building.id)) {
+      tickAirBase(this, building);
+    }
   }
 
   private enemyAt(me: number, x: number, y: number): Entity | null {
