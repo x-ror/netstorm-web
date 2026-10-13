@@ -768,7 +768,7 @@ test('Temple makes Golems and a Workshop of their Fury makes other transports', 
 test('units without rules yet cannot be built', () => {
   const w = mk();
   w.players.get(1)!.storm = 100_000;
-  assert.equal(w.apply({ t: 'build', player: 1, type: 'sunballoon', x: 46, y: 46 }),
-    'cannot build');
+  // A flyer comes from its base, not from the Production Window.
+  assert.equal(w.apply({ t: 'build', player: 1, type: 'sunflyer', x: 46, y: 46 }), 'cannot build');
   assert.equal(w.apply({ t: 'build', player: 1, type: 'geyser', x: 46, y: 44 }), 'cannot build');
 });

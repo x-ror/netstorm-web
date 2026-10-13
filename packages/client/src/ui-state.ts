@@ -40,7 +40,6 @@ export function createUiState(): UiState {
 /** Classes the Production Window cannot place yet: the simulation refuses them ('cannot build')
  * because aerial units and spells have no rules yet; see docs/game-rules.md. */
 const NOT_PLACEABLE = new Set<string>([
-  'Aerial Transport',
   'Aerial Attack',
   'High Priest',
   'Spell',

@@ -1,5 +1,5 @@
 import type { World } from '../world.js';
-import type { UnitDef } from '../defs.js';
+import { flies, type UnitDef } from '../defs.js';
 import { shakeBridges } from './bridges.js';
 import {
   ACID_BARRICADE,
@@ -127,8 +127,13 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
     ? def.dps * FLAT_SHOT_SHARE
     : (def.dps * interval) / TPS;
   // "Crucial for defense against air attack": the Disc Thrower's data sets its hit on air units.
-  const amount = target.kind === 'flyer' && def.airDamage ? def.airDamage : usual;
+  const amount = airborne(world, target) && def.airDamage ? def.airDamage : usual;
   b.cooldown = interval;
+
+  // "Enemy shots miss as often as they hit": half of them pass through a Cloud Floater.
+  if (target.kind === 'transport' && target.type === CLOUD_FLOATER && world.rng.int(2) === 0) {
+    return;
+  }
 
   // A shot into a hostile force field is spent on it.
   if (!fieldStops(world, b, target)) {
@@ -169,9 +174,12 @@ function tickFence(world: World, b: Building, def: UnitDef): void {
     const reach = b.type === ARC_SPIRE ? band(barrier) : line(barrier);
 
     for (const entity of world.entities.values()) {
-      if (entity.kind === 'flyer') {
+      if (airborne(world, entity)) {
         // The pulse passes under air units; the acid "dissolves every enemy unit", Dust Devils too.
-        if (b.type === ACID_BARRICADE && targetable(b, entity) && overlaps(entity, band(barrier))) {
+        const dissolves = b.type === ACID_BARRICADE && targetable(b, entity)
+          && overlaps(entity, band(barrier));
+
+        if (dissolves && 'hp' in entity) {
           entity.hp = 0;
         }
       } else if (targetable(b, entity) && overlaps(entity, reach)) {
@@ -198,6 +206,7 @@ function fenceDamage(
 
 // From the unit classes of netstorm.game 10.82.
 const ICE_TOWER = 'rainblocker';
+const CLOUD_FLOATER = 'rainballoon';
 const WIND_TOWER = 'windblocker';
 const CROSSBOW = 'windarcher';
 const VANDER_TOWER = 'thunderarcher';
@@ -291,11 +300,16 @@ function inArc(b: Building, target: Entity): boolean {
 }
 
 /** Whether this gun aims at such a target at all, wherever it stands. */
+/** Flyers and Aerial Transports: what only archers and anti-air guns can hit. */
+function airborne(world: World, e: Entity): boolean {
+  return 'type' in e && flies(world.def(e.type));
+}
+
 function aimsAt(world: World, b: Building, target: Entity): boolean {
   // The Vander Tower shoots at flyers only; the Crossbow cannot hit them, and nothing can shoot
   // down a Dust Devil.
-  if (target.kind === 'flyer') {
-    return b.type !== CROSSBOW && world.def(target.type).hp > 0;
+  if (airborne(world, target)) {
+    return b.type !== CROSSBOW && (target.kind !== 'flyer' || world.def(target.type).hp > 0);
   }
 
   return b.type !== VANDER_TOWER && (b.type !== CROSSBOW || inArc(b, target));
@@ -336,7 +350,7 @@ function explode(world: World, b: Building): void {
 
   // ponytail: scans every entity for each explosion; use the cell index if blasts get frequent.
   for (const entity of world.entities.values()) {
-    if (entity.kind === 'flyer') {
+    if (airborne(world, entity)) {
       continue; // the blast stays on the ground
     }
 
@@ -448,7 +462,7 @@ function lockedTarget(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt)
     return lineTarget(world, b, def, enemyAt, b.facing)?.entity === target ? target : null;
   }
 
-  return targetable(b, target) && inRadius(b, def, target) && aimsAt(world, b, target)
+  return targetable(b, target) && inRadius(world, b, def, target) && aimsAt(world, b, target)
     ? target
     : null;
 }
@@ -492,8 +506,8 @@ export function targetable(b: { owner: number; }, target: Entity): boolean {
   }
 }
 
-function inRadius(b: Building, def: UnitDef, target: Entity): boolean {
-  const range = target.kind === 'flyer' ? def.airRange || def.range : def.range;
+function inRadius(world: World, b: Building, def: UnitDef, target: Entity): boolean {
+  const range = airborne(world, target) ? def.airRange || def.range : def.range;
   const cx = b.x + (b.fx >> 1);
   const cy = b.y + (b.fy >> 1);
   const width = target.kind === 'building' ? target.fx : 1;
@@ -556,7 +570,10 @@ function airTarget(world: World, b: Building, def: UnitDef): Entity | null {
   let nearest = Infinity;
 
   for (const e of world.entities.values()) {
-    if (e.kind !== 'flyer' || !targetable(b, e) || !inRadius(b, def, e) || !aimsAt(world, b, e)) {
+    if (
+      !airborne(world, e) || !targetable(b, e) || !inRadius(world, b, def, e)
+      || !aimsAt(world, b, e)
+    ) {
       continue;
     }
 

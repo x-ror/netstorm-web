@@ -1,5 +1,6 @@
 import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
+import { flies } from '../defs.js';
 import { arriveAtAltar, arriveAtPriest, releasePriest, takeCaptive } from './capture.js';
 import { TPS, CRYSTAL_VALUE, Terrain, type Transport, type Priest, type Geyser } from '../state.js';
 
@@ -36,8 +37,10 @@ export function advance(world: World, e: Transport | Priest, speed: number): boo
     const [x, y] = e.path.shift()!;
 
     // A priest occupies its cell, so it stops rather than overwrite a geyser or another priest.
+    const airborne = e.kind === 'transport' && flies(world.def(e.type));
+
     if (
-      !world.walkable(e.owner, x, y)
+      (!airborne && !world.walkable(e.owner, x, y))
       || (e.kind === 'priest' && world.occupant[world.at(x, y)])
     ) {
       e.path = [];
@@ -69,6 +72,19 @@ export function advance(world: World, e: Transport | Priest, speed: number): boo
   return true;
 }
 
+const CLOUD_FLOATER = 'rainballoon';
+/** A Cloud Floater with a crystal gets a sixtieth of its hit points back every second. */
+const MEND_PARTS = 60;
+
+/** "They slowly regenerate while transporting Storm Crystals." */
+function mend(world: World, t: Transport): void {
+  const cargo = t.carrying === null ? undefined : world.entities.get(t.carrying);
+
+  if (t.type === CLOUD_FLOATER && cargo?.kind === 'crystal' && world.tick % TPS === 0) {
+    t.hp = Math.min(t.hpMax, t.hp + Math.floor(t.hpMax / MEND_PARTS));
+  }
+}
+
 function fallsAt(world: World, x: number, y: number): boolean {
   return world.inside(x, y) && world.terrain[world.at(x, y)] === Terrain.Sky;
 }
@@ -89,7 +105,9 @@ function steal(world: World, crab: Transport): void {
 
   for (const victim of victims) {
     const cargo = victim.carrying === null ? undefined : world.entities.get(victim.carrying);
-    const fellow = victim.kind === 'transport' && victim.type === CRYSTAL_CRAB;
+    // It robs those on foot: a fellow Crab is spared and an Aerial Transport is out of reach.
+    const fellow = victim.kind === 'transport'
+      && (victim.type === CRYSTAL_CRAB || flies(world.def(victim.type)));
 
     if (victim.owner === crab.owner || fellow || victim.hp <= 0 || !cargo) {
       continue;
@@ -131,6 +149,7 @@ export function tickTransport(world: World, t: Transport): void {
   }
 
   advance(world, t, world.def(t.type).speed);
+  mend(world, t);
 
   if (t.type === CRYSTAL_CRAB && t.carrying === null) {
     steal(world, t);
@@ -224,8 +243,7 @@ function arriveAtCrystal(world: World, t: Carrier): void {
 function goHome(world: World, t: Carrier): void {
   const home = world.templeOf(t.owner);
   const path = home
-    ? world.findPath(t.owner, t.x, t.y, (cell) => world.adjacentTo(cell[0], cell[1], home),
-      t.kind === 'priest')
+    ? world.wayOf(t, (cell) => world.adjacentTo(cell[0], cell[1], home))
     : null;
 
   if (!path) {
@@ -272,8 +290,7 @@ function deliver(world: World, t: Carrier): void {
 }
 
 function sendToGeyser(world: World, t: Carrier, g: Geyser): boolean {
-  const path = world.findPath(t.owner, t.x, t.y, (cell) => nextTo(g, { x: cell[0], y: cell[1] }),
-    t.kind === 'priest');
+  const path = world.wayOf(t, (cell) => nextTo(g, { x: cell[0], y: cell[1] }));
 
   if (!path) {
     return false;
@@ -378,9 +395,8 @@ export function pickupCrystal(
     return 'no temple';
   }
 
-  const path = world.findPath(c.player, t.x, t.y,
-    (cell) => Math.abs(cell[0] - crystal.x) + Math.abs(cell[1] - crystal.y) <= 1,
-    t.kind === 'priest');
+  const path = world.wayOf(t,
+    (cell) => Math.abs(cell[0] - crystal.x) + Math.abs(cell[1] - crystal.y) <= 1);
 
   if (!path) {
     return 'no path';

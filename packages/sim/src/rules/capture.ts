@@ -99,8 +99,7 @@ export function capturePriest(
     return 'no altar';
   }
 
-  const path = world.findPath(c.player, t.x, t.y,
-    (cell) => Math.abs(cell[0] - p.x) + Math.abs(cell[1] - p.y) <= 1);
+  const path = world.wayOf(t, (cell) => Math.abs(cell[0] - p.x) + Math.abs(cell[1] - p.y) <= 1);
 
   if (!path) {
     return 'no path';
@@ -129,8 +128,7 @@ export function arriveAtPriest(world: World, t: Transport): void {
     return;
   }
 
-  const path = world.findPath(t.owner, t.x, t.y,
-    (cell) => world.adjacentTo(cell[0], cell[1], altar));
+  const path = world.wayOf(t, (cell) => world.adjacentTo(cell[0], cell[1], altar));
 
   if (!path) {
     stop(t);
@@ -156,7 +154,7 @@ export function arriveAtPriest(world: World, t: Transport): void {
 export function takeCaptive(world: World, from: Transport, to: Transport, p: Priest): boolean {
   const altar = ownAltar(world, to.owner);
   const path = altar
-    && world.findPath(to.owner, to.x, to.y, (cell) => world.adjacentTo(cell[0], cell[1], altar));
+    && world.wayOf(to, (cell) => world.adjacentTo(cell[0], cell[1], altar));
 
   if (!altar || !path) {
     return false;

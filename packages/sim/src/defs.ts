@@ -65,6 +65,11 @@ export interface UnitDef {
 
 export type DefTable = Map<string, UnitDef>;
 
+/** Air units: Aerial Transports and Aerial Attackers. They pass over anything. */
+export function flies(def: Readonly<UnitDef>): boolean {
+  return def.group === 'balloon' || def.cls === 'Aerial Attack';
+}
+
 /** Values the game shows on a unit's card but its .type file leaves out. See docs/game-rules.md. */
 const SHOWN_IN_GAME: Readonly<Record<string, { cost: number; }>> = {
   sunwalker: { cost: 400 }, // Golem: no cost in sunwalker.type, "Cost in Storm Power: 400" in the game

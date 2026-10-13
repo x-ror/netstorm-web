@@ -108,7 +108,7 @@ export function canBuild(
     return 'not ready';
   }
 
-  const site = def.cls === 'Ground Transport'
+  const site = TRANSPORTS.has(def.cls)
     ? transportSiteError(world, command.player, command.x, command.y)
     : siteError(world, command.player, def, command.x, command.y);
 
@@ -166,7 +166,11 @@ const BUILDABLE = new Set<string>([
   'Altar',
   'Residence',
   'Ground Transport',
+  'Aerial Transport',
 ]);
+
+/** Classes that are made as a unit that moves, on a free cell of the player's island. */
+const TRANSPORTS: ReadonlySet<string> = new Set(['Ground Transport', 'Aerial Transport']);
 
 /** "Temples allow you to create Golems"; every other unit comes from "a Workshop of the appropriate
  * Fury alignment", and a destroyed Workshop takes that ability with it. Sun units would need a Sun
@@ -342,7 +346,7 @@ export function build(world: World, c: Extract<Command, { t: 'build'; }>): Comma
 
   // "When a Workshop creates a unit ... the unit will be created on the spot": a transport walks
   // away from where it was laid.
-  if (def.cls === 'Ground Transport') {
+  if (TRANSPORTS.has(def.cls)) {
     const transport = world.spawnTransport(def.id, c.player, c.x, c.y);
     world.emit({ what: 'build', who: c.player, data: { id: transport.id, type: def.id } });
     return null;

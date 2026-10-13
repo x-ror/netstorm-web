@@ -768,3 +768,51 @@ test('anti-air: the Vander Tower and the Disc Thrower hit flyers, a Bulwark shru
   assert.equal(vander.target, gig.id);
   assert.equal(gig.hpMax - gig.hp, 24 + 21);
 });
+
+test('an Aerial Transport flies over the sky to a geyser and back', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 0, []);
+  world.addIsland(0, 30, 30, 20, 1);
+  world.spawnBuilding('windvortex', 1, 10, 36);
+  const balloon = world.spawnTransport('sunballoon', 1, 25, 40);
+  const golem = world.spawnTransport('sunwalker', 1, 25, 42);
+  const geyser = world.addGeyser(60, 40); // on an islet of its own, no bridge to it
+  assert.equal(world.apply({ t: 'collect', player: 1, transport: golem.id, geyser: geyser.id }),
+    'no path');
+  assert.equal(world.apply({ t: 'collect', player: 1, transport: balloon.id, geyser: geyser.id }),
+    null);
+  run(world, 40);
+  assert.ok(world.players.get(1)!.storm >= 200);
+  assert.equal(balloon.hp, balloon.hpMax);
+});
+
+test('only archers and anti-air guns can hit an Aerial Transport', () => {
+  const world = mk();
+  world.addIsland(0, 0, 120, 100, 2);
+  const balloon = world.spawnTransport('sunballoon', 1, 50, 40);
+  world.spawnBuilding('suncannon', 2, 40, 39, 1);
+  world.spawnBuilding('windarcher', 2, 50, 46, 0);
+  world.spawnBuilding('thunderfence', 2, 30, 39);
+  world.spawnBuilding('thunderfence', 2, 60, 39);
+  run(world, 6);
+  assert.equal(balloon.hp, balloon.hpMax);
+  world.spawnBuilding('thunderarcher', 2, 54, 44);
+  world.step();
+  assert.equal(balloon.hpMax - balloon.hp, 21);
+});
+
+test('half the shots at a Cloud Floater miss, and it mends while it carries a crystal', () => {
+  const world = mk();
+  world.addIsland(0, 0, 120, 100, 2);
+  const cloud = world.spawnTransport('rainballoon', 1, 50, 40);
+  world.spawnBuilding('thunderarcher', 2, 54, 44);
+  run(world, 10);
+  // Ten shots of 21, and neither all nor none of them land.
+  const hits = (cloud.hpMax - cloud.hp) / 21;
+  assert.ok(Number.isInteger(hits) && hits > 0 && hits < 10, `${hits} hits`);
+  const fresh = world.spawnTransport('rainballoon', 1, 10, 10);
+  fresh.hp = 100;
+  fresh.carrying = world.spawnCrystal(fresh, 200).id;
+  run(world, 10);
+  assert.equal(fresh.hp, 150);
+});

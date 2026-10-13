@@ -1,6 +1,60 @@
 import type { WorldView } from '../view.js';
 import { W, H, DIRS, Terrain } from '../state.js';
 
+const AROUND: readonly (readonly [number, number])[] = [
+  [0, -1],
+  [1, 0],
+  [0, 1],
+  [-1, 0],
+  [1, -1],
+  [1, 1],
+  [-1, 1],
+  [-1, -1],
+];
+
+/** The way of an air unit: over any cell, straight or diagonally. */
+export function airPath(
+  sx: number,
+  sy: number,
+  goal: (c: [number, number]) => boolean,
+): [number, number][] | null {
+  // ponytail: a fresh breadth-first search over the open map for each order; fly a straight
+  // line to a known goal cell instead if air transports get many.
+  const prev = new Int32Array(W * H).fill(-1);
+  const start = sy * W + sx;
+  const queue = [start];
+  prev[start] = start;
+
+  for (let head = 0; head < queue.length; head++) {
+    const i = queue[head]!;
+    const x = i % W;
+    const y = (i / W) | 0;
+
+    if (goal([x, y])) {
+      const out: [number, number][] = [];
+
+      for (let cell = i; cell !== start; cell = prev[cell]!) {
+        out.push([cell % W, (cell / W) | 0]);
+      }
+
+      return out.reverse();
+    }
+
+    for (const [dx, dy] of AROUND) {
+      const nx = x + dx;
+      const ny = y + dy;
+      const j = ny * W + nx;
+
+      if (nx >= 0 && ny >= 0 && nx < W && ny < H && prev[j] === -1) {
+        prev[j] = i;
+        queue.push(j);
+      }
+    }
+  }
+
+  return null;
+}
+
 export class Pathfinder {
   private readonly pathPrevious = new Int32Array(W * H);
   private readonly pathVisited = new Uint32Array(W * H);

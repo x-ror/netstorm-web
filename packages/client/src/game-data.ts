@@ -21,6 +21,44 @@ export interface Mission {
 /** aiTimeBetweenMoves of the campaign missions that leave it out; most set 6. */
 export const DEFAULT_AI_DELAY = 6;
 
+/** Fields of a unit that `loadDefs` reads; the rest of the extraction is not shipped. */
+const UNIT_FIELDS = [
+  'id',
+  'description',
+  'class',
+  'theme',
+  'level',
+  'cost',
+  'maxHitPoints',
+  'range',
+  'hpPerSec',
+  'foot_x',
+  'foot_y',
+  'speed',
+  'group',
+  'delayBetweenShots',
+  'lifeSpan',
+  'airrange',
+  'useairdamage',
+  'airdamage',
+] as const;
+
+/** Keep only what the simulation reads of each unit. */
+export function slimUnits(raw: unknown): Record<string, unknown>[] {
+  return (Array.isArray(raw) ? raw : []).map((unit) => {
+    const from = asRecord(unit);
+    const slim: Record<string, unknown> = {};
+
+    for (const field of UNIT_FIELDS) {
+      if (from[field] !== undefined) {
+        slim[field] = from[field];
+      }
+    }
+
+    return slim;
+  });
+}
+
 /** Keep only the geysers: the client does not read island cells yet. */
 export function slimMaps(raw: unknown): Maps {
   const maps: Maps = {};

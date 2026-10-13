@@ -1,4 +1,5 @@
 import type { World } from '../world.js';
+import { flies } from '../defs.js';
 import type { WorldView } from '../view.js';
 import type { Command, CommandError } from '../commands.js';
 import {
@@ -290,7 +291,8 @@ function collapse(world: World, x: number, y: number): void {
       continue;
     }
 
-    if (e.kind === 'transport') {
+    // An Aerial Transport over the cell is not standing on it.
+    if (e.kind === 'transport' && !flies(world.def(e.type))) {
       e.hp = 0;
     } else if (e.kind === 'priest' && e.state !== 'carried' && e.state !== 'chained') {
       e.path = [];

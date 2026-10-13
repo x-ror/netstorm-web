@@ -346,7 +346,7 @@ function hint(world: WorldView, ui: UiState): string {
     case 'piece':
       return "ЛКМ — покласти сегмент кінцем до своєї землі або до кінця свого мосту. Боком сегменти не з'єднуються. R — поворот, права кнопка — скасувати.";
     case 'build':
-      return world.defs.get(ui.tool.type)?.cls === 'Ground Transport'
+      return world.defs.get(ui.tool.type)?.cls.endsWith('Transport')
         ? 'ЛКМ — поставити на вільну клітинку свого острова, поруч з енергією. Golem робить Храм, інші транспорти — Майстерня їхньої стихії.'
         : 'ЛКМ — поставити на своєму острові або біля відкритого кінця свого мосту, поруч з енергією.';
     case 'salvage':

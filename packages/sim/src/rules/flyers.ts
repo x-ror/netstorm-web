@@ -1,5 +1,5 @@
 import type { World } from '../world.js';
-import type { UnitDef } from '../defs.js';
+import { flies, type UnitDef } from '../defs.js';
 import { TPS, WEAR_CRACKED, Terrain, type Building, type Entity, type Flyer } from '../state.js';
 import { damage, targetable } from './combat.js';
 
@@ -110,7 +110,7 @@ function crowded(world: World, f: Flyer, target: Entity): boolean {
 
 function prey(world: World, f: Flyer, e: Entity): boolean {
   // Flyers strike the ground only, and "a Whirligig will never target a Transport".
-  if (e.kind === 'flyer' || !targetable(f, e)) {
+  if (e.kind === 'flyer' || ('type' in e && flies(world.def(e.type))) || !targetable(f, e)) {
     return false;
   }
 
@@ -194,7 +194,7 @@ function sweep(world: World, f: Flyer): void {
   }
 
   for (const e of under) {
-    if (targetable(f, e)) {
+    if (targetable(f, e) && !('type' in e && flies(world.def(e.type)))) {
       damage(world, f.owner, e, amount, undefined, true);
     }
   }

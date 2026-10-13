@@ -36,10 +36,10 @@ import { energy, canBuild, build, salvage } from './rules/building.js';
 import { tickTransport, collect, pickupCrystal } from './rules/movement.js';
 import { tickPriest, movePriest } from './rules/priest.js';
 import { capturePriest } from './rules/capture.js';
-import { Pathfinder } from './spatial/pathfinding.js';
+import { Pathfinder, airPath } from './spatial/pathfinding.js';
 import { CellIndex } from './cell-index.js';
 import { Rng } from './rng.js';
-import { type DefTable, type UnitDef, type UnitGroup, type Theme } from './defs.js';
+import { flies, type DefTable, type UnitDef, type UnitGroup, type Theme } from './defs.js';
 import {
   W,
   H,
@@ -621,7 +621,11 @@ export class World {
 
     if (transports) {
       for (const transport of transports) {
-        if (transport.owner !== me && transport.hp > 0 && this.entities.has(transport.id)) {
+        // An Aerial Transport is not found on the ground: only what shoots at the air sees it.
+        if (
+          transport.owner !== me && transport.hp > 0 && this.entities.has(transport.id)
+          && !flies(this.def(transport.type))
+        ) {
           return transport;
         }
       }
@@ -648,6 +652,17 @@ export class World {
     avoidOccupied = false,
   ): [number, number][] | null {
     return this.pathfinder.find(this, p, sx, sy, goal, avoidOccupied);
+  }
+
+  /** The way of a transport or a Priest to the nearest cell that meets `goal`: over ground and
+   * joined bridge for those on foot, over anything for an Aerial Transport. */
+  wayOf(
+    e: Transport | Priest,
+    goal: (c: [number, number]) => boolean,
+  ): [number, number][] | null {
+    return e.kind === 'transport' && flies(this.def(e.type))
+      ? airPath(e.x, e.y, goal)
+      : this.findPath(e.owner, e.x, e.y, goal, e.kind === 'priest');
   }
 
   /** Call after bulk edits to terrain/owner arrays, e.g. a scenario editor. */
