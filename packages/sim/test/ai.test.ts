@@ -137,3 +137,21 @@ test('a beaten player is no target', () => {
     [],
   );
 });
+
+test('without an Altar the AI has its Priest build one', () => {
+  const world = mk();
+  const altar = world.buildingsOf(2).find((b) => b.type === 'altar')!;
+  world.apply({ t: 'salvage', player: 2, target: altar.id });
+  const order = aiMove(world, { player: 2 }).find((c) => c.t === 'build' && c.type === 'altar');
+  assert.ok(order);
+  world.step([order]);
+
+  // The Priest walks over, the Altar rises in ten seconds, and no second one is ordered.
+  for (let i = 0; i < 40 * TPS; i++) {
+    world.step();
+  }
+
+  const built = world.buildingsOf(2).filter((b) => b.type === 'altar');
+  assert.deepEqual(built.map((b) => b.rising), [0]);
+  assert.ok(!aiMove(world, { player: 2 }).some((c) => c.t === 'build' && c.type === 'altar'));
+});

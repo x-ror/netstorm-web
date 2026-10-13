@@ -35,6 +35,9 @@ type View<T> = DeepReadonly<T>;
 /** How far around the bridge head the AI looks for a spot to lay a piece, and for a unit. */
 const SEARCH_RADIUS = 5;
 const UNIT_RADIUS = 9;
+const ALTAR = 'altar';
+// How far from its Temple the AI looks for room for an Altar, which is seven cells a side.
+const ALTAR_RADIUS = 24;
 const ROTATIONS = 4;
 /** Shooters the AI keeps while it still expands toward geysers (invented). */
 const DEFENCE_SHOOTERS = 3;
@@ -75,6 +78,7 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
   const transports = owned<Transport>(world, me, 'transport');
   const geysers = reachableGeysers(world, me);
   collect(world, move, transports, geysers);
+  buildAltar(world, move);
   capture(world, move, transports);
   const ward = wardSpot(world, me);
 
@@ -193,6 +197,22 @@ function collect(
     crews.set(geyser.id, crews.get(geyser.id)! + 1);
     move.commands.push({ t: 'collect', player: move.me, transport: t.id, geyser: geyser.id });
   }
+}
+
+/**
+ * "To begin the sacrificial process, you must build an Altar": nobody starts a battle with one,
+ * the Priest builds it. The AI has him build one near its Temple as soon as it can pay for it.
+ */
+function buildAltar(world: WorldView, move: Move): void {
+  const def = world.defs.get(ALTAR);
+  const priest = world.priestOf(move.me);
+  const home = world.templeOf(move.me);
+
+  if (!def || !priest || world.buildingsOf(move.me).some((b) => b.type === ALTAR)) {
+    return;
+  }
+
+  place(world, move, def, home ? centre(home) : priest, undefined, ALTAR_RADIUS);
 }
 
 /** Send one transport for a downed enemy priest, unless one is already on its way to him. */
@@ -792,6 +812,7 @@ function place(
   def: Readonly<UnitDef>,
   head: { x: number; y: number; },
   facing?: Facing,
+  radius = UNIT_RADIUS,
 ): { placed: boolean; noEnergy: boolean; } {
   let noEnergy = false;
 
@@ -799,7 +820,7 @@ function place(
     return { placed: false, noEnergy };
   }
 
-  for (const [x, y] of nearby(head, UNIT_RADIUS)) {
+  for (const [x, y] of nearby(head, radius)) {
     if (!clearOfBridges(world, def, x, y, move.planned)) {
       continue;
     }

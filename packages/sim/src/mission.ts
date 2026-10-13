@@ -157,18 +157,22 @@ export function createMission(
   return w;
 }
 
-/** An island belongs to whoever has a Temple on it; without one, to nobody. */
+/** An island belongs to whoever has a Temple on it; without a Temple, to the side whose Priest
+ * stands on it, so that he can build one; otherwise to nobody. */
 function islandOwners(w: World, map: MissionMap, ground: Int16Array, islands: number): number[] {
   const lords: number[] = Array.from({ length: islands }, () => 0);
+  const claim = (wanted: (type: string) => boolean) => {
+    for (const [type, owner, x, y] of map.units) {
+      const island = w.inside(x, y) ? ground[y * W + x]! : -1;
 
-  for (const [type, owner, x, y] of map.units) {
-    const island = w.inside(x, y) ? ground[y * W + x]! : -1;
-
-    if (island >= 0 && w.defs.get(type)?.cls === 'Energy' && w.players.has(owner)) {
-      lords[island] = owner;
+      if (island >= 0 && lords[island] === 0 && w.players.has(owner) && wanted(type)) {
+        lords[island] = owner;
+      }
     }
-  }
+  };
 
+  claim((type) => w.defs.get(type)?.cls === 'Energy');
+  claim((type) => type === PRIEST);
   return lords;
 }
 
