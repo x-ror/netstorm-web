@@ -120,6 +120,16 @@ export function capturePriest(
   return null;
 }
 
+/** A friendly Priest set down on the island of whoever carried him is saved: "bring me to safety
+ * by dropping me on your island". */
+export function hail(world: World, by: number, p: Priest, x: number, y: number): void {
+  const home = world.terrain[world.at(x, y)] === Terrain.Island && world.isOwnGround(by, x, y);
+
+  if (home && !world.hostile(by, p.owner) && by !== p.owner) {
+    world.emit({ what: 'saved', who: by, data: { priest: p.id, owner: p.owner } });
+  }
+}
+
 /** Transport reached the priest it was sent for. */
 export function arriveAtPriest(world: World, t: Transport): void {
   const p = t.target === null ? undefined : world.entities.get(t.target);
@@ -192,17 +202,12 @@ export function arriveAtAltar(world: World, t: Transport): void {
   const friend = !world.hostile(p.owner, t.owner);
 
   // The altar is gone or the way to it was cut: the transport lets the priest go. A friend is
-  // let go in any case, and beside the Temple he is saved. That the Temple is the place is our
-  // reading of "dropping me on your island" (`?`).
+  // let go in any case: carried to the Temple, he is set down on the carrier's island and saved.
   if (friend || !altar || altar.owner !== t.owner || !world.adjacentTo(t.x, t.y, altar)) {
     t.carrying = null;
     stop(t);
     releasePriest(world, p, t.x, t.y);
-
-    if (friend && altar && world.adjacentTo(t.x, t.y, altar)) {
-      world.emit({ what: 'saved', who: t.owner, data: { priest: p.id, owner: p.owner } });
-    }
-
+    hail(world, t.owner, p, t.x, t.y);
     return;
   }
 

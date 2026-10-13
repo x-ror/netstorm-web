@@ -949,3 +949,39 @@ test('where a mission allows it, a transport carries a friendly Priest home to s
   assert.ok(golem.x < 20 && golem.y < 20);
   assert.equal(world.players.get(2)!.alive, true);
 });
+
+test('a carrier drops its cargo where it stands, and a friend set down on its island is saved', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 0, [], [2]);
+  world.addPlayer(2, 'Friend', 'rain', 0, []);
+  world.addIsland(0, 0, 60, 60, 1);
+  world.addIsland(70, 0, 20, 20, 0);
+  world.spawnBuilding('windvortex', 1, 10, 10);
+  const golem = world.spawnTransport('sunwalker', 1, 30, 30);
+  const drop = { t: 'dropCargo', player: 1, transport: golem.id } as const;
+  assert.equal(world.apply(drop), 'bad target'); // nothing to drop
+  const crystal = world.spawnCrystal(golem, 200);
+  golem.carrying = crystal.id;
+  golem.goal = 'home';
+  golem.path = [[31, 30]];
+  assert.equal(world.apply(drop), null);
+  assert.deepEqual([golem.carrying, golem.goal, golem.path.length], [null, 'idle', 0]);
+  assert.deepEqual([crystal.carriedBy, crystal.x, crystal.y], [null, 30, 30]);
+
+  // A friendly Priest: set down on neutral ground he is merely free, on the carrier's island saved.
+  const priest = world.addPriest(2, 75, 5);
+  const carry = (x: number, y: number) => {
+    world.occupant[world.at(priest.x, priest.y)] = 0;
+    priest.state = 'carried';
+    priest.carriedBy = golem.id;
+    golem.carrying = priest.id;
+    golem.x = x;
+    golem.y = y;
+    world.drainEvents();
+    assert.equal(world.apply(drop), null);
+    return world.drainEvents().map((event) => event.what);
+  };
+  assert.deepEqual(carry(76, 6), ['released']);
+  assert.deepEqual(carry(30, 30), ['released', 'saved']);
+  assert.equal(priest.state, 'normal');
+});

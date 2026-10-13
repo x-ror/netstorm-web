@@ -6,7 +6,9 @@ event that brings it up. "[Succeeded][BadTeamDead]" is shown, and the mission wo
 is defeated; "[Failed][Ai2PriestDead]" when the Priest of side 2 is sacrificed. A section that only
 names an event is a failure too when its button leads to "TryAgain"; any other is a message shown
 when the event comes ("[@120]": 120 seconds into the mission), listed under "tell" with the name
-its text has in the file. data/missions.json keeps the
+its text has in the file. The buttons of every section are kept under "buttons", by the name
+of the section: their label, what they do ("Tell" shows another section, "DoNothing" goes on with
+the battle, "LeaveBattle" and the "Mission..." ones leave it) and what with. data/missions.json keeps the
 first name of each section only, so the events are read from the files again.
 
 Usage: mission-goals.py <dir with *.english> <data/missions.json>
@@ -25,7 +27,7 @@ EVENT = re.compile(r"@\d+|ai\d+(priest|temple)\w+")
 
 
 def goals(text: str) -> dict:
-    found: dict = {"win": [], "lose": [], "tell": []}
+    found: dict = {"win": [], "lose": [], "tell": [], "buttons": {}}
     sections: list[tuple[set[str], list[str]]] = []
     first: list[str] = []
 
@@ -41,6 +43,10 @@ def goals(text: str) -> dict:
 
     for (names, body), section in zip(sections, first):
         events = sorted(names - WON - LOST)
+        buttons = [line[len("$Button="):].split(",") for line in body if line.startswith("$Button=")]
+
+        if buttons:
+            found["buttons"][section] = [[part.strip() for part in button] for button in buttons]
 
         if names & WON:
             found["win"] += events

@@ -26,6 +26,21 @@ export interface MissionSide {
 export interface MissionMessage {
   on: string[];
   text: string;
+  buttons: MissionButton[];
+}
+
+/** A button under a text of the script: `Tell` shows the page named by `arg`, `DoNothing` goes on
+ * with the battle, `MissionBegin` starts the mission named by `arg`, the rest leave the battle. */
+export interface MissionButton {
+  label: string;
+  action: string;
+  arg: string;
+}
+
+/** A page of the script that a button leads to. */
+export interface MissionPage {
+  text: string;
+  buttons: MissionButton[];
 }
 
 export interface Mission {
@@ -50,6 +65,9 @@ export interface Mission {
   /** `allowAnyCapture`: transports may pick up friendly Priests. */
   anyCapture: boolean;
   messages: MissionMessage[];
+  /** Every page of the script by the name of its section in lower case, for buttons to lead to;
+   * 'succeeded' and 'failed' are the pages of the two endings. */
+  pages: Record<string, MissionPage>;
 }
 
 /** The side numbers in the events of one kind: "ai2priestsaved" gives 2 for "priestsaved". */
@@ -256,7 +274,8 @@ export function slimMissions(raw: unknown, maps: Maps): Mission[] {
       // "A1." is the second page of the briefing.
       briefing: [text(sections, 'A.'), text(sections, 'A1.')].filter(Boolean)
         .map((page) => reflow(withoutTitle(page, header.title as string))).join('\n\n'),
-      messages: tells(asRecord(file.goals).tell, sections),
+      messages: tells(asRecord(file.goals), sections),
+      pages: pagesOf(asRecord(file.goals), sections),
       succeeded: reflow(text(sections, 'Succeeded') || text(sections, 'succeeded')),
       failed: reflow(text(sections, 'Failed')),
       rescue: sidesIn(asRecord(file.goals).win, 'priestsaved'),
@@ -306,12 +325,43 @@ export function happened(
 }
 
 /** The messages of the script, as scripts/mission-goals.py lists them, with their texts. */
-function tells(raw: unknown, sections: Record<string, unknown>): MissionMessage[] {
-  return (Array.isArray(raw) ? raw : []).flatMap((entry) => {
+function tells(
+  goals: Record<string, unknown>,
+  sections: Record<string, unknown>,
+): MissionMessage[] {
+  return (Array.isArray(goals.tell) ? goals.tell : []).flatMap((entry) => {
     const { on, section } = asRecord(entry);
     const body = reflow(text(sections, String(section)));
-    return Array.isArray(on) && body ? [{ on: on.map(String), text: body }] : [];
+    const buttons = buttonsOf(goals, String(section));
+    return Array.isArray(on) && body ? [{ on: on.map(String), text: body, buttons }] : [];
   });
+}
+
+/** The buttons scripts/mission-goals.py lists for a section: label, action and argument. */
+function buttonsOf(goals: Record<string, unknown>, section: string): MissionButton[] {
+  const raw = asRecord(goals.buttons)[section];
+  return (Array.isArray(raw) ? raw : []).flatMap((button) =>
+    Array.isArray(button) && button.length >= 2
+      ? [{ label: String(button[0]), action: String(button[1]), arg: String(button[2] ?? '') }]
+      : []
+  );
+}
+
+function pagesOf(
+  goals: Record<string, unknown>,
+  sections: Record<string, unknown>,
+): Record<string, MissionPage> {
+  const pages: Record<string, MissionPage> = {};
+
+  for (const name of Object.keys(sections)) {
+    const body = reflow(text(sections, name));
+
+    if (body) {
+      pages[name.toLowerCase()] = { text: body, buttons: buttonsOf(goals, name) };
+    }
+  }
+
+  return pages;
 }
 
 function text(sections: Record<string, unknown>, name: string): string {

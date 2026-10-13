@@ -2,7 +2,7 @@ import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
 import { flies } from '../defs.js';
 import { arriveAtObelisk, cast } from './spells.js';
-import { arriveAtAltar, arriveAtPriest, releasePriest, takeCaptive } from './capture.js';
+import { arriveAtAltar, arriveAtPriest, hail, releasePriest, takeCaptive } from './capture.js';
 import { TPS, CRYSTAL_VALUE, Terrain, type Transport, type Priest, type Geyser } from '../state.js';
 
 // From carrier.cpp of netstorm.game 10.82.
@@ -373,6 +373,38 @@ function ownCarrier(world: World, player: number, id: number): Carrier | null {
   }
 
   return t.carrying === null && (t.kind === 'transport' || t.state === 'normal') ? t : null;
+}
+
+/**
+ * "Right-click a cargo-carrying Transport, and choose 'Drop ...'": the crystal is left where the
+ * carrier stands, a Priest is set down beside it, and the carrier's errand is over. A friendly
+ * Priest set down on the carrier's own island is saved.
+ */
+export function unload(
+  world: World,
+  c: Extract<Command, { t: 'dropCargo'; }>,
+): CommandError | null {
+  const t = world.entities.get(c.transport);
+
+  if (!t || (t.kind !== 'transport' && t.kind !== 'priest') || t.owner !== c.player) {
+    return 'bad target';
+  }
+
+  const cargo = t.carrying === null ? undefined : world.entities.get(t.carrying);
+
+  if (!cargo) {
+    return 'bad target';
+  }
+
+  dropCargo(world, t);
+  t.path = [];
+  stop(t);
+
+  if (cargo.kind === 'priest') {
+    hail(world, t.owner, cargo, t.x, t.y);
+  }
+
+  return null;
 }
 
 export function collect(world: World, c: Extract<Command, { t: 'collect'; }>): CommandError | null {

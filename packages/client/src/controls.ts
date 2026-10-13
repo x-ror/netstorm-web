@@ -516,6 +516,11 @@ export function createControls(options: {
   return {
     setTool,
     drawOverlay,
+    dropSelected() {
+      if (ui.selected !== null) {
+        submit({ t: 'dropCargo', player: me, transport: ui.selected });
+      }
+    },
     castSelected() {
       if (ui.selected !== null) {
         submit({ t: 'castSpell', player: me, transport: ui.selected });

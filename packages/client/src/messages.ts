@@ -37,6 +37,7 @@ const COMMANDS: Record<string, string> = {
   meltdown: 'Meltdown',
   takeSpell: 'Обеліск',
   castSpell: 'Заклинання',
+  dropCargo: 'Вантаж',
 };
 
 export type Tone = 'good' | 'bad' | 'info';

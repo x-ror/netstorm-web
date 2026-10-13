@@ -42,8 +42,9 @@ export interface HudActions {
   salvageSelected(): void;
   meltdownSelected(): void;
   castSelected(): void;
-  /** A message of the mission's script has been read. */
-  dismiss(): void;
+  /** A button of the page shown over the map was pressed: its place among the page's buttons. */
+  page(button: number): void;
+  dropSelected(): void;
   exit(): void;
 }
 
@@ -110,9 +111,10 @@ export function createHud(
       actions.meltdownSelected();
     } else if (action === 'cast-selected') {
       actions.castSelected();
-    } else if (action === 'dismiss') {
-      root.querySelector<HTMLElement>('#overlay')!.hidden = true;
-      actions.dismiss();
+    } else if (action === 'drop-selected') {
+      actions.dropSelected();
+    } else if (action === 'page') {
+      actions.page(Number(value));
     } else if (action === 'pause') {
       actions.togglePause();
     } else if (action === 'exit') {
@@ -158,21 +160,23 @@ export function createHud(
 
   return {
     render,
-    /** Show a message of the mission's script over the map until the player reads it. */
-    showMessage(text: string): void {
+    /** Show a page of the mission's script over the map, with its buttons; `actions.page` is
+     * told which one is pressed. */
+    showPage(title: string, text: string, buttons: readonly string[]): void {
       const overlay = root.querySelector<HTMLElement>('#overlay')!;
       overlay.hidden = false;
-      overlay.innerHTML = `<div class="menu-card"><pre>${
-        escapeHtml(text)
-      }</pre><button data-action="dismiss" class="primary">Продовжити</button></div>`;
+      overlay.innerHTML = `<div class="menu-card">${
+        title ? `<h2>${escapeHtml(title)}</h2>` : ''
+      }<pre>${escapeHtml(text)}</pre>${
+        buttons.map((label, i) =>
+          `<button data-action="page" data-value="${i}"${i === 0 ? ' class="primary"' : ''}>${
+            escapeHtml(label)
+          }</button>`
+        ).join(' ')
+      }</div>`;
     },
-    /** Show the end of the match with the mission text and the way back. */
-    showEnd(title: string, text: string): void {
-      const overlay = root.querySelector<HTMLElement>('#overlay')!;
-      overlay.hidden = false;
-      overlay.innerHTML = `<div class="menu-card"><h2>${escapeHtml(title)}</h2><pre>${
-        escapeHtml(text)
-      }</pre><button data-action="exit" class="primary">До меню</button></div>`;
+    hidePage(): void {
+      root.querySelector<HTMLElement>('#overlay')!.hidden = true;
     },
     dispose(): void {
       abort.abort();
@@ -362,6 +366,14 @@ function info(world: WorldView, me: number, ui: UiState): string {
 
   if ('hp' in entity && entity.invisible > 0) {
     lines.push(`невидимий: ще ${Math.ceil(entity.invisible / TPS)} с`);
+  }
+
+  // "Right-click a cargo-carrying Transport, and choose 'Drop ...'."
+  if (
+    (entity.kind === 'transport' || entity.kind === 'priest') && entity.owner === me
+    && entity.carrying !== null
+  ) {
+    lines.push('<button data-action="drop-selected">Скинути вантаж</button>');
   }
 
   if ((entity.kind === 'building' || entity.kind === 'transport') && entity.owner === me) {

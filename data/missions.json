@@ -479,7 +479,47 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "ToTheRescue"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -517,7 +557,47 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "ToTheRescueEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -555,7 +635,47 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "ToTheRescueHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -573,7 +693,8 @@
         "goals": {
             "win": [],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {}
         }
     },
     {
@@ -610,7 +731,8 @@
         "goals": {
             "win": [],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {}
         }
     },
     {
@@ -653,7 +775,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "TheNoose"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -699,7 +854,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "TheNooseEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -744,7 +932,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "TheNooseHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -805,7 +1026,54 @@
                     ],
                     "section": "Ai2PriestCaptured"
                 }
-            ]
+            ],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Ai2PriestCaptured": [
+                    [
+                        "Continue",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "FinalConfrontation"
+                    ]
+                ],
+                "Ai2PriestDead": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -869,7 +1137,54 @@
                     ],
                     "section": "Ai2PriestCaptured"
                 }
-            ]
+            ],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Ai2PriestCaptured": [
+                    [
+                        "Continue",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "FinalConfrontationEasy"
+                    ]
+                ],
+                "Ai2PriestDead": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -933,7 +1248,54 @@
                     ],
                     "section": "Ai2PriestCaptured"
                 }
-            ]
+            ],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Ai2PriestCaptured": [
+                    [
+                        "Continue",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "FinalConfrontationHard"
+                    ]
+                ],
+                "Ai2PriestDead": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -978,7 +1340,35 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "OK",
+                        "MissionAbort",
+                        "1"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1030,7 +1420,35 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "OK",
+                        "MissionAbort",
+                        "1"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1083,7 +1501,35 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "OK",
+                        "MissionAbort",
+                        "1"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1117,7 +1563,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "ThunderingPower"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1153,7 +1632,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "ThunderingPowerEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1189,7 +1701,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "ThunderingPowerHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1270,7 +1815,40 @@
                     ],
                     "section": "Ai4TempleDead"
                 }
-            ]
+            ],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "Surrounded"
+                    ]
+                ],
+                "ai2PriestDead": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1354,7 +1932,40 @@
                     ],
                     "section": "Ai4TempleDead"
                 }
-            ]
+            ],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "SurroundedEasy"
+                    ]
+                ],
+                "ai2PriestDead": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1438,7 +2049,40 @@
                     ],
                     "section": "Ai4TempleDead"
                 }
-            ]
+            ],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "SurroundedHard"
+                    ]
+                ],
+                "ai2PriestDead": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1475,7 +2119,8 @@
         "goals": {
             "win": [],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {}
         }
     },
     {
@@ -1494,7 +2139,8 @@
         "goals": {
             "win": [],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {}
         }
     },
     {
@@ -1528,7 +2174,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "SaveTheIsland"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1564,7 +2243,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "SaveTheIslandEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1600,7 +2312,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "SaveTheIslandHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1822,7 +2567,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "RunForIt"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1857,7 +2635,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "RunForItEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1892,7 +2703,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "RunForItHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1927,7 +2771,47 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "GuardMyBack"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -1964,7 +2848,47 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "GuardMyBackEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2001,7 +2925,47 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "GuardMyBackHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2036,7 +3000,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "FragileFortune"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2072,7 +3069,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "FragileFortuneEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2108,7 +3138,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "FragileFortuneHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2168,7 +3231,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "BreakingThrough"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2233,7 +3329,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "BreakingThroughEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2302,7 +3431,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "BreakingThroughHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2556,7 +3718,47 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "RainVsRain"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2592,7 +3794,47 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "RainVsRainEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2628,7 +3870,47 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "RainVsRainHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2662,7 +3944,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "MasterOfWhirligigs"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2698,7 +4013,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "MasterOfWhirligigsEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2735,7 +4083,40 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "MasterOfWhirligigsHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2822,7 +4203,147 @@
                     ],
                     "section": "@900"
                 }
-            ]
+            ],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@20": [
+                    [
+                        "Fight On",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@120": [
+                    [
+                        "Surrender",
+                        "Tell",
+                        "Surrender"
+                    ],
+                    [
+                        "Continue Fighting",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@360": [
+                    [
+                        "Fight On",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@500": [
+                    [
+                        "Reply",
+                        "Tell",
+                        "Wife"
+                    ],
+                    [
+                        "Ignore",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@700": [
+                    [
+                        "I am Coward",
+                        "DoNothing",
+                        "0"
+                    ],
+                    [
+                        "Go to Hell",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@900": [
+                    [
+                        "Surrender",
+                        "Tell",
+                        "Surrender"
+                    ],
+                    [
+                        "Continue Fighting",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Surrender": [
+                    [
+                        "Depart in Disgrace",
+                        "LeaveBattle",
+                        "1"
+                    ],
+                    [
+                        "Kill that Soldier",
+                        "Tell",
+                        "KillSoldier"
+                    ],
+                    [
+                        "Fight",
+                        "Tell",
+                        "FightAgain"
+                    ]
+                ],
+                "KillSoldier": [
+                    [
+                        "Die Pathetically",
+                        "LeaveBattle",
+                        "1"
+                    ]
+                ],
+                "FightAgain": [
+                    [
+                        "Fight On!",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Send a Note to the Marquis",
+                        "Tell",
+                        "VictoryNote"
+                    ]
+                ],
+                "VictoryNote": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "DissolvedAlliance"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -2912,7 +4433,147 @@
                     ],
                     "section": "@900"
                 }
-            ]
+            ],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@20": [
+                    [
+                        "Fight On",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@120": [
+                    [
+                        "Surrender",
+                        "Tell",
+                        "Surrender"
+                    ],
+                    [
+                        "Continue Fighting",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@360": [
+                    [
+                        "Fight On",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@500": [
+                    [
+                        "Reply",
+                        "Tell",
+                        "Wife"
+                    ],
+                    [
+                        "Ignore",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@700": [
+                    [
+                        "I am Coward",
+                        "DoNothing",
+                        "0"
+                    ],
+                    [
+                        "Go to Hell",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@900": [
+                    [
+                        "Surrender",
+                        "Tell",
+                        "Surrender"
+                    ],
+                    [
+                        "Continue Fighting",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Surrender": [
+                    [
+                        "Depart in Disgrace",
+                        "LeaveBattle",
+                        "1"
+                    ],
+                    [
+                        "Kill that Soldier",
+                        "Tell",
+                        "KillSoldier"
+                    ],
+                    [
+                        "Fight",
+                        "Tell",
+                        "FightAgain"
+                    ]
+                ],
+                "KillSoldier": [
+                    [
+                        "Die Pathetically",
+                        "LeaveBattle",
+                        "1"
+                    ]
+                ],
+                "FightAgain": [
+                    [
+                        "Fight On!",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Send a Note to the Marquis",
+                        "Tell",
+                        "VictoryNote"
+                    ]
+                ],
+                "VictoryNote": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "DissolvedAllianceEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3002,7 +4663,147 @@
                     ],
                     "section": "@900"
                 }
-            ]
+            ],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@20": [
+                    [
+                        "Fight On",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@120": [
+                    [
+                        "Surrender",
+                        "Tell",
+                        "Surrender"
+                    ],
+                    [
+                        "Continue Fighting",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@360": [
+                    [
+                        "Fight On",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@500": [
+                    [
+                        "Reply",
+                        "Tell",
+                        "Wife"
+                    ],
+                    [
+                        "Ignore",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@700": [
+                    [
+                        "I am Coward",
+                        "DoNothing",
+                        "0"
+                    ],
+                    [
+                        "Go to Hell",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "@900": [
+                    [
+                        "Surrender",
+                        "Tell",
+                        "Surrender"
+                    ],
+                    [
+                        "Continue Fighting",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Surrender": [
+                    [
+                        "Depart in Disgrace",
+                        "LeaveBattle",
+                        "1"
+                    ],
+                    [
+                        "Kill that Soldier",
+                        "Tell",
+                        "KillSoldier"
+                    ],
+                    [
+                        "Fight",
+                        "Tell",
+                        "FightAgain"
+                    ]
+                ],
+                "KillSoldier": [
+                    [
+                        "Die Pathetically",
+                        "LeaveBattle",
+                        "1"
+                    ]
+                ],
+                "FightAgain": [
+                    [
+                        "Fight On!",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Send a Note to the Marquis",
+                        "Tell",
+                        "VictoryNote"
+                    ]
+                ],
+                "VictoryNote": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "DissolvedAllianceHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3066,7 +4867,47 @@
                     ],
                     "section": "@120"
                 }
-            ]
+            ],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "Vicious"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3133,7 +4974,47 @@
                     ],
                     "section": "@120"
                 }
-            ]
+            ],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "ViciousEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3201,7 +5082,47 @@
                     ],
                     "section": "@120"
                 }
-            ]
+            ],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "ViciousHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3242,7 +5163,92 @@
         "goals": {
             "win": [],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "A."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "B.": [
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "C.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "C1."
+                    ]
+                ],
+                "C1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "C."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "D.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "D1."
+                    ]
+                ],
+                "D1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "D."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "E.": [
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "G.": [
+                    [
+                        "Leave Tutorials",
+                        "LeaveBattle",
+                        "1"
+                    ],
+                    [
+                        "Next Tutorial",
+                        "MissionBegin",
+                        "Tutorial2"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3289,7 +5295,142 @@
         "goals": {
             "win": [],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "A."
+                    ],
+                    [
+                        "MORE",
+                        "Tell",
+                        "A2."
+                    ]
+                ],
+                "A2.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "A1."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "B.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "B1."
+                    ]
+                ],
+                "B1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "B."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "C.": [
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "D.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "D1."
+                    ]
+                ],
+                "D1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "D."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "E.": [
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "F.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "F1."
+                    ]
+                ],
+                "G.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "F."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "H.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "H1."
+                    ]
+                ],
+                "H1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "H."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "I.": [
+                    [
+                        "Leave Tutorials",
+                        "LeaveBattle",
+                        "1"
+                    ],
+                    [
+                        "Next Tutorial",
+                        "MissionBegin",
+                        "Tutorial3"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3332,7 +5473,111 @@
         "goals": {
             "win": [],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "A."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "B.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "B1."
+                    ]
+                ],
+                "B1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "B."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "C.": [
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "D.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "D1."
+                    ]
+                ],
+                "D1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "D."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "E.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "E1."
+                    ]
+                ],
+                "E1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "E."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "F.": [
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "H.": [
+                    [
+                        "Leave Tutorials",
+                        "LeaveBattle",
+                        "1"
+                    ],
+                    [
+                        "Next Tutorial",
+                        "MissionBegin",
+                        "Tutorial4"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3374,7 +5619,109 @@
         "goals": {
             "win": [],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "A."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "B.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "B1."
+                    ]
+                ],
+                "B1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "B."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "C.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "C1."
+                    ]
+                ],
+                "C1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "C."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "E.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "E1."
+                    ]
+                ],
+                "E1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "E."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "I.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "I1."
+                    ]
+                ],
+                "I1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "I."
+                    ],
+                    [
+                        "Leave Tutorials",
+                        "LeaveBattle",
+                        "1"
+                    ],
+                    [
+                        "Next Tutorial",
+                        "MissionBegin",
+                        "Tutorial5"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3415,7 +5762,111 @@
         "goals": {
             "win": [],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "A."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "B.": [
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "C.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "C1."
+                    ]
+                ],
+                "C1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "C."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "D.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "D1."
+                    ]
+                ],
+                "D1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "D."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "E.": [
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "F.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "F1."
+                    ]
+                ],
+                "F1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "F."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "G.": [
+                    [
+                        "Leave Tutorials",
+                        "LeaveBattle",
+                        "1"
+                    ],
+                    [
+                        "Next Tutorial",
+                        "MissionBegin",
+                        "Tutorial6"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3448,7 +5899,80 @@
         "goals": {
             "win": [],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "MORE",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "A."
+                    ],
+                    [
+                        "MORE",
+                        "Tell",
+                        "A2."
+                    ]
+                ],
+                "A2.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "A1."
+                    ],
+                    [
+                        "MORE",
+                        "Tell",
+                        "A3."
+                    ]
+                ],
+                "A3.": [
+                    [
+                        "BACK",
+                        "Tell",
+                        "A2."
+                    ],
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "C.": [
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "D.": [
+                    [
+                        "OK",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "E.": [
+                    [
+                        "OK",
+                        "Tell",
+                        "C1."
+                    ]
+                ],
+                "F.": [
+                    [
+                        "Leave Tutorials",
+                        "LeaveBattle",
+                        "1"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3493,7 +6017,47 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "EnemyTerritory"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3528,7 +6092,47 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "EnemyTerritoryEasy"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -3563,7 +6167,47 @@
                 "badteamdead"
             ],
             "lose": [],
-            "tell": []
+            "tell": [],
+            "buttons": {
+                "A.": [
+                    [
+                        "More",
+                        "Tell",
+                        "A1."
+                    ]
+                ],
+                "A1.": [
+                    [
+                        "Review Knowledge",
+                        "ShowTechnology",
+                        "55"
+                    ],
+                    [
+                        "Play Mission",
+                        "DoNothing",
+                        "0"
+                    ]
+                ],
+                "Succeeded": [
+                    [
+                        "Leave Missions",
+                        "MissionAbort",
+                        "1"
+                    ],
+                    [
+                        "Next Mission",
+                        "MissionBegin",
+                        "EnemyTerritoryHard"
+                    ]
+                ],
+                "Failed": [
+                    [
+                        "Continue",
+                        "Tell",
+                        "TryAgain"
+                    ]
+                ]
+            }
         }
     },
     {
@@ -4003,7 +6647,8 @@
                     ],
                     "section": "@60"
                 }
-            ]
+            ],
+            "buttons": {}
         }
     },
     {

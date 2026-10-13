@@ -394,6 +394,26 @@ test('a mission gives its computer sides their orders, income and pace, and its 
   assert.deepEqual(rescue.messages.map((m) => m.on), [['@120']]);
   assert.match(rescue.messages[0]!.text, /^A message arrives from the governor/);
   assert.match(rescue.briefing, /Avert this crisis of confidence/); // the second page, "A1."
+  // Buttons of the script: a reply leads to another page, a victory to the next mission.
+  const power = missions.find((m) => m.id === 'thunderingpower')!;
+  const note = power.messages.find((m) => m.on.includes('@500'))!;
+  assert.deepEqual(note.buttons, [
+    { label: 'Reply', action: 'Tell', arg: 'Wife' },
+    { label: 'Ignore', action: 'DoNothing', arg: '0' },
+  ]);
+  assert.match(power.pages.wife!.text, /^You send a response/);
+  assert.deepEqual(power.pages.wife!.buttons, []);
+  assert.deepEqual(power.pages.surrender!.buttons.map((b) => b.action), [
+    'LeaveBattle',
+    'Tell',
+    'Tell',
+  ]);
+  assert.deepEqual(power.pages.victorynote!.buttons.at(-1), {
+    label: 'Next Mission',
+    action: 'MissionBegin',
+    arg: 'DissolvedAlliance',
+  });
+  assert.ok(missions.some((m) => m.id === 'dissolvedalliance'));
   const guard = missions.find((m) => m.id === 'guardmyback')!;
   assert.deepEqual(guard.messages[0]!.on, ['ai2priestcaptured', 'ai2templehalf']);
 

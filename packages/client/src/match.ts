@@ -9,7 +9,15 @@ import {
   type DefTable,
   type Event as SimEvent,
 } from '@netstorm/sim';
-import { DEFAULT_AI_DELAY, happened, outcome, type Maps, type Mission } from './game-data.js';
+import {
+  DEFAULT_AI_DELAY,
+  happened,
+  outcome,
+  type Maps,
+  type Mission,
+  type MissionButton,
+  type MissionPage,
+} from './game-data.js';
 import { type MatchOptions } from './menu.js';
 import { createMatchWorld, ME } from './setup.js';
 import { createWorldRenderer } from './renderer.js';
@@ -62,8 +70,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     data.textures);
 
   root.hidden = false;
-  let leave: (() => void) | undefined;
-  const left = new Promise<void>((resolve) => {
+  let leave: ((next?: string) => void) | undefined;
+  /** Resolved when the match is left, with the mission to go straight on to, if any. */
+  const left = new Promise<string | undefined>((resolve) => {
     leave = resolve;
   });
   const clock = new FixedStepClock(TPS);
@@ -87,11 +96,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     salvageSelected: () => controls.salvageSelected(),
     meltdownSelected: () => controls.meltdownSelected(),
     castSelected: () => controls.castSelected(),
-    dismiss: () => {
-      ui.paused = false;
-      clock.reset();
-      hud.render();
-    },
+    dropSelected: () => controls.dropSelected(),
+    page: (button) => press(shown[button]),
     exit: () => leave?.(),
   });
   const controls = createControls({
@@ -178,6 +184,45 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
   let hudTick = -1;
   let ended = false;
+  /** The buttons of the page of the script that is shown, in their order on it. */
+  let shown: MissionButton[] = [];
+
+  /**
+   * Show a page of the script with its buttons. A page without any goes on with the battle; once
+   * the battle is over every page also offers the way back to the menu.
+   */
+  function show(title: string, page: MissionPage): void {
+    shown = page.buttons.filter((button) => button.action !== 'ShowTechnology');
+
+    if (ended) {
+      shown = [...shown, { label: 'До меню', action: 'MissionAbort', arg: '' }];
+    } else if (!shown.length) {
+      shown = [{ label: 'Продовжити', action: 'DoNothing', arg: '' }];
+    }
+
+    hud.showPage(title, page.text, shown.map((button) => button.label));
+  }
+
+  /** Do what a button of the script says. */
+  function press(button: MissionButton | undefined): void {
+    const next = button?.action === 'Tell' ? mission?.pages[button.arg.toLowerCase()] : undefined;
+
+    if (next) {
+      show('', next);
+    } else if (button?.action === 'DoNothing' && !ended) {
+      hud.hidePage();
+      ui.paused = false;
+      clock.reset();
+      hud.render();
+    } else if (button?.action === 'MissionBegin') {
+      leave?.(button.arg.toLowerCase());
+    } else {
+      // "LeaveBattle", "MissionAbort" and a "Tell" of a page the mission does not have, such as
+      // the "TryAgain" of every failure.
+      leave?.();
+    }
+  }
+
   const resetClock = () => clock.reset();
   document.addEventListener('visibilitychange', resetClock);
   hud.render();
@@ -220,19 +265,23 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
     if (told >= 0) {
       ui.paused = true;
-      hud.showMessage(unread.splice(told, 1)[0]!.text);
+      show('', unread.splice(told, 1)[0]!);
     }
 
     if (result) {
       ended = true;
       renderLog();
       const won = result === 'won';
-      hud.showEnd(won ? 'Перемога!' : 'Поразка', (won ? mission?.succeeded : mission?.failed)
-        || (won ? 'Ворожого жерця принесено в жертву.' : 'Вашого жерця принесено в жертву.'));
+      const page = mission?.pages[won ? 'succeeded' : 'failed'];
+      show(won ? 'Перемога!' : 'Поразка', {
+        text: page?.text
+          || (won ? 'Ворожого жерця принесено в жертву.' : 'Вашого жерця принесено в жертву.'),
+        buttons: page?.buttons ?? [],
+      });
     }
   });
 
-  await left;
+  const next = await left;
   controls.dispose();
   minimap.dispose();
   hud.dispose();
@@ -240,6 +289,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   app.destroy(true, { children: true });
   root.hidden = true;
   delete (window as unknown as { ns?: unknown; }).ns;
+  return next;
 }
 
 function formatTime(tick: number): string {

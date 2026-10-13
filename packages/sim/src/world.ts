@@ -33,7 +33,7 @@ import { tickBuilding } from './rules/combat.js';
 import { FLYER_SCALE, flightTicks, tickAirBase, tickFlyer } from './rules/flyers.js';
 import { tickPlayer } from './rules/economy.js';
 import { energy, canBuild, build, meltdown, salvage } from './rules/building.js';
-import { tickTransport, collect, pickupCrystal } from './rules/movement.js';
+import { tickTransport, collect, pickupCrystal, unload } from './rules/movement.js';
 import { tickPriest, movePriest } from './rules/priest.js';
 import { capturePriest } from './rules/capture.js';
 import { castSpell, spellbound, takeSpell } from './rules/spells.js';
@@ -550,6 +550,8 @@ export class World {
         return takeSpell(this, c);
       case 'castSpell':
         return castSpell(this, c);
+      case 'dropCargo':
+        return unload(this, c);
     }
   }
 

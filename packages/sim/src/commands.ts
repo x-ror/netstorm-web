@@ -11,7 +11,8 @@ export type Command =
   | { t: 'salvage'; player: number; target: number; }
   | { t: 'meltdown'; player: number; target: number; }
   | { t: 'takeSpell'; player: number; transport: number; obelisk: number; }
-  | { t: 'castSpell'; player: number; transport: number; };
+  | { t: 'castSpell'; player: number; transport: number; }
+  | { t: 'dropCargo'; player: number; transport: number; };
 
 export type CommandError =
   | 'no player'
@@ -53,6 +54,7 @@ export function parseCommand(raw: unknown): Command {
     'meltdown',
     'takeSpell',
     'castSpell',
+    'dropCargo',
   ], 'command type');
   const player = integer(value.player, 'command.player', 1, MAX_PLAYERS);
 
@@ -120,6 +122,7 @@ export function parseCommand(raw: unknown): Command {
         obelisk: integer(value.obelisk, 'command.obelisk', 1, MAX_ID),
       };
     case 'castSpell':
+    case 'dropCargo':
       keys(value, ['t', 'player', 'transport'], 'command');
       return { t, player, transport: integer(value.transport, 'command.transport', 1, MAX_ID) };
     case 'capturePriest':
