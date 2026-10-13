@@ -155,3 +155,66 @@ test('without an Altar the AI has its Priest build one', () => {
   assert.deepEqual(built.map((b) => b.rising), [0]);
   assert.ok(!aiMove(world, { player: 2 }).some((c) => c.t === 'build' && c.type === 'altar'));
 });
+
+test('with no geyser to walk to, the AI buys a transport that flies and sends it out', () => {
+  const world = mk();
+  world.players.get(2)!.storm = 5000;
+
+  // Deleting from a Map while walking it is safe.
+  for (const e of world.entities.values()) {
+    if (e.kind === 'transport' && e.owner === 2) {
+      world.entities.delete(e.id);
+    }
+  }
+
+  // A Cloud Floater takes Energy of three sources: the Temple and two Generators.
+  world.spawnBuilding('rainbattery', 2, 141, 83);
+  world.spawnBuilding('rainbattery', 2, 145, 83);
+  const order = aiMove(world, { player: 2 }).find((c) =>
+    c.t === 'build' && c.type === 'rainballoon'
+  );
+  assert.ok(order);
+  world.step([order]);
+  const sent = aiMove(world, { player: 2 }).find((c) => c.t === 'collect');
+  assert.ok(sent);
+  world.step([sent]);
+  const balloon = [...world.entities.values()].find((e) => e.kind === 'transport' && e.owner === 2);
+  assert.equal(balloon?.kind === 'transport' && balloon.goal, 'collect');
+});
+
+test('the AI sets a second fence post in line with one that stands alone', () => {
+  const world = mk();
+  world.players.get(2)!.storm = 5000;
+  const temple = world.templeOf(2)!;
+  // Enough shooters for it to think of a barrier, and one post on its island.
+  world.spawnBuilding('suncannon', 2, 141, 83);
+  world.spawnBuilding('suncannon', 2, 145, 83);
+  world.spawnBuilding('suncannon', 2, 149, 83);
+  const post = world.spawnBuilding('rainfence', 2, temple.x - 5, temple.y + 8);
+  const orders = aiMove(world, { player: 2 }).filter((c) =>
+    c.t === 'build' && c.type === 'rainfence'
+  );
+  assert.equal(orders.length, 1);
+  const second = orders[0]!;
+  assert.ok(second.t === 'build' && (second.x === post.x || second.y === post.y));
+});
+
+// A Thunder side with Energy enough for a Vander Tower by its Temple.
+const thunder = () => {
+  const world = createSkirmish(defs, 42, [
+    { id: 1, name: 'Idle', theme: 'wind', x: 70, y: 150 },
+    { id: 2, name: 'AI', theme: 'thunder', x: 150, y: 90, storm: 9000 },
+  ], geysers);
+  world.spawnBuilding('thunderbattery', 2, 141, 83);
+  world.spawnBuilding('thunderbattery', 2, 145, 83);
+  return world;
+};
+
+test('the AI answers enemy air with anti-air guns, and does not buy them otherwise', () => {
+  const buys = (world: ReturnType<typeof thunder>) =>
+    aiMove(world, { player: 2 }).flatMap((c) => (c.t === 'build' ? [c.type] : []));
+  assert.ok(!buys(thunder()).includes('thunderarcher'));
+  const flown = thunder();
+  flown.spawnBuilding('sunaviary', 1, 62, 143);
+  assert.ok(buys(flown).includes('thunderarcher'));
+});

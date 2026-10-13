@@ -8,9 +8,11 @@
  * it does the first of: send idle transports to geysers; carry off a downed enemy priest; walk its
  * priest to a captive on its altar; lay a bridge toward the nearest free geyser, or toward the enemy
  * Temple once none is left; put a shooter near the bridge head or a Generator when energy runs out.
+ * It also sends Aerial Transports to geysers no bridge reaches, lays an air base within reach of
+ * the enemy, answers enemy air with anti-air guns, and closes its bridge head with a barrier.
  */
 import type { Command } from './commands.js';
-import type { UnitDef } from './defs.js';
+import { flies, type UnitDef } from './defs.js';
 import {
   DIRS,
   MAX_FACING,
@@ -58,6 +60,13 @@ const MAX_REACH = 32;
 /** Cells from the nearest own Energy source past which the AI puts a Generator by the bridge head,
  * well inside ENERGY_RANGE so the Generator itself can still be built (invented). */
 const GENERATOR_SPACING = 18;
+/** Air bases the AI keeps, and fence posts: two barriers' worth (invented). */
+const AIR_BASES = 2;
+const FENCE_POSTS = 4;
+/** How far apart the AI sets the two posts of a barrier: the widest that fits, down to posts that
+ * nearly touch (invented). */
+const POST_GAP_MAX = 12;
+const POST_GAP_MIN = 4;
 
 export interface AiOptions {
   player: number;
@@ -147,10 +156,14 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
     ) {
       bestUnit(world, move, head, target);
     }
+
+    if (target.enemy && shooters >= DEFENCE_SHOOTERS) {
+      barrier(world, move, head);
+    }
   }
 
   if (transports.length < TRANSPORTS) {
-    newTransport(world, move);
+    newTransport(world, move, geysers.length === 0);
   }
 
   return move.commands;
@@ -173,13 +186,11 @@ function collect(
   world: WorldView,
   move: Move,
   transports: View<Transport>[],
-  geysers: View<Geyser>[],
+  walked: View<Geyser>[],
 ): void {
-  if (!geysers.length) {
-    return;
-  }
-
-  const crews = new Map(geysers.map((g) => [g.id, 0]));
+  // An Aerial Transport needs no bridge: any geyser with stock will do for it.
+  const flown = transports.some((t) => flies(world.def(t.type))) ? geysersFor(world, move.me) : [];
+  const crews = new Map([...walked, ...flown].map((g) => [g.id, 0]));
 
   for (const t of transports) {
     if (t.target !== null && crews.has(t.target) && (t.goal === 'collect' || t.goal === 'home')) {
@@ -189,6 +200,12 @@ function collect(
 
   for (const t of transports) {
     if (t.goal !== 'idle' || t.carrying !== null) {
+      continue;
+    }
+
+    const geysers = flies(world.def(t.type)) ? flown : walked;
+
+    if (!geysers.length) {
       continue;
     }
 
@@ -255,7 +272,8 @@ function capture(world: WorldView, move: Move, transports: View<Transport>[]): v
 }
 
 /** A transport of the AI's Fury, or a Golem, laid by its Temple when it can spare the cost. */
-function newTransport(world: WorldView, move: Move): void {
+// An Aerial Transport is bought first when no geyser can be walked to.
+function newTransport(world: WorldView, move: Move, stranded: boolean): void {
   const player = world.players.get(move.me)!;
   const home = world.templeOf(move.me);
 
@@ -266,9 +284,14 @@ function newTransport(world: WorldView, move: Move): void {
   const kinds = [...player.tech]
     .map((id) => world.defs.get(id))
     .filter((def): def is Readonly<UnitDef> =>
-      def?.cls === 'Ground Transport' && move.budget >= def.cost + TRANSPORT_SAVINGS
+      (def?.cls === 'Ground Transport' || def?.cls === 'Aerial Transport')
+      && move.budget >= def.cost + TRANSPORT_SAVINGS
     )
-    .sort((a, b) => b.speed - a.speed || a.id.localeCompare(b.id));
+    // With no geyser to walk to, one that flies comes first; otherwise the fastest on foot.
+    .sort((a, b) =>
+      Number(flies(b) === stranded) - Number(flies(a) === stranded)
+      || b.speed - a.speed || a.id.localeCompare(b.id)
+    );
   const around = { x: home.x + home.fx, y: home.y + home.fy };
 
   for (const def of kinds) {
@@ -296,6 +319,20 @@ function centre(b: View<Building>): { x: number; y: number; } {
 
 const distance = (ax: number, ay: number, bx: number, by: number) =>
   Math.abs(ax - bx) + Math.abs(ay - by);
+
+/** Every geyser with stock, nearest to the Temple first: what an Aerial Transport can work. */
+function geysersFor(world: WorldView, me: number): View<Geyser>[] {
+  const home = world.templeOf(me);
+
+  if (!home) {
+    return [];
+  }
+
+  const { x, y } = centre(home);
+  return [...world.entities.values()]
+    .filter((e): e is View<Geyser> => e.kind === 'geyser' && e.stock > 0)
+    .sort((a, b) => distance(a.x, a.y, x, y) - distance(b.x, b.y, x, y) || a.id - b.id);
+}
 
 /** Geysers with stock on the AI's own ground that a transport can walk to from the Temple,
  * nearest to the Temple first. */
@@ -695,12 +732,30 @@ function bestUnit(
   world: WorldView,
   move: Move,
   head: { x: number; y: number; },
-  target: { x: number; y: number; },
+  target: Target,
 ): void {
   const player = world.players.get(move.me)!;
   const known = [...player.tech]
     .map((id) => world.defs.get(id))
     .filter((def): def is Readonly<UnitDef> => def !== undefined && def.level > 0);
+  const mine = world.buildingsOf(move.me);
+  // An air base where its flyers reach the enemy from: they hunt around the place they start.
+  const bases = known.filter((def) => def.group === 'aviary')
+    .sort((a, b) => b.range - a.range || a.id.localeCompare(b.id));
+  const near = Math.max(Math.abs(head.x - target.x), Math.abs(head.y - target.y));
+
+  for (const def of bases) {
+    const have = mine.filter((b) => world.def(b.type).group === 'aviary').length;
+
+    if (
+      target.enemy && have < AIR_BASES && near <= def.range && place(world, move, def, head).placed
+    ) {
+      return;
+    }
+  }
+
+  // A gun that hits only the air is worth its price once the enemy flies.
+  const air = enemyFlies(world, move.me);
   // Alternate cannons, which fire along a line, with shooters that cover a square around them, so
   // a priest standing off the cannons' lines is still hit.
   const built = world.buildingsOf(move.me).map((b) => world.def(b.type)).filter((def) =>
@@ -708,9 +763,14 @@ function bestUnit(
   );
   const lines = built.filter((def) => def.group === 'cannon').length;
   const preferLine = lines < built.length - lines;
-  const shooters = known.filter((def) => def.dps > 0 && def.range > 0)
+  const shooters = known
+    .filter((def) =>
+      def.dps > 0 && def.range > 0 && def.group !== 'fence' && (air || def.group !== 'anti-air')
+    )
     .sort((a, b) =>
-      Number((b.group === 'cannon') === preferLine) - Number((a.group === 'cannon') === preferLine)
+      Number(air && b.group === 'anti-air') - Number(air && a.group === 'anti-air')
+      || Number((b.group === 'cannon') === preferLine)
+        - Number((a.group === 'cannon') === preferLine)
       || b.cost - a.cost || a.id.localeCompare(b.id)
     );
   const facing = toward(head, target);
@@ -729,6 +789,84 @@ function bestUnit(
   if (short) {
     generator(world, move, head);
   }
+}
+
+/** Whether some other side has an air base, a flyer or an Aerial Transport. */
+function enemyFlies(world: WorldView, me: number): boolean {
+  for (const e of world.entities.values()) {
+    if ('type' in e && e.owner !== me && e.owner !== 0) {
+      const def = world.def(e.type);
+
+      if (flies(def) || def.group === 'aviary') {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Close the bridge head with a barrier: a second post in line with one that stands alone, or a
+ * first post by the head. Posts of the AI's own Fury come first, the Sun Barricade after them.
+ */
+function barrier(world: WorldView, move: Move, head: { x: number; y: number; }): void {
+  const player = world.players.get(move.me)!;
+  const posts = world.buildingsOf(move.me).filter((b) => world.def(b.type).group === 'fence');
+  const kinds = [...player.tech]
+    .map((id) => world.defs.get(id))
+    .filter((def): def is Readonly<UnitDef> => def?.group === 'fence')
+    .sort((a, b) =>
+      Number(b.theme === player.theme) - Number(a.theme === player.theme)
+      || a.id.localeCompare(b.id)
+    );
+
+  // Two posts of one kind on one row or column, in range of each other, make a barrier.
+  const paired = (post: View<Building>) =>
+    posts.some((other) =>
+      other !== post && other.type === post.type
+      && (other.x === post.x || other.y === post.y)
+      && distance(other.x, other.y, post.x, post.y) <= world.def(post.type).range
+    );
+  const alone = posts.find((post) => !paired(post));
+
+  if (alone) {
+    const def = world.def(alone.type);
+
+    for (let gap = Math.min(POST_GAP_MAX, def.range); gap >= POST_GAP_MIN; gap--) {
+      for (const [dx, dy] of DIRS) {
+        if (lay(world, move, def, alone.x + dx * gap, alone.y + dy * gap)) {
+          return;
+        }
+      }
+    }
+
+    return;
+  }
+
+  if (posts.length < FENCE_POSTS && kinds[0]) {
+    place(world, move, kinds[0], head);
+  }
+}
+
+/** Lay a unit at exactly this cell, if the move can afford it and the cell is fit. */
+function lay(world: WorldView, move: Move, def: Readonly<UnitDef>, x: number, y: number): boolean {
+  const command = { t: 'build', player: move.me, type: def.id, x, y } as const;
+
+  if (def.cost > move.budget || world.canBuild(command) !== null) {
+    return false;
+  }
+
+  move.commands.push(command);
+  move.budget -= def.cost;
+
+  for (let fy = y; fy < y + def.footY; fy++) {
+    for (let fx = x; fx < x + def.footX; fx++) {
+      move.planned.add(world.at(fx, fy));
+    }
+  }
+
+  return true;
 }
 
 /** A Generator by the head, of the AI's own Fury first. */
