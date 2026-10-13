@@ -46,6 +46,25 @@ const SHORE_INSIDE: Readonly<Record<number, readonly number[]>> = {
 };
 /* oxlint-enable no-magic-numbers */
 
+/**
+ * Slots of the Fringe type: the rock that hangs under an island's southern rim. fringe.type names
+ * its groups after the rim frames they go with: EA under a southern edge, IA under a south-west
+ * corner, HA under a south-east one. Each group also has frames with lit and unlit windows, and
+ * there are two for inside corners; those are not used.
+ */
+const FRINGE_SLOTS: Readonly<Record<number, readonly number[]>> = {
+  [SKY.south]: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+  [SKY.south | SKY.west]: [39, 40],
+  [SKY.south | SKY.east]: [63, 64],
+};
+
+/** The Fringe slot under an island cell with the sky on `sides`, or undefined for none. */
+export function fringeSlot(sides: number, pick: number): number | undefined {
+  const corner = sides & (SKY.south | SKY.west | SKY.east);
+  const group = sides & SKY.south ? FRINGE_SLOTS[corner] ?? FRINGE_SLOTS[SKY.south] : undefined;
+  return group?.[pick % group.length];
+}
+
 /** For a cell the original's islands never have, with sky on three sides or on opposite ones: the
  * corners and edges to settle for, the southern ones first because they carry the rock face. */
 const SHORE_FALLBACK: readonly number[] = [

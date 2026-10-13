@@ -15,6 +15,7 @@ import {
   EXPLOSION_FRAMES,
   FACING_FRAMES,
   GROUND_FRAMES,
+  fringeSlot,
   SKY,
   shoreFrame,
 } from './texture-selection.js';
@@ -24,6 +25,8 @@ import { hotSpots } from './assets.js';
 
 const SPRITE_ANCHOR_X = 0.5;
 const UNIT_ANCHOR_Y = 0.85; // a unit's feet sit a little above the bottom of its frame
+const FRINGE_DROP = 44; // from the top of a rim cell down to the hot spot of its Fringe
+const FRINGE_SCATTER = 3;
 const CLIFF_HEIGHT = 6; // rock face drawn under an island's southern rim
 const SCATTER_X = 7;
 const SCATTER_Y = 13;
@@ -101,6 +104,8 @@ export function createWorldRenderer(
       tile.destroy();
     }
 
+    const hanging: Sprite[] = [];
+
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const terrain = world.terrain[y * W + x];
@@ -131,6 +136,18 @@ export function createWorldRenderer(
           continue;
         }
 
+        const hung = textures.get(`slot:fringe:${fringeSlot(sides, x * FRINGE_SCATTER + y)}`);
+        const spot = hung && hotSpots.get(hung);
+
+        if (hung && spot) {
+          // The hot spot of a Fringe frame lies four rows under the top of its picture. That the
+          // picture starts level with its rim cell is our reading of that (`?`).
+          const rock = new Sprite(hung);
+          rock.anchor.set(spot.x, spot.y);
+          rock.position.set(sx + TW - 1, sy + FRINGE_DROP);
+          hanging.push(rock);
+        }
+
         const tile = new Sprite(texture);
         // A rim frame is cut down to its picture: it keeps to the side its ground is on.
         tile.position.set(sides & SKY.west ? sx + TW - texture.width : sx,
@@ -141,6 +158,12 @@ export function createWorldRenderer(
         ground.addChild(tile);
         tiles.push(tile);
       }
+    }
+
+    // The rock hangs behind the ground: under every tile.
+    for (const rock of hanging) {
+      ground.addChildAt(rock, 0);
+      tiles.push(rock);
     }
   }
 

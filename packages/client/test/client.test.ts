@@ -5,7 +5,14 @@ import { loadDefs } from '@netstorm/sim';
 import { mapsOf, outcome, reflow, slimMaps, slimMissions } from '../src/game-data.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS } from '../src/menu.js';
-import { FACING_FRAMES, SKY, TEXTURES, parsePath, shoreFrame } from '../src/texture-selection.js';
+import {
+  FACING_FRAMES,
+  SKY,
+  TEXTURES,
+  fringeSlot,
+  parsePath,
+  shoreFrame,
+} from '../src/texture-selection.js';
 import { SLOT_COUNTS, heading, overlayOf, slotOf } from '../src/animations.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
@@ -193,6 +200,13 @@ test('an island cell gets the rim frame of the sides the sky is on', () => {
   assert.equal(shoreFrame(SKY.north | SKY.west, 0, 1), 31);
   // Ground all round and sky across the south-west corner: an inside corner.
   assert.equal(shoreFrame(0, SKY.south, 0), 17);
+  // Rock hangs under the southern rim only: an edge, or one of the two southern corners.
+  assert.deepEqual(
+    [SKY.north, SKY.south, SKY.south | SKY.west, SKY.south | SKY.east].map((sides) =>
+      fringeSlot(sides, 0)
+    ),
+    [undefined, 0, 39, 63],
+  );
   // A spit one cell wide has no frame of its own: the nearest corner, with its rock face.
   assert.equal(shoreFrame(SKY.north | SKY.south | SKY.west, 0, 0), 16);
   assert.equal(shoreFrame(SKY.north | SKY.south | SKY.east | SKY.west, 0, 0), 16);

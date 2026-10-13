@@ -34,6 +34,7 @@ SLOTS = {
     "suncannon": 28,  # the facings, the frames of turning, the frames of fire
     "sunbattery": 8,
     "thunderarcher": 2,
+    "fringe": 83,  # the rock that hangs under the southern rim of an island
 }
 
 

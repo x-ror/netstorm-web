@@ -29,6 +29,7 @@ export const SLOT_COUNTS: Readonly<Record<string, number>> = {
   suncannon: 28,
   sunbattery: 8,
   thunderarcher: 2,
+  fringe: 83,
 };
 /** Types whose first slots are one cycle played over and over, with its length. */
 const LOOPS: Readonly<Record<string, number>> = {
