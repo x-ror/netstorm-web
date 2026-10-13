@@ -8,6 +8,7 @@ import {
   RUNE_INTERVAL,
   RUNES,
   TPS,
+  Terrain,
   type Building,
   type DeepReadonly,
   type Entity,
@@ -136,6 +137,16 @@ const DEVIL_MAKER_FRAMES = 6;
 const DAIS = { rising: 1, laid: 2, still: 3, going: 4, stage: 11, frames: 10 } as const;
 const HORNS = { empty: 0, struggle: 1, frames: 13 } as const;
 const CHANT = { first: 77, frames: 18 } as const;
+/** The Priest's twelve frames of floating, after his 65 slots of walking. When the original plays
+ * them is not read; here he floats while he is struck down and while no ground is under him (`?`). */
+const FLOAT = { first: 65, frames: 12 } as const;
+/** Slots of the Manabolt type by the Fury of what is being built. */
+export const MANA_BOLTS: Readonly<Record<string, number>> = {
+  wind: 0,
+  rain: 1,
+  thunder: 2,
+  sun: 3,
+};
 /* oxlint-enable no-magic-numbers */
 
 /** Move a unit one step round its ring toward where it should point; where it is now. */
@@ -287,8 +298,20 @@ export function slotOf(entity: DeepReadonly<Entity>, tick: number, scene: Scene)
     return buildingSlot(entity, tick, scene);
   }
 
-  if (entity.kind === 'obelisk' || (entity.kind === 'priest' && entity.state !== 'normal')) {
+  if (entity.kind === 'obelisk') {
     return null;
+  }
+
+  if (entity.kind === 'priest') {
+    const hanging = world.terrain[world.at(entity.x, entity.y)] === Terrain.Sky;
+
+    if (entity.state === 'down' || (entity.state === 'normal' && hanging)) {
+      return ['priest', FLOAT.first + (tick % FLOAT.frames)];
+    }
+
+    if (entity.state !== 'normal') {
+      return null;
+    }
   }
 
   const type = entity.kind === 'priest' ? 'priest' : entity.type;

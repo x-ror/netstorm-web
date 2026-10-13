@@ -325,6 +325,11 @@ test('animated entities show a slot of their type for the tick', () => {
     'bulf',
     32 + 4,
   ]]);
+  // Struck down, a Priest floats: the twelve frames after his walking ones.
+  const fallen = world.priestOf(ENEMY)!;
+  fallen.state = 'down';
+  assert.deepEqual(slotOf(fallen, 14, headings), ['priest', 65 + 2]);
+  fallen.state = 'normal';
   // A shadow is the slot of the same frame past the frame lines of the file.
   assert.deepEqual(shadowOf(['sunwalker', 5]), ['sunwalker', 66 + 5]);
   assert.equal(shadowOf(['thundercannon', 0]), null);

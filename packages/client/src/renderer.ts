@@ -8,6 +8,7 @@ import {
   H,
   isBridge,
   GEYSER_ISLAND_SIZE,
+  TPS,
   barriers,
   FLYER_SCALE,
 } from '@netstorm/sim';
@@ -20,7 +21,7 @@ import {
   shoreFrame,
 } from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
-import { SACRIFICE, overlayOf, shadowOf, slotOf } from './animations.js';
+import { MANA_BOLTS, SACRIFICE, overlayOf, shadowOf, slotOf } from './animations.js';
 import { hotSpots } from './assets.js';
 
 const SPRITE_ANCHOR_X = 0.5;
@@ -77,6 +78,9 @@ const CORNERS: typeof SIDES = [
 ];
 const LOW_HP = 0.35;
 const AIR_Z = 1e6; // above any screen row
+type Point = { x: number; y: number; };
+const BOLT_SPEED = 18; // cells a second: `speed` of manabolt.type
+const BOLT_EVERY = 3; // ticks between the bolts sent to one building site (ours)
 const OVERLAY_Z = 0.5; // an overlay lies just over its own entity, a shadow just under
 const SHADOW_ALPHA = 0.45; // the original draws shadows translucent; how much is not read (`?`)
 const FIELD_WIDTH = 2;
@@ -367,8 +371,62 @@ export function createWorldRenderer(
     }
 
     playEffects();
+    flyBolts();
     drawBarriers();
     drawTracers();
+  }
+
+  /**
+   * "The stream of Storm Power goes to the chosen spot": while a unit is built, bolts of its Fury
+   * (type Manabolt, 18 cells a second) fly to it from its owner's Temple. That they start at the
+   * Temple and how often they leave is ours; the original draws this with particles.
+   */
+  const bolts: { sprite: Sprite; from: Point; to: Point; start: number; ticks: number; }[] = [];
+
+  function flyBolts(): void {
+    for (const b of world.entities.values()) {
+      if (
+        b.kind !== 'building' || b.rising === 0 || b.builder !== null
+        || world.tick % BOLT_EVERY !== 0
+      ) {
+        continue;
+      }
+
+      const home = world.templeOf(b.owner);
+      const fury = world.defs.get(b.type)?.theme ?? 'sun';
+      const texture = textures.get(`slot:manabolt:${MANA_BOLTS[fury]}`);
+      const spot = texture && hotSpots.get(texture);
+
+      if (!home || !texture || !spot || home.id === b.id) {
+        continue;
+      }
+
+      const from = project(home.x + home.fx / 2, home.y + home.fy / 2);
+      const to = project(b.x + b.fx / 2, b.y + b.fy / 2);
+      const cells = Math.hypot(b.x - home.x, b.y - home.y);
+      const sprite = entityLayer.addChild(new Sprite(texture));
+      sprite.anchor.set(spot.x, spot.y);
+      sprite.zIndex = AIR_Z;
+      bolts.push({
+        sprite,
+        from: { x: from.sx, y: from.sy },
+        to: { x: to.sx, y: to.sy },
+        start: world.tick,
+        ticks: Math.max(1, Math.round((cells / BOLT_SPEED) * TPS)),
+      });
+    }
+
+    for (let i = bolts.length - 1; i >= 0; i--) {
+      const { sprite, from, to, start, ticks } = bolts[i]!;
+      const done = (world.tick - start) / ticks;
+
+      if (done >= 1) {
+        sprite.destroy();
+        bolts.splice(i, 1);
+      } else {
+        sprite.position.set(from.x + (to.x - from.x) * done, from.y + (to.y - from.y) * done);
+      }
+    }
   }
 
   /** Sacrifices in progress: the frames of the Altar type played once where an altar stood. */

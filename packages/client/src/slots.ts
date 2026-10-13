@@ -27,6 +27,7 @@ export const SLOT_COUNTS: Readonly<Record<string, number>> = {
   dais: 59,
   altar: 89,
   windarcher: 80,
+  manabolt: 4,
   fringe: 83,
 };
 /** The frame lines of each .type file that names shadows: the shadow of slot n is slot n plus

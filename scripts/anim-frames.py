@@ -41,6 +41,7 @@ SLOTS = {
     "dais": 59,  # the ring of an Altar through the five stages of a sacrifice
     "altar": 89,  # its horns, the captive struggling between them, then the sacrifice
     "windarcher": 80,  # for each facing: five frames of a shot, then twenty of turning
+    "manabolt": 4,  # the bolt of Storm Power of each Fury: wind, rain, thunder, sun
     "fringe": 83,  # the rock that hangs under the southern rim of an island
 }
 
