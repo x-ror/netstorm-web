@@ -10,7 +10,16 @@ import {
   line,
   overlaps,
 } from './fences.js';
-import { TPS, DIRS, FACINGS, type Entity, type Building, type Facing } from '../state.js';
+import {
+  BUILD_SECONDS,
+  Terrain,
+  TPS,
+  DIRS,
+  FACINGS,
+  type Entity,
+  type Building,
+  type Facing,
+} from '../state.js';
 
 export type EnemyAt = (owner: number, x: number, y: number) => Entity | null;
 
@@ -75,6 +84,11 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
     shakeBridges(world, b);
     explode(world, b);
     world.emit({ what: 'destroyed', who: b.owner, data: { id: b.id, type: b.type } });
+    return;
+  }
+
+  if (b.rising > 0) {
+    construct(world, b);
     return;
   }
 
@@ -180,6 +194,53 @@ const CROSSBOW = 'windarcher';
 const VANDER_TOWER = 'thunderarcher';
 /** A destroyed Ice Tower is replaced by a growing one that plays its animation in 40 s. */
 const REGROW_SECONDS = 40;
+
+/**
+ * A unit takes ten seconds to build, and its hit points rise evenly over that time whatever hits
+ * it meanwhile. A Temple, a Workshop and an Altar wait for the Priest to come up first.
+ */
+function construct(world: World, b: Building): void {
+  if (b.builder !== null) {
+    const p = world.entities.get(b.builder);
+
+    const able = p?.kind === 'priest' && p.state === 'normal';
+
+    if (!able || !world.adjacentTo(p.x, p.y, b)) {
+      // He was stopped on the way: struck down, sent elsewhere or cut off.
+      if (!able || p.goal !== 'build' || p.target !== b.id) {
+        abandon(world, b);
+      }
+
+      return;
+    }
+
+    b.builder = null;
+  }
+
+  b.rising--;
+  const total = BUILD_SECONDS * TPS;
+  b.hp = Math.max(1, Math.floor((b.hpMax * (total - b.rising)) / total));
+}
+
+/** A site the Priest never reached is taken away and its whole price paid back. */
+function abandon(world: World, b: Building): void {
+  const refund = world.def(b.type).cost;
+  removeBuilding(world, b);
+
+  if (b.islet) {
+    for (let y = b.y; y < b.y + b.fy; y++) {
+      for (let x = b.x; x < b.x + b.fx; x++) {
+        world.terrain[world.at(x, y)] = Terrain.Sky;
+        world.owner[world.at(x, y)] = 0;
+      }
+    }
+
+    world.invalidateTerrain();
+  }
+
+  world.players.get(b.owner)!.storm += refund;
+  world.emit({ what: 'salvaged', who: b.owner, data: { id: b.id, type: b.type, refund } });
+}
 
 function regrow(b: Building): void {
   b.regrow--;

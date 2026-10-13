@@ -4,6 +4,7 @@ import type { WorldView } from '../view.js';
 import type { UnitDef } from '../defs.js';
 import {
   DIRS,
+  BUILD_SECONDS,
   ENERGY_RANGE,
   MAX_FACING,
   REFUND_SHARE,
@@ -29,6 +30,10 @@ export function energy(world: WorldView, p: number): { own: number; total: numbe
   for (const b of world.buildingsOf(p)) {
     const d = world.def(b.type);
     let n = 0;
+
+    if (b.rising > 0) {
+      continue;
+    }
 
     if (d.cls === 'Energy') {
       n = 2;
@@ -111,9 +116,41 @@ export function canBuild(
     return site;
   }
 
+  if (PRIEST_BUILT.has(def.cls) && !builderPath(world, command.player, def, command.x, command.y)) {
+    return 'priest unavailable';
+  }
+
   return def.level > 0 && !hasEnergy(world, command.player, def, command.x, command.y)
     ? 'no energy'
     : null;
+}
+
+/** "Use your High Priest to build Temples, Workshops, and Altars": the building is laid as a site
+ * and "the Priest will walk to it and begin construction". */
+const PRIEST_BUILT: ReadonlySet<string> = new Set(['Energy', 'Production', 'Altar']);
+
+/**
+ * The way of the player's Priest to a cell beside the site. "Your Priest must be able to walk to
+ * the build location", and he "cannot construct buildings while immobilized".
+ */
+function builderPath(
+  world: WorldView,
+  player: number,
+  def: UnitDef,
+  x: number,
+  y: number,
+): [number, number][] | null {
+  const p = world.priestOf(player);
+
+  if (!p || p.state !== 'normal') {
+    return null;
+  }
+
+  const beside = (cx: number, cy: number) =>
+    cx >= x - 1 && cx <= x + def.footX && cy >= y - 1 && cy <= y + def.footY
+    && (cx < x || cx >= x + def.footX || cy < y || cy >= y + def.footY);
+
+  return world.findPath(player, p.x, p.y, (cell) => beside(cell[0], cell[1]), true);
 }
 
 /** Classes a player can put down. Aerial units, spells, geysers and the High Priest have no rules
@@ -153,7 +190,7 @@ function makerError(world: WorldView, player: number, def: UnitDef): CommandErro
 
   return world.buildingsOf(player).some((b) => {
       const maker = world.def(b.type);
-      return maker.cls === 'Production' && maker.theme === def.theme;
+      return maker.cls === 'Production' && maker.theme === def.theme && b.rising === 0;
     })
     ? null
     : 'no workshop';
@@ -200,7 +237,7 @@ function hasEnergy(world: WorldView, player: number, def: UnitDef, x: number, y:
   for (const b of world.buildingsOf(player)) {
     const source = world.def(b.type);
 
-    if (source.cls !== 'Energy' && source.group !== 'battery') {
+    if ((source.cls !== 'Energy' && source.group !== 'battery') || b.rising > 0) {
       continue;
     }
 
@@ -325,8 +362,22 @@ export function build(world: World, c: Extract<Command, { t: 'build'; }>): Comma
     world.invalidateTerrain();
   }
 
+  // The way is looked for before the site takes up its cells; the Priest stops when it is cut.
+  const way = PRIEST_BUILT.has(def.cls) ? builderPath(world, c.player, def, c.x, c.y) : null;
   const b = world.spawnBuilding(def.id, c.player, c.x, c.y, c.facing ?? 0);
   b.islet = islet;
+  // Its hit points grow with the work, from next to nothing to all of them.
+  b.rising = BUILD_SECONDS * TPS;
+  b.hp = 1;
+  const priest = world.priestOf(c.player);
+
+  if (way && priest) {
+    b.builder = priest.id;
+    priest.path = way;
+    priest.goal = 'build';
+    priest.target = b.id;
+  }
+
   world.emit({ what: 'build', who: c.player, data: { id: b.id, type: def.id } });
   return null;
 }

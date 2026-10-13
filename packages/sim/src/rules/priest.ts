@@ -79,8 +79,9 @@ export function tickPriest(world: World, p: Priest): void {
 
   advance(world, p, PRIEST_SPEED);
 
-  if (!p.path.length) {
-    arrive(world, p);
+  if (!p.path.length && !arrive(world, p) && p.goal === 'build') {
+    p.goal = 'idle'; // he stands by the site; the building takes it from here
+    p.target = null;
   }
 }
 

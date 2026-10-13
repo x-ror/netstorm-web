@@ -30,8 +30,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 18;
-export const RULES_VERSION = 32;
+export const SNAPSHOT_VERSION = 19;
+export const RULES_VERSION = 33;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -170,6 +170,8 @@ function parseEntity(raw: unknown): Entity {
       'killer',
       'islet',
       'regrow',
+      'rising',
+      'builder',
     ], 'building');
     return {
       id,
@@ -188,6 +190,8 @@ function parseEntity(raw: unknown): Entity {
       killer: integer(value.killer, 'building.killer', 0, MAX_PLAYERS),
       islet: boolean(value.islet, 'building.islet'),
       regrow: integer(value.regrow, 'building.regrow', 0),
+      rising: integer(value.rising, 'building.rising', 0),
+      builder: nullableId(value.builder, 'building.builder'),
     };
   }
 
@@ -240,7 +244,7 @@ function parseEntity(raw: unknown): Entity {
     path: parsePath(value.path),
     move: integer(value.move, 'priest.move'),
     carrying: nullableId(value.carrying, 'priest.carrying'),
-    goal: choice(value.goal, ['idle', 'collect', 'pickup', 'home'], 'priest.goal'),
+    goal: choice(value.goal, ['idle', 'collect', 'pickup', 'home', 'build'], 'priest.goal'),
     target: nullableId(value.target, 'priest.target'),
   };
 }

@@ -230,6 +230,7 @@ function validTransportTarget(world: WorldView, t: DeepReadonly<Transport | Prie
     case 'pickup':
     case 'capture':
     case 'altar':
+    case 'build':
       return t.target !== null;
   }
 }

@@ -255,6 +255,12 @@ function info(world: WorldView, me: number, ui: UiState): string {
     if (entity.regrow > 0) {
       lines.push(`відростає: ще ${Math.ceil(entity.regrow / TPS)} с`);
     }
+
+    if (entity.builder !== null) {
+      lines.push('чекає на жерця');
+    } else if (entity.rising > 0) {
+      lines.push(`будується: ще ${Math.ceil(entity.rising / TPS)} с`);
+    }
   }
 
   if (entity.kind === 'transport') {
@@ -282,6 +288,20 @@ function info(world: WorldView, me: number, ui: UiState): string {
       lines.push(
         '<span class="muted">Клацніть землю, щоб жрець пішов туди, або гейзер чи кристал</span>',
       );
+      // "Use your High Priest to build Temples, Workshops, and Altars."
+      const theme = world.players.get(me)?.theme;
+
+      for (const id of [`${theme}vortex`, `${theme}factory`, 'altar']) {
+        const def = world.defs.get(id);
+
+        if (def) {
+          lines.push(
+            `<button data-action="build" data-value="${def.id}">Збудувати ${
+              escapeHtml(def.name)
+            } <small>${def.cost}</small></button>`,
+          );
+        }
+      }
     }
   } else if (entity.kind === 'geyser') {
     lines.push(entity.stock > 0 ? `запас ${entity.stock} Storm Power` : 'вичерпаний');

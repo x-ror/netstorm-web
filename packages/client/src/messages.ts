@@ -21,7 +21,7 @@ export const REJECTIONS: Record<string, string> = {
   'cannot build': 'цей юніт ще не можна будувати',
   'not ready': 'юніт щойно встановлено, зачекайте',
   'no path': 'туди не дійти',
-  'priest unavailable': 'жрець недоступний',
+  'priest unavailable': 'жрець недоступний або не може туди дійти',
   'target not incapacitated': 'жрець ще не знерухомлений',
 };
 

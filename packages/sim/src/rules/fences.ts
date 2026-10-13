@@ -28,7 +28,7 @@ export interface Rect {
 const LOOKS: readonly (readonly [number, number])[] = [[1, 0], [0, 1]];
 
 function standing(e: Entity, type: string): e is Building {
-  return e.kind === 'building' && e.type === type && e.hp > 0;
+  return e.kind === 'building' && e.type === type && e.hp > 0 && e.rising === 0;
 }
 
 /**
@@ -64,7 +64,7 @@ function partner(world: World, post: Building, dx: number, dy: number): Building
 export function barriersOf(world: World, post: Building): Barrier[] {
   const found: Barrier[] = [];
 
-  if (post.hp <= 0) {
+  if (post.hp <= 0 || post.rising > 0) {
     return found;
   }
 

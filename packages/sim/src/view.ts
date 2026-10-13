@@ -31,6 +31,13 @@ export interface WorldView {
   readonly walkable: (player: number, x: number, y: number) => boolean;
   readonly joined: (x: number, y: number, dir: number) => boolean;
   readonly def: (type: string) => Readonly<UnitDef>;
+  readonly findPath: (
+    player: number,
+    sx: number,
+    sy: number,
+    goal: (cell: [number, number]) => boolean,
+    avoidOccupied?: boolean,
+  ) => [number, number][] | null;
   readonly priestOf: (player: number) => DeepReadonly<Priest> | undefined;
   readonly templeOf: (player: number) => DeepReadonly<Building> | undefined;
   readonly buildingsOf: (

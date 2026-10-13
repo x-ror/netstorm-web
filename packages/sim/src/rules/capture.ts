@@ -14,7 +14,7 @@ import {
 const RELEASE_SEARCH_RADIUS = 16;
 
 function ownAltar(world: World, owner: number): Building | undefined {
-  return world.buildingsOf(owner).find((b) => world.def(b.type).cls === 'Altar');
+  return world.buildingsOf(owner).find((b) => world.def(b.type).cls === 'Altar' && b.rising === 0);
 }
 
 function stop(t: Transport): void {

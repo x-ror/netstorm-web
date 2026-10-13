@@ -562,3 +562,94 @@ test('the Priest carries crystals like a transport, and drops his load when he g
   assert.ok(crystal.kind === 'crystal' && crystal.carriedBy === null);
   assert.deepEqual([crystal.x, crystal.y], [priest.x, priest.y]);
 });
+
+test('a unit takes ten seconds to build, gains hit points evenly and does nothing until then', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 5000, ['suncannon']);
+  world.addIsland(0, 0, 100, 100, 1);
+  world.spawnBuilding('windvortex', 1, 20, 36);
+  const target = world.spawnTransport('sunwalker', 2, 60, 40);
+  assert.equal(world.apply({ t: 'build', player: 1, type: 'suncannon', x: 40, y: 39, facing: 1 }),
+    null);
+  const cannon = world.buildingsOf(1).find((b) => b.type === 'suncannon')!;
+  assert.equal(cannon.hp, 1);
+
+  for (let i = 0; i < 5 * TPS; i++) {
+    world.step();
+  }
+
+  assert.equal(cannon.hp, cannon.hpMax / 2);
+  assert.equal(target.hp, target.hpMax);
+
+  for (let i = 0; i <= 5 * TPS; i++) {
+    world.step();
+  }
+
+  assert.equal(cannon.hp, cannon.hpMax);
+  assert.ok(target.hp < target.hpMax);
+});
+
+test('the Priest walks to an Altar he was told to build, and only then it rises', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 5000, []);
+  world.addIsland(0, 0, 100, 100, 1);
+  const priest = world.addPriest(1, 30, 33);
+  const altar = { t: 'build', player: 1, type: 'altar' } as const;
+  priest.state = 'down';
+  assert.equal(world.apply({ ...altar, x: 50, y: 30 }), 'priest unavailable');
+  priest.state = 'normal';
+  assert.equal(world.apply({ ...altar, x: 50, y: 30 }), null);
+  assert.equal(world.players.get(1)!.storm, 4500);
+  const site = world.buildingsOf(1)[0]!;
+  world.step();
+  assert.deepEqual([site.hp, site.rising, priest.goal], [1, 10 * TPS, 'build']);
+
+  while (site.builder !== null) {
+    world.step();
+  }
+
+  assert.ok(world.adjacentTo(priest.x, priest.y, site));
+  // An unfinished Altar is no Altar yet.
+  const crab = world.spawnTransport('rainwalker', 1, 40, 40);
+  const captive = world.addPriest(2, 41, 40);
+  captive.hp = 10;
+  world.step();
+  assert.equal(
+    world.apply({ t: 'capturePriest', player: 1, transport: crab.id, target: captive.id }),
+    'no altar',
+  );
+
+  for (let i = 0; i < 10 * TPS; i++) {
+    world.step();
+  }
+
+  assert.deepEqual([site.hp, site.rising], [site.hpMax, 0]);
+  assert.equal(
+    world.apply({ t: 'capturePriest', player: 1, transport: crab.id, target: captive.id }),
+    null,
+  );
+});
+
+test('a site the Priest does not reach is taken away and paid back', () => {
+  const world = mk();
+  world.addPlayer(1, 'Blue', 'wind', 5000, []);
+  world.addIsland(0, 0, 100, 100, 1);
+  const priest = world.addPriest(1, 30, 33);
+  assert.equal(world.apply({ t: 'build', player: 1, type: 'altar', x: 50, y: 30 }), null);
+  world.step();
+  assert.equal(world.buildingsOf(1).length, 1);
+  // Sent elsewhere, he gives the building up.
+  assert.equal(world.apply({ t: 'movePriest', player: 1, x: 30, y: 40 }), null);
+  world.step();
+  assert.equal(world.buildingsOf(1).length, 0);
+  assert.equal(world.players.get(1)!.storm, 5000);
+  // Struck down on the way, he does too.
+  world.players.get(1)!.refresh = [];
+  assert.equal(world.apply({ t: 'build', player: 1, type: 'altar', x: 50, y: 30 }), null);
+  world.step();
+  priest.hp = 10;
+  world.step();
+  world.step();
+  assert.equal(world.buildingsOf(1).length, 0);
+  assert.equal(world.players.get(1)!.storm, 5000);
+});

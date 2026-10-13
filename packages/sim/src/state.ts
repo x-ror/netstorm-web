@@ -1,6 +1,8 @@
 import type { Theme } from './defs.js';
 
 export const TPS = 10; // simulation ticks per second
+/** Seconds any unit takes to build, from construction.cpp of netstorm.game 10.82. */
+export const BUILD_SECONDS = 10;
 export const W = 256;
 export const H = 256; // world size in cells
 // From the original's Production Window code (netstorm.game 10.82): a free bridge slot is refilled
@@ -418,6 +420,10 @@ export interface Building {
   islet: boolean;
   /** Ticks until a destroyed Ice Tower has grown back; 0 while the building stands. */
   regrow: number;
+  /** Ticks of construction left; 0 once the unit is built. It does nothing until then. */
+  rising: number;
+  /** The Priest who has to walk up before construction starts; null once it has. */
+  builder: number | null;
 }
 export interface Transport {
   id: number;
@@ -454,8 +460,8 @@ export interface Priest {
   move: number;
   /** "Like the Golem, your Priest also serves as a Transport": the crystal he carries. */
   carrying: number | null;
-  goal: 'idle' | 'collect' | 'pickup' | 'home';
-  /** Geyser he mines or the crystal he was sent for, as for a transport. */
+  goal: 'idle' | 'collect' | 'pickup' | 'home' | 'build';
+  /** Geyser he mines, the crystal he was sent for, or the building he walks to to construct. */
   target: number | null;
 }
 export interface Crystal {

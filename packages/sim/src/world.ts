@@ -259,6 +259,8 @@ export class World {
       killer: 0,
       islet: false,
       regrow: 0,
+      rising: 0,
+      builder: null,
     };
     this.entities.set(b.id, b);
     this.forFoot(b, (i) => {
@@ -380,7 +382,7 @@ export class World {
 
   /** The player's Temple: the building of class Energy. */
   templeOf(p: number): Building | undefined {
-    return this.buildingsOf(p).find((b) => this.def(b.type).cls === 'Energy');
+    return this.buildingsOf(p).find((b) => this.def(b.type).cls === 'Energy' && b.rising === 0);
   }
 
   buildingsOf(p: number, group?: UnitGroup): Building[] {
