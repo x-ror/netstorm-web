@@ -1,6 +1,7 @@
 import {
   PIECES,
   pieceEnds,
+  OUTPOST,
   PIECE_HARD,
   PIECE_HARDEN,
   RUNES,
@@ -314,12 +315,14 @@ function info(world: WorldView, me: number, ui: UiState): string {
         '<span class="muted">Клацніть землю, щоб жрець пішов туди, або гейзер чи кристал</span>',
       );
       // "Use your High Priest to build Temples, Workshops, and Altars."
-      const theme = world.players.get(me)?.theme;
+      const player = world.players.get(me);
+      const theme = player?.theme;
 
-      for (const id of [`${theme}vortex`, `${theme}factory`, 'altar']) {
+      // The Outpost is offered to a side that has it: in the original, in multiplayer only.
+      for (const id of [`${theme}vortex`, `${theme}factory`, 'altar', OUTPOST]) {
         const def = world.defs.get(id);
 
-        if (def) {
+        if (def && (id !== OUTPOST || player?.tech.has(OUTPOST))) {
           lines.push(
             `<button data-action="build" data-value="${def.id}">Збудувати ${
               escapeHtml(def.name)

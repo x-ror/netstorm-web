@@ -250,9 +250,10 @@ function arriveAtCrystal(world: World, t: Carrier): void {
 
 /** Head for the Temple with the cargo. `target` is kept so the transport returns to the same geyser. */
 function goHome(world: World, t: Carrier): void {
-  const home = world.templeOf(t.owner);
-  const path = home
-    ? world.wayOf(t, (cell) => world.adjacentTo(cell[0], cell[1], home))
+  // "Transports may return Storm Crystals to the Outpost": it goes to whichever is nearest.
+  const depots = world.templeOf(t.owner) ? world.depotsOf(t.owner) : [];
+  const path = depots.length
+    ? world.wayOf(t, (cell) => depots.some((home) => world.adjacentTo(cell[0], cell[1], home)))
     : null;
 
   if (!path) {
@@ -265,9 +266,10 @@ function goHome(world: World, t: Carrier): void {
 }
 
 function deliver(world: World, t: Carrier): void {
-  const home = world.templeOf(t.owner);
+  const home = world.templeOf(t.owner)
+    && world.depotsOf(t.owner).some((depot) => world.adjacentTo(t.x, t.y, depot));
 
-  if (t.carrying === null || !home || !world.adjacentTo(t.x, t.y, home)) {
+  if (t.carrying === null || !home) {
     stop(t);
     return;
   }

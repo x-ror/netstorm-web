@@ -19,6 +19,8 @@ import {
   type Entity,
   type Building,
   type Facing,
+  OUTPOST,
+  W,
 } from '../state.js';
 
 export type EnemyAt = (owner: number, x: number, y: number) => Entity | null;
@@ -238,6 +240,10 @@ function construct(world: World, b: Building): void {
   b.rising--;
   const total = BUILD_SECONDS * TPS;
   b.hp = Math.max(1, Math.floor((b.hpMax * (total - b.rising)) / total));
+
+  if (b.rising === 0 && b.type === OUTPOST) {
+    dominate(world, b.x, b.y);
+  }
 }
 
 /** A site the Priest never reached is taken away and its whole price paid back. */
@@ -388,6 +394,62 @@ export function removeBuilding(world: World, b: Building): void {
   }
 
   world.entities.delete(b.id);
+
+  if (b.type === OUTPOST && !b.islet) {
+    dominate(world, b.x, b.y);
+  }
+}
+
+/**
+ * "The player with the most Outposts on an island dominates. If two players build simultaneously,
+ * the island may still remain unowned until one player creates another Outpost there." Called when
+ * an Outpost is finished or gone, with a cell of its island. An island with a Temple stays with
+ * the Temple's owner.
+ */
+function dominate(world: World, x0: number, y0: number): void {
+  const cells: number[] = [];
+  const seen = new Set<number>([world.at(x0, y0)]);
+  const queue = [world.at(x0, y0)];
+  const outposts = new Map<number, Set<number>>();
+
+  for (let head = 0; head < queue.length; head++) {
+    const i = queue[head]!;
+
+    if (world.terrain[i] !== Terrain.Island) {
+      continue;
+    }
+
+    cells.push(i);
+    const b = world.building(world.occupant[i]!);
+
+    if (b?.rising === 0 && world.def(b.type).cls === 'Energy') {
+      return;
+    }
+
+    if (b?.rising === 0 && b.type === OUTPOST) {
+      outposts.set(b.owner, (outposts.get(b.owner) ?? new Set()).add(b.id));
+    }
+
+    for (const [dx, dy] of DIRS) {
+      const x = (i % W) + dx;
+      const y = Math.floor(i / W) + dy;
+
+      if (world.inside(x, y) && !seen.has(world.at(x, y))) {
+        seen.add(world.at(x, y));
+        queue.push(world.at(x, y));
+      }
+    }
+  }
+
+  const ranked = [...outposts].sort((a, b) => b[1].size - a[1].size);
+  const tied = ranked.length > 1 && ranked[0]![1].size === ranked[1]![1].size;
+  const lord = ranked.length && !tied ? ranked[0]![0] : 0;
+
+  for (const i of cells) {
+    world.owner[i] = lord;
+  }
+
+  world.invalidateTerrain();
 }
 
 /** Units an air attack does nothing to: "invulnerable to air assault". */

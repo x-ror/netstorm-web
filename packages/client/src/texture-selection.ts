@@ -43,6 +43,7 @@ export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]>
   ['geyser', 'geyser', 'f'],
   ['nugget', 'nugget', 'nugget'],
   ['obelisk', 'buried', 'obelisk', 0],
+  ['outpost', 'outpost', 'embassy', 0],
   // The whole Altar as it stands before a sacrifice: the last frame of its ring.
   ['altar', 'altar', 'altar01', 3],
   // The default frame of each type, as its .type file names it.

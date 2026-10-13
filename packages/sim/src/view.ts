@@ -41,6 +41,7 @@ export interface WorldView {
   readonly hostile: (a: number, b: number) => boolean;
   readonly priestOf: (player: number) => DeepReadonly<Priest> | undefined;
   readonly templeOf: (player: number) => DeepReadonly<Building> | undefined;
+  readonly depotsOf: (player: number) => DeepReadonly<Building>[];
   readonly buildingsOf: (
     player: number,
     group?: UnitGroup,

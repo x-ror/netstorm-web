@@ -31,19 +31,23 @@ export function joins(world: WorldView, i: number, dir: number): boolean {
   return (linksAt(world, i) & (1 << dir)) !== 0;
 }
 
-/** Cells of the player's ground joined to the Temple by an unbroken run of own island and bridge. */
+/** Cells of the player's ground joined to the Temple, or to an Outpost ("you may build bridges off
+ * of the island containing the Outpost"), by an unbroken run of own island and bridge. */
 function connectedToTemple(world: WorldView, player: number): Uint8Array | null {
-  const temple = world.templeOf(player);
+  const depots = world.depotsOf(player);
 
-  if (!temple) {
+  if (!depots.length) {
     return null;
   }
 
   const connected = new Uint8Array(W * H);
   const queue: number[] = [];
 
-  for (let y = temple.y; y < temple.y + temple.fy; y++) {
-    for (let x = temple.x; x < temple.x + temple.fx; x++) {
+  for (const depot of depots) {
+    for (let i = 0; i < depot.fx * depot.fy; i++) {
+      const x = depot.x + (i % depot.fx);
+      const y = depot.y + Math.floor(i / depot.fx);
+
       if (world.isOwnGround(player, x, y)) {
         connected[world.at(x, y)] = 1;
         queue.push(world.at(x, y));

@@ -37,6 +37,8 @@ export const HAND_SIZE = 6; // the most bridge slots there can be, and the numbe
 export const CRYSTAL_VALUE = 200; // Storm Power per crystal
 export const GEYSER_STOCK = 2000; // Storm Power a geyser holds before it is depleted
 export const PRIEST_HP = 100;
+/** The unit that takes an island over in multiplayer; see "Outpost" in docs/game-rules.md. */
+export const OUTPOST = 'outpost';
 /** Share of a unit's cost paid for destroying an enemy unit and, at full health, for salvaging your own. */
 export const REFUND_SHARE = 0.25;
 // Radius, in cells, of the circle a Temple or Generator spreads its Energy over. Measured in the

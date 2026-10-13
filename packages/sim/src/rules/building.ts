@@ -12,6 +12,7 @@ import {
   TPS,
   isBridge,
   oppositeDir,
+  OUTPOST,
 } from '../state.js';
 import { joins, shakeBridges } from './bridges.js';
 import { damage, removeBuilding } from './combat.js';
@@ -87,6 +88,11 @@ export function canBuild(
   }
 
   if (!player.tech.has(def.id) && def.level > 0) {
+    return 'unknown tech';
+  }
+
+  // "Outposts are only available in multiplayer games": a side has to be given them.
+  if (def.id === OUTPOST && !player.tech.has(OUTPOST)) {
     return 'unknown tech';
   }
 
@@ -291,7 +297,9 @@ function siteError(
 
       if (
         isBridge(terrain)
-        || (terrain === Terrain.Island && !world.isOwnGround(player, x, y))
+        || (terrain === Terrain.Island && !world.isOwnGround(player, x, y)
+          // An Outpost may also go up on an island nobody owns, which is how it is taken.
+          && !(def.id === OUTPOST && world.owner[world.at(x, y)] === 0))
       ) {
         return 'blocked';
       }

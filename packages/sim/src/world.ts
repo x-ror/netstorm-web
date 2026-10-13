@@ -64,6 +64,7 @@ import {
   HAND_SIZE,
   DEFAULT_UNIT_RATE,
   DEFAULT_KILL_REWARD,
+  OUTPOST,
 } from './state.js';
 import type { Command, CommandError, CommandResult } from './commands.js';
 import type { Event, EventInput } from './events.js';
@@ -425,6 +426,14 @@ export class World {
   /** The player's Temple: the building of class Energy. */
   templeOf(p: number): Building | undefined {
     return this.buildingsOf(p).find((b) => this.def(b.type).cls === 'Energy' && b.rising === 0);
+  }
+
+  /** Where the player's ground hangs together and his crystals go: his Temple and his Outposts,
+   * once built. An Outpost gives what a Temple gives its island. */
+  depotsOf(p: number): Building[] {
+    return this.buildingsOf(p).filter((b) =>
+      b.rising === 0 && (this.def(b.type).cls === 'Energy' || b.type === OUTPOST)
+    );
   }
 
   buildingsOf(p: number, group?: UnitGroup): Building[] {
