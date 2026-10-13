@@ -19,6 +19,7 @@ import {
   MISSILES,
   MISSILE_SPEED,
   SPELL_BURSTS,
+  SHELL_BURST,
   explosionFor,
   missileSlot,
   type Burst,
@@ -35,6 +36,8 @@ const SCATTER_Y = 13;
 const BAR_GAP = 2; // pixels between a sprite's top and its health bar
 const BEAM_LENGTH = 154; // pixels of the Lightning picture
 const BEAM_TICKS = 2;
+const BOMB_DROP = 60; // pixels a Whirligig hangs over the ground it bombs
+const SKY_BOLT = 150; // pixels up from which a Thunder Strike falls
 const TRACER_LIFT = 0.6; // share of a shooter's sprite height its shots leave from
 const MARKER_RADIUS = 4;
 const CELL_CENTER = 0.5;
@@ -477,11 +480,20 @@ export function createWorldRenderer(
 
     for (const e of world.entities.values()) {
       const flying = e.kind === 'flyer'
-        || (e.kind === 'transport' && sprites.get(e.id)?.zIndex === AIR_Z);
+        || (e.kind === 'transport' && world.defs.get(e.type)?.group === 'balloon');
       const near = Math.hypot(e.x - by.x, e.y - by.y) <= range;
 
-      if (show.each && 'hp' in e && e.id !== caster && near && (!show.air || flying)) {
+      if (!('hp' in e) || e.id === caster || !near) {
+        continue;
+      }
+
+      if (show.each && (!show.air || flying)) {
         burst(show.each, middle(e), AIR_Z);
+      }
+
+      if (show.bolt && !flying) {
+        const at = middle(e);
+        beam(show.bolt === 'sky' ? { x: at.x, y: at.y - SKY_BOLT } : middle(by), at);
       }
     }
   }
@@ -492,6 +504,14 @@ export function createWorldRenderer(
       const a = sprites.get(from.id);
       const b = sprites.get(to.id);
 
+      // An Arc Spire's pulse is a bolt between its two posts.
+      const pulsed = from.type === 'thunderfence'
+        && from.cooldown > (cooldowns.get(from.id) ?? Infinity);
+
+      if (a && b && pulsed) {
+        beam({ x: a.x, y: a.y - a.height / 2 }, { x: b.x, y: b.y - b.height / 2 });
+      }
+
       if (a && b) {
         bars.moveTo(a.x, a.y - a.height / 2)
           .lineTo(b.x, b.y - b.height / 2)
@@ -500,8 +520,6 @@ export function createWorldRenderer(
     }
   }
 
-  /** A line from each shooter that fired this tick to its target. Shots are not simulated as
-   * projectiles, so this only shows who is shooting whom. */
   /** Missiles on their way, and the bolts of lightning that are simply there for a moment. */
   const missiles: {
     sprite: Sprite;
@@ -513,9 +531,13 @@ export function createWorldRenderer(
   }[] = [];
   const beams: { sprite: Sprite; until: number; }[] = [];
 
+  /** Show the shot of everything that fired this tick. Shots are not simulated as projectiles:
+   * this only shows who has hit whom. */
   function drawTracers(): void {
     for (const entity of world.entities.values()) {
-      if (entity.kind !== 'building') {
+      const bomber = entity.kind === 'flyer' && entity.type in MISSILES;
+
+      if (entity.kind !== 'building' && !(entity.kind === 'flyer' && bomber)) {
         continue;
       }
 
@@ -530,9 +552,11 @@ export function createWorldRenderer(
         continue;
       }
 
-      const start = { x: middle(entity).x, y: from.y - from.height * TRACER_LIFT };
-      const end = middle(aim);
-      shoot(entity.type, start, end);
+      // A gun shoots from its top; a Whirligig drops its bomb from where it hangs.
+      const start = bomber
+        ? { x: from.x, y: from.y - BOMB_DROP }
+        : { x: middle(entity).x, y: from.y - from.height * TRACER_LIFT };
+      shoot(entity.type, start, middle(aim));
     }
 
     fly();
@@ -540,35 +564,49 @@ export function createWorldRenderer(
 
   /** Send off what a shooter throws: its missile, a bolt of lightning, or a plain streak. */
   function shoot(shooter: string, from: Point, to: Point): void {
-    const far = Math.hypot(to.x - from.x, to.y - from.y);
-    const lightning = textures.get('slot:lightning:0');
+    const missile = MISSILES[shooter];
+    const first = missile ? textures.get(`slot:${missile.type}:0`) : undefined;
 
-    if (shooter in MISSILES) {
-      const first = textures.get(`slot:${MISSILES[shooter]!.type}:0`);
-
-      if (first) {
-        const sprite = entityLayer.addChild(new Sprite(first));
-        sprite.zIndex = AIR_Z;
-        // The speed is in cells; a cell is TW pixels wide.
-        const ticks = Math.max(1, Math.round((far / TW / MISSILE_SPEED) * TPS));
-        missiles.push({ sprite, shooter, from, to, start: world.tick, ticks });
-        return;
-      }
-    }
-
-    if (shooter === 'thunderarcher' && lightning && far > 0) {
-      // The Lightning type is one picture of a bolt: it is turned and stretched to its target.
-      const sprite = entityLayer.addChild(new Sprite(lightning));
-      sprite.anchor.set(0, SPRITE_ANCHOR_X);
-      sprite.position.set(from.x, from.y);
-      sprite.rotation = Math.atan2(to.y - from.y, to.x - from.x);
-      sprite.scale.x = far / BEAM_LENGTH;
+    if (missile && first) {
+      const far = Math.hypot(to.x - from.x, to.y - from.y);
+      const sprite = entityLayer.addChild(new Sprite(first));
       sprite.zIndex = AIR_Z;
-      beams.push({ sprite, until: world.tick + BEAM_TICKS });
+      // The speed is in cells; a cell is TW pixels wide. A bomb takes at least its six frames.
+      const ticks = Math.max(missile.blast ? missile.frames : 1,
+        Math.round((far / TW / MISSILE_SPEED) * TPS));
+      missiles.push({ sprite, shooter, from, to, start: world.tick, ticks });
       return;
     }
 
+    if (shooter === 'thunderarcher') {
+      beam(from, to);
+      return;
+    }
+
+    if (shooter === 'suncannon') {
+      burst(SHELL_BURST, to, AIR_Z);
+    }
+
     bars.moveTo(from.x, from.y).lineTo(to.x, to.y).stroke({ color: COLOR.tracer, width: 1 });
+  }
+
+  /** A bolt of lightning between two points: the Lightning type is one picture of a bolt, which
+   * is turned and stretched to fit and shown for a moment. */
+  function beam(from: Point, to: Point): void {
+    const lightning = textures.get('slot:lightning:0');
+    const far = Math.hypot(to.x - from.x, to.y - from.y);
+
+    if (!lightning || far === 0) {
+      return;
+    }
+
+    const sprite = entityLayer.addChild(new Sprite(lightning));
+    sprite.anchor.set(0, SPRITE_ANCHOR_X);
+    sprite.position.set(from.x, from.y);
+    sprite.rotation = Math.atan2(to.y - from.y, to.x - from.x);
+    sprite.scale.x = far / BEAM_LENGTH;
+    sprite.zIndex = AIR_Z;
+    beams.push({ sprite, until: world.tick + BEAM_TICKS });
   }
 
   function fly(): void {
@@ -580,6 +618,12 @@ export function createWorldRenderer(
       const spot = texture && hotSpots.get(texture);
 
       if (done >= 1 || !texture || !spot) {
+        const blast = MISSILES[shooter]!.blast;
+
+        if (blast) {
+          burst(blast, to, AIR_Z);
+        }
+
         sprite.destroy();
         missiles.splice(i, 1);
         continue;

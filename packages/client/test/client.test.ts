@@ -424,9 +424,13 @@ test('missiles point the way they fly, and effects are runs of shipped slots', (
     3,
   ]);
   assert.equal(missileSlot('sunarcher', -3, 2, 7), 0);
+  // A Whirligig's bomb has one bearing and tumbles through six frames, then blasts.
+  assert.deepEqual([4, 5, 6].map((tick) => missileSlot('sunflyer', 0, 1, tick)), [4, 5, 0]);
+  assert.deepEqual(MISSILES.sunflyer!.blast, { type: 'sunflyerbomb', first: 6, frames: 17 });
   assert.deepEqual([1, 2, 3, 7].map((width) => explosionFor(width).first), [66, 58, 0, 0]);
 
   const runs = [
+    ...Object.values(MISSILES).flatMap((m) => (m.blast ? [m.blast] : [])),
     ...Object.values(MISSILES).map((m) => ({
       type: m.type,
       first: 0,

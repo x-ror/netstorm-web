@@ -32,6 +32,7 @@ export const SLOT_COUNTS: Readonly<Record<string, number>> = {
   raincannonmissile: 29,
   thundercannonmissile: 12,
   sundisc: 3,
+  sunflyerbomb: 23,
   lightning: 1,
   healeffect: 9,
   gravitationeffect: 10,

@@ -38,8 +38,15 @@ export function explosionFor(width: number): Burst {
  * missile types; the Disc Thrower's disc has one picture.
  */
 export const MISSILES: Readonly<
-  Record<string, { type: string; bearings: number; frames: number; }>
+  Record<string, { type: string; bearings: number; frames: number; blast?: Burst; }>
 > = {
+  // The Whirligig's bomb tumbles through six frames and ends in a blast of its own.
+  sunflyer: {
+    type: 'sunflyerbomb',
+    bearings: 1,
+    frames: 6,
+    blast: { type: 'sunflyerbomb', first: 6, frames: 17 },
+  },
   windarcher: { type: 'bolt', bearings: 20, frames: 1 },
   raincannon: { type: 'raincannonmissile', bearings: 28, frames: 1 },
   thundercannon: { type: 'thundercannonmissile', bearings: 4, frames: 3 },
@@ -48,6 +55,8 @@ export const MISSILES: Readonly<
 /** Cells a missile flies in a second. The original has two speeds, 20 and 35; which missile has
  * which is not read (`?`). */
 export const MISSILE_SPEED = 20;
+/** What a Sun Cannon's shot leaves where it lands: its shell is not drawn (ours). */
+export const SHELL_BURST = EXPLOSIONS.small;
 
 /** The slot of a missile on its way along (dx, dy) in screen pixels, at a tick. */
 export function missileSlot(shooter: string, dx: number, dy: number, tick: number): number {
@@ -59,8 +68,11 @@ export function missileSlot(shooter: string, dx: number, dy: number, tick: numbe
 
 /** What each Spell shows on a unit it touches, or at the caster for a blast. */
 export const SPELL_BURSTS: Readonly<
-  Record<string, { each?: Burst; air?: boolean; here?: Burst; }>
+  Record<string, { each?: Burst; air?: boolean; here?: Burst; bolt?: 'caster' | 'sky'; }>
 > = {
+  // Thunderstorm sends a bolt from the caster to each unit; a Thunder Strike falls from the sky.
+  bomblightingwave: { bolt: 'caster' },
+  bomblightingzap: { bolt: 'sky' },
   bombheal: { each: { type: 'healeffect', first: 0, frames: 9 } },
   bombgraviton: { each: { type: 'gravitationeffect', first: 0, frames: 10 }, air: true },
   bombmeteor: { each: { type: 'meteoreffect', first: 0, frames: 15 } },

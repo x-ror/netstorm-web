@@ -46,6 +46,7 @@ SLOTS = {
     "raincannonmissile": 29,
     "thundercannonmissile": 12,
     "sundisc": 3,
+    "sunflyerbomb": 23,  # six frames of the bomb falling, then its blast
     "lightning": 1,
     "healeffect": 9,  # what a Spell leaves on what it touches
     "gravitationeffect": 10,
