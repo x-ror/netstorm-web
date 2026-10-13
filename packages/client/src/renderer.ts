@@ -32,6 +32,7 @@ import {
   type Burst,
 } from './effects.js';
 import { hotSpots } from './assets.js';
+import type { Sounds } from './sound.js';
 
 const SPRITE_ANCHOR_X = 0.5;
 const UNIT_ANCHOR_Y = 0.85; // a unit's feet sit a little above the bottom of its frame
@@ -48,6 +49,7 @@ const SCATTER_Y = 13;
 const BAR_GAP = 2; // pixels between a sprite's top and its health bar
 const BEAM_LENGTH = 154; // pixels of the Lightning picture
 const BEAM_TICKS = 2;
+const ICE_IMPACTS = 4;
 const BOMB_DROP = 60; // pixels a Whirligig hangs over the ground it bombs
 const SKY_BOLT = 150; // pixels up from which a Thunder Strike falls
 const TRACER_LIFT = 0.6; // share of a shooter's sprite height its shots leave from
@@ -115,6 +117,7 @@ export function createWorldRenderer(
   entityLayer: Container,
   bars: Graphics,
   textures: Map<string, Texture>,
+  sounds: Sounds,
 ) {
   // --- terrain: a tile per cell, a cliff face under each southern rim, colours where tiles are missing
   const tiles: Sprite[] = [];
@@ -596,6 +599,7 @@ export function createWorldRenderer(
 
   /** Send off what a shooter throws: its missile, a bolt of lightning, or a plain streak. */
   function shoot(shooter: string, from: Point, to: Point): void {
+    sounds.unit(shooter, 'fire');
     const missile = MISSILES[shooter];
     const first = missile ? textures.get(`slot:${missile.type}:0`) : undefined;
 
@@ -632,6 +636,7 @@ export function createWorldRenderer(
       return;
     }
 
+    sounds.play('thundercrack');
     const sprite = entityLayer.addChild(new Sprite(lightning));
     sprite.anchor.set(0, SPRITE_ANCHOR_X);
     sprite.position.set(from.x, from.y);
@@ -651,6 +656,10 @@ export function createWorldRenderer(
 
       if (done >= 1 || !texture || !spot) {
         const blast = MISSILES[shooter]!.blast;
+        // The game picks one of the Ice Cannon's impact sounds at random; here by the tick.
+        sounds.play(shooter === 'raincannon'
+          ? `icecannonimpact${1 + (world.tick % ICE_IMPACTS)}`
+          : undefined);
 
         if (blast) {
           burst(blast, to, AIR_Z);

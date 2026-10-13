@@ -2,14 +2,16 @@ import { loadDefs } from '@netstorm/sim';
 import { loadTextures, type Atlas } from './assets.js';
 import { type Maps, type Mission } from './game-data.js';
 import { showMenu } from './menu.js';
+import { createSounds, type SoundIndex } from './sound.js';
 import { runMatch } from './match.js';
 
 async function main() {
-  const [unitsRaw, maps, missions, manifest] = await Promise.all([
+  const [unitsRaw, maps, missions, manifest, soundIndex] = await Promise.all([
     fetchJson<unknown>('data/units.json'),
     fetchJson<Maps>('data/maps.json'),
     fetchJson<Mission[]>('data/missions.json'),
     fetchJson<Atlas>('data/sprites.json'),
+    fetchJson<SoundIndex>('data/sounds.json'),
   ]);
   const data = {
     defs: loadDefs(unitsRaw),
@@ -17,6 +19,7 @@ async function main() {
     missions,
     textures: await loadTextures(manifest),
     atlas: manifest,
+    sounds: createSounds(soundIndex),
   };
   const menu = document.getElementById('menu')!;
   const game = document.getElementById('game')!;

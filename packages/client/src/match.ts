@@ -24,6 +24,7 @@ import { createWorldRenderer } from './renderer.js';
 import { createControls } from './controls.js';
 import { createHud } from './hud.js';
 import type { Atlas } from './assets.js';
+import type { Sounds } from './sound.js';
 import { createMinimap } from './minimap.js';
 import { describeEvent } from './messages.js';
 import { centerOn } from './camera.js';
@@ -40,6 +41,7 @@ export interface GameData {
   textures: Map<string, Texture>;
   /** Where each texture lies in the atlas files, for pictures drawn outside the canvas. */
   atlas: Atlas;
+  sounds: Sounds;
 }
 
 /** Play one local match. Resolves when the player leaves it for the menu. */
@@ -50,6 +52,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const view = match.view();
   const commands: Command[] = [];
   const ui = createUiState();
+  ui.muted = data.sounds.muted; // the choice outlives a match
 
   const app = new Application();
   await app.init({
@@ -70,8 +73,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const overlay = new Graphics();
   const ghost = new Container();
   camera.addChild(terrainG, ground, entityLayer, bars, ghost, overlay);
-  const renderer = createWorldRenderer(view, ME, terrainG, ground, entityLayer, bars,
-    data.textures);
+  const renderer = createWorldRenderer(view, ME, terrainG, ground, entityLayer, bars, data.textures,
+    data.sounds);
 
   root.hidden = false;
   let leave: ((next?: string) => void) | undefined;
@@ -97,6 +100,11 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const hud = createHud(root, view, ME, ui, {
     setTool: (tool) => controls.setTool(tool),
     togglePause,
+    toggleSound: () => {
+      ui.muted = !ui.muted;
+      data.sounds.muted = ui.muted;
+      hud.render();
+    },
     salvageSelected: () => controls.salvageSelected(),
     meltdownSelected: () => controls.meltdownSelected(),
     castSelected: () => controls.castSelected(),
@@ -134,8 +142,46 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   /** Sides whose Priest the player or an ally has brought to safety. */
   const saved = new Set<number>();
 
+  /** The sound of an event of the battle. Spells and transports sound as their .type files say;
+   * the rest are matched to the events by the names of the original's sound files (ours). */
+  function hear(event: SimEvent): void {
+    const mine = event.who === ME;
+    const { sounds } = data;
+
+    switch (event.what) {
+      case 'destroyed':
+        return sounds.play('explosion');
+      case 'bridge':
+        return sounds.play(mine ? 'droppiece' : undefined);
+      case 'build':
+        return sounds.play(mine ? 'somethingcreated' : undefined);
+      case 'salvaged':
+        return sounds.play(mine ? 'dissolve' : undefined);
+      case 'spell':
+        return sounds.unit(event.data.spell, 'active');
+      case 'cast':
+        return sounds.unit(event.data.spell, 'fire');
+      case 'delivered': {
+        const carrier = world.entities.get(event.data.transport);
+        return sounds.unit(carrier?.kind === 'transport' ? carrier.type : 'priest', 'drop');
+      }
+      case 'captured':
+        return sounds.play(mine ? 'enemypriestcaptured' : 'ourpriestcaptured');
+      case 'priest down':
+        return sounds.play(mine ? 'ourpriestimmobile' : undefined);
+      case 'released':
+        return sounds.play('priestfree');
+      case 'sacrifice':
+        return sounds.play('priestsacrifice2');
+      default:
+        return undefined;
+    }
+  }
+
   function takeEvents(): void {
     for (const event of match.drainEvents()) {
+      hear(event);
+
       if (event.what === 'destroyed') {
         renderer.explode(event.data.id);
       } else if (event.what === 'cast') {

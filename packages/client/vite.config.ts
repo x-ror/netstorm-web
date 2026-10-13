@@ -89,6 +89,19 @@ function gameAssets(): Plugin {
         source: JSON.stringify(atlas),
       });
 
+      // The sounds and their index, as scripts/sounds.py left them in `public`.
+      const sounds = readFileSync(new URL('./public/data/sounds.json', import.meta.url), 'utf8');
+      const heard = (JSON.parse(sounds) as { files: Record<string, [string, number]>; }).files;
+      this.emitFile({ type: 'asset', fileName: 'data/sounds.json', source: sounds });
+
+      for (const [file] of Object.values(heard)) {
+        this.emitFile({
+          type: 'asset',
+          fileName: file,
+          source: readFileSync(new URL(`./public/${file}`, import.meta.url)),
+        });
+      }
+
       for (const [name, data] of Object.entries(gameData())) {
         this.emitFile({
           type: 'asset',

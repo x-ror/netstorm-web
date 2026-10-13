@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { loadDefs } from '@netstorm/sim';
 import { happened, mapsOf, outcome, reflow, slimMaps, slimMissions } from '../src/game-data.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
@@ -16,6 +16,7 @@ import {
 } from '../src/texture-selection.js';
 import { SLOT_COUNTS, heading, overlayOf, shadowOf, slotOf } from '../src/animations.js';
 import { MISSILES, SPELL_BURSTS, explosionFor, missileSlot } from '../src/effects.js';
+import { unitSound, type SoundIndex } from '../src/sound.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
 
@@ -481,4 +482,20 @@ test('a cell of bridge shows the frame of the sides it joins on', () => {
   assert.deepEqual([3, 15, 8].map((links) => bridgeSlot(links, 'whole', 1)), [32, 0, 50]);
   // Bridge laid without a piece joins on every side.
   assert.equal(bridgeSlot(0, 'whole', 1), 0);
+});
+
+test('units sound as their .type files say, and every sound named is shipped', () => {
+  const index = read('../packages/client/public/data/sounds') as SoundIndex;
+  assert.equal(unitSound(index, 'suncannon', 'fire'), 'suncannonfire');
+  assert.equal(unitSound(index, 'sunwalker', 'drop'), 'golemdrop');
+  assert.equal(unitSound(index, 'bombheal', 'active'), 'healget');
+  assert.equal(unitSound(index, 'sunblocker', 'fire'), undefined);
+  // "thunderCannon-1000.wav" is the Thunder Cannon's shot, ten decibels down.
+  assert.deepEqual(index.files.thundercannon, ['sounds/thundercannon.wav', 0.316]);
+  const named = Object.values(index.units).flatMap((sounds) => Object.values(sounds));
+
+  for (const name of [...named, 'explosion', 'thundercrack', 'icecannonimpact4', 'droppiece']) {
+    const file = index.files[name!];
+    assert.ok(file && existsSync(new URL(`../public/${file[0]}`, import.meta.url)), name);
+  }
 });

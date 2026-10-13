@@ -43,6 +43,7 @@ const PRIEST_STATES: Record<string, string> = {
 export interface HudActions {
   setTool(tool: Tool): void;
   togglePause(): void;
+  toggleSound(): void;
   salvageSelected(): void;
   meltdownSelected(): void;
   castSelected(): void;
@@ -120,6 +121,8 @@ export function createHud(
       actions.dropSelected();
     } else if (action === 'page') {
       actions.page(Number(value));
+    } else if (action === 'mute') {
+      actions.toggleSound();
     } else if (action === 'pause') {
       actions.togglePause();
     } else if (action === 'exit') {
@@ -141,6 +144,7 @@ export function createHud(
         + `<button data-action="pause" class="${ui.paused ? 'on' : ''}">${
           ui.paused ? 'Продовжити' : 'Пауза'
         } <kbd>Space</kbd></button>`
+        + `<button data-action="mute" title="Звук">${ui.muted ? '🔇' : '🔊'}</button>`
         + `<button data-action="exit">Меню</button>`);
 
     const handTool = ui.tool.kind === 'piece' ? ui.tool.hand : -1;

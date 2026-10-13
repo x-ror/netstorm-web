@@ -24,6 +24,8 @@ export interface UiState {
   selected: number | null;
   hover: { x: number; y: number; };
   paused: boolean;
+  /** Sound is off. */
+  muted: boolean;
 }
 
 export function createUiState(): UiState {
@@ -34,6 +36,7 @@ export function createUiState(): UiState {
     selected: null,
     hover: { x: 0, y: 0 },
     paused: false,
+    muted: false,
   };
 }
 
