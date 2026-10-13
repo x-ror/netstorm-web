@@ -1,0 +1,11 @@
+Design ONE new game object for a war game fought between floating sky islands. Draw it in exactly the style of the attached image.
+
+Design: believable and grounded, like real historical engineering. Anyone must understand at a glance what the object is and what it does. Every part has an obvious job; no decorative parts. No fantasy, no magic, no glow, no crystals, no ornaments, not anime, not cartoon.
+
+Style: detailed hand-drawn illustration, like a plate from an illustrated history or architecture book. Clean confident linework, natural colors with simple shading, clear separation between stone, iron, wood and metal. Few large readable shapes, no tiny noisy detail, strong silhouette. Daylight from the top-left, soft shadow on the right side.
+
+Camera: orthographic view from above and from the front, as in classic 2D strategy games. We see the top of the object and its front (south) side. Not isometric, not rotated 45 degrees, no perspective, vertical edges stay vertical.
+
+Intact and clean: no cracks, no missing parts.
+No ammunition, no cannonballs, no crates, barrels, tools or other loose items lying around.
+Transparent background, the whole object in frame, centred, nothing cropped, no ground or island under it beyond its own foundation, no shadow cast on the ground around it, no text, no labels, no frame.

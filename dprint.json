@@ -37,6 +37,7 @@
     "**/node_modules/**",
     "**/dist/**",
     "data/**",
+    "tools/art/data/**",
     "packages/client/public/**",
     "package-lock.json"
   ]

@@ -1,0 +1,17 @@
+A single illustrated game object, shown alone on a plain dark grey background: a solid stone shot-absorbing tower, a blast bulwark built to stand in the line of fire and take hits. The design is believable and grounded, like real historical engineering, and instantly understandable: anyone should see at a glance that it is a heavy protective tower. No fantasy, no magic, no glow, no crystals, no ornaments, not anime, not cartoon.
+
+Shape: a squat round drum, about one and a half times taller than wide, with no interior rooms, no door and no windows. The lower third flares outward into a sloped battered base, like the foot of an artillery fort, to deflect shots.
+
+Masonry: large rectangular blocks of warm honey-colored sandstone, laid in regular horizontal courses with thin mortar joints, staggered like brickwork. Blocks at the base are twice as large as blocks at the top.
+
+Reinforcement: three wide hoops of dark forged iron wrap the drum at even heights, each joined by a bolted plate at the front. Four vertical buttresses of thick oak timber stand against the wall at the four corners, held to the iron hoops by iron straps with square-headed bolts.
+
+Top: a low conical cap of overlapping copper sheets with raised seams, oxidized to a dull blue-green. The seams meet at the peak under a flat round riveted iron plate. Nothing sticks up from the roof. A narrow projecting stone cornice under the cap casts a dark shadow line.
+
+Foundation: a round platform of darker reddish paving stones, slightly wider than the tower, with a plain raised curb.
+
+Condition: intact and clean, no cracks or missing blocks.
+
+Style: detailed hand-drawn illustration, like a plate from an illustrated history or architecture book. Clean confident linework, flat natural colors with simple two-tone shading, clear separation between stone, iron, wood and copper. Few large readable shapes, no tiny noisy detail, strong silhouette. Daylight from the top-left, soft shadow on the right side.
+
+Camera: orthographic view from above and from the front, as in classic 2D strategy games. We see the top of the cap and the front wall. Not isometric, not rotated, no perspective distortion, vertical edges stay vertical. The whole object in frame, centred. No text.

@@ -1,0 +1,21 @@
+I'm remaking the game NetStorm: Islands At War with new graphics. I will design the assets ONE per message. Each one is a NEW, unique design with the same game function, not a copy of the original.
+
+ART STYLE (lock this for every asset):
+- "Elemental Isles": stylized hand-painted 2D fantasy, like the attached concept image
+- CAMERA (most important, applies to every asset): orthographic top-down oblique view like classic 2D RPG/strategy maps, NOT isometric, NOT diamond-shaped, NOT rotated 45 degrees.
+  The camera looks straight "north" and is tilted down: the ground grid is made of axis-aligned rectangles (16 wide x 11 deep), all ground edges are perfectly horizontal or vertical on screen.
+  We see the TOP of every object and its FRONT (south) face below it. No left or right side faces are visible. Vertical edges stay perfectly vertical. No perspective.
+  The attached grey block-out "camera guide" shows exactly this projection.
+- Light from top-left
+- Four elemental factions: Sun (gold, sandstone, brass), Rain (icy cyan, crystal, silver), Wind (bronze, sand, sailcloth), Thunder (dark iron, crimson, violet lightning)
+- Clean readable silhouettes, saturated colors, soft painted shading, no photorealism
+
+HARD RULES FOR EVERY ASSET:
+1. Use image generation to paint a NEW image. Never upscale, filter or process the original with code.
+2. Output exactly ONE object per image. No collages, no sheets with several different objects, no labels, no text, no titles, no UI frames.
+3. Transparent background (or flat pure #FF00FF if transparency is not possible), nothing cropped at the edges.
+4. Invent a new design that shows what the object does. Keep only the original's footprint and rough proportions, so it fits the game's existing layout.
+5. Draw every object INTACT and clean: no cracks, chips, moss, dirt or damage baked in. Damage is a separate overlay layer added in the game.
+6. If you cannot do something, say so plainly. Never report work as done when it isn't.
+
+Reply only "Style locked, send the first asset". Do not generate anything yet.
