@@ -1,15 +1,13 @@
+import type { MissionMap } from '@netstorm/sim';
+
 /** Shapes of the game data the client ships, and the build step that trims the extracted originals
  * down to them. Shared by the dev server, the production build and the client. */
 
-/** Geysers of each original map, in map cells, and the islands its player owns: the shape, the
- * chunk it is laid on and the seed, as the original's island builder takes them. */
-export type Maps = Record<string, {
-  geysers: [number, number][];
-  islands: [shape: number, cx: number, cy: number, seed: number][];
-}>;
+/** The original maps the client ships, as the mission builder of the simulation takes them. */
+export type Maps = Record<string, MissionMap>;
 
 export interface Mission {
-  /** File name of the mission and of its map in `forts.json`. */
+  /** File name of the mission and of its map in `maps.json`. */
   id: string;
   title: string;
   /** Starting Storm Power of the human player in the original mission. */
@@ -63,22 +61,21 @@ export function slimUnits(raw: unknown): Record<string, unknown>[] {
   });
 }
 
-/** Keep the geysers of each map and add the islands read from its .fort file. */
-export function slimMaps(raw: unknown, islands: unknown = {}): Maps {
+/** Keep of each map what the mission builder reads: the islets under units are made by it. */
+export function slimMaps(raw: unknown): Maps {
   const maps: Maps = {};
-  const byMap = asRecord(islands);
 
   for (const [name, value] of Object.entries(asRecord(raw))) {
-    const geysers = asRecord(value).geysers;
-    maps[name] = {
-      geysers: Array.isArray(geysers)
-        ? geysers.filter(isCell).map(([x, y]) => [x, y])
-        : [],
-      islands: Array.isArray(byMap[name]) ? byMap[name] as Maps[string]['islands'] : [],
-    };
+    const { islands, geysers, bridges, units } = asRecord(value) as unknown as MissionMap;
+    maps[name] = { islands, geysers, bridges, units };
   }
 
   return maps;
+}
+
+/** Keep only the maps some mission is played on. */
+export function mapsOf(missions: Mission[], maps: Maps): Maps {
+  return Object.fromEntries(missions.flatMap((m) => maps[m.id] ? [[m.id, maps[m.id]!]] : []));
 }
 
 /** The campaign missions (normal difficulty) that have a map, with their briefing texts. */
@@ -172,8 +169,4 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
-}
-
-function isCell(value: unknown): value is [number, number] {
-  return Array.isArray(value) && Number.isInteger(value[0]) && Number.isInteger(value[1]);
 }

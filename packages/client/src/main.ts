@@ -7,7 +7,7 @@ import { runMatch } from './match.js';
 async function main() {
   const [unitsRaw, maps, missions, manifest] = await Promise.all([
     fetchJson<unknown>('data/units.json'),
-    fetchJson<Maps>('data/forts.json'),
+    fetchJson<Maps>('data/maps.json'),
     fetchJson<Mission[]>('data/missions.json'),
     fetchJson<Manifest>('data/sprites.json'),
   ]);

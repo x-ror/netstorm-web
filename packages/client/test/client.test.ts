@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadDefs } from '@netstorm/sim';
-import { reflow, slimMaps, slimMissions } from '../src/game-data.js';
+import { mapsOf, reflow, slimMaps, slimMissions } from '../src/game-data.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS } from '../src/menu.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
@@ -11,11 +11,21 @@ import { describeEvent } from '../src/messages.js';
 const read = (name: string): unknown =>
   JSON.parse(readFileSync(new URL(`../../../data/${name}.json`, import.meta.url), 'utf8'));
 const defs = loadDefs(read('units'));
-const maps = slimMaps(read('forts'), read('islands'));
+const maps = slimMaps(read('maps'));
+// A place with no map: the rectangular skirmish.
+const bare = {
+  geysers: [[70, 150], [110, 120]] as [number, number][],
+  islands: [],
+  bridges: [],
+  units: [],
+};
+const skirmish = () =>
+  createMatchWorld(defs, { test: bare }, [], { ...DEFAULT_OPTIONS, mission: 'test' });
 const missions = slimMissions(read('missions'), maps);
 
-test('shipped data keeps geysers, islands and the campaign briefings only', () => {
-  assert.deepEqual(Object.keys(maps.thewarbegins!), ['geysers', 'islands']);
+test('shipped data keeps the maps of the missions and the campaign briefings only', () => {
+  assert.deepEqual(Object.keys(maps.thewarbegins!), ['islands', 'geysers', 'bridges', 'units']);
+  assert.deepEqual(Object.keys(mapsOf(missions, maps)).length, missions.length);
   assert.deepEqual(maps.thewarbegins!.islands, [[17, 5, 6, 240], [3, 8, 7, 146]]);
   assert.ok(maps.thewarbegins!.geysers.length > 0);
   const mission = missions.find((m) => m.id === 'thewarbegins')!;
@@ -47,20 +57,25 @@ test('reflow handles CRLF, blank lines with spaces and trailing spaces', () => {
   assert.equal(reflow(''), '');
 });
 
-test('the default match is the old demo skirmish', () => {
+test('the default match is the first mission on its own map', () => {
   const world = createMatchWorld(defs, maps, missions, DEFAULT_OPTIONS);
-  assert.equal(world.players.get(ME)!.theme, 'wind');
+  // Each side follows the Fury of the Temple the map gives it, whatever the menu says.
+  assert.equal(world.templeOf(ME)!.type, 'rainvortex');
+  assert.equal(world.players.get(ME)!.theme, 'rain');
   assert.equal(world.players.get(ENEMY)!.name, 'The Jailer');
-  assert.equal(world.players.get(ENEMY)!.theme, 'rain');
+  assert.equal(world.templeOf(ENEMY)!.type, 'windvortex');
+  assert.ok(world.buildingsOf(ENEMY).some((b) => b.type === 'sunarcher'));
   assert.ok([...world.entities.values()].some((e) => e.kind === 'geyser'));
+
+  // Everything the map lays stands on ground of its owner.
+  for (const b of [...world.buildingsOf(ME), ...world.buildingsOf(ENEMY)]) {
+    assert.ok(world.isOwnGround(b.owner, b.x, b.y), `${b.type} at ${b.x},${b.y}`);
+  }
 });
 
-test('on a map without islands, geysers that would cut into a home island are dropped', () => {
-  const bare = { geysers: [[70, 150], [110, 120]] as [number, number][], islands: [] };
-  const world = createMatchWorld(defs, { test: bare }, [], {
-    ...DEFAULT_OPTIONS,
-    mission: 'test',
-  });
+test('without a map, geysers that would cut into a home island are dropped', () => {
+  const world = skirmish();
+  assert.equal(world.players.get(ME)!.theme, 'wind');
   const geysers = [...world.entities.values()].filter((e) => e.kind === 'geyser');
   assert.deepEqual(geysers.map((g) => [g.x, g.y]), [[110, 120]]);
 });
@@ -81,7 +96,7 @@ test('a footprint is centred on the cursor', () => {
 });
 
 test('a click picks the unit on the cell, then the building, then a unit next to it', () => {
-  const world = createMatchWorld(defs, maps, missions, DEFAULT_OPTIONS);
+  const world = skirmish();
   const view = world.view();
   const priest = world.priestOf(ME)!;
   const transport = [...world.entities.values()].find((e) => e.kind === 'transport')!;
@@ -112,17 +127,4 @@ test('the log speaks of the local player and hides the enemy routine', () => {
     who: ENEMY,
     data: { id: 9, type: 'suncannon' },
   })?.text, 'Знищено ворожий Sun Cannon');
-});
-
-test('a mission is played on the islands of its map, the opponent on one beside them', () => {
-  const world = createMatchWorld(defs, maps, missions, {
-    ...DEFAULT_OPTIONS,
-    mission: 'thewarbegins',
-  });
-  const mine = world.templeOf(ME)!;
-  const theirs = world.templeOf(ENEMY)!;
-  // The first island of the map starts at chunk (5, 6); its Temple stands in its second chunk.
-  assert.ok(mine.x >= 5 * 16 && mine.x < 9 * 16 && mine.y >= 6 * 16 && mine.y < 8 * 16);
-  assert.ok(world.isOwnGround(ENEMY, theirs.x, theirs.y));
-  assert.ok(Math.abs(theirs.x - mine.x) + Math.abs(theirs.y - mine.y) > 32);
 });

@@ -32,4 +32,5 @@ console.log(
   } KiB with gzip for text.`,
 );
 assert.ok(raw <= 1.5 * 1024 * 1024, 'Raw build exceeds 1.5 MiB budget');
-assert.ok(compressed <= 256 * 1024, 'Compressed build exceeds 256 KiB budget');
+// Raised from 256 KiB when the maps of the missions (about 13 KiB) joined the build.
+assert.ok(compressed <= 272 * 1024, 'Compressed build exceeds 272 KiB budget');

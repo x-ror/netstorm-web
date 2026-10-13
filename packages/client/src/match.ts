@@ -11,7 +11,7 @@ import {
 } from '@netstorm/sim';
 import { DEFAULT_AI_DELAY, type Maps, type Mission } from './game-data.js';
 import { type MatchOptions } from './menu.js';
-import { createMatchWorld, ENEMY, ME } from './setup.js';
+import { createMatchWorld, ME } from './setup.js';
 import { createWorldRenderer } from './renderer.js';
 import { createControls } from './controls.js';
 import { createHud } from './hud.js';
@@ -68,10 +68,12 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   });
   const clock = new FixedStepClock(TPS);
   const aiInterval = Math.max(1, Math.round((mission?.aiDelay ?? DEFAULT_AI_DELAY) * TPS));
-  // The opponent's moves are commands like the player's, so the replay records them.
+  // Every other side is played by the computer. Its moves are commands like the player's, so the replay records them.
   const aiCommands = () =>
     options.opponent === 'ai' && world.tick % aiInterval === 0
-      ? aiMove(view, { player: ENEMY })
+      ? [...world.players.keys()].filter((id) => id !== ME).flatMap((player) =>
+        aiMove(view, { player })
+      )
       : [];
   const togglePause = () => {
     ui.paused = !ui.paused;

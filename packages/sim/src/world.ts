@@ -202,8 +202,12 @@ export class World {
     }
   }
 
-  addGeyser(x: number, y: number, stock = this.geyserStock): Geyser {
-    this.addIsland(x - 1, y - 1, GEYSER_ISLAND_SIZE, GEYSER_ISLAND_SIZE, 0);
+  /** `islet` false leaves the ground as it is: the geyser stands on an island. */
+  addGeyser(x: number, y: number, stock = this.geyserStock, islet = true): Geyser {
+    if (islet) {
+      this.addIsland(x - 1, y - 1, GEYSER_ISLAND_SIZE, GEYSER_ISLAND_SIZE, 0);
+    }
+
     const g: Geyser = {
       id: this.nextId++,
       kind: 'geyser',

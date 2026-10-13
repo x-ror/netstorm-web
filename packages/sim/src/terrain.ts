@@ -1,13 +1,13 @@
-import { H, PIECES, PIECE_LINKS, W } from './state.js';
+import { H, W } from './state.js';
 
 /**
  * The island builder of the original (ChunkMap.cpp, islandbuilder.cpp and terrainBuilder.cpp of
  * netstorm.game 10.82). The map is 16×16 chunks of 16×16 cells. An island takes the chunks of one
- * of the bridge piece shapes, and the ground in them is grown from a seed, so the same description
- * always gives the same island. See "Острови: як їх будує гра" in docs/game-rules.md.
+ * of 21 shapes, and the ground in them is grown from a seed, so the same description always gives
+ * the same island. See "Острови: як їх будує гра" in docs/game-rules.md.
  */
 export interface IslandSpec {
-  /** Index of the piece shape whose cells are the island's chunks. */
+  /** Index of the shape whose cells are the island's chunks, see ISLAND_SHAPES. */
   shape: number;
   /** Chunk the top-left corner of the shape is laid on. */
   cx: number;
@@ -41,6 +41,68 @@ const AROUND: readonly (readonly [number, number])[] = [
   [-1, -1],
 ];
 
+/**
+ * The island shapes of the original, in its own order (the table beside the bridge pieces'). A
+ * letter is a chunk and names the sides on which it is joined to its neighbours; '.' is empty.
+ */
+const ISLAND_SHAPES: readonly (readonly string[])[] = [
+  ['.L.', 'FAG', 'INH'],
+  ['FG.', 'BAG', 'INH'],
+  ['FCG', 'BAD', 'INH'],
+  ['OG', '.N'],
+  ['OKM'],
+  ['OKG', '..N'],
+  ['OCM', '.N.'],
+  ['FG', 'IH'],
+  ['OG.', '.IM'],
+  ['OCG', '.IH'],
+  ['FKG', 'N.N'],
+  ['.L.', 'OAM', '.N.'],
+  ['L..', 'IG.', '.IM'],
+  ['FKG', 'J.J', 'IKH'],
+  ['.L.', 'OAG', '.IH'],
+  ['..L', 'OCD', '.IH'],
+  ['OCG', '.IH'],
+  ['FKG', 'N.J', '..N'],
+  ['.FM', 'OH.'],
+  ['L..', 'BKG', 'N.N'],
+  ['.L.', 'FEG', 'N.N'],
+];
+/** Sides a chunk is joined on, by its letter. A to K are the letters of bridge cells; L to O are
+ * dead ends, joined on one side only. */
+const LETTER_LINKS: Readonly<Record<string, number>> = {
+  A: 15,
+  B: 7,
+  C: 14,
+  D: 13,
+  E: 11,
+  F: 6,
+  G: 12,
+  H: 9,
+  I: 3,
+  J: 5,
+  K: 10,
+  L: SOUTH,
+  M: WEST,
+  N: NORTH,
+  O: EAST,
+};
+
+/** The chunks a shape takes, as offsets from its top-left corner, with their links. */
+function shapeCells(shape: number): [x: number, y: number, links: number][] {
+  const rows = ISLAND_SHAPES[shape];
+
+  if (!rows) {
+    throw new RangeError(`Unknown island shape ${shape}`);
+  }
+
+  return rows.flatMap((row, y) =>
+    [...row].flatMap((letter, x): [number, number, number][] =>
+      letter === '.' ? [] : [[x, y, LETTER_LINKS[letter]!]]
+    )
+  );
+}
+
 /** The generator's random numbers: s = s × 65539 + 3, the high half taken modulo n. */
 class Lcg {
   constructor(private s: number) {}
@@ -66,13 +128,7 @@ export function growIslands(specs: readonly IslandSpec[]): Int16Array {
   const seeds = new Uint8Array(CHUNKS * CHUNKS);
 
   for (const [id, spec] of specs.entries()) {
-    const cells = PIECES[spec.shape];
-
-    if (!cells) {
-      throw new RangeError(`Unknown island shape ${spec.shape}`);
-    }
-
-    for (const [k, [px, py]] of cells.entries()) {
+    for (const [px, py, link] of shapeCells(spec.shape)) {
       const cx = spec.cx + px;
       const cy = spec.cy + py;
 
@@ -82,7 +138,7 @@ export function growIslands(specs: readonly IslandSpec[]): Int16Array {
       }
 
       island[cx * CHUNKS + cy] = id;
-      links[cx * CHUNKS + cy] = PIECE_LINKS[spec.shape]![k]!;
+      links[cx * CHUNKS + cy] = link;
       seeds[cx * CHUNKS + cy] = spec.seed;
     }
   }
@@ -278,14 +334,11 @@ export function growIslands(specs: readonly IslandSpec[]): Int16Array {
 
 /** The chunks of an island in the order the builder visits them: by row, then by column. */
 export function islandChunks(spec: IslandSpec): [number, number][] {
-  return (PIECES[spec.shape] ?? [])
+  return shapeCells(spec.shape)
     .map(([px, py]): [number, number] => [spec.cx + px, spec.cy + py])
     .filter(([cx, cy]) =>
       cx >= FIRST_CHUNK && cy >= FIRST_CHUNK && cx < END_CHUNK && cy < END_CHUNK
     )
     .sort((a, b) => a[1] - b[1] || a[0] - b[0]);
 }
-
-/** Side of a chunk in cells. */
-export const CHUNK_SIZE = CHUNK;
 /* oxlint-enable no-magic-numbers */

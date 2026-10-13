@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import { TEXTURES, selectFrame, type Manifest } from './src/texture-selection.js';
-import { slimMaps, slimMissions, slimUnits } from './src/game-data.js';
+import { mapsOf, slimMaps, slimMissions, slimUnits } from './src/game-data.js';
 
 function readData(name: string): unknown {
   return JSON.parse(readFileSync(new URL(`../../data/${name}.json`, import.meta.url), 'utf8'));
@@ -10,11 +10,12 @@ function readData(name: string): unknown {
 
 /** The trimmed data files the client loads, by published name. */
 function gameData(): Record<string, unknown> {
-  const maps = slimMaps(readData('forts'), readData('islands'));
+  const maps = slimMaps(readData('maps'));
+  const missions = slimMissions(readData('missions'), maps);
   return {
     units: slimUnits(readData('units')),
-    forts: maps,
-    missions: slimMissions(readData('missions'), maps),
+    maps: mapsOf(missions, maps),
+    missions,
   };
 }
 
@@ -25,7 +26,7 @@ function gameAssets(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const path = req.url?.split('?')[0];
-        const name = /^\/data\/(units|forts|missions)\.json$/.exec(path ?? '')?.[1];
+        const name = /^\/data\/(units|maps|missions)\.json$/.exec(path ?? '')?.[1];
 
         if (!name) {
           return next();

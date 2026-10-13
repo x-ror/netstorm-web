@@ -4,8 +4,10 @@ import { readFileSync } from 'node:fs';
 import {
   loadDefs,
   createSkirmish,
+  createMission,
   growIslands,
   islandChunks,
+  type MissionMap,
   TPS,
   PIECE_INTERVAL,
   GEYSER_STOCK,
@@ -776,11 +778,11 @@ test('units without rules yet cannot be built', () => {
 });
 
 test('the island builder grows the same islands from the same descriptions', () => {
-  // The two islands of the Raw Power map: a Z of four chunks and a shape of six.
+  // The two islands of the Raw Power map: a square of four chunks and a shape of six.
   const specs = [{ shape: 7, cx: 6, cy: 3, seed: 17 }, { shape: 20, cx: 8, cy: 5, seed: 68 }];
   const ground = growIslands(specs);
   const size = (island: number) => ground.reduce((n, of) => n + (of === island ? 1 : 0), 0);
-  assert.deepEqual([size(0), size(1)], [732, 1114]);
+  assert.deepEqual([size(0), size(1)], [730, 1112]);
   assert.deepEqual([...growIslands(specs)], [...ground]);
   // Ground stays inside the chunks of its island.
   const chunks = specs.map((spec) => new Set(islandChunks(spec).map(([cx, cy]) => cx * 16 + cy)));
@@ -801,44 +803,49 @@ test('the island builder grows the same islands from the same descriptions', () 
   }
 });
 
-test('a skirmish on grown islands settles each player on ground of his own', () => {
-  const geysers: [number, number][] = [[128, 53], [144, 65]];
-  const w = createSkirmish(defs, 1, [
-    {
-      id: 1,
-      name: 'Blue',
-      theme: 'wind',
-      x: 0,
-      y: 0,
-      islands: [{ shape: 7, cx: 6, cy: 3, seed: 17 }],
-    },
-    {
-      id: 2,
-      name: 'Red',
-      theme: 'rain',
-      x: 0,
-      y: 0,
-      islands: [{ shape: 20, cx: 8, cy: 8, seed: 68 }],
-    },
-  ], geysers);
+test('a mission is built from its map: islands, bridges, and the units of every side', () => {
+  const map: MissionMap = {
+    islands: [[7, 2, 2, 5], [7, 8, 2, 9]],
+    geysers: [[100, 100]],
+    // Three bridge cells running east from the first island: a hard, a normal and a cracked one.
+    bridges: [[70, 40, 40, 1], [71, 40, 41, 1], [72, 40, 43, 1]],
+    units: [
+      // Each Temple in the square the builder leaves in the second chunk of an island.
+      ['windvortex', 1, 60, 42, 0],
+      ['priest', 1, 58, 40, 0],
+      ['suncannon', 1, 40, 40, 0],
+      ['rainvortex', 2, 156, 42, 0],
+      ['priest', 2, 150, 40, 0],
+      ['thundercannon', 2, 200, 200, 18], // out in the sky, on an islet of its own
+      ['sunwalker', 2, 150, 50, 0],
+      ['residence', 0, 45, 45, 0], // scenery is left out
+    ],
+  };
+  const w = createMission(defs, 1, map, [
+    { name: 'Blue', theme: 'thunder', storm: 1000 },
+    { name: 'Red', theme: 'thunder', storm: 500 },
+  ]);
+  // A side follows the Fury of the Temple the map gives it.
+  assert.deepEqual([...w.players.values()].map((p) => [p.id, p.theme, p.storm]), [
+    [1, 'wind', 1000],
+    [2, 'rain', 500],
+  ]);
+  // A position is the far corner of the footprint, and an island is its Temple owner's.
+  const temple = w.templeOf(1)!;
+  assert.deepEqual([temple.x, temple.y], [53, 37]);
+  assert.ok(w.isOwnGround(1, 53, 37));
+  assert.ok(w.isOwnGround(2, 149, 37));
+  // The Priest saved inside his Temple's footprint steps out of it.
+  assert.notDeepEqual([w.priestOf(1)!.x, w.priestOf(1)!.y], [58, 40]);
+  assert.ok(w.isOwnGround(1, w.priestOf(1)!.x, w.priestOf(1)!.y));
+  const cannon = w.buildingsOf(2).find((b) => b.type === 'thundercannon')!;
+  assert.deepEqual([cannon.x, cannon.y, cannon.facing, cannon.islet], [198, 198, 2, true]);
+  assert.equal(w.terrain[w.at(198, 198)], 1);
+  assert.deepEqual([70, 71, 72].map((x) => w.terrain[w.at(x, 40)]), [4, 2, 3]);
+  assert.equal(w.links[w.at(71, 40)], 10);
+  assert.equal([...w.entities.values()].filter((e) => e.kind === 'transport').length, 1);
+  assert.equal([...w.entities.values()].filter((e) => e.kind === 'geyser').length, 1);
 
-  for (const player of [1, 2]) {
-    const buildings = w.buildingsOf(player);
-    assert.equal(buildings.length, 3);
-
-    for (const b of buildings) {
-      for (let y = b.y; y < b.y + b.fy; y++) {
-        for (let x = b.x; x < b.x + b.fx; x++) {
-          assert.ok(w.isOwnGround(player, x, y), `${b.type} at ${x},${y}`);
-        }
-      }
-    }
-
-    const priest = w.priestOf(player)!;
-    assert.ok(w.isOwnGround(player, priest.x, priest.y));
-  }
-
-  // The game runs on from there.
   for (let i = 0; i < 5 * TPS; i++) {
     w.step();
   }

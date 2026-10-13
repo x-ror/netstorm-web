@@ -104,7 +104,7 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await page.evaluate(() => window.ns.ui.tool.kind), 'select');
 
-  // Selecting the transport and clicking a geyser orders it to collect; the geyser is not bridged
+  // Selecting a carrier and clicking a geyser orders it to collect; the geyser is not bridged
   // yet, so the order comes back refused in the log.
   const screenOf = (x, y) =>
     page.evaluate(([cx, cy]) => {
@@ -114,10 +114,12 @@ try {
         y: camera.y + (cy + 0.5) * 11 * camera.scale.y,
       };
     }, [x, y]);
+  // The first mission gives the player no transport; the Priest fetches crystals as one does.
   const transport = await page.evaluate(() => {
-    const t = [...window.ns.world.entities.values()].find((e) =>
-      e.kind === 'transport' && e.owner === 1
-    );
+    const { world, camera } = window.ns;
+    const t = world.priestOf(1);
+    camera.position.set(640 - (t.x + 0.5) * 16 * camera.scale.x,
+      400 - (t.y + 0.5) * 11 * camera.scale.y);
     return { id: t.id, x: t.x, y: t.y };
   });
   let point = await screenOf(transport.x, transport.y);
