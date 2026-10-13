@@ -11,7 +11,13 @@ import {
   barriers,
   FLYER_SCALE,
 } from '@netstorm/sim';
-import { EXPLOSION_FRAMES, GROUND_FRAMES, SKY, shoreFrame } from './texture-selection.js';
+import {
+  EXPLOSION_FRAMES,
+  FACING_FRAMES,
+  GROUND_FRAMES,
+  SKY,
+  shoreFrame,
+} from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
 
 const SPRITE_ANCHOR_X = 0.5;
@@ -394,13 +400,10 @@ function terrainColor(terrain: number, owner: number, me: number): number {
   return COLOR.neutralLand;
 }
 
-/** Buildings drawn with a frame of their own for each facing. */
-const FACING_SPRITES: ReadonlySet<string> = new Set(['suncannon', 'thundercannon']);
-
 function textureKey(entity: DeepReadonly<Entity>): string {
   switch (entity.kind) {
     case 'building':
-      return FACING_SPRITES.has(entity.type) ? `${entity.type}:${entity.facing}` : entity.type;
+      return entity.type in FACING_FRAMES ? `${entity.type}:${entity.facing}` : entity.type;
     case 'transport':
     case 'flyer':
       return entity.type;

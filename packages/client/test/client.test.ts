@@ -5,7 +5,7 @@ import { loadDefs } from '@netstorm/sim';
 import { mapsOf, outcome, reflow, slimMaps, slimMissions } from '../src/game-data.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS } from '../src/menu.js';
-import { SKY, shoreFrame } from '../src/texture-selection.js';
+import { FACING_FRAMES, SKY, TEXTURES, shoreFrame } from '../src/texture-selection.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
 
@@ -195,4 +195,27 @@ test('an island cell gets the rim frame of the sides the sky is on', () => {
   // A spit one cell wide has no frame of its own: the nearest corner, with its rock face.
   assert.equal(shoreFrame(SKY.north | SKY.south | SKY.west, 0, 0), 16);
   assert.equal(shoreFrame(SKY.north | SKY.south | SKY.east | SKY.west, 0, 0), 16);
+});
+
+test('every unit that faces a way has a frame for each of the four, in the shipped sprites', () => {
+  const manifest = read('../packages/client/public/data/sprites') as Record<
+    string,
+    Record<string, Record<string, string>>
+  >;
+
+  for (const [type, frames] of Object.entries(FACING_FRAMES)) {
+    assert.equal(frames.length, 4, type);
+
+    for (const [facing, [gif, frame]] of frames.entries()) {
+      assert.ok(manifest[type]?.[gif]?.[frame], `${type} facing ${facing}`);
+      assert.ok(TEXTURES.some(([key]) => key === `${type}:${facing}`));
+    }
+  }
+
+  // A map's Ice Cannon looks the way its saved frame says: three frames to a facing.
+  const world = createMatchWorld(defs, {
+    test: { ...bare, islands: [[0, 5, 5, 1]], units: [['raincannon', 1, 100, 100, 7]] },
+  }, [], { ...DEFAULT_OPTIONS, mission: 'test' });
+  const cannon = world.buildingsOf(ME).find((b) => b.type === 'raincannon');
+  assert.equal(cannon?.facing, 2);
 });

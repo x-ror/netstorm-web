@@ -57,8 +57,9 @@ for (const [links, ...perKind] of BRIDGE_LETTERS) {
 }
 
 /** Frames of one facing of a unit that is saved with its frame; the facing is the frame over it.
- * Which way each set looks is not established (`?`). */
+ * The .type files list the facings in the groups L, M, N and O: north, east, south and west. */
 const FACING_FRAMES: Readonly<Record<string, number>> = {
+  raincannon: 3,
   thundercannon: 9,
   windarcher: 25,
   windblocker: 1,

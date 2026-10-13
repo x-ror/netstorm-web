@@ -71,6 +71,26 @@ export const BRIDGE_FRAMES = { solid: 0, cracked: 35, hard: 50 } as const;
 /** Every other frame of the small explosion. */
 export const EXPLOSION_FRAMES = Array.from({ length: 11 }, (_, i) => 35 + i * 2);
 
+/* oxlint-disable no-magic-numbers -- frame numbers from the .type files */
+/**
+ * The frame of each facing (north, east, south, west) of the units that have one: the first frame
+ * of the groups L, M, N and O of their .type files, which raincannon.type and suncannon.type label
+ * N, E, S and W. The gif is given per facing where the sets differ.
+ */
+export const FACING_FRAMES: Readonly<
+  Record<string, readonly (readonly [gif: string, frame: number])[]>
+> = {
+  suncannon: [['scannon', 10], ['scannon', 5], ['scannon', 0], ['scannon', 14]],
+  thundercannon: [['tcannon', 12], ['tcannon', 0], ['tcannon', 24], ['tcannon', 36]],
+  raincannon: [['rcannon', 0], ['rcannon', 9], ['rcannon', 3], ['rcannon', 6]],
+  windarcher: [['warch1', 0], ['warch1', 26], ['warch1', 51], ['warch2', 76]],
+  windblocker: [['wblocker', 0], ['wblocker', 3], ['wblocker', 1], ['wblocker', 2]],
+};
+/* oxlint-enable no-magic-numbers */
+const FACING_TEXTURES = Object.entries(FACING_FRAMES).flatMap(([type, frames]) =>
+  frames.map(([gif, frame], facing) => [`${type}:${facing}`, type, gif, frame] as const)
+);
+
 /** Frames used by the current scene. Shared by the loader and production packaging. */
 export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]> = [
   ...Object.entries(GROUND_TILES).flatMap(([owner, gif]) =>
@@ -84,19 +104,7 @@ export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]>
   ...Object.entries(BRIDGE_FRAMES).map(([state, frame]) =>
     [`bridge:${state}`, 'bridge', 'bridge', frame] as const
   ),
-  ['suncannon:0', 'suncannon', 'scannon', 10],
-  ['suncannon:1', 'suncannon', 'scannon', 5],
-  ['suncannon:2', 'suncannon', 'scannon', 0],
-  ['suncannon:3', 'suncannon', 'scannon', 14],
-  // The base of the Disc Thrower; its arm is a set of small frames of its own, not drawn yet.
-  ['sunarcher', 'sunarcher', 'sarcher', 0],
-  // The whole-body frame of each facing (N, E, S, W); the other frames of the set are small
-  // overlays of the charging animation.
-  ['thundercannon:0', 'thundercannon', 'tcannon', 19],
-  ['thundercannon:1', 'thundercannon', 'tcannon', 7],
-  ['thundercannon:2', 'thundercannon', 'tcannon', 24],
-  ['thundercannon:3', 'thundercannon', 'tcannon', 36],
-  ['windarcher', 'windarcher', 'warch1'],
+  ...FACING_TEXTURES,
   ['sunwalker', 'sunwalker', 'golem'],
   ['windwalker', 'windwalker', 'wwalker'],
   ['rainwalker', 'rainwalker', 'rcrab'],
@@ -122,7 +130,6 @@ export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]>
   ['windfactory', 'windfactory', 'wfactory', 0],
   ['rainfactory', 'rainfactory', 'rfactory', 0],
   ['thunderfactory', 'thunderfactory', 'tfactory', 0],
-  ['windblocker', 'windblocker', 'wblocker', 0],
   ['rainblocker', 'rainblocker', 'rblock', 14],
   ['thunderblocker', 'thunderblocker', 'thblock', 1],
   ['sunaviary', 'sunaviary', 'sflyer', 8],
@@ -131,7 +138,6 @@ export const TEXTURES: ReadonlyArray<readonly [string, string, string, number?]>
   ['sunfence', 'sunfence', 'sfence', 5],
   ['rainfence', 'rainfence', 'sfence', 0],
   ['thunderfence', 'thunderfence', 'tfence', 0],
-  ['raincannon', 'raincannon', 'rcannon', 0],
   ['thunderarcher', 'thunderarcher', 'tarcher', 0],
   ['sunballoon', 'sunballoon', 'sunbaloo', 0],
   ['windballoon', 'windballoon', 'ship', 0],
