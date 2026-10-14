@@ -89,6 +89,13 @@ function gameAssets(): Plugin {
         source: JSON.stringify(atlas),
       });
 
+      // The tile of the sky, which is drawn whole rather than taken from an atlas.
+      this.emitFile({
+        type: 'asset',
+        fileName: SKY,
+        source: readFileSync(new URL(`./public/${SKY}`, import.meta.url)),
+      });
+
       // The sounds and their index, as scripts/sounds.py left them in `public`.
       const sounds = readFileSync(new URL('./public/data/sounds.json', import.meta.url), 'utf8');
       const heard = (JSON.parse(sounds) as { files: Record<string, [string, number]>; }).files;
@@ -112,6 +119,8 @@ function gameAssets(): Plugin {
     },
   };
 }
+
+const SKY = 'sprites/sky.png';
 
 export default defineConfig(({ command }) => ({
   // Relative URLs let the build run from any path, e.g. a GitHub Pages project site.

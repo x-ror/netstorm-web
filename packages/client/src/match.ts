@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, type Texture } from 'pixi.js';
+import { Application, Assets, Container, Graphics, TilingSprite, type Texture } from 'pixi.js';
 import {
   FixedStepClock,
   aiMove,
@@ -75,6 +75,20 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     roundPixels: true,
   });
   document.body.prepend(app.canvas);
+  // The clouds of the Pyrosphere: a 512-pixel tile taken off the original's screen (the picture is
+  // in the part of its archive not yet read). It stays put when the map is scrolled, as there; the
+  // original also lets it drift slowly, which is not done (`?`).
+  const sky = new TilingSprite({ width: app.screen.width, height: app.screen.height });
+  app.stage.addChild(sky);
+
+  // Without its picture the sky stays the plain background.
+  try {
+    sky.texture = await Assets.load<Texture>('sprites/sky.png');
+    sky.texture.source.scaleMode = 'nearest';
+  } catch {
+    sky.visible = false;
+  }
+
   const camera = new Container();
   camera.scale.set(snapZoom(ZOOM));
   app.stage.addChild(camera);
@@ -290,6 +304,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   minimap.draw();
 
   app.ticker.add((t) => {
+    sky.setSize(app.screen.width, app.screen.height);
+    sky.tileScale.set(camera.scale.x);
+
     if (document.hidden) {
       return;
     }
