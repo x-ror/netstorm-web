@@ -232,7 +232,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
       const entry = document.createElement('div');
       entry.className = line.tone;
-      entry.textContent = `${formatTime(event.tick)} ${line.text}`;
+      const time = document.createElement('time');
+      time.textContent = formatTime(event.tick);
+      entry.append(time, ` ${line.text}`);
       logEl.prepend(entry);
     }
 

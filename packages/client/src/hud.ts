@@ -18,10 +18,31 @@ import { TH, TW } from './projection.js';
 import { bridgeSlot } from './texture-selection.js';
 import { escapeHtml } from './menu.js';
 import { hasFacing, placeable, type Tool, type UiState } from './ui-state.js';
+import { unitIcon } from './icons.js';
 
 const PLANK_DROP = 9; // from the top of a cell down to the hot spot of its Bridge frame
 const PLANK_FACE = 7; // pixels of a frame's front face under its cell
 const SECONDS_PER_MINUTE = 60;
+const CARD_ICON = 40; // pixels of a unit's picture on its production card
+const PORTRAIT = 48; // pixels of the selected unit's picture
+const PER_CENT = 100;
+/** Line icons of the top bar, drawn in the colour of their text. */
+const GLYPHS = {
+  storm:
+    '<svg viewBox="0 0 16 16"><path d="M8 1 13 6 8 15 3 6Z" fill="currentColor" opacity=".35"/><path d="M8 1 13 6 8 15 3 6Z M3 6h10" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>',
+  energy: '<svg viewBox="0 0 16 16"><path d="M9 1 3 9h4l-1 6 6-8H8Z" fill="currentColor"/></svg>',
+  clock:
+    '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  pause:
+    '<svg viewBox="0 0 16 16"><rect x="4" y="3" width="3" height="10" rx="1" fill="currentColor"/><rect x="9" y="3" width="3" height="10" rx="1" fill="currentColor"/></svg>',
+  play: '<svg viewBox="0 0 16 16"><path d="M5 3v10l8-5Z" fill="currentColor"/></svg>',
+  sound:
+    '<svg viewBox="0 0 16 16"><path d="M2 6h3l4-3v10L5 10H2Z" fill="currentColor"/><path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6 6 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+  muted:
+    '<svg viewBox="0 0 16 16"><path d="M2 6h3l4-3v10L5 10H2Z" fill="currentColor"/><path d="m11 6 4 4m0-4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+  menu:
+    '<svg viewBox="0 0 16 16"><path d="M3 4h10M3 8h10M3 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+} as const;
 const FACING_NAMES = ['північ', 'схід', 'південь', 'захід'];
 const GOALS: Record<string, string> = {
   idle: 'чекає',
@@ -65,12 +86,16 @@ export function createHud(
   root.innerHTML = `
     <header id="topbar"></header>
     <aside id="panel">
-      <h3 title="Сегмент приєднується лише відкритими кінцями — там, де немає стінки">Мости <span class="muted">1–${world.bridgeSlots}, R — поворот</span></h3>
-      <div id="hand"></div>
-      <h3>Виробництво <span class="muted">R — напрям юніта</span></h3>
-      <div id="units"></div>
-      <div id="tools"></div>
-      <div id="info"></div>
+      <section class="card">
+        <h3 title="Сегмент приєднується лише відкритими кінцями — там, де немає стінки">Мости <span class="keys"><kbd>1</kbd>–<kbd>${world.bridgeSlots}</kbd> <kbd>R</kbd> поворот</span></h3>
+        <div id="hand"></div>
+      </section>
+      <section class="card">
+        <h3>Виробництво <span class="keys"><kbd>R</kbd> напрям</span></h3>
+        <div id="units"></div>
+        <div id="tools"></div>
+      </section>
+      <section class="card" id="info"></section>
     </aside>
     <div id="log" aria-live="polite"></div>
     <div id="overlay" hidden></div>`;
@@ -137,32 +162,47 @@ export function createHud(
       String(seconds % SECONDS_PER_MINUTE).padStart(2, '0')
     }`;
     set(panels.topbar,
-      `<span title="Storm Power">⚡ <b data-testid="storm">${player.storm}</b></span>`
-        + `<span title="Енергія від Храму й генераторів: своєї стихії / усього">енергія ${energy.own}/${energy.total}</span>`
-        + `<span>${clock}</span>`
-        + `<button data-action="pause" class="${ui.paused ? 'on' : ''}">${
+      `<span class="stat storm" title="Storm Power">${GLYPHS.storm}<b data-testid="storm">${player.storm}</b></span>`
+        + `<span class="stat energy" title="Енергія від Храму й генераторів: своєї стихії / усього">${GLYPHS.energy}<b>${energy.own}</b><small>/ ${energy.total}</small></span>`
+        + `<span class="stat clock" title="Час бою">${GLYPHS.clock}${clock}</span>`
+        + '<span class="sep"></span>'
+        + `<button data-action="pause" class="icon-button${ui.paused ? ' on' : ''}" aria-label="${
           ui.paused ? 'Продовжити' : 'Пауза'
-        } <kbd>Space</kbd></button>`
-        + `<button data-action="mute" title="Звук">${ui.muted ? '🔇' : '🔊'}</button>`
-        + `<button data-action="exit">Меню</button>`);
+        }" title="${ui.paused ? 'Продовжити' : 'Пауза'} (Space)">${
+          ui.paused ? GLYPHS.play : GLYPHS.pause
+        }</button>`
+        + `<button data-action="mute" class="icon-button" aria-label="Звук" title="${
+          ui.muted ? 'Увімкнути звук' : 'Вимкнути звук'
+        }">${ui.muted ? GLYPHS.muted : GLYPHS.sound}</button>`
+        + `<button data-action="exit" class="icon-button" aria-label="Меню" title="Меню">${GLYPHS.menu}</button>`);
 
     const handTool = ui.tool.kind === 'piece' ? ui.tool.hand : -1;
-    set(panels.hand, player.hand.length
-      ? player.hand.map((h, index) => {
-        const rot = index === handTool ? ui.rot : 0;
-        const cells = rotatePiece(PIECES[h.piece]!, rot);
-        const cracked = h.age < PIECE_HARDEN;
-        return `<button data-action="hand" data-value="${index}" class="piece${
-          index === handTool ? ' on' : ''
-        }${cracked ? ' cracked' : ''}" title="${pieceTitle(cracked)} (${index + 1})">${
-          pieceArt(atlas, cells, rotateLinks(h.piece, rot), cracked ? 'cracked' : 'whole')
-        }</button>`;
-      }).join('')
-      : '<span class="muted">Храм ще не видав сегментів</span>');
+    // Every slot of the window is shown; an empty one waits for the Temple's next piece.
+    const slots = Array.from({ length: world.bridgeSlots }, (_, index) => {
+      const h = player.hand[index];
 
-    set(panels.units, unitButtons(world, me, ui));
+      if (!h) {
+        return `<span class="piece empty"><kbd>${index + 1}</kbd></span>`;
+      }
+
+      const rot = index === handTool ? ui.rot : 0;
+      const cells = rotatePiece(PIECES[h.piece]!, rot);
+      const cracked = h.age < PIECE_HARDEN;
+      return `<button data-action="hand" data-value="${index}" class="piece${
+        index === handTool ? ' on' : ''
+      }${cracked ? ' cracked' : ''}" title="${pieceTitle(cracked)} (${index + 1})"><kbd>${
+        index + 1
+      }</kbd>${
+        pieceArt(atlas, cells, rotateLinks(h.piece, rot), cracked ? 'cracked' : 'whole')
+      }</button>`;
+    });
+    set(panels.hand, slots.join('') + (world.templeOf(me)
+      ? ''
+      : '<p class="muted note">Без Храму сегментів немає</p>'));
+
+    set(panels.units, unitButtons(world, me, ui, atlas));
     set(panels.tools, tool('select', 'Вибір', 'Esc', ui) + tool('salvage', 'Розібрати', '', ui));
-    set(panels.info, info(world, me, ui));
+    set(panels.info, info(world, me, ui, atlas));
   }
 
   return {
@@ -242,7 +282,7 @@ function tool(kind: 'select' | 'salvage', label: string, key: string, ui: UiStat
   }</button>`;
 }
 
-function unitButtons(world: WorldView, me: number, ui: UiState): string {
+function unitButtons(world: WorldView, me: number, ui: UiState, atlas: Atlas): string {
   const player = world.players.get(me)!;
   const defs = [...player.tech]
     .map((id) => world.defs.get(id))
@@ -266,37 +306,50 @@ function unitButtons(world: WorldView, me: number, ui: UiState): string {
       warning = ' — бракує Storm Power';
     }
 
-    return `<button data-action="build" data-value="${def.id}" class="unit${active ? ' on' : ''}${
-      poor ? ' poor' : ''
-    }" aria-label="${escapeHtml(def.name)}" title="${
+    // How much of the Unit Rate is left, drawn as a ring that empties.
+    const left = cooling ? cooling.ticks / (world.unitRate * TPS) : 0;
+    return `<button data-action="build" data-value="${def.id}" class="unit theme-${def.theme}${
+      active ? ' on' : ''
+    }${poor ? ' poor' : ''}" aria-label="${escapeHtml(def.name)}" title="${
       escapeHtml(def.name)
-    }: ${def.cls}, рівень ${def.level}, ${def.footX}×${def.footY}${warning}"><span>${
+    }: ${def.cls}, рівень ${def.level}, ${def.footX}×${def.footY}${warning}">${
+      unitIcon(atlas, def.id, def.name, CARD_ICON)
+    }<span class="name">${
       escapeHtml(def.name)
-    }${facing}</span><small>${
-      cooling ? `${Math.ceil(cooling.ticks / TPS)} с` : def.cost
-    }</small></button>`;
+    }${facing}</span><span class="cost">${def.cost}</span>${
+      cooling
+        ? `<span class="cooling" style="--left:${Math.round(left * PER_CENT)}%">${
+          Math.ceil(cooling.ticks / TPS)
+        }</span>`
+        : ''
+    }</button>`;
   }).join('');
 }
 
-function info(world: WorldView, me: number, ui: UiState): string {
+function info(world: WorldView, me: number, ui: UiState, atlas: Atlas): string {
   const entity = ui.selected === null ? undefined : world.entities.get(ui.selected);
 
   if (!entity) {
-    return `<p class="muted">${hint(world, ui)}</p>`;
+    return `<p class="hint">${hint(world, ui)}</p>`;
   }
 
-  const lines = [`<b>${escapeHtml(entityName(world, entity))}</b>`];
+  const name = entityName(world, entity);
   const ownerId = 'owner' in entity ? entity.owner : null;
   const owner = ownerId === null ? undefined : world.players.get(ownerId);
-
-  if (owner) {
-    lines.push(
-      `<span class="${ownerId === me ? 'own' : 'enemy'}">${escapeHtml(owner.name)}</span>`,
-    );
-  }
+  const side = ownerId === me || (ownerId && !world.hostile(me, ownerId)) ? 'own' : 'enemy';
+  const type = 'type' in entity ? entity.type : entity.kind;
+  const head = `<div class="who">${unitIcon(atlas, type, name, PORTRAIT)}<div><b>${
+    escapeHtml(name)
+  }</b>${owner ? `<span class="owner ${side}">${escapeHtml(owner.name)}</span>` : ''}</div></div>`;
+  const lines: string[] = [];
 
   if ('hp' in entity) {
-    lines.push(`HP ${Math.ceil(entity.hp)} / ${entity.hpMax}`);
+    const share = entity.hpMax > 0 ? entity.hp / entity.hpMax : 0;
+    lines.push(
+      `<div class="hp ${healthBand(share)}" style="--hp:${Math.round(share * PER_CENT)}%"><span>${
+        Math.ceil(entity.hp)
+      } / ${entity.hpMax}</span></div>`,
+    );
   }
 
   if (entity.kind === 'building') {
@@ -415,7 +468,22 @@ function info(world: WorldView, me: number, ui: UiState): string {
     }
   }
 
-  return lines.map((line) => `<div>${line}</div>`).join('');
+  const actions = lines.filter((line) => line.startsWith('<button'));
+  const facts = lines.filter((line) => !line.startsWith('<button'));
+  return head + facts.map((line) => `<div class="fact">${line}</div>`).join('')
+    + (actions.length ? `<div class="actions">${actions.join('')}</div>` : '');
+}
+
+const HALF = 0.5;
+const QUARTER = 0.25;
+
+/** The colour of a health bar: green, then amber below a half, red below a quarter. */
+function healthBand(share: number): 'high' | 'mid' | 'low' {
+  if (share > HALF) {
+    return 'high';
+  }
+
+  return share > QUARTER ? 'mid' : 'low';
 }
 
 /** How a building fights, in the numbers the simulation uses. */
