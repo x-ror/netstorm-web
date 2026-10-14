@@ -4,7 +4,7 @@ import {
   MAX_UPGRADES,
   OUTPOST,
   PIECE_HARDEN,
-  UPGRADE_COST,
+  upgradeCost,
   WORKSHOP_SLOTS,
   canProduce,
   canUpgrade,
@@ -398,7 +398,7 @@ function workshop(
     actions.push({
       kind: 'upgrade',
       label: `Апгрейд до рівня ${b.upgrades + 2}`,
-      cost: UPGRADE_COST,
+      cost: upgradeCost(world.def(b.type)),
     });
   }
 }

@@ -16,7 +16,7 @@
  * shooters first, and Upgrades a full Workshop once Storm Power is plenty.
  */
 import type { Command } from './commands.js';
-import { flies, type UnitDef } from './defs.js';
+import { flies, upgradeCost, type UnitDef } from './defs.js';
 import {
   DIRS,
   MAX_FACING,
@@ -25,7 +25,6 @@ import {
   PIECES,
   PIECE_HARDEN,
   Terrain,
-  UPGRADE_COST,
   W,
   WORKSHOP_SLOTS,
   H,
@@ -362,10 +361,11 @@ function equip(world: WorldView, move: Move): void {
     if (
       !upgraded && free === 0
       && wanted.some((def) => !made.has(def.id) && slotRank(def) <= FIGHTS)
-      && b.upgrades < MAX_UPGRADES && move.budget >= UPGRADE_COST + UPGRADE_SAVINGS
+      && b.upgrades < MAX_UPGRADES
+      && move.budget >= upgradeCost(world.def(b.type)) + UPGRADE_SAVINGS
     ) {
       move.commands.push({ t: 'upgradeWorkshop', player: move.me, workshop: b.id });
-      move.budget -= UPGRADE_COST;
+      move.budget -= upgradeCost(world.def(b.type));
       upgraded = true;
     }
   }

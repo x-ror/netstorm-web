@@ -42,9 +42,6 @@ export const WORKSHOP_SLOTS = 2;
 /** "You get one additional slot each time you Upgrade a Workshop"; "you may only Upgrade each
  * Workshop three times" (help 1525, 1542). */
 export const MAX_UPGRADES = 3;
-/** Storm Power an Upgrade of a Workshop costs, each time. The original tells it on a right-click,
- * but the number is not in its data or help: invented (`?`). */
-export const UPGRADE_COST = 600;
 /** Share of a unit's cost paid for destroying an enemy unit and, at full health, for salvaging your own. */
 export const REFUND_SHARE = 0.25;
 // Radius, in cells, of the circle a Temple or Generator spreads its Energy over. Measured in the

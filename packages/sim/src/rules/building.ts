@@ -1,7 +1,7 @@
 import type { World } from '../world.js';
 import type { Command, CommandError } from '../commands.js';
 import type { DeepReadonly, WorldView } from '../view.js';
-import type { UnitDef } from '../defs.js';
+import { upgradeCost, type UnitDef } from '../defs.js';
 import {
   DIRS,
   BUILD_SECONDS,
@@ -14,7 +14,6 @@ import {
   oppositeDir,
   OUTPOST,
   MAX_UPGRADES,
-  UPGRADE_COST,
   WORKSHOP_SLOTS,
   type Building,
 } from '../state.js';
@@ -318,7 +317,7 @@ export function canUpgrade(
     return 'fully upgraded';
   }
 
-  return (world.players.get(command.player)?.storm ?? 0) < UPGRADE_COST
+  return (world.players.get(command.player)?.storm ?? 0) < upgradeCost(world.def(b.type))
     ? 'no storm power'
     : null;
 }
@@ -336,7 +335,7 @@ export function upgradeWorkshop(
 
   const b = world.building(c.workshop)!;
   b.upgrades++;
-  world.players.get(c.player)!.storm -= UPGRADE_COST;
+  world.players.get(c.player)!.storm -= upgradeCost(world.def(b.type));
   world.emit({ what: 'upgrade', who: c.player, data: { workshop: b.id, level: b.upgrades + 1 } });
   return null;
 }

@@ -24,7 +24,7 @@ import {
   type Transport,
   UNIT_REFRESH,
   MAX_UPGRADES,
-  UPGRADE_COST,
+  upgradeCost,
   WORKSHOP_SLOTS,
 } from '../src/index.js';
 import { equipWorkshops } from './workshops.js';
@@ -849,7 +849,10 @@ test('a Workshop makes what is in its Production Slots, two and one more for eac
     assert.equal(w.apply({ t: 'upgradeWorkshop', player: 1, workshop: sun.id }), null);
   }
 
-  assert.equal(p.storm, 9000 - MAX_UPGRADES * UPGRADE_COST);
+  // An Upgrade costs what the Workshop does: 600 for the Sun's.
+  assert.equal(p.storm, 9000 - MAX_UPGRADES * upgradeCost(defs.get('sunfactory')!));
+  assert.equal(upgradeCost(defs.get('sunfactory')!), 600);
+  assert.equal(upgradeCost(defs.get('windfactory')!), 800);
   assert.equal(w.apply({ t: 'upgradeWorkshop', player: 1, workshop: sun.id }), 'fully upgraded');
   assert.equal(produce(sun.id, 'sunfence'), null);
   assert.deepEqual(sun.slots, ['suncannon', 'sunarcher', 'sunfence']);

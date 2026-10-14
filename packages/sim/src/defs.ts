@@ -71,6 +71,15 @@ export interface UnitDef {
 
 export type DefTable = Map<string, UnitDef>;
 
+/**
+ * Storm Power an Upgrade of a Workshop costs, each time: what the Workshop itself costs (600 for
+ * the Sun's, 800 for a Fury's). From the code that writes "Upgrade for ..." in netstorm.game 10.82,
+ * which reads the cost of the Workshop's own type.
+ */
+export function upgradeCost(workshop: Readonly<UnitDef>): number {
+  return workshop.cost;
+}
+
 /** Air units: Aerial Transports and Aerial Attackers. They pass over anything. */
 export function flies(def: Readonly<UnitDef>): boolean {
   return def.group === 'balloon' || def.cls === 'Aerial Attack';

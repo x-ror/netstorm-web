@@ -9,7 +9,7 @@ import {
   playReplay,
   ReplayRecorder,
   TPS,
-  UPGRADE_COST,
+  upgradeCost,
   World,
 } from '../src/index.js';
 import { equipWorkshops } from './workshops.js';
@@ -48,7 +48,11 @@ test('the AI wins against an idle player, and its recorded commands replay exact
     const cost = commands.reduce(
       (sum, command) =>
         sum + (command.t === 'build' ? defs.get(command.type)!.cost : 0)
-        + (command.t === 'upgradeWorkshop' ? UPGRADE_COST : 0),
+        + (command.t === 'upgradeWorkshop'
+          ? upgradeCost(
+            defs.get((match.view().entities.get(command.workshop) as { type: string; }).type)!,
+          )
+          : 0),
       0,
     );
     assert.ok(cost <= match.view().players.get(2)!.storm);

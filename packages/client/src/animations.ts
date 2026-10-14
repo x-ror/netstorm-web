@@ -147,8 +147,9 @@ const DAIS = { rising: 1, laid: 2, still: 3, going: 4, stage: 11, frames: 10 } a
 const HORNS = { empty: 0, struggle: 1, frames: 13 } as const;
 const CHANT = { first: 77, frames: 18 } as const;
 const FORCE_FIELD_FRAMES = 30;
-/** The Priest's twelve frames of floating, after his 65 slots of walking. When the original plays
- * them is not read; here he floats while he is struck down and while no ground is under him (`?`). */
+/** The Priest's twelve frames of floating, after his 65 slots of walking. The original turns to them
+ * when he is struck down, with his force field (Priest.cpp of netstorm.game 10.82); that he also
+ * floats with no ground under him is ours (`?`). */
 const FLOAT = { first: 65, frames: 12 } as const;
 /** Slots of the Manabolt type by the Fury of what is being built. */
 export const MANA_BOLTS: Readonly<Record<string, number>> = {
