@@ -9,8 +9,10 @@ import {
   playReplay,
   ReplayRecorder,
   TPS,
+  UPGRADE_COST,
   World,
 } from '../src/index.js';
+import { equipWorkshops } from './workshops.js';
 
 const read = (name: string): unknown =>
   JSON.parse(readFileSync(new URL(`../../../data/${name}.json`, import.meta.url), 'utf8'));
@@ -44,7 +46,9 @@ test('the AI wins against an idle player, and its recorded commands replay exact
 
     // A move never spends more Storm Power than the AI has.
     const cost = commands.reduce(
-      (sum, command) => sum + (command.t === 'build' ? defs.get(command.type)!.cost : 0),
+      (sum, command) =>
+        sum + (command.t === 'build' ? defs.get(command.type)!.cost : 0)
+        + (command.t === 'upgradeWorkshop' ? UPGRADE_COST : 0),
       0,
     );
     assert.ok(cost <= match.view().players.get(2)!.storm);
@@ -63,13 +67,16 @@ test('the AI wins against an idle player, and its recorded commands replay exact
   const world = match.view();
   assert.equal(world.winner, 2);
   assert.equal(world.players.get(1)!.alive, false);
-  // It collected, bridged, built, captured and warded the runes on its own.
+  // It collected, bridged, built, filled and Upgraded its Workshops, captured and warded the
+  // runes on its own.
   assert.deepEqual([...seen].sort(), [
     'build',
     'capturePriest',
     'collect',
     'dropPiece',
     'movePriest',
+    'produce',
+    'upgradeWorkshop',
   ]);
   const replayed = playReplay(JSON.parse(JSON.stringify(match.export())));
   assert.equal(replayed.tick, world.tick);
@@ -140,7 +147,7 @@ test('a beaten player is no target', () => {
 });
 
 test('without an Altar the AI has its Priest build one', () => {
-  const world = mk();
+  const world = equipWorkshops(mk());
   const altar = world.buildingsOf(2).find((b) => b.type === 'altar')!;
   world.apply({ t: 'salvage', player: 2, target: altar.id });
   const order = aiMove(world, { player: 2 }).find((c) => c.t === 'build' && c.type === 'altar');
@@ -158,7 +165,7 @@ test('without an Altar the AI has its Priest build one', () => {
 });
 
 test('with no geyser to walk to, the AI buys a transport that flies and sends it out', () => {
-  const world = mk();
+  const world = equipWorkshops(mk());
   world.players.get(2)!.storm = 5000;
 
   // Deleting from a Map while walking it is safe.
@@ -184,7 +191,7 @@ test('with no geyser to walk to, the AI buys a transport that flies and sends it
 });
 
 test('the AI sets a second fence post in line with one that stands alone', () => {
-  const world = mk();
+  const world = equipWorkshops(mk());
   world.players.get(2)!.storm = 5000;
   const temple = world.templeOf(2)!;
   // Enough shooters for it to think of a barrier, and one post on its island.
@@ -208,7 +215,7 @@ const thunder = () => {
   ], geysers);
   world.spawnBuilding('thunderbattery', 2, 141, 83);
   world.spawnBuilding('thunderbattery', 2, 145, 83);
-  return world;
+  return equipWorkshops(world);
 };
 
 test('the AI answers enemy air with anti-air guns, and does not buy them otherwise', () => {

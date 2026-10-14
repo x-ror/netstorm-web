@@ -23,7 +23,11 @@ import {
   CRYSTAL_VALUE,
   type Transport,
   UNIT_REFRESH,
+  MAX_UPGRADES,
+  UPGRADE_COST,
+  WORKSHOP_SLOTS,
 } from '../src/index.js';
+import { equipWorkshops } from './workshops.js';
 
 const defs = loadDefs(
   JSON.parse(readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8')),
@@ -32,7 +36,7 @@ const players = [
   { id: 1, name: 'Blue', theme: 'wind' as const, x: 40, y: 40 },
   { id: 2, name: 'Red', theme: 'rain' as const, x: 120, y: 40 },
 ];
-const mk = (seed = 1) => createSkirmish(defs, seed, players, [[80, 40]]);
+const mk = (seed = 1) => equipWorkshops(createSkirmish(defs, seed, players, [[80, 40]]));
 /** Make bridge cells hard, as Bridge Harden or a mission map does: no player lays hard bridge. */
 const harden = (w: World, cells: [number, number][]) => {
   for (const [x, y] of cells) {
@@ -342,11 +346,11 @@ test('the Bridge Slots option sets how many pieces the window holds', () => {
 });
 
 test('Unit Rate, Kill Reward and Money per Geyser follow the battle options', () => {
-  const w = createSkirmish(defs, 5, players, [[80, 40]], {
+  const w = equipWorkshops(createSkirmish(defs, 5, players, [[80, 40]], {
     unitRate: 15,
     killReward: 150,
     geyserStock: 5000,
-  });
+  }));
   assert.deepEqual([w.unitRate, w.killReward, w.geyserStock], [15, 150, 5000]);
   const geyser = [...w.entities.values()].find((e) => e.kind === 'geyser')!;
   assert.equal(geyser.kind === 'geyser' && geyser.stock, 5000);
@@ -379,7 +383,7 @@ test("energy must come from a nearby source of the unit's own alignment", () => 
   const w = mk();
   const p = w.players.get(1)!;
   p.tech.add('thundercannon');
-  w.spawnBuilding('thunderfactory', 1, 100, 100); // so only energy can be missing
+  w.spawnBuilding('thunderfactory', 1, 100, 100).slots.push('thundercannon'); // so only energy can be missing
   bridge(w, 51, 90);
   const far = { player: 1, x: 70, y: 41 } as const;
   // More than 30 cells from the centre of the Wind Temple: too far for anything.
@@ -415,6 +419,18 @@ test('bridge needs an unbroken attachment to the Temple; attaching to a geyser c
   // The geyser islet (79..81 × 39..41) now belongs to the player and carries the connection on.
   assert.equal(w.owner[39 * 256 + 80], 1);
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 82, y: 40, rot: 1 }), null);
+});
+
+test('geysers set side by side are each attached by a bridge of their own', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  // A second geyser whose islet (82..84 × 39..41) touches that of the first (79..81 × 39..41).
+  w.addGeyser(83, 40);
+  bridge(w, 51, 76);
+  p.hand.push({ piece: 1, age: PIECE_HARDEN });
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 77, y: 40, rot: 1 }), null);
+  assert.equal(w.owner[39 * 256 + 80], 1);
+  assert.equal(w.owner[39 * 256 + 83], 0);
 });
 
 test('pieces join end to end, never side to side', () => {
@@ -803,6 +819,48 @@ test('Temple makes Golems and a Workshop of their Fury makes other transports', 
   const temple = w.buildingsOf(1).find((b) => b.type === 'windvortex')!;
   w.entities.delete(temple.id);
   assert.equal(w.apply({ ...golem, x: 48, y: 46 }), 'no temple');
+});
+
+test('a Workshop makes what is in its Production Slots, two and one more for each Upgrade', () => {
+  const w = createSkirmish(defs, 1, players, [[80, 40]]);
+  const p = w.players.get(1)!;
+  p.storm = 9000;
+  p.tech.add('windarcher');
+  const cannon = { t: 'build', player: 1, type: 'suncannon', x: 32, y: 36 } as const;
+  // Sun units come from a Sun Workshop, and nobody starts with one.
+  assert.equal(w.canBuild(cannon), 'no workshop');
+  const sun = w.spawnBuilding('sunfactory', 1, 43, 41);
+  const produce = (workshop: number, type: string) =>
+    w.apply({ t: 'produce', player: 1, workshop, type });
+  assert.equal(w.canBuild(cannon), 'not in production');
+  // A Wind unit goes into no Sun Workshop, nor what the player does not know, nor a Generator.
+  assert.equal(produce(sun.id, 'windwalker'), 'cannot build');
+  assert.equal(produce(sun.id, 'sunbattery'), 'cannot build');
+  assert.equal(produce(sun.id, 'raincannon'), 'cannot build');
+  assert.equal(produce(sun.id, 'suncannon'), null);
+  assert.equal(produce(sun.id, 'suncannon'), 'bad target');
+  assert.equal(w.canBuild(cannon), null);
+  // The second slot taken, a Level I Workshop has none left.
+  assert.equal(produce(sun.id, 'sunarcher'), null);
+  assert.equal(produce(sun.id, 'sunfence'), 'no free slot');
+
+  // An Upgrade adds one, three times at most.
+  for (let i = 0; i < MAX_UPGRADES; i++) {
+    assert.equal(w.apply({ t: 'upgradeWorkshop', player: 1, workshop: sun.id }), null);
+  }
+
+  assert.equal(p.storm, 9000 - MAX_UPGRADES * UPGRADE_COST);
+  assert.equal(w.apply({ t: 'upgradeWorkshop', player: 1, workshop: sun.id }), 'fully upgraded');
+  assert.equal(produce(sun.id, 'sunfence'), null);
+  assert.deepEqual(sun.slots, ['suncannon', 'sunarcher', 'sunfence']);
+  assert.ok(sun.slots.length < WORKSHOP_SLOTS + MAX_UPGRADES);
+  // The enemy's Workshop is not the player's to fill.
+  const enemy = w.buildingsOf(2).find((b) => b.type === 'rainfactory')!;
+  assert.equal(w.apply({ t: 'produce', player: 1, workshop: enemy.id, type: 'raincannon' }),
+    'bad target');
+  // A destroyed Workshop takes what it made with it.
+  w.entities.delete(sun.id);
+  assert.equal(w.canBuild(cannon), 'no workshop');
 });
 
 test('units without rules yet cannot be built', () => {

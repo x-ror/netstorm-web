@@ -12,7 +12,10 @@ import {
   barriers,
   FLYER_SCALE,
   DIRS,
+  ENERGY_RANGE,
+  makerOf,
   oppositeDir,
+  type Building,
 } from '@netstorm/sim';
 import {
   FACING_FRAMES,
@@ -84,6 +87,7 @@ const COLOR = {
   sunField: 0xffd166,
   acidField: 0x8ee06b,
   arcField: 0x9fd8ff,
+  stream: 0xbfe9ff,
 } as const;
 const SIDES: ReadonlyArray<readonly [number, number, number]> = [
   [SKY.north, 0, -1],
@@ -102,7 +106,25 @@ const LOW_HP = 0.35;
 const AIR_Z = 1e6; // above any screen row
 type Point = { x: number; y: number; };
 const BOLT_SPEED = 18; // cells a second: `speed` of manabolt.type
-const BOLT_EVERY = 3; // ticks between the bolts sent to one building site (ours)
+const STREAM_EVERY = 5; // ticks between the streaks of a Storm Power Stream (ours)
+const STREAK_CELLS = 4; // cells a streak of the stream is long (ours)
+const STREAM_LIFT = 6; // pixels the stream runs above the ground (ours)
+
+/** The point `d` cells along a way, between the points it passes. */
+function pointAt(points: readonly Point[], cells: readonly number[], d: number): Point {
+  const i = Math.max(1, cells.findIndex((c) => c >= d));
+  const a = points[i - 1]!;
+  const b = points[i] ?? a;
+  const span = cells[i]! - cells[i - 1]!;
+  const t = span > 0 ? (d - cells[i - 1]!) / span : 0;
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+// A streak is a wide faint stroke under a thin bright one.
+const STREAK_GLOW = { width: 4, alpha: 0.3 };
+const STREAK_CORE = { width: 1.5, alpha: 1 };
+const STREAK_STROKES = [STREAK_GLOW, STREAK_CORE];
+const HALF_CELL = 0.5;
 const OVERLAY_Z = 0.5; // an overlay lies just over its own entity, a shadow just under
 const SHADOW_ALPHA = 0.45; // the original draws shadows translucent; how much is not read (`?`)
 const FIELD_WIDTH = 2;
@@ -493,43 +515,45 @@ export function createWorldRenderer(
   }
 
   /**
-   * "The stream of Storm Power goes to the chosen spot": while a unit is built, bolts of its Fury
-   * (type Manabolt, 18 cells a second) fly to it from its owner's Temple. That they start at the
-   * Temple and how often they leave is ours; the original draws this with particles.
+   * "When a Workshop creates a unit, a Storm Power Stream streaks from the Workshop to the build
+   * site. When it combines with the proper Energy the unit will be created on the spot." As
+   * construction starts, one bolt of the Energy it takes (type Manabolt, 18 cells a second) flies
+   * straight to the site from the nearest Temple or Generator that powers it, and the stream sets
+   * off from the Workshop that makes the unit (the Temple, for a Golem) and runs on until the unit
+   * stands. The stream keeps to the way a transport would walk, found once when construction
+   * starts, so a bridge that falls meanwhile does not turn it: so the author of this project saw it
+   * in the original. How either is drawn is ours (`?`).
    */
   const bolts: { sprite: Sprite; from: Point; to: Point; start: number; ticks: number; }[] = [];
+  /** The stream to each building site: its way in screen points with the cells walked to each. */
+  const streams = new Map<number, { points: Point[]; cells: number[]; start: number; }>();
 
   function flyBolts(): void {
     for (const b of world.entities.values()) {
       if (
-        b.kind !== 'building' || b.rising === 0 || b.builder !== null
-        || world.tick % BOLT_EVERY !== 0
+        b.kind !== 'building' || b.rising === 0 || b.builder !== null || streams.has(b.id)
       ) {
         continue;
       }
 
-      const home = world.templeOf(b.owner);
-      const fury = world.defs.get(b.type)?.theme ?? 'sun';
-      const texture = textures.get(`slot:manabolt:${MANA_BOLTS[fury]}`);
-      const spot = texture && hotSpots.get(texture);
+      const site = { x: b.x + b.fx / 2, y: b.y + b.fy / 2 };
+      const source = energySource(b.owner, site);
+      streams.set(b.id, streamTo(b));
 
-      if (!home || !texture || !spot || home.id === b.id) {
-        continue;
+      // What the Priest builds takes no Energy.
+      if (source && (world.defs.get(b.type)?.level ?? 0) > 0) {
+        bolt(source, site, world.defs.get(source.type)?.theme ?? 'sun');
       }
+    }
 
-      const from = project(home.x + home.fx / 2, home.y + home.fy / 2);
-      const to = project(b.x + b.fx / 2, b.y + b.fy / 2);
-      const cells = Math.hypot(b.x - home.x, b.y - home.y);
-      const sprite = entityLayer.addChild(new Sprite(texture));
-      sprite.anchor.set(spot.x, spot.y);
-      sprite.zIndex = AIR_Z;
-      bolts.push({
-        sprite,
-        from: { x: from.sx, y: from.sy },
-        to: { x: to.sx, y: to.sy },
-        start: world.tick,
-        ticks: Math.max(1, Math.round((cells / BOLT_SPEED) * TPS)),
-      });
+    for (const [id, stream] of streams) {
+      const b = world.entities.get(id);
+
+      if (b?.kind !== 'building' || b.rising === 0) {
+        streams.delete(id);
+      } else {
+        drawStream(stream);
+      }
     }
 
     for (let i = bolts.length - 1; i >= 0; i--) {
@@ -541,6 +565,124 @@ export function createWorldRenderer(
         bolts.splice(i, 1);
       } else {
         sprite.position.set(from.x + (to.x - from.x) * done, from.y + (to.y - from.y) * done);
+      }
+    }
+  }
+
+  /** The nearest of the player's finished Temples and Generators whose circle covers the spot. */
+  function energySource(player: number, spot: Point): DeepReadonly<Building> | undefined {
+    let best: DeepReadonly<Building> | undefined;
+    let bestFar = ENERGY_RANGE;
+
+    for (const e of world.buildingsOf(player)) {
+      const def = world.defs.get(e.type);
+      const far = Math.hypot(e.x + e.fx / 2 - spot.x, e.y + e.fy / 2 - spot.y);
+
+      if (
+        def && (def.cls === 'Energy' || def.group === 'battery') && e.rising === 0
+        && far <= bestFar
+      ) {
+        best = e;
+        bestFar = far;
+      }
+    }
+
+    return best;
+  }
+
+  /** One Manabolt of a Fury from a building to a spot, in cells. */
+  function bolt(from: DeepReadonly<Building>, to: Point, fury: string): void {
+    const texture = textures.get(`slot:manabolt:${MANA_BOLTS[fury]}`);
+    const spot = texture && hotSpots.get(texture);
+
+    if (!texture || !spot) {
+      return;
+    }
+
+    const a = project(from.x + from.fx / 2, from.y + from.fy / 2);
+    const b = project(to.x, to.y);
+    const cells = Math.hypot(from.x + from.fx / 2 - to.x, from.y + from.fy / 2 - to.y);
+    const sprite = entityLayer.addChild(new Sprite(texture));
+    sprite.anchor.set(spot.x, spot.y);
+    sprite.zIndex = AIR_Z;
+    bolts.push({
+      sprite,
+      from: { x: a.sx, y: a.sy },
+      to: { x: b.sx, y: b.sy },
+      start: world.tick,
+      ticks: Math.max(1, Math.round((cells / BOLT_SPEED) * TPS)),
+    });
+  }
+
+  /** The way of the stream to a site: walked from the Workshop that makes the unit, or straight
+   * where none does (a Temple, a Workshop and an Altar are the Priest's work) or no way leads. */
+  function streamTo(
+    b: DeepReadonly<Building>,
+  ): { points: Point[]; cells: number[]; start: number; } {
+    const maker = makerOf(world, b.owner, b.type, b.x, b.y);
+    const end: [number, number] = [b.x + b.fx / 2, b.y + b.fy / 2];
+
+    if (!maker) {
+      return { points: [], cells: [], start: world.tick };
+    }
+
+    const near = (x: number, y: number) =>
+      x >= maker.x - 1 && x <= maker.x + maker.fx && y >= maker.y - 1 && y <= maker.y + maker.fy;
+    // From the site, whose corner is on its walkable rim, to the rim of the Workshop.
+    const walked = world.findPath(b.owner, b.x, b.y, ([x, y]) => near(x, y)) ?? [];
+    const way: [number, number][] = [
+      [maker.x + maker.fx / 2, maker.y + maker.fy / 2],
+      ...walked.reverse().map(([x, y]): [number, number] => [x + HALF_CELL, y + HALF_CELL]),
+      end,
+    ];
+    const points: Point[] = [];
+    const cells: number[] = [];
+
+    for (const [i, [x, y]] of way.entries()) {
+      const at = project(x, y);
+      const [px, py] = way[i - 1] ?? [x, y];
+      points.push({ x: at.sx, y: at.sy });
+      cells.push((cells.at(-1) ?? 0) + Math.hypot(x - px, y - py));
+    }
+
+    return { points, cells, start: world.tick };
+  }
+
+  /** Streaks of Storm Power running along the way of a stream, one sent every STREAM_EVERY ticks. */
+  function drawStream(stream: { points: Point[]; cells: number[]; start: number; }): void {
+    const { points, cells, start } = stream;
+    const length = cells.at(-1) ?? 0;
+
+    if (points.length < 2) {
+      return;
+    }
+
+    for (let sent = start; sent <= world.tick; sent += STREAM_EVERY) {
+      const head = ((world.tick - sent) * BOLT_SPEED) / TPS;
+      const tail = head - STREAK_CELLS;
+
+      if (tail >= length) {
+        continue;
+      }
+
+      const line = [pointAt(points, cells, Math.max(0, tail))];
+
+      for (const [i, d] of cells.entries()) {
+        if (d > Math.max(0, tail) && d < Math.min(head, length)) {
+          line.push(points[i]!);
+        }
+      }
+
+      line.push(pointAt(points, cells, Math.min(head, length)));
+
+      for (const { width, alpha } of STREAK_STROKES) {
+        bars.moveTo(line[0]!.x, line[0]!.y - STREAM_LIFT);
+
+        for (const p of line.slice(1)) {
+          bars.lineTo(p.x, p.y - STREAM_LIFT);
+        }
+
+        bars.stroke({ color: COLOR.stream, width, alpha });
       }
     }
   }

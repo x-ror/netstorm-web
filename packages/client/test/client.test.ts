@@ -568,7 +568,14 @@ test('rims and bridge rails take the colour of their side; other pictures keep t
 test('the HUD is built as plain data from the world and the tool in hand', () => {
   const world = createMatchWorld(defs, maps, missions, DEFAULT_OPTIONS);
   const ui = createUiState();
-  const atlas = { atlases: ['atlas.png'], frames: { 'suncannon:1': [0, 10, 20, 44, 41] } };
+  const atlas = {
+    atlases: ['atlas.png'],
+    frames: {
+      'suncannon:1': [0, 10, 20, 44, 41],
+      'slot:sunarcher:32': [0, 0, 0, 39, 26, -42, -25],
+      'slot:sunarcher:0': [0, 50, 0, 20, 14, -27, -33],
+    },
+  };
   const player = world.players.get(ME)!;
   player.storm = 300;
   player.hand = [{ piece: 1, age: 0 }];
@@ -601,9 +608,25 @@ test('the HUD is built as plain data from the world and the tool in hand', () =>
   assert.deepEqual(iconOf(atlas, 'suncannon', 40), {
     width: 44,
     height: 41,
-    background: 'url(atlas.png) -10px -20px',
+    layers: [{
+      left: 0,
+      top: 0,
+      width: 44,
+      height: 41,
+      background: 'url(atlas.png) -10px -20px',
+    }],
     scale: 40 / 44,
   });
+  // The Sun Disc Thrower is its base with the thrower laid over it about their hot spot.
+  assert.deepEqual(iconOf(atlas, 'sunarcher', 40)?.layers.map((l) => [l.left, l.top]), [
+    [0, 8],
+    [15, 0],
+  ]);
+  assert.deepEqual([iconOf(atlas, 'sunarcher', 40)?.width, iconOf(atlas, 'sunarcher', 40)?.height],
+    [
+      39,
+      34,
+    ]);
   assert.equal(iconOf(atlas, 'nosuchunit', 40), null);
 });
 

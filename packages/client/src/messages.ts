@@ -18,6 +18,9 @@ export const REJECTIONS: Record<string, string> = {
   'no temple': 'немає Храму',
   'no altar': 'немає Вівтаря',
   'no workshop': 'немає Майстерні цієї стихії',
+  'not in production': 'жодна Майстерня його не виробляє: додайте його в слот Майстерні',
+  'no free slot': 'у Майстерні немає вільного слота — зробіть апгрейд',
+  'fully upgraded': 'Майстерню вже покращено тричі',
   'cannot build': 'цей юніт ще не можна будувати',
   'not ready': 'юніт щойно встановлено, зачекайте',
   casting: 'транспорт ще творить попереднє заклинання',
@@ -38,6 +41,8 @@ const COMMANDS: Record<string, string> = {
   takeSpell: 'Обеліск',
   castSpell: 'Заклинання',
   dropCargo: 'Вантаж',
+  produce: 'Виробництво',
+  upgradeWorkshop: 'Апгрейд',
 };
 
 export type Tone = 'good' | 'bad' | 'info';
@@ -70,6 +75,12 @@ export function describeEvent(
       return null;
     case 'build':
       return mine ? { text: `Збудовано: ${name(event.data.type)}`, tone: 'info' } : null;
+    case 'produce':
+      return mine ? { text: `У виробництві: ${name(event.data.type)}`, tone: 'info' } : null;
+    case 'upgrade':
+      return mine
+        ? { text: `Майстерню покращено до рівня ${event.data.level}`, tone: 'good' }
+        : null;
     case 'destroyed':
       return {
         text: mine

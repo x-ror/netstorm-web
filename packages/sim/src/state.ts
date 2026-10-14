@@ -37,6 +37,14 @@ export const GEYSER_STOCK = 2000; // Storm Power a geyser holds before it is dep
 export const PRIEST_HP = 100;
 /** The unit that takes an island over in multiplayer; see "Outpost" in docs/game-rules.md. */
 export const OUTPOST = 'outpost';
+/** "On a new, Level I Workshop you'll have two Production Slots" (help 1521). */
+export const WORKSHOP_SLOTS = 2;
+/** "You get one additional slot each time you Upgrade a Workshop"; "you may only Upgrade each
+ * Workshop three times" (help 1525, 1542). */
+export const MAX_UPGRADES = 3;
+/** Storm Power an Upgrade of a Workshop costs, each time. The original tells it on a right-click,
+ * but the number is not in its data or help: invented (`?`). */
+export const UPGRADE_COST = 600;
 /** Share of a unit's cost paid for destroying an enemy unit and, at full health, for salvaging your own. */
 export const REFUND_SHARE = 0.25;
 // Radius, in cells, of the circle a Temple or Generator spreads its Energy over. Measured in the
@@ -432,6 +440,11 @@ export interface Building {
   paralyzed: number;
   /** Ticks of Invisibility left: nothing can target it or pick it up meanwhile. */
   invisible: number;
+  /** A Workshop's Production Slots: the unit types it makes, in the order they were chosen. A
+   * choice is never undone. Empty for every other building. */
+  slots: string[];
+  /** Times a Workshop has been Upgraded, each adding a slot; 0 for every other building. */
+  upgrades: number;
 }
 export interface Transport {
   id: number;

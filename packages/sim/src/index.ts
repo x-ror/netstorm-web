@@ -14,3 +14,4 @@ export { BRIDGE_SCAN } from './rules/bridges.js';
 export { blastDamage, facesWhenLaid, shotInterval } from './rules/combat.js';
 export { barriers, type Barrier } from './rules/fences.js';
 export { FLYER_SCALE, huntRadius } from './rules/flyers.js';
+export { canProduce, canUpgrade, makerError, makerOf, takesSlot } from './rules/building.js';

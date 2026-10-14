@@ -625,6 +625,16 @@ export function createControls(options: {
     salvageSelected() {
       salvage(ui.selected === null ? undefined : world.entities.get(ui.selected));
     },
+    produceSelected(type: string) {
+      if (ui.selected !== null) {
+        submit({ t: 'produce', player: me, workshop: ui.selected, type });
+      }
+    },
+    upgradeSelected() {
+      if (ui.selected !== null) {
+        submit({ t: 'upgradeWorkshop', player: me, workshop: ui.selected });
+      }
+    },
     dispose() {
       abort.abort();
     },

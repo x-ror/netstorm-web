@@ -1,13 +1,21 @@
 import {
   PIECES,
   rotateLinks,
+  MAX_UPGRADES,
   OUTPOST,
   PIECE_HARDEN,
+  UPGRADE_COST,
+  WORKSHOP_SLOTS,
+  canProduce,
+  canUpgrade,
+  makerError,
+  takesSlot,
   RUNES,
   TPS,
   blastDamage,
   shotInterval,
   rotatePiece,
+  type Building,
   type DeepReadonly,
   type Entity,
   type Theme,
@@ -15,6 +23,7 @@ import {
   type WorldView,
 } from '@netstorm/sim';
 import type { Atlas } from './assets.js';
+import { REJECTIONS } from './messages.js';
 import { TH, TW } from './projection.js';
 import { bridgeSlot } from './texture-selection.js';
 import { hasFacing, placeable, type Tool, type UiState } from './ui-state.js';
@@ -46,6 +55,9 @@ export interface HudActions {
   togglePause(): void;
   toggleSound(): void;
   salvageSelected(): void;
+  /** Put a unit into a free Production Slot of the selected Workshop. */
+  produceSelected(type: string): void;
+  upgradeSelected(): void;
   meltdownSelected(): void;
   castSelected(): void;
   /** A button of the page shown over the map was pressed: its place among the page's buttons. */
@@ -118,6 +130,8 @@ export type SelectedAction =
   | { kind: 'build'; type: string; label: string; cost: number; }
   | { kind: 'drop'; label: string; }
   | { kind: 'salvage'; label: string; key: string; }
+  | { kind: 'produce'; type: string; label: string; }
+  | { kind: 'upgrade'; label: string; cost: number; }
   | { kind: 'meltdown'; label: string; };
 
 const PLANK_DROP = 9; // from the top of a cell down to the hot spot of its Bridge frame
@@ -223,40 +237,78 @@ function pieceArt(
   return { width: wide * TW, height: tall * TH + PLANK_FACE, planks };
 }
 
-// Where an atlas entry keeps a picture's size.
+// Where an atlas entry keeps a picture's size and where it lies from its hot spot.
 const WIDTH = 3;
 const HEIGHT = 4;
+const LEFT = 5;
+const TOP = 6;
 /** Small pictures are enlarged at most this many times, so a Golem does not fill a card. */
 const MAX_ENLARGE = 3;
+/**
+ * Units drawn from several slots laid over one another about their hot spot. The Sun Disc
+ * Thrower is its base (slot 32) with the thrower on it, facing north at rest (slot 0).
+ */
+const ICON_LAYERS: Readonly<Record<string, readonly string[]>> = {
+  sunarcher: ['slot:sunarcher:32', 'slot:sunarcher:0'],
+};
+
+/** One frame of a unit's icon: where it lies in the icon and its piece of the atlas. */
+export interface IconLayer {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  background: string;
+}
 
 /** The picture of a unit for the panels, fitted into a square of `size` pixels: facing east where
  * it has facings, else the larger of its plain picture and its first slot (the plain one of a
- * Golem is a speck, the first slot of a Temple only its whirl). Null for a unit with no picture
- * of its own, a Spell or a Thunder Spire. */
+ * Golem is a speck, the first slot of a Temple only its whirl), or its slots laid over one another
+ * (ICON_LAYERS). Null for a unit with no picture of its own, a Spell or a Thunder Spire. */
 export function iconOf(
   atlas: Atlas,
   type: string,
   size: number,
-): { width: number; height: number; background: string; scale: number; } | null {
+): { width: number; height: number; layers: IconLayer[]; scale: number; } | null {
   const area = (key: string) => {
     const found = atlas.frames[key];
     return found ? found[WIDTH]! * found[HEIGHT]! : 0;
   };
-  const key = atlas.frames[`${type}:1`]
-    ? `${type}:1`
-    : [type, `slot:${type}:0`].sort((a, b) => area(b) - area(a))[0]!;
-  const frame = atlas.frames[key];
+  const keys = ICON_LAYERS[type] ?? [
+    atlas.frames[`${type}:1`]
+      ? `${type}:1`
+      : [type, `slot:${type}:0`].sort((a, b) => area(b) - area(a))[0]!,
+  ];
+  const frames = keys.map((key) => atlas.frames[key]);
 
-  if (!frame) {
+  if (frames.length === 0 || frames.some((frame) => !frame)) {
     return null;
   }
 
-  const [sheet, x, y, width, height] = frame as [number, number, number, number, number];
+  // A lone frame stands at the corner; layered ones about the hot spot they share.
+  const placed = frames.map((frame) => ({
+    frame: frame!,
+    x: keys.length > 1 ? frame![LEFT] ?? 0 : 0,
+    y: keys.length > 1 ? frame![TOP] ?? 0 : 0,
+  }));
+  const left = Math.min(...placed.map((p) => p.x));
+  const top = Math.min(...placed.map((p) => p.y));
+  const width = Math.max(...placed.map((p) => p.x + p.frame[WIDTH]!)) - left;
+  const height = Math.max(...placed.map((p) => p.y + p.frame[HEIGHT]!)) - top;
   const fit = Math.min(size / width, size / height);
   return {
     width,
     height,
-    background: `url(${atlas.atlases[sheet]}) -${x}px -${y}px`,
+    layers: placed.map(({ frame, x, y }) => {
+      const [sheet, ax, ay, w, h] = frame as [number, number, number, number, number];
+      return {
+        left: x - left,
+        top: y - top,
+        width: w,
+        height: h,
+        background: `url(${atlas.atlases[sheet]}) -${ax}px -${ay}px`,
+      };
+    }),
     // Whole steps keep the pixels square when a small picture is enlarged.
     scale: fit >= 1 ? Math.min(Math.floor(fit), MAX_ENLARGE) : fit,
   };
@@ -271,9 +323,12 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
     .map((def) => {
       const active = ui.tool.kind === 'build' && ui.tool.type === def.id;
       const cooling = player.refresh.find((entry) => entry.type === def.id);
+      const maker = makerError(world, me, def);
       let warning = '';
 
-      if (cooling) {
+      if (maker) {
+        warning = ` — ${REJECTIONS[maker] ?? maker}`;
+      } else if (cooling) {
         warning = ' — щойно встановлено, ще недоступний';
       } else if (player.storm < def.cost) {
         warning = ' — бракує Storm Power';
@@ -285,7 +340,7 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
         theme: def.theme,
         cost: def.cost,
         active,
-        poor: player.storm < def.cost || cooling !== undefined,
+        poor: player.storm < def.cost || cooling !== undefined || maker !== null,
         title: `${def.name}: ${def.cls}, рівень ${def.level}, ${def.footX}×${def.footY}${warning}`,
         facing: active && hasFacing(def) ? FACING_NAMES[ui.facing]! : null,
         cooling: cooling
@@ -296,6 +351,56 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
           : null,
       };
     });
+}
+
+/** A Workshop's level and Production Slots and, for the player's own, the units of its Fury he
+ * knows that it could take into a free slot, and its Upgrade. */
+function workshop(
+  world: WorldView,
+  me: number,
+  b: DeepReadonly<Building>,
+  say: (text: string, muted?: boolean) => void,
+  actions: SelectedAction[],
+): void {
+  const room = WORKSHOP_SLOTS + b.upgrades;
+  const names = b.slots.map((type) => world.defs.get(type)?.name ?? type);
+  say(`рівень ${b.upgrades + 1}, слоти ${b.slots.length} з ${room}`);
+  say(names.length ? `виробляє: ${names.join(', ')}` : 'слоти порожні');
+
+  if (b.owner !== me || b.rising > 0) {
+    return;
+  }
+
+  const offered = [...(world.players.get(me)?.tech ?? [])]
+    .map((id) => world.defs.get(id))
+    .filter((def): def is Readonly<UnitDef> =>
+      def !== undefined
+      && canProduce(world, { player: me, workshop: b.id, type: def.id }) !== 'cannot build'
+      && takesSlot(def) && !b.slots.includes(def.id)
+    )
+    .sort((a, c) => a.level - c.level || a.cost - c.cost);
+
+  if (b.slots.length < room) {
+    say(offered.length
+      ? 'Вибір слота остаточний: змінити його не можна'
+      : 'Немає знань цієї стихії, щоб заповнити слот', true);
+
+    for (const def of offered) {
+      actions.push({ kind: 'produce', type: def.id, label: `У виробництво: ${def.name}` });
+    }
+  } else if (offered.length) {
+    say('Усі слоти зайняті: апгрейд додасть ще один', true);
+  }
+
+  if (
+    b.upgrades < MAX_UPGRADES && canUpgrade(world, { player: me, workshop: b.id }) !== 'bad target'
+  ) {
+    actions.push({
+      kind: 'upgrade',
+      label: `Апгрейд до рівня ${b.upgrades + 2}`,
+      cost: UPGRADE_COST,
+    });
+  }
 }
 
 function selected(world: WorldView, me: number, ui: UiState): Selected | null {
@@ -322,6 +427,10 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
       say('чекає на жерця');
     } else if (entity.rising > 0) {
       say(`будується: ще ${Math.ceil(entity.rising / TPS)} с`);
+    }
+
+    if (world.defs.get(entity.type)?.cls === 'Production') {
+      workshop(world, me, entity, say, actions);
     }
   }
 
@@ -362,7 +471,7 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
       const theme = player?.theme;
 
       // The Outpost is offered to a side that has it: in the original, in multiplayer only.
-      for (const id of [`${theme}vortex`, `${theme}factory`, 'altar', OUTPOST]) {
+      for (const id of [`${theme}vortex`, `${theme}factory`, 'sunfactory', 'altar', OUTPOST]) {
         const def = world.defs.get(id);
 
         if (def && (id !== OUTPOST || player?.tech.has(OUTPOST))) {

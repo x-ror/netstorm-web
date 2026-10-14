@@ -79,27 +79,74 @@ function connectedToTemple(world: WorldView, player: number): Uint8Array | null 
   return connected;
 }
 
-/** "Once you've attached to a Geyser you own its island, and can build bridge off of it." */
+/**
+ * "Once you've attached to a Geyser you own its island, and can build bridge off of it." The
+ * unowned ground joined to (x, y) is taken. Geysers set side by side have islets that touch and
+ * so make one stretch of ground; each of them is still attached by a bridge of its own (as the
+ * original plays, by the author of this project): where the stretch is nothing but geyser islets,
+ * only the islet the bridge reaches is taken.
+ */
 export function claimIsland(world: World, player: number, x: number, y: number): void {
+  const region: number[] = [];
+  const seen = new Set<number>();
   const queue: [number, number][] = [[x, y]];
 
   for (let head = 0; head < queue.length; head++) {
     const [cx, cy] = queue[head]!;
+    const i = world.inside(cx, cy) ? world.at(cx, cy) : -1;
 
     if (
-      !world.inside(cx, cy)
-      || world.terrain[world.at(cx, cy)] !== Terrain.Island
-      || world.owner[world.at(cx, cy)] !== 0
+      i < 0 || seen.has(i) || world.terrain[i] !== Terrain.Island || world.owner[i] !== 0
     ) {
       continue;
     }
 
-    world.owner[world.at(cx, cy)] = player;
+    seen.add(i);
+    region.push(i);
 
     for (const [dx, dy] of DIRS) {
       queue.push([cx + dx, cy + dy]);
     }
   }
+
+  const islets = geyserIslets(world, region);
+  const reached = islets && x >= 0 && y >= 0
+    ? islets.filter((g) => Math.abs(g.x - x) <= ISLET_REACH && Math.abs(g.y - y) <= ISLET_REACH)
+    : [];
+  const taken = reached.length > 0
+    ? region.filter((i) =>
+      reached.some((g) =>
+        Math.abs(g.x - (i % W)) <= ISLET_REACH && Math.abs(g.y - Math.floor(i / W)) <= ISLET_REACH
+      )
+    )
+    : region;
+
+  for (const i of taken) {
+    world.owner[i] = player;
+  }
+}
+
+/** Cells from a geyser to the edge of its islet, which is GEYSER_ISLAND_SIZE across. */
+const ISLET_REACH = 1;
+
+/** The geysers whose islets make up the whole of the cells, or null when some cell lies outside
+ * every geyser's islet (the ground is an island of its own, with or without geysers on it). */
+function geyserIslets(world: World, cells: number[]): { x: number; y: number; }[] | null {
+  const geysers: { x: number; y: number; }[] = [];
+  const inside = new Set(cells);
+
+  for (const e of world.entities.values()) {
+    if (e.kind === 'geyser' && inside.has(world.at(e.x, e.y))) {
+      geysers.push({ x: e.x, y: e.y });
+    }
+  }
+
+  const covered = cells.every((i) =>
+    geysers.some((g) =>
+      Math.abs(g.x - (i % W)) <= ISLET_REACH && Math.abs(g.y - Math.floor(i / W)) <= ISLET_REACH
+    )
+  );
+  return geysers.length > 1 && covered ? geysers : null;
 }
 
 export type PieceCommand = Pick<

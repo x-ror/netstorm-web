@@ -2,15 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { FixedStepClock, World, loadDefs, createSkirmish } from '../src/index.js';
+import { equipWorkshops } from './workshops.js';
 
 const defs = loadDefs(
   JSON.parse(readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8')),
 );
 const mk = () =>
-  createSkirmish(defs, 42, [
+  equipWorkshops(createSkirmish(defs, 42, [
     { id: 1, name: 'Blue', theme: 'wind', x: 40, y: 40 },
     { id: 2, name: 'Red', theme: 'rain', x: 120, y: 40 },
-  ], []);
+  ], []));
 
 test('clock preserves partial ticks, bounds catch-up and resets after suspension', () => {
   const clock = new FixedStepClock(10, 5);

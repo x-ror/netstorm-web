@@ -132,6 +132,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       hud.render();
     },
     salvageSelected: () => controls.salvageSelected(),
+    produceSelected: (type) => controls.produceSelected(type),
+    upgradeSelected: () => controls.upgradeSelected(),
     meltdownSelected: () => controls.meltdownSelected(),
     castSelected: () => controls.castSelected(),
     dropSelected: () => controls.dropSelected(),

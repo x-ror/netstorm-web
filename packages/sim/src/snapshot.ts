@@ -15,6 +15,7 @@ import {
   FACINGS,
   MAX_ID,
   MAX_PLAYERS,
+  MAX_UPGRADES,
   MAX_UINT32,
   Terrain,
 } from './state.js';
@@ -30,8 +31,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 29;
-export const RULES_VERSION = 55;
+export const SNAPSHOT_VERSION = 30;
+export const RULES_VERSION = 56;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -200,6 +201,8 @@ function parseEntity(raw: unknown): Entity {
       'regrow',
       'rising',
       'builder',
+      'slots',
+      'upgrades',
     ], 'building');
     return {
       id,
@@ -222,6 +225,8 @@ function parseEntity(raw: unknown): Entity {
       builder: nullableId(value.builder, 'building.builder'),
       paralyzed,
       invisible,
+      slots: list(value.slots, 'building.slots').map((slot) => text(slot, 'building.slot')),
+      upgrades: integer(value.upgrades, 'building.upgrades', 0, MAX_UPGRADES),
     };
   }
 

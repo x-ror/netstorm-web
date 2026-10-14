@@ -13,26 +13,27 @@ import {
   type WorldSnapshot,
   type Transport,
 } from '../src/index.js';
+import { equipWorkshops } from './workshops.js';
 
 const defs = loadDefs(
   JSON.parse(readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8')),
 );
 const mk = () =>
-  createSkirmish(defs, 7, [
+  equipWorkshops(createSkirmish(defs, 7, [
     { id: 1, name: 'Blue', theme: 'wind', x: 40, y: 40 },
     { id: 2, name: 'Red', theme: 'rain', x: 120, y: 40 },
-  ], [[80, 40]]);
+  ], [[80, 40]]));
 const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
 // Pins the current rules (RULES_VERSION 30). Re-pin deliberately whenever state shape or rules change.
 test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
-    [1, 2628652655],
-    [60, 2836664605],
-    [101, 2826980591],
-    [200, 3243266715],
-    [400, 2766928358],
+    [1, 437804023],
+    [60, 1186213337],
+    [101, 4013423184],
+    [200, 488981828],
+    [400, 956733945],
   ]);
 
   for (let index = 0; index < 400; index++) {

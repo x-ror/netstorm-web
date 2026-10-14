@@ -52,6 +52,10 @@
         return actions.salvageSelected();
       case 'meltdown':
         return actions.meltdownSelected();
+      case 'produce':
+        return actions.produceSelected(action.type);
+      case 'upgrade':
+        return actions.upgradeSelected();
     }
   }
 </script>

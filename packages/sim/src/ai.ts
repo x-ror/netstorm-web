@@ -12,17 +12,22 @@
  * the enemy, answers enemy air with anti-air guns, and closes its bridge head with a barrier.
  * One of its transports fetches a Spell from an Obelisk it can reach and casts it when enough
  * stands in range, and its Priest raises an Outpost on unowned ground its transports can walk to.
+ * Its Priest raises a Workshop for each Fury it knows units of, it fills their Production Slots,
+ * shooters first, and Upgrades a full Workshop once Storm Power is plenty.
  */
 import type { Command } from './commands.js';
 import { flies, type UnitDef } from './defs.js';
 import {
   DIRS,
   MAX_FACING,
+  MAX_UPGRADES,
   OUTPOST,
   PIECES,
   PIECE_HARDEN,
   Terrain,
+  UPGRADE_COST,
   W,
+  WORKSHOP_SLOTS,
   H,
   isBridge,
   oppositeDir,
@@ -31,6 +36,7 @@ import {
   type Facing,
 } from './state.js';
 import { joins } from './rules/bridges.js';
+import { takesSlot } from './rules/building.js';
 import { facesWhenLaid } from './rules/combat.js';
 import type { DeepReadonly, WorldView } from './view.js';
 import type { Building, Entity, Geyser, Living, Priest, Transport } from './state.js';
@@ -70,6 +76,10 @@ const FENCE_POSTS = 4;
  * nearly touch (invented). */
 const POST_GAP_MAX = 12;
 const POST_GAP_MIN = 4;
+/** Storm Power the AI keeps after paying for a Workshop Upgrade (invented). */
+const UPGRADE_SAVINGS = 1000;
+/** Classes the Priest builds: one at a time, or the second order calls him off the first. */
+const PRIEST_BUILT: ReadonlySet<string> = new Set(['Energy', 'Production', 'Altar']);
 
 /**
  * How a mission sets its computer sides up, from the keys of its header. The original's AI is not
@@ -115,6 +125,7 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
 
   fetchSpell(world, move, transports, reached);
   castSpells(world, move, transports);
+  equip(world, move);
   buildAltar(world, move);
   buildOutpost(world, move, reached);
 
@@ -265,11 +276,99 @@ function buildAltar(world: WorldView, move: Move): void {
   const priest = world.priestOf(move.me);
   const home = world.templeOf(move.me);
 
-  if (!def || !priest || world.buildingsOf(move.me).some((b) => b.type === ALTAR)) {
+  if (
+    !def || !priest || world.buildingsOf(move.me).some((b) => b.type === ALTAR)
+    || priestBusy(world, move)
+  ) {
     return;
   }
 
   place(world, move, def, home ? centre(home) : priest, undefined, ALTAR_RADIUS);
+}
+
+/** Whether the Priest is on his way to a site, or is sent to one this move. */
+function priestBusy(world: WorldView, move: Move): boolean {
+  return world.buildingsOf(move.me).some((b) => b.builder !== null)
+    || move.commands.some((c) =>
+      c.t === 'build' && PRIEST_BUILT.has(world.defs.get(c.type)?.cls ?? '')
+    );
+}
+
+/** Units the AI puts into Production Slots first: shooters that hit the ground, then air bases,
+ * then the rest; lower levels and cheaper ones first. */
+function slotOrder(a: Readonly<UnitDef>, b: Readonly<UnitDef>): number {
+  return slotRank(a) - slotRank(b) || a.level - b.level || a.cost - b.cost
+    || a.id.localeCompare(b.id);
+}
+
+const FIGHTS = 1; // slot ranks up to this one are worth an Upgrade
+
+function slotRank(def: Readonly<UnitDef>): number {
+  if (def.dps > 0 && def.range > 0 && def.group !== 'fence' && def.group !== 'anti-air') {
+    return 0;
+  }
+
+  return def.group === 'aviary' ? FIGHTS : FIGHTS + 1;
+}
+
+/**
+ * Workshops: the Priest raises one near the Temple for a Fury the AI knows units of but has no
+ * Workshop for, the free slots are filled with what no Workshop makes yet, and a Workshop whose
+ * slots are all taken is Upgraded once Storm Power is plenty.
+ */
+function equip(world: WorldView, move: Move): void {
+  const player = world.players.get(move.me)!;
+  const mine = world.buildingsOf(move.me);
+  const known = [...player.tech]
+    .map((id) => world.defs.get(id))
+    .filter((def): def is Readonly<UnitDef> => def !== undefined && takesSlot(def));
+  const workshops = mine.filter((b) => world.def(b.type).cls === 'Production');
+  const missing = [...new Set(known.map((def) => def.theme ?? 'sun'))]
+    .sort()
+    .map((fury) => world.defs.get(`${fury}factory`))
+    .find((def) => def && !workshops.some((b) => b.type === def.id));
+  const priest = world.priestOf(move.me);
+  const home = world.templeOf(move.me);
+
+  if (missing && priest && !priestBusy(world, move)) {
+    place(world, move, missing, home ? centre(home) : priest, undefined, ALTAR_RADIUS);
+  }
+
+  const made = new Set(workshops.flatMap((b) => b.slots));
+  // Storm Power goes to a missing Workshop before any Upgrade.
+  let upgraded = missing !== undefined || workshops.some((b) => b.rising > 0);
+
+  for (const b of workshops) {
+    if (b.rising > 0) {
+      continue;
+    }
+
+    const fury = world.def(b.type).theme;
+    const wanted = known
+      .filter((def) => (def.theme ?? 'sun') === fury && !made.has(def.id))
+      .sort(slotOrder);
+    let free = WORKSHOP_SLOTS + b.upgrades - b.slots.length;
+
+    for (const def of wanted) {
+      if (free === 0) {
+        break;
+      }
+
+      move.commands.push({ t: 'produce', player: move.me, workshop: b.id, type: def.id });
+      made.add(def.id);
+      free--;
+    }
+
+    if (
+      !upgraded && free === 0
+      && wanted.some((def) => !made.has(def.id) && slotRank(def) <= FIGHTS)
+      && b.upgrades < MAX_UPGRADES && move.budget >= UPGRADE_COST + UPGRADE_SAVINGS
+    ) {
+      move.commands.push({ t: 'upgradeWorkshop', player: move.me, workshop: b.id });
+      move.budget -= UPGRADE_COST;
+      upgraded = true;
+    }
+  }
 }
 
 /* oxlint-disable no-magic-numbers -- thresholds of an invented opponent */
@@ -1177,7 +1276,10 @@ function place(
 
     noEnergy ||= error === 'no energy';
 
-    if (error === 'no storm power' || error === 'not ready' || error === 'no workshop') {
+    if (
+      error === 'no storm power' || error === 'not ready' || error === 'no workshop'
+      || error === 'not in production'
+    ) {
       return { placed: false, noEnergy };
     }
   }

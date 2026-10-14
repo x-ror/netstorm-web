@@ -12,7 +12,9 @@ export type Command =
   | { t: 'meltdown'; player: number; target: number; }
   | { t: 'takeSpell'; player: number; transport: number; obelisk: number; }
   | { t: 'castSpell'; player: number; transport: number; }
-  | { t: 'dropCargo'; player: number; transport: number; };
+  | { t: 'dropCargo'; player: number; transport: number; }
+  | { t: 'produce'; player: number; workshop: number; type: string; }
+  | { t: 'upgradeWorkshop'; player: number; workshop: number; };
 
 export type CommandError =
   | 'no player'
@@ -31,6 +33,9 @@ export type CommandError =
   | 'no temple'
   | 'no altar'
   | 'no workshop'
+  | 'not in production'
+  | 'no free slot'
+  | 'fully upgraded'
   | 'cannot build'
   | 'not ready'
   | 'casting'
@@ -55,6 +60,8 @@ export function parseCommand(raw: unknown): Command {
     'takeSpell',
     'castSpell',
     'dropCargo',
+    'produce',
+    'upgradeWorkshop',
   ], 'command type');
   const player = integer(value.player, 'command.player', 1, MAX_PLAYERS);
 
@@ -125,6 +132,17 @@ export function parseCommand(raw: unknown): Command {
     case 'dropCargo':
       keys(value, ['t', 'player', 'transport'], 'command');
       return { t, player, transport: integer(value.transport, 'command.transport', 1, MAX_ID) };
+    case 'produce':
+      keys(value, ['t', 'player', 'workshop', 'type'], 'command');
+      return {
+        t,
+        player,
+        workshop: integer(value.workshop, 'command.workshop', 1, MAX_ID),
+        type: text(value.type, 'command.type'),
+      };
+    case 'upgradeWorkshop':
+      keys(value, ['t', 'player', 'workshop'], 'command');
+      return { t, player, workshop: integer(value.workshop, 'command.workshop', 1, MAX_ID) };
     case 'capturePriest':
       keys(value, ['t', 'player', 'transport', 'target'], 'command');
       return {

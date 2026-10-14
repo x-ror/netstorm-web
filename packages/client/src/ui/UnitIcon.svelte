@@ -12,9 +12,18 @@
     <i
       style:width="{icon.width}px"
       style:height="{icon.height}px"
-      style:background={icon.background}
       style:transform="translate(-50%,-50%) scale({icon.scale})"
-    ></i>
+    >
+      {#each icon.layers as layer, index (index)}
+        <b
+          style:left="{layer.left}px"
+          style:top="{layer.top}px"
+          style:width="{layer.width}px"
+          style:height="{layer.height}px"
+          style:background={layer.background}
+        ></b>
+      {/each}
+    </i>
   </span>
 {:else}
   <!-- A unit with no picture of its own (a Spell, a Thunder Spire): its initial. -->

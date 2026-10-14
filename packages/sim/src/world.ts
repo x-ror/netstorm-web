@@ -32,7 +32,15 @@ import {
 import { landShots, tickBuilding } from './rules/combat.js';
 import { FLYER_SCALE, flightTicks, tickAirBase, tickFlyer } from './rules/flyers.js';
 import { tickPlayer } from './rules/economy.js';
-import { energy, canBuild, build, meltdown, salvage } from './rules/building.js';
+import {
+  energy,
+  canBuild,
+  build,
+  meltdown,
+  produce,
+  salvage,
+  upgradeWorkshop,
+} from './rules/building.js';
 import { tickTransport, collect, pickupCrystal, unload } from './rules/movement.js';
 import { tickPriest, movePriest } from './rules/priest.js';
 import { capturePriest } from './rules/capture.js';
@@ -310,6 +318,8 @@ export class World {
       builder: null,
       paralyzed: 0,
       invisible: 0,
+      slots: [],
+      upgrades: 0,
     };
     this.entities.set(b.id, b);
     this.forFoot(b, (i) => {
@@ -589,6 +599,10 @@ export class World {
         return castSpell(this, c);
       case 'dropCargo':
         return unload(this, c);
+      case 'produce':
+        return produce(this, c);
+      case 'upgradeWorkshop':
+        return upgradeWorkshop(this, c);
     }
   }
 

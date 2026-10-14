@@ -3,6 +3,8 @@ import type { Command, CommandError } from './commands.js';
 type Payloads = {
   bridge: [number, number][];
   build: { id: number; type: string; };
+  produce: { workshop: number; type: string; };
+  upgrade: { workshop: number; level: number; };
   destroyed: { id: number; type: string; };
   reward: { id: number; amount: number; };
   salvaged: { id: number; type: string; refund: number; };

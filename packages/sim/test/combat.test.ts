@@ -5,6 +5,7 @@ import { World, loadDefs, TPS, type Flyer } from '../src/index.js';
 
 import { shotInterval } from '../src/rules/combat.js';
 import { ScanWorld } from './reference-world.js';
+import { equipWorkshops } from './workshops.js';
 
 const defs = loadDefs(
   JSON.parse(readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8')),
@@ -664,6 +665,7 @@ test('a unit takes ten seconds to build, gains hit points evenly and does nothin
   world.addPlayer(1, 'Blue', 'wind', 5000, ['suncannon']);
   world.addIsland(0, 0, 100, 100, 1);
   world.spawnBuilding('windvortex', 1, 20, 36);
+  equipWorkshops(world);
   const target = world.spawnTransport('sunwalker', 2, 60, 40);
   assert.equal(world.apply({ t: 'build', player: 1, type: 'suncannon', x: 40, y: 39, facing: 1 }),
     null);
@@ -935,6 +937,7 @@ test('an Altar needs the ground of an island; a gun may stand off the end of a b
   world.addIsland(0, 30, 30, 20, 1);
   world.spawnBuilding('windvortex', 1, 10, 36);
   world.addPriest(1, 28, 40);
+  equipWorkshops(world);
 
   for (let x = 30; x < 34; x++) {
     world.terrain[world.at(x, 40)] = 2;

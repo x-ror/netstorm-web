@@ -1,6 +1,6 @@
 import type { World } from '../world.js';
 import type { Command, CommandError } from '../commands.js';
-import type { WorldView } from '../view.js';
+import type { DeepReadonly, WorldView } from '../view.js';
 import type { UnitDef } from '../defs.js';
 import {
   DIRS,
@@ -13,6 +13,10 @@ import {
   isBridge,
   oppositeDir,
   OUTPOST,
+  MAX_UPGRADES,
+  UPGRADE_COST,
+  WORKSHOP_SLOTS,
+  type Building,
 } from '../state.js';
 import { joins, shakeBridges } from './bridges.js';
 import { damage, removeBuilding } from './combat.js';
@@ -179,12 +183,11 @@ const BUILDABLE = new Set<string>([
 const TRANSPORTS: ReadonlySet<string> = new Set(['Ground Transport', 'Aerial Transport']);
 
 /** "Temples allow you to create Golems"; every other unit comes from "a Workshop of the appropriate
- * Fury alignment", and a destroyed Workshop takes that ability with it. Sun units would need a Sun
- * Workshop, but no player starts with one and the help also puts the first Disc Throwers and Sun
- * Cannons "into production with your first Workshop", so Sun units other than the Golem are not
- * held to it yet (see docs/game-rules.md). Production slots are not modelled. */
-function makerError(world: WorldView, player: number, def: UnitDef): CommandError | null {
-  if (def.level === 0) {
+ * Fury alignment" that has it in one of its Production Slots: "Sun units in Sun Workshops, Thunder
+ * units in Thunder Workshops". A destroyed Workshop takes that ability with it. What the Priest
+ * builds needs no Workshop. */
+export function makerError(world: WorldView, player: number, def: UnitDef): CommandError | null {
+  if (def.level === 0 || PRIEST_BUILT.has(def.cls)) {
     return null;
   }
 
@@ -194,16 +197,148 @@ function makerError(world: WorldView, player: number, def: UnitDef): CommandErro
       : 'no temple';
   }
 
-  if (!def.theme || def.theme === 'sun') {
+  const workshops = workshopsFor(world, player, def);
+
+  if (workshops.length === 0) {
+    return 'no workshop';
+  }
+
+  return !takesSlot(def) || workshops.some((b) => b.slots.includes(def.id))
+    ? null
+    : 'not in production';
+}
+
+/** The player's finished Workshops of the unit's Fury (a unit of no Fury counts as Sun's). */
+function workshopsFor(world: WorldView, player: number, def: UnitDef) {
+  const fury = def.theme ?? 'sun';
+  return world.buildingsOf(player).filter((b) => {
+    const maker = world.def(b.type);
+    return maker.cls === 'Production' && maker.theme === fury && b.rising === 0;
+  });
+}
+
+/** Whether a unit has to be put into a Production Slot before it is built. Generators stand apart
+ * from the units in the original's Workshop menu ("a line seperator between generators and
+ * units", DevLog); that they take no slot is our reading (`?`). */
+export function takesSlot(def: UnitDef): boolean {
+  return def.level > 0 && def.id !== GOLEM && !PRIEST_BUILT.has(def.cls)
+    && def.group !== 'battery';
+}
+
+/** Where the Storm Power Stream of a unit comes from: the nearest of the player's Workshops that
+ * make it ("a Storm Power Stream streaks from the Workshop to the build site"), or the Temple for
+ * a Golem. Null for what the Priest builds or when nothing makes it. */
+export function makerOf(
+  world: WorldView,
+  player: number,
+  type: string,
+  x: number,
+  y: number,
+): DeepReadonly<Building> | null {
+  const def = world.defs.get(type);
+
+  if (!def || def.level === 0 || PRIEST_BUILT.has(def.cls)) {
     return null;
   }
 
-  return world.buildingsOf(player).some((b) => {
-      const maker = world.def(b.type);
-      return maker.cls === 'Production' && maker.theme === def.theme && b.rising === 0;
-    })
-    ? null
-    : 'no workshop';
+  if (def.id === GOLEM) {
+    return world.templeOf(player) ?? null;
+  }
+
+  const away = (b: DeepReadonly<Building>) =>
+    (b.x + b.fx / 2 - x - def.footX / 2) ** 2 + (b.y + b.fy / 2 - y - def.footY / 2) ** 2;
+  return workshopsFor(world, player, def)
+    .filter((b) => !takesSlot(def) || b.slots.includes(def.id))
+    .sort((a, b) => away(a) - away(b) || a.id - b.id)[0] ?? null;
+}
+
+/** Why a unit cannot be put into a free Production Slot of the Workshop, or null. "Each Workshop
+ * can only build the units corresponding to its alignment", and only what the player knows. */
+export function canProduce(
+  world: WorldView,
+  command: { player: number; workshop: number; type: string; },
+): CommandError | null {
+  const b = world.entities.get(command.workshop);
+  const maker = b?.kind === 'building' ? world.defs.get(b.type) : undefined;
+  const def = world.defs.get(command.type);
+
+  if (
+    b?.kind !== 'building' || !maker || maker.cls !== 'Production' || b.owner !== command.player
+    || b.rising > 0
+  ) {
+    return 'bad target';
+  }
+
+  if (!def || !takesSlot(def) || (def.theme ?? 'sun') !== maker.theme) {
+    return 'cannot build';
+  }
+
+  if (!world.players.get(command.player)?.tech.has(def.id)) {
+    return 'unknown tech';
+  }
+
+  if (b.slots.includes(def.id)) {
+    return 'bad target';
+  }
+
+  return b.slots.length < WORKSHOP_SLOTS + b.upgrades ? null : 'no free slot';
+}
+
+/** "Once you've chosen what a Workshop will build, you can't change it." */
+export function produce(
+  world: World,
+  c: Extract<Command, { t: 'produce'; }>,
+): CommandError | null {
+  const error = canProduce(world, c);
+
+  if (error) {
+    return error;
+  }
+
+  world.building(c.workshop)!.slots.push(c.type);
+  world.emit({ what: 'produce', who: c.player, data: { workshop: c.workshop, type: c.type } });
+  return null;
+}
+
+/** Why the Workshop cannot be Upgraded now, or null. */
+export function canUpgrade(
+  world: WorldView,
+  command: { player: number; workshop: number; },
+): CommandError | null {
+  const b = world.entities.get(command.workshop);
+
+  if (
+    b?.kind !== 'building' || world.defs.get(b.type)?.cls !== 'Production'
+    || b.owner !== command.player || b.rising > 0
+  ) {
+    return 'bad target';
+  }
+
+  if (b.upgrades >= MAX_UPGRADES) {
+    return 'fully upgraded';
+  }
+
+  return (world.players.get(command.player)?.storm ?? 0) < UPGRADE_COST
+    ? 'no storm power'
+    : null;
+}
+
+/** "To get more Production Slots in a Workshop you may Upgrade it by paying Storm Power." */
+export function upgradeWorkshop(
+  world: World,
+  c: Extract<Command, { t: 'upgradeWorkshop'; }>,
+): CommandError | null {
+  const error = canUpgrade(world, c);
+
+  if (error) {
+    return error;
+  }
+
+  const b = world.building(c.workshop)!;
+  b.upgrades++;
+  world.players.get(c.player)!.storm -= UPGRADE_COST;
+  world.emit({ what: 'upgrade', who: c.player, data: { workshop: b.id, level: b.upgrades + 1 } });
+  return null;
 }
 
 const GOLEM = 'sunwalker';
