@@ -28,11 +28,11 @@ const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
-    [1, 533246786],
-    [60, 639585504],
-    [101, 597366234],
-    [200, 1545070366],
-    [400, 2787915563],
+    [1, 2628652655],
+    [60, 2836664605],
+    [101, 2826980591],
+    [200, 3243266715],
+    [400, 2766928358],
   ]);
 
   for (let index = 0; index < 400; index++) {
@@ -459,7 +459,7 @@ test('a captive goes free, fully healed, when his carrier is destroyed', () => {
   assert.equal(victim.state, 'normal');
   assert.equal(victim.hp, victim.hpMax);
   assert.equal(victim.carriedBy, null);
-  assert.equal(world.occupant[world.at(victim.x, victim.y)], victim.id);
+  assert.equal(world.priestAt(victim.x, victim.y), victim);
   assertWorldInvariants(world);
 });
 
@@ -598,7 +598,7 @@ test('a priest cannot enter or path through a geyser or another priest', () => {
   }
 
   assert.deepEqual([priest.x, priest.y], [geyser.x + 1, geyser.y]);
-  assert.equal(world.occupant[world.at(blocker.x, blocker.y)], blocker.id);
+  assert.equal(world.priestAt(blocker.x, blocker.y), blocker);
   assertWorldInvariants(world);
 });
 

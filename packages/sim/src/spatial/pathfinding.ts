@@ -12,14 +12,15 @@ const AROUND: readonly (readonly [number, number])[] = [
   [-1, -1],
 ];
 
-/** The way of an air unit: over any cell, straight or diagonally. */
+/** The way of an air unit: a straight line over any cell to the nearest cell that meets `goal`,
+ * whether bridge joins it or not. */
 export function airPath(
   sx: number,
   sy: number,
   goal: (c: [number, number]) => boolean,
 ): [number, number][] | null {
-  // ponytail: a fresh breadth-first search over the open map for each order; fly a straight
-  // line to a known goal cell instead if air transports get many.
+  // ponytail: a fresh breadth-first search over the open map for each order only to find the
+  // nearest goal cell; skip it for a known goal cell if air transports get many.
   const prev = new Int32Array(W * H).fill(-1);
   const start = sy * W + sx;
   const queue = [start];
@@ -31,13 +32,7 @@ export function airPath(
     const y = (i / W) | 0;
 
     if (goal([x, y])) {
-      const out: [number, number][] = [];
-
-      for (let cell = i; cell !== start; cell = prev[cell]!) {
-        out.push([cell % W, (cell / W) | 0]);
-      }
-
-      return out.reverse();
+      return line(sx, sy, x, y);
     }
 
     for (const [dx, dy] of AROUND) {
@@ -53,6 +48,37 @@ export function airPath(
   }
 
   return null;
+}
+
+/** Cells of the straight line from one cell to another, without the first: Bresenham's line, so
+ * each step goes to one of the eight cells around. */
+function line(x0: number, y0: number, x1: number, y1: number): [number, number][] {
+  const out: [number, number][] = [];
+  const dx = Math.abs(x1 - x0);
+  const dy = -Math.abs(y1 - y0);
+  const sx = Math.sign(x1 - x0);
+  const sy = Math.sign(y1 - y0);
+  let error = dx + dy;
+  let x = x0;
+  let y = y0;
+
+  while (x !== x1 || y !== y1) {
+    const twice = 2 * error;
+
+    if (twice >= dy) {
+      error += dy;
+      x += sx;
+    }
+
+    if (twice <= dx) {
+      error += dx;
+      y += sy;
+    }
+
+    out.push([x, y]);
+  }
+
+  return out;
 }
 
 export class Pathfinder {
@@ -118,7 +144,7 @@ export class Pathfinder {
 
         const j = world.at(nx, ny);
 
-        if (avoidOccupied && world.occupant[j]) {
+        if (avoidOccupied && world.takenBy(nx, ny)) {
           continue;
         }
 
@@ -153,7 +179,7 @@ export class Pathfinder {
 
         if (
           world.terrain[j] === Terrain.Island && visited[j] !== epoch
-          && !(avoidOccupied && world.occupant[j])
+          && !(avoidOccupied && world.takenBy(nx, ny))
         ) {
           visited[j] = epoch;
           prev[j] = i;

@@ -216,7 +216,7 @@ function transportSiteError(
   x: number,
   y: number,
 ): CommandError | null {
-  if (!world.inside(x, y) || world.occupant[world.at(x, y)]) {
+  if (!world.inside(x, y) || world.occupant[world.at(x, y)] || world.priestAt(x, y)) {
     return 'blocked';
   }
 
@@ -289,7 +289,7 @@ function siteError(
 
   for (let y = y0; y < y0 + def.footY; y++) {
     for (let x = x0; x < x0 + def.footX; x++) {
-      if (!world.inside(x, y) || world.occupant[world.at(x, y)]) {
+      if (!world.inside(x, y) || world.occupant[world.at(x, y)] || world.priestAt(x, y)) {
         return 'blocked';
       }
 

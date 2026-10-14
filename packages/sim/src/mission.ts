@@ -224,7 +224,7 @@ function islet(w: World, x0: number, y0: number, fx: number, fy: number, owner: 
 function fits(w: World, x0: number, y0: number, def: UnitDef): boolean {
   for (let y = y0; y < y0 + def.footY; y++) {
     for (let x = x0; x < x0 + def.footX; x++) {
-      if (!w.inside(x, y) || w.occupant[w.at(x, y)]) {
+      if (!w.inside(x, y) || w.occupant[w.at(x, y)] || w.priestAt(x, y)) {
         return false;
       }
     }
@@ -247,7 +247,7 @@ function freeNear(w: World, x: number, y: number): [number, number] | null {
 
         if (
           ring && w.inside(nx, ny) && w.terrain[w.at(nx, ny)] !== Terrain.Sky
-          && !w.occupant[w.at(nx, ny)]
+          && !w.occupant[w.at(nx, ny)] && !w.priestAt(nx, ny)
         ) {
           return [nx, ny];
         }
@@ -260,7 +260,7 @@ function freeNear(w: World, x: number, y: number): [number, number] | null {
 
 function place(w: World, [type, owner, x, y, frame]: MissionMap['units'][number]): void {
   // An Obelisk is saved as the Spell it holds, whoever the file says it belongs to.
-  if (isSpell(type) && w.inside(x, y) && !w.occupant[w.at(x, y)]) {
+  if (isSpell(type) && w.inside(x, y) && !w.occupant[w.at(x, y)] && !w.priestAt(x, y)) {
     islet(w, x, y, 1, 1, 0);
     w.addObelisk(x, y, type);
     return;

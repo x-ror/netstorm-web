@@ -32,6 +32,9 @@ export interface WorldView {
   readonly at: (x: number, y: number) => number;
   readonly isOwnGround: (player: number, x: number, y: number) => boolean;
   readonly walkable: (player: number, x: number, y: number) => boolean;
+  /** A geyser, an Obelisk or a standing Priest on the cell. */
+  readonly takenBy: (x: number, y: number) => boolean;
+  readonly priestAt: (x: number, y: number) => DeepReadonly<Priest> | undefined;
   readonly joined: (x: number, y: number, dir: number) => boolean;
   readonly def: (type: string) => Readonly<UnitDef>;
   readonly findPath: (

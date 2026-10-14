@@ -613,6 +613,24 @@ test('transports walk across joins only: bridges lying side by side are not a wa
   assert.deepEqual(path, [[51, 40], [50, 40], [50, 41], [51, 41], [52, 41]]);
 });
 
+test('walkers pass along the edge of a building that stands flush at a bridge landing', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  // A domino off the east shore (x = 50), joined to the island at (50, 40), and a Sun Cannon whose
+  // 3×3 footprint takes that landing cell on its east edge.
+  p.hand = [{ piece: 1, age: 0 }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null);
+  w.spawnBuilding('suncannon', 1, 48, 39);
+  assert.equal(w.walkable(1, 50, 40), true); // the edge
+  assert.equal(w.walkable(1, 49, 40), false); // the middle
+
+  for (const priest of [false, true]) {
+    const path = w.findPath(1, 52, 40, (cell) => cell[0] === 45 && cell[1] === 40, priest);
+    assert.ok(path, 'a way onto the island');
+    assert.ok(!path.some(([x, y]) => x === 49 && y === 40), 'not through the middle');
+  }
+});
+
 test('a unit goes at an open end of a bridge, not beside it', () => {
   const w = mk();
   const p = w.players.get(1)!;

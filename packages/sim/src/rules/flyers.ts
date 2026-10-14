@@ -195,9 +195,14 @@ function sweep(world: World, f: Flyer): void {
   const amount = world.def(f.type).dps / TPS;
   const under: Entity[] = [...world.transportsAt(f.x, f.y)];
   const standing = world.entities.get(world.occupant[i] ?? 0);
+  const priest = world.priestAt(f.x, f.y);
 
   if (standing) {
     under.push(standing);
+  }
+
+  if (priest) {
+    under.push(priest);
   }
 
   for (const e of under) {

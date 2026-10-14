@@ -115,8 +115,16 @@ export function assertWorldInvariants(world: WorldView): void {
         fail(`invalid priest target for ${id}`);
       }
 
-      if (!held && world.occupant[world.at(entity.x, entity.y)] !== id) {
-        fail(`priest ${id} missing from its cell`);
+      // He stands where no geyser or Obelisk is, off the inside of any building, and alone.
+      const under = world.entities.get(world.occupant[world.at(entity.x, entity.y)] ?? 0);
+
+      if (
+        !held
+        && ((under !== undefined && under.kind !== 'building')
+          || (under?.kind === 'building' && !world.walkable(entity.owner, entity.x, entity.y))
+          || world.priestAt(entity.x, entity.y)?.id !== id)
+      ) {
+        fail(`priest ${id} stands where he cannot`);
       }
     } else if (entity.kind === 'geyser') {
       if (world.occupant[world.at(entity.x, entity.y)] !== id) {
@@ -191,14 +199,9 @@ export function assertWorldInvariants(world: WorldView): void {
           fail(`building occupancy mismatch at ${cell}`);
         }
       } else if (
-        occupant.kind === 'geyser' || occupant.kind === 'obelisk' || occupant.kind === 'priest'
+        occupant.kind === 'geyser' || occupant.kind === 'obelisk'
       ) {
-        if (
-          x !== occupant.x
-          || y !== occupant.y
-          || (occupant.kind === 'priest'
-            && (occupant.state === 'carried' || occupant.state === 'chained'))
-        ) {
+        if (x !== occupant.x || y !== occupant.y) {
           fail(`occupancy mismatch at ${cell}`);
         }
       } else {

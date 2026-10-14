@@ -44,7 +44,9 @@ function freeCellNear(world: World, x: number, y: number): [number, number] {
 
         const i = world.at(cx, cy);
 
-        if (world.terrain[i] !== Terrain.Sky && !world.occupant[i]) {
+        if (
+          world.terrain[i] !== Terrain.Sky && !world.occupant[i] && !world.priestAt(cx, cy)
+        ) {
           return [cx, cy];
         }
       }
@@ -67,7 +69,6 @@ export function releasePriest(world: World, p: Priest, x: number, y: number): vo
   p.move = 0;
   p.x = fx;
   p.y = fy;
-  world.occupant[world.at(fx, fy)] = p.id;
   world.emit({ what: 'released', who: p.owner, data: { priest: p.id } });
 }
 
@@ -157,7 +158,6 @@ export function arriveAtPriest(world: World, t: Transport): void {
   }
 
   // Picking up is instant here; how long it takes in the original is unknown.
-  world.occupant[world.at(p.x, p.y)] = 0;
   p.state = 'carried';
   p.carriedBy = t.id;
   p.path = [];

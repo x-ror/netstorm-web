@@ -89,7 +89,9 @@ export class World {
   readonly links = new Uint8Array(W * H);
   /** Time a bridge cell has left, 1 to 7, once it has begun to wear; 0 while it has not. */
   readonly wear = new Uint8Array(W * H);
-  readonly occupant = new Int32Array(W * H); // entity id occupying the cell, 0 = none
+  /** Entity id of the building, geyser or Obelisk on the cell, 0 = none. A Priest is not in it:
+   * he may stand on the edge of a building's footprint (`priestAt`). */
+  readonly occupant = new Int32Array(W * H);
   readonly entities = new Map<number, Entity>();
   readonly players = new Map<number, Player>();
   /** Buildings an explosion brought down during the current step. They go up on the next one, so a
@@ -98,6 +100,8 @@ export class World {
   readonly blasted = new Set<number>();
   /** Missiles on their way, in the order they were fired. */
   readonly shots: Shot[] = [];
+  /** Every Priest made, for `priestAt`; one gone from `entities` is skipped. */
+  private readonly priests: Priest[] = [];
   readonly events: Event[] = [];
   private nextId = 1;
   private readonly transports = new CellIndex<Transport>(W, H);
@@ -144,6 +148,10 @@ export class World {
 
     for (const entity of snapshot.entities) {
       world.entities.set(entity.id, entity);
+
+      if (entity.kind === 'priest') {
+        world.priests.push(entity);
+      }
     }
 
     world.shots.push(...snapshot.shots);
@@ -274,7 +282,7 @@ export class World {
       invisible: 0,
     };
     this.entities.set(p.id, p);
-    this.occupant[y * W + x] = p.id;
+    this.priests.push(p);
     return p;
   }
 
@@ -381,10 +389,12 @@ export class World {
       && joins(this, from, dir) && joins(this, to, oppositeDir(dir));
   }
 
-  /** Walkable for a transport/priest: any island or bridge cell without a building, whoever owns it.
-   * The help has transports heading for geysers "even in enemy territory" and fetching enemy
-   * priests, so ownership does not restrict movement; the player argument is kept for callers.
-   * Priests also occupy a cell, so they additionally avoid geysers and other priests. */
+  /** Walkable for a transport/priest: any island or bridge cell, whoever owns it, but the inside
+   * of a building. The help has transports heading for geysers "even in enemy territory" and
+   * fetching enemy priests, so ownership does not restrict movement; the player argument is kept
+   * for callers. A building blocks only the cells within the rim of its footprint: walkers pass
+   * along its edge even when it stands flush against their way, as in the original (seen in the
+   * game, not in the help). Priests also avoid geysers, Obelisks and other priests (`takenBy`). */
   walkable(_player: number, x: number, y: number): boolean {
     if (!this.inside(x, y)) {
       return false;
@@ -399,7 +409,28 @@ export class World {
 
     const occ = this.entities.get(this.occupant[i] ?? 0);
 
-    return !occ || occ.kind !== 'building';
+    return occ?.kind !== 'building' || !withinRim(occ, x, y);
+  }
+
+  /** The Priest standing on (x, y), on his feet or down; not one carried or chained. */
+  priestAt(x: number, y: number): Priest | undefined {
+    for (const p of this.priests) {
+      if (
+        p.x === x && p.y === y && (p.state === 'normal' || p.state === 'down')
+        && this.entities.get(p.id) === p
+      ) {
+        return p;
+      }
+    }
+
+    return undefined;
+  }
+
+  /** Whether something on (x, y) keeps a Priest or a new unit off it: a geyser, an Obelisk or a
+   * standing Priest. Buildings are left to `walkable`. */
+  takenBy(x: number, y: number): boolean {
+    const occ = this.entities.get(this.occupant[this.at(x, y)] ?? 0);
+    return (occ !== undefined && occ.kind !== 'building') || this.priestAt(x, y) !== undefined;
   }
 
   private forFoot(b: Building, f: (i: number) => void): void {
@@ -686,13 +717,16 @@ export class World {
     const occ = this.entities.get(this.occupant[this.at(x, y)] ?? 0);
 
     if (
-      occ
-      && (occ.kind === 'building' || occ.kind === 'priest')
-      && this.hostile(me, occ.owner)
-      && occ.invisible === 0
-      && !(occ.kind === 'building' && occ.regrow > 0)
+      occ?.kind === 'building' && this.hostile(me, occ.owner) && occ.invisible === 0
+      && occ.regrow === 0
     ) {
       return occ;
+    }
+
+    const priest = this.priestAt(x, y);
+
+    if (priest && this.hostile(me, priest.owner) && priest.invisible === 0) {
+      return priest;
     }
 
     const transports = this.transports.at(x, y);
@@ -766,4 +800,9 @@ export class World {
   hash(): number {
     return hashWorld(this, this.rng.state(), this.nextId);
   }
+}
+
+/** Whether (x, y) lies inside the rim of a building's footprint: not on its outermost cells. */
+function withinRim(b: Building, x: number, y: number): boolean {
+  return x > b.x && y > b.y && x < b.x + b.fx - 1 && y < b.y + b.fy - 1;
 }

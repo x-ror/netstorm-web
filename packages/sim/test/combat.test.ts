@@ -376,9 +376,11 @@ test('transports cut across island ground diagonally, but step onto bridge strai
   world.terrain[5 * 256 + 20] = 2;
   world.owner[5 * 256 + 20] = 1;
   assert.deepEqual(world.findPath(1, 19, 4, to(20, 5)), [[19, 5], [20, 5]]);
-  // A building in the way of one of the straight steps closes the diagonal past its corner.
+  // The inside of a building in the way of one of the straight steps closes the diagonal past it;
+  // the edge of its footprint does not.
   world.spawnBuilding('suncannon', 1, 10, 9);
-  assert.equal(world.findPath(1, 9, 9, to(10, 8))!.length, 2);
+  assert.equal(world.findPath(1, 12, 10, to(11, 9))!.length, 2);
+  assert.equal(world.findPath(1, 9, 9, to(10, 8))!.length, 1);
 });
 
 test('the Crossbow shoots into an arc of thirty degrees either side of its facing', () => {
@@ -885,6 +887,15 @@ test('an Aerial Transport flies over the sky to a geyser and back', () => {
   run(world, 40);
   assert.ok(world.players.get(1)!.storm >= 200);
   assert.equal(balloon.hp, balloon.hpMax);
+  // It flies a straight line, not all its diagonal steps first: no cell is a cell off the line.
+  const way = world.wayOf(balloon,
+    (cell) => cell[0] === balloon.x + 12 && cell[1] === balloon.y + 4)!;
+  assert.equal(way.length, 12);
+
+  for (const [index, [x, y]] of way.entries()) {
+    assert.equal(x, balloon.x + index + 1);
+    assert.ok(Math.abs(y - balloon.y - ((index + 1) * 4) / 12) < 1, `${x},${y}`);
+  }
 });
 
 test('only archers and anti-air guns can hit an Aerial Transport', () => {

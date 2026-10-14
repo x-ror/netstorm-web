@@ -30,8 +30,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 28;
-export const RULES_VERSION = 54;
+export const SNAPSHOT_VERSION = 29;
+export const RULES_VERSION = 55;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 

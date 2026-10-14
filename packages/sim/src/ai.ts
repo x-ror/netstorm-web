@@ -628,7 +628,10 @@ function wardSpot(world: WorldView, me: number): { x: number; y: number; } | nul
 
   for (let y = altar.y - 1; y <= altar.y + altar.fy; y++) {
     for (let x = altar.x - 1; x <= altar.x + altar.fx; x++) {
-      if (beside(x, y) && world.walkable(me, x, y) && !world.occupant[world.at(x, y)]) {
+      if (
+        beside(x, y) && world.walkable(me, x, y) && !world.occupant[world.at(x, y)]
+        && !world.priestAt(x, y)
+      ) {
         return { x, y };
       }
     }

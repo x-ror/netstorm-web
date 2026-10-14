@@ -37,12 +37,12 @@ export function advance(world: World, e: Transport | Priest, speed: number): boo
     e.move -= stepCost(e);
     const [x, y] = e.path.shift()!;
 
-    // A priest occupies its cell, so it stops rather than overwrite a geyser or another priest.
+    // A priest stops rather than step onto a geyser, an Obelisk or another priest.
     const airborne = e.kind === 'transport' && flies(world.def(e.type));
 
     if (
       (!airborne && !world.walkable(e.owner, x, y))
-      || (e.kind === 'priest' && world.occupant[world.at(x, y)])
+      || (e.kind === 'priest' && world.takenBy(x, y))
     ) {
       e.path = [];
 
@@ -53,11 +53,6 @@ export function advance(world: World, e: Transport | Priest, speed: number): boo
       }
 
       return false;
-    }
-
-    if (e.kind === 'priest') {
-      world.occupant[world.at(e.x, e.y)] = 0;
-      world.occupant[world.at(x, y)] = e.id;
     }
 
     const previousX = e.x;
@@ -97,7 +92,7 @@ function fallsAt(world: World, x: number, y: number): boolean {
  * the Crab takes one, which is all it can carry.
  */
 function steal(world: World, crab: Transport): void {
-  const onFoot = world.entities.get(world.occupant[world.at(crab.x, crab.y)] ?? 0);
+  const onFoot = world.priestAt(crab.x, crab.y);
   const victims: Carrier[] = [...world.transportsAt(crab.x, crab.y)];
 
   if (onFoot?.kind === 'priest') {
