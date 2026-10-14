@@ -68,7 +68,7 @@ export function createHud(
     <aside id="panel">
       <h3 title="Сегмент приєднується лише відкритими кінцями — там, де немає стінки">Мости <span class="muted">1–${world.bridgeSlots}, R — поворот</span></h3>
       <div id="hand"></div>
-      <h3>Виробництво <span class="muted">F — напрям юніта</span></h3>
+      <h3>Виробництво <span class="muted">R — напрям юніта</span></h3>
       <div id="units"></div>
       <div id="tools"></div>
       <div id="info"></div>
@@ -464,7 +464,9 @@ function hint(world: WorldView, ui: UiState): string {
     case 'build':
       return world.defs.get(ui.tool.type)?.cls.endsWith('Transport')
         ? 'ЛКМ — поставити на вільну клітинку свого острова, поруч з енергією. Golem робить Храм, інші транспорти — Майстерня їхньої стихії.'
-        : 'ЛКМ — поставити на своєму острові або біля відкритого кінця свого мосту, поруч з енергією.';
+        : `ЛКМ — поставити на своєму острові або біля відкритого кінця свого мосту, поруч з енергією.${
+          hasFacing(world.def(ui.tool.type)) ? ' R — повернути.' : ''
+        }`;
     case 'salvage':
       return 'ЛКМ по своїй споруді чи транспорту — розібрати за частину вартості.';
     case 'select':

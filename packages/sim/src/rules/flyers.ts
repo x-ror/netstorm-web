@@ -36,6 +36,13 @@ const ATTACKERS_ON_UNIT = 1;
 const ATTACKERS_ON_BUILDING = 3;
 /* oxlint-enable no-magic-numbers */
 
+/** Cells around the middle of an air base within which its flyer hunts, or null for anything that
+ * sends up no flyer. A Man o' War looks around itself, but it hovers over its base between kills. */
+export function huntRadius(base: string, def: (type: string) => Readonly<UnitDef>): number | null {
+  const flyer = FLYER_OF[base];
+  return flyer ? def(flyer).range + EXTRA_RANGE : null;
+}
+
 /** Ticks a flyer of this type stays in the air. */
 export function flightTicks(def: UnitDef): number {
   return (def.lifeSpan - (def.id === DUST_DEVIL ? SPIN_UP_SECONDS : 0)) * TPS;

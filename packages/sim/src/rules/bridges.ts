@@ -81,7 +81,7 @@ function connectedToTemple(world: WorldView, player: number): Uint8Array | null 
 }
 
 /** "Once you've attached to a Geyser you own its island, and can build bridge off of it." */
-function claimIsland(world: World, player: number, x: number, y: number): void {
+export function claimIsland(world: World, player: number, x: number, y: number): void {
   const queue: [number, number][] = [[x, y]];
 
   for (let head = 0; head < queue.length; head++) {

@@ -54,6 +54,7 @@ SLOTS = {
     "forcefield": 30,  # the ring that forms around a Priest struck down
     "manabolt": 4,  # the bolt of Storm Power of each Fury: wind, rain, thunder, sun
     "bridge": 59,  # a frame for every way a cell of bridge joins, whole, cracked and hard
+    "bridgeconnector": 4,  # the ground a bridge lands on, by where the island lies: N, E, S, W
     "fringe": 83,  # the rock that hangs under the southern rim of an island
 }
 

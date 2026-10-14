@@ -22,6 +22,7 @@ import {
   OUTPOST,
   W,
   type Living,
+  type Shot,
 } from '../state.js';
 
 export type EnemyAt = (owner: number, x: number, y: number) => Entity | null;
@@ -132,6 +133,76 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
   // "Crucial for defense against air attack": the Disc Thrower's data sets its hit on air units.
   const amount = airborne(world, target) && def.airDamage ? def.airDamage : usual;
   b.cooldown = interval;
+  const shot = {
+    gun: { ...b },
+    target: target.id,
+    amount,
+    land: world.tick + missileTicks(b, target),
+  };
+
+  if (shot.land === world.tick) {
+    land(world, shot);
+    return;
+  }
+
+  world.shots.push(shot);
+}
+
+/* oxlint-disable no-magic-numbers -- speeds of Missile.cpp in netstorm.game 10.82 */
+/** Cells a missile flies in a second: 35 for the bolt of the Crossbow and the disc of the Disc
+ * Thrower, 20 for the rest. */
+const FAST_MISSILES: ReadonlySet<string> = new Set(['windarcher', 'sunarcher']);
+const FAST_SPEED = 35;
+const MISSILE_SPEED = 20;
+/* oxlint-enable no-magic-numbers */
+/** The Vander Tower strikes with lightning, which is there at once (ours, `?`). */
+const LIGHTNING: ReadonlySet<string> = new Set(['thunderarcher']);
+
+/** Ticks a gun's missile takes from the middle of the gun to the middle of its target; 0 when the
+ * hit is at once. */
+function missileTicks(
+  gun: { type: string; x: number; y: number; fx: number; fy: number; },
+  target: { kind: string; x: number; y: number; fx?: number; fy?: number; },
+): number {
+  if (LIGHTNING.has(gun.type)) {
+    return 0;
+  }
+
+  const width = target.kind === 'building' ? target.fx ?? 1 : 1;
+  const height = target.kind === 'building' ? target.fy ?? 1 : 1;
+  // Doubled centres, as centre2.
+  const dx = target.x + target.x + width - (gun.x + gun.x + gun.fx);
+  const dy = target.y + target.y + height - (gun.y + gun.y + gun.fy);
+  const cells = Math.sqrt(dx * dx + dy * dy) / 2;
+  const speed = FAST_MISSILES.has(gun.type) ? FAST_SPEED : MISSILE_SPEED;
+  return Math.max(1, Math.round((cells / speed) * TPS));
+}
+
+/** Land the missiles due this tick, in the order they were fired. */
+export function landShots(world: World): void {
+  let kept = 0;
+
+  for (const shot of world.shots) {
+    if (shot.land > world.tick) {
+      world.shots[kept++] = shot;
+      continue;
+    }
+
+    land(world, shot);
+  }
+
+  world.shots.length = kept;
+}
+
+/** A missile reaches its target: it hits it if the target can still be hit. */
+function land(world: World, shot: Shot): void {
+  const { gun, amount } = shot;
+  const target = world.entities.get(shot.target);
+
+  // What is gone, fallen or hidden meanwhile is not hit.
+  if (!target || !('hp' in target) || target.hp <= 0 || !targetable(world, gun, target)) {
+    return;
+  }
 
   // "Enemy shots miss as often as they hit": half of them pass through a Cloud Floater.
   if (target.kind === 'transport' && target.type === CLOUD_FLOATER && world.rng.int(2) === 0) {
@@ -139,18 +210,18 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
   }
 
   // A shot into a hostile force field is spent on it.
-  if (fieldStops(world, b, target)) {
+  if (fieldStops(world, gun, target)) {
     return;
   }
 
   // The gun's damage runs at one rate whatever its shots hit, so what a ricochet strikes is taken
   // out of the same stream. Here the shot is split in two; in the original the split follows the
   // moments the two land (`?`).
-  const other = b.type === ICE_CANNON ? ricochet(world, b, target) : null;
-  damage(world, b.owner, target, other ? amount / 2 : amount, b);
+  const other = gun.type === ICE_CANNON ? ricochet(world, gun, target) : null;
+  damage(world, gun.owner, target, other ? amount / 2 : amount, gun);
 
   if (other) {
-    damage(world, world.hostile(b.owner, other.owner) ? b.owner : 0, other, amount / 2);
+    damage(world, world.hostile(gun.owner, other.owner) ? gun.owner : 0, other, amount / 2);
   }
 }
 

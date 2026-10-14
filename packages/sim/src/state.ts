@@ -533,6 +533,15 @@ export interface Obelisk {
   y: number;
   spell: string; // unit type of the Spell
 }
+/** A gun's missile on its way: it deals its damage when it lands, not when it is fired. */
+export interface Shot {
+  /** The gun as it stood when it fired: the missile lands even if the gun is destroyed meanwhile. */
+  gun: Building;
+  target: number;
+  amount: number;
+  /** Tick the missile lands on. */
+  land: number;
+}
 /** What has hit points and an owner, and what Spells work on. */
 export type Living = Building | Transport | Priest | Flyer;
 export type Entity = Living | Crystal | Geyser | Obelisk;

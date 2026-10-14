@@ -29,7 +29,7 @@ import {
   pieceSite,
   type PieceCommand,
 } from './rules/bridges.js';
-import { tickBuilding } from './rules/combat.js';
+import { landShots, tickBuilding } from './rules/combat.js';
 import { FLYER_SCALE, flightTicks, tickAirBase, tickFlyer } from './rules/flyers.js';
 import { tickPlayer } from './rules/economy.js';
 import { energy, canBuild, build, meltdown, salvage } from './rules/building.js';
@@ -59,6 +59,7 @@ import {
   type Flyer,
   type Entity,
   type Facing,
+  type Shot,
   DIRS,
   oppositeDir,
   HAND_SIZE,
@@ -95,6 +96,8 @@ export class World {
    * chain reaction advances one link a tick whatever the order of the entities. Not saved: it is
    * empty between steps. */
   readonly blasted = new Set<number>();
+  /** Missiles on their way, in the order they were fired. */
+  readonly shots: Shot[] = [];
   readonly events: Event[] = [];
   private nextId = 1;
   private readonly transports = new CellIndex<Transport>(W, H);
@@ -143,6 +146,8 @@ export class World {
       world.entities.set(entity.id, entity);
     }
 
+    world.shots.push(...snapshot.shots);
+
     for (const player of snapshot.players) {
       world.players.set(player.id, { ...player, tech: new Set(player.tech) });
     }
@@ -173,6 +178,7 @@ export class World {
       occupant: Array.from(this.occupant),
       defs: [...this.defs.values()],
       entities: [...this.entities.values()],
+      shots: this.shots,
       players: [...this.players.values()].map((player) => ({ ...player, tech: [...player.tech] })),
     });
   }
@@ -585,6 +591,7 @@ export class World {
       ageBridges(this);
     }
 
+    landShots(this);
     const tickEntities = [...this.entities.values()];
 
     for (const e of tickEntities) {

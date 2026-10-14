@@ -1,5 +1,5 @@
 import type { UnitDef, UnitGroup } from './defs.js';
-import type { Building, Entity, Player, Priest } from './state.js';
+import type { Building, Entity, Player, Priest, Shot } from './state.js';
 import type { CommandError } from './commands.js';
 
 export type DeepReadonly<T> = T extends Map<infer K, infer V> ? ReadonlyMap<K, DeepReadonly<V>>
@@ -24,6 +24,8 @@ export interface WorldView {
   readonly wear: ArrayLike<number>;
   readonly occupant: ArrayLike<number>;
   readonly entities: ReadonlyMap<number, DeepReadonly<Entity>>;
+  /** Missiles on their way, in the order they were fired. */
+  readonly shots: ReadonlyArray<DeepReadonly<Shot>>;
   readonly players: ReadonlyMap<number, DeepReadonly<Player>>;
   readonly defs: ReadonlyMap<string, Readonly<UnitDef>>;
   readonly inside: (x: number, y: number) => boolean;

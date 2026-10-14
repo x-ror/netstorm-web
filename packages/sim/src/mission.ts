@@ -5,7 +5,8 @@ import type { DefTable, Theme, UnitDef } from './defs.js';
 import { growIslands, type IslandSpec } from './terrain.js';
 import { skirmishTech, type SkirmishOptions, applyOptions } from './scenario.js';
 import { isSpell } from './rules/spells.js';
-import { LINK_ALL, Terrain, W, type Facing } from './state.js';
+import { claimIsland } from './rules/bridges.js';
+import { DIRS, LINK_ALL, Terrain, W, type Facing } from './state.js';
 
 /** A map as the original stores it. Positions are the far (south-east) cell of a footprint. */
 export interface MissionMap {
@@ -148,6 +149,24 @@ export function createMission(
 
     if (!w.occupant[w.at(x, y)]) {
       w.addGeyser(x, y, undefined, false);
+    }
+  }
+
+  // A bridge the map lays to a geyser has attached it, as a piece laid in battle would: its owner
+  // holds the islet and can build bridge off it. Where two sides reach one islet, the first bridge
+  // in the map's order takes it (`?`).
+  for (const [x, y] of map.bridges) {
+    const i = w.inside(x, y) ? w.at(x, y) : -1;
+    const lord = i < 0 ? 0 : w.owner[i]!;
+
+    if (lord === 0 || w.terrain[i] === Terrain.Island) {
+      continue;
+    }
+
+    for (const [dir, [dx, dy]] of DIRS.entries()) {
+      if (w.joined(x, y, dir)) {
+        claimIsland(w, lord, x + dx, y + dy);
+      }
     }
   }
 

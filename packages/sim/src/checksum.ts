@@ -54,6 +54,12 @@ export function hashWorld(world: WorldView, rngState: number, nextId: number): n
     text(JSON.stringify(entity));
   }
 
+  uint(world.shots.length);
+
+  for (const shot of world.shots) {
+    text(JSON.stringify(shot));
+  }
+
   uint(world.players.size);
 
   for (const [id, player] of world.players) {

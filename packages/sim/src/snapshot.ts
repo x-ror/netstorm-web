@@ -1,5 +1,5 @@
 import { UNIT_CLASSES, UNIT_GROUPS, type UnitDef } from './defs.js';
-import type { Entity, Player } from './state.js';
+import type { Entity, Player, Shot } from './state.js';
 import {
   BRIDGE_SETS,
   BRIDGE_SLOTS,
@@ -30,8 +30,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 25;
-export const RULES_VERSION = 50;
+export const SNAPSHOT_VERSION = 26;
+export const RULES_VERSION = 51;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -56,6 +56,7 @@ export interface WorldSnapshot {
   occupant: number[];
   defs: UnitDef[];
   entities: Entity[];
+  shots: Shot[];
   players: SnapshotPlayer[];
 }
 
@@ -338,6 +339,23 @@ function parseEntity(raw: unknown): Entity {
   };
 }
 
+function parseShot(raw: unknown): Shot {
+  const value = record(raw, 'shot');
+  keys(value, ['gun', 'target', 'amount', 'land'], 'shot');
+  const gun = parseEntity(value.gun);
+
+  if (gun.kind !== 'building') {
+    throw new TypeError('Shot fired by something other than a gun');
+  }
+
+  return {
+    gun,
+    target: integer(value.target, 'shot.target', 1, MAX_ID),
+    amount: finite(value.amount, 'shot.amount'),
+    land: integer(value.land, 'shot.land'),
+  };
+}
+
 function parsePlayer(raw: unknown): SnapshotPlayer {
   const value = record(raw, 'player');
   keys(value, [
@@ -435,6 +453,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     'occupant',
     'defs',
     'entities',
+    'shots',
     'players',
   ], 'snapshot');
 
@@ -444,6 +463,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
 
   const defs = list(value.defs, 'snapshot.defs').map(parseDef);
   const entities = list(value.entities, 'snapshot.entities').map(parseEntity);
+  const shots = list(value.shots, 'snapshot.shots').map(parseShot);
   const players = list(value.players, 'snapshot.players').map(parsePlayer);
   unique(defs, (def) => def.id, 'definition');
   unique(entities, (entity) => entity.id, 'entity');
@@ -474,6 +494,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     occupant: grid(value.occupant, 'occupant', MAX_ID),
     defs,
     entities,
+    shots,
     players,
   };
 }

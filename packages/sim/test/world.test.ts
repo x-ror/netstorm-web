@@ -354,6 +354,11 @@ test('Unit Rate, Kill Reward and Money per Geyser follow the battle options', ()
   victim.hp = 1;
   const before = w.players.get(1)!.storm;
   w.step();
+
+  while (w.shots.length > 0) {
+    w.step();
+  }
+
   assert.equal(w.players.get(1)!.storm - before, (defs.get('sunarcher')!.cost * 150) / 100);
   // The options are part of the saved state.
   const again = World.fromSnapshot(JSON.parse(JSON.stringify(w.snapshot())));
@@ -808,7 +813,7 @@ test('a mission is built from its map: islands, bridges, and the units of every 
     islands: [[7, 2, 2, 5], [7, 8, 2, 9]],
     geysers: [[100, 100]],
     // Three bridge cells running east from the first island: a hard, a normal and a cracked one.
-    bridges: [[70, 40, 40, 1], [71, 40, 41, 1], [72, 40, 43, 1]],
+    bridges: [[70, 40, 40, 1], [71, 40, 41, 1], [72, 40, 43, 1], [102, 100, 41, 1]],
     units: [
       // Each Temple in the square the builder leaves in the second chunk of an island.
       ['windvortex', 1, 60, 42, 0],
@@ -846,6 +851,8 @@ test('a mission is built from its map: islands, bridges, and the units of every 
   assert.equal(w.links[w.at(71, 40)], 10);
   assert.equal([...w.entities.values()].filter((e) => e.kind === 'transport').length, 1);
   assert.equal([...w.entities.values()].filter((e) => e.kind === 'geyser').length, 1);
+  // A bridge the map lays to a geyser has attached it: the islet is its owner's.
+  assert.ok(w.isOwnGround(1, 99, 99) && w.isOwnGround(1, 101, 101));
 
   for (let i = 0; i < 5 * TPS; i++) {
     w.step();

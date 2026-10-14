@@ -11,6 +11,8 @@ import {
   TPS,
   barriers,
   FLYER_SCALE,
+  DIRS,
+  oppositeDir,
 } from '@netstorm/sim';
 import {
   FACING_FRAMES,
@@ -130,6 +132,7 @@ export function createWorldRenderer(
     }
 
     const hanging: Sprite[] = [];
+    const landings: Sprite[] = [];
 
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
@@ -202,7 +205,17 @@ export function createWorldRenderer(
           : COLOR.noTint;
         ground.addChild(tile);
         tiles.push(tile);
+
+        if (terrain === Terrain.Island) {
+          landings.push(...landingsAt(x, y, sx, sy));
+        }
       }
+    }
+
+    // Where a bridge comes onto an island it lands on a patch of ground, over both.
+    for (const landing of landings) {
+      ground.addChild(landing);
+      tiles.push(landing);
     }
 
     // The rock hangs behind the ground: under every tile.
@@ -210,6 +223,35 @@ export function createWorldRenderer(
       ground.addChildAt(rock, 0);
       tiles.push(rock);
     }
+  }
+
+  /**
+   * The ground a bridge lands on where it joins an island cell (the BridgeConnector type): one
+   * picture for each bridge that joins it, by the side the island lies on from the bridge, north,
+   * east, south or west. Its frames come from the Bridge pictures and hang on the same hot spot.
+   */
+  function landingsAt(x: number, y: number, sx: number, sy: number): Sprite[] {
+    const found: Sprite[] = [];
+
+    for (const [dir, [dx, dy]] of DIRS.entries()) {
+      const next = world.terrain[(y + dy) * W + x + dx];
+
+      if (next === undefined || !isBridge(next) || !world.joined(x, y, dir)) {
+        continue;
+      }
+
+      const texture = textures.get(`slot:bridgeconnector:${oppositeDir(dir)}`);
+      const spot = texture && hotSpots.get(texture);
+
+      if (texture && spot) {
+        const landing = new Sprite(texture);
+        landing.anchor.set(spot.x, spot.y);
+        landing.position.set(sx + TW - 1, sy + BRIDGE_DROP);
+        found.push(landing);
+      }
+    }
+
+    return found;
   }
 
   /** Where the island ends around a cell: SKY bits of the neighbours, given as [bit, dx, dy]. */
@@ -585,9 +627,11 @@ export function createWorldRenderer(
     ticks: number;
   }[] = [];
   const beams: { sprite: Sprite; until: number; }[] = [];
+  /** Where a Sun Cannon's shells land, and on which tick: its missile is not drawn. */
+  const shells: { to: Point; land: number; }[] = [];
 
-  /** Show the shot of everything that fired this tick. Shots are not simulated as projectiles:
-   * this only shows who has hit whom. */
+  /** Show the shot of everything that fired this tick. A gun's missile takes as long as the
+   * simulation's, so it lands on the tick its damage is dealt. */
   function drawTracers(): void {
     for (const entity of world.entities.values()) {
       const bomber = entity.kind === 'flyer' && entity.type in MISSILES;
@@ -611,14 +655,23 @@ export function createWorldRenderer(
       const start = bomber
         ? { x: from.x, y: from.y - BOMB_DROP }
         : { x: middle(entity).x, y: from.y - from.height * TRACER_LIFT };
-      shoot(entity.type, start, middle(aim));
+      let flight: number | undefined;
+
+      for (const shot of world.shots) {
+        if (shot.gun.id === entity.id) {
+          flight = shot.land - world.tick; // the last one is the one just fired
+        }
+      }
+
+      shoot(entity.type, start, middle(aim), flight);
     }
 
     fly();
   }
 
-  /** Send off what a shooter throws: its missile, a bolt of lightning, or a plain streak. */
-  function shoot(shooter: string, from: Point, to: Point): void {
+  /** Send off what a shooter throws: its missile, a bolt of lightning, or a plain streak. `flight`
+   * is the ticks the simulation gives the missile; a bomb works its own out. */
+  function shoot(shooter: string, from: Point, to: Point, flight?: number): void {
     sounds.unit(shooter, 'fire', from);
     const missile = MISSILES[shooter];
     const first = missile ? textures.get(`slot:${missile.type}:0`) : undefined;
@@ -630,8 +683,9 @@ export function createWorldRenderer(
       const sprite = entityLayer.addChild(new Sprite(first));
       sprite.zIndex = AIR_Z;
       // The speed is in cells; a cell is TW pixels wide. A bomb takes at least its six frames.
-      const ticks = Math.max(missile.blast ? missile.frames : 1,
-        Math.round((far / TW / missileSpeed(shooter)) * TPS));
+      const ticks = flight
+        || Math.max(missile.blast ? missile.frames : 1,
+          Math.round((far / TW / missileSpeed(shooter)) * TPS));
       missiles.push({ sprite, shooter, from, to, start: world.tick, ticks });
       return;
     }
@@ -642,7 +696,7 @@ export function createWorldRenderer(
     }
 
     if (shooter === 'suncannon') {
-      burst(SHELL_BURST, to, AIR_Z);
+      shells.push({ to, land: world.tick + (flight ?? 0) });
     }
 
     bars.moveTo(from.x, from.y).lineTo(to.x, to.y).stroke({ color: COLOR.tracer, width: 1 });
@@ -697,6 +751,13 @@ export function createWorldRenderer(
       sprite.texture = texture;
       sprite.anchor.set(spot.x, spot.y);
       sprite.position.set(from.x + (to.x - from.x) * done, from.y + (to.y - from.y) * done);
+    }
+
+    for (let i = shells.length - 1; i >= 0; i--) {
+      if (world.tick >= shells[i]!.land) {
+        burst(SHELL_BURST, shells[i]!.to, AIR_Z);
+        shells.splice(i, 1);
+      }
     }
 
     for (let i = beams.length - 1; i >= 0; i--) {

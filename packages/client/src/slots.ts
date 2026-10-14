@@ -40,6 +40,7 @@ export const SLOT_COUNTS: Readonly<Record<string, number>> = {
   forcefield: 30,
   manabolt: 4,
   bridge: 59,
+  bridgeconnector: 4, // the ground a bridge lands on, by where the island lies: N, E, S, W
   fringe: 83,
 };
 /** The frame lines of each .type file that names shadows: the shadow of slot n is slot n plus

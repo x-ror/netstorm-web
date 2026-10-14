@@ -2,6 +2,7 @@ import { type Application, type Container, type Graphics, Sprite, type Texture }
 import {
   DIRS,
   ENERGY_RANGE,
+  huntRadius,
   PIECES,
   pieceEnds,
   ROTATION_MASK,
@@ -44,6 +45,7 @@ const COLOR = {
 } as const;
 const GHOST_ALPHA = 0.5;
 const ENERGY_ALPHA = 0.35;
+const REACH_ALPHA = 0.8; // the reach of the unit in hand or selected, over the faint energy circles
 const PATH_DOT = 1.5;
 const AIM_DISTANCE = 3; // cells from the cursor to the cannon aim marker
 const AIM_RADIUS = 2;
@@ -338,6 +340,11 @@ export function createControls(options: {
     zoomAt(camera, ev.clientX, ev.clientY, ev.deltaY < 0 ? ZOOM_IN : ZOOM_OUT);
   }, { signal, passive: false });
 
+  /** Whether the tool in hand is a unit that is aimed when it is laid. */
+  function aiming(): boolean {
+    return ui.tool.kind === 'build' && hasFacing(world.def(ui.tool.type));
+  }
+
   // --- keyboard
   const PAN: Record<string, [number, number]> = {
     ArrowLeft: [1, 0],
@@ -359,10 +366,11 @@ export function createControls(options: {
       camera.x += pan[0] * PAN_STEP;
       camera.y += pan[1] * PAN_STEP;
       ev.preventDefault();
-    } else if (key === 'r' || key === 'к') {
+    } else if ((key === 'r' || key === 'к') && !aiming()) {
       ui.rot = (ui.rot + 1) & ROTATION_MASK;
       sounds.play('rotatepiece');
-    } else if (key === 'f' || key === 'а') {
+    } else if (key === 'r' || key === 'к' || key === 'f' || key === 'а') {
+      // R turns whatever is in hand, a gun as well as a piece; F turns the gun alone.
       ui.facing = ((ui.facing + 1) & ROTATION_MASK) as Facing;
     } else if (key === 'escape') {
       cancel();
@@ -481,9 +489,23 @@ export function createControls(options: {
     }
   }
 
-  /** Where a shooter can hit, measured as the simulation does from its centre cell: a square of
-   * its range for most shooters, a straight line from the muzzle for cannons. */
+  /** Where a unit reaches, measured as the simulation does: the energy a Generator or a Temple
+   * supplies and the hunting ground of an air base, as circles round its middle; for a shooter a
+   * square of its range from its centre cell, its arc, or a straight line from the muzzle. */
   function drawReach(def: Readonly<UnitDef>, x: number, y: number, facing: Facing): void {
+    const middle = project(x + def.footX / 2, y + def.footY / 2);
+    const hunt = huntRadius(def.id, (type) => world.def(type));
+
+    if (def.cls === 'Energy' || def.group === 'battery') {
+      overlay.ellipse(middle.sx, middle.sy, ENERGY_RANGE * TW, ENERGY_RANGE * TH)
+        .stroke({ color: COLOR.energy, alpha: REACH_ALPHA, width: 1 });
+    }
+
+    if (hunt !== null) {
+      overlay.ellipse(middle.sx, middle.sy, hunt * TW, hunt * TH)
+        .stroke({ color: COLOR.reach, alpha: REACH_ALPHA, width: 1 });
+    }
+
     if (!def.dps || !def.range) {
       return;
     }

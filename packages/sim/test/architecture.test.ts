@@ -28,11 +28,11 @@ const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 test('authoritative hashes stay stable at reference ticks', () => {
   const world = mk();
   const hashes = new Map([
-    [1, 1190273810],
-    [60, 173624256],
-    [101, 881528298],
-    [200, 544987818],
-    [400, 2411239295],
+    [1, 533246786],
+    [60, 639585504],
+    [101, 1854270586],
+    [200, 3321864986],
+    [400, 2380527519],
   ]);
 
   for (let index = 0; index < 400; index++) {
