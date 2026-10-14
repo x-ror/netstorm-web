@@ -142,6 +142,7 @@ const DEVIL_MAKER_FRAMES = 6;
 const DAIS = { rising: 1, laid: 2, still: 3, going: 4, stage: 11, frames: 10 } as const;
 const HORNS = { empty: 0, struggle: 1, frames: 13 } as const;
 const CHANT = { first: 77, frames: 18 } as const;
+const FORCE_FIELD_FRAMES = 30;
 /** The Priest's twelve frames of floating, after his 65 slots of walking. When the original plays
  * them is not read; here he floats while he is struck down and while no ground is under him (`?`). */
 const FLOAT = { first: 65, frames: 12 } as const;
@@ -401,6 +402,12 @@ export function overlayOf(
   tick: number,
   world: WorldView,
 ): Slot | null {
+  // "A thin force field will form around him, keeping him alive": the game sets a ForceField on
+  // a Priest the moment he is struck down (Priest.cpp of netstorm.game 10.82).
+  if (entity.kind === 'priest') {
+    return entity.state === 'down' ? ['forcefield', tick % FORCE_FIELD_FRAMES] : null;
+  }
+
   if (entity.kind === 'geyser') {
     const plume = GEYSER.plumes[geyserLevel(entity.stock, world.geyserStock) - 1];
     return plume === undefined ? null : ['geyser', plume + (tick % GEYSER.plume)];

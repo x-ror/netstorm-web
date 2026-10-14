@@ -52,9 +52,13 @@ export const MISSILES: Readonly<
   thundercannon: { type: 'thundercannonmissile', bearings: 4, frames: 3 },
   sunarcher: { type: 'sundisc', bearings: 1, frames: 1 },
 };
-/** Cells a missile flies in a second. The original has two speeds, 20 and 35; which missile has
- * which is not read (`?`). */
-export const MISSILE_SPEED = 20;
+/** Cells a missile flies in a second, from Missile.cpp of netstorm.game 10.82: 35 for the bolt of
+ * the Crossbow and the disc of the Disc Thrower, 20 for the rest (docs/game-rules.md). */
+const FAST_MISSILES: ReadonlySet<string> = new Set(['windarcher', 'sunarcher']);
+
+export function missileSpeed(shooter: string): number {
+  return FAST_MISSILES.has(shooter) ? 35 : 20;
+}
 /** What a Sun Cannon's shot leaves where it lands: its shell is not drawn (ours). */
 export const SHELL_BURST = EXPLOSIONS.small;
 

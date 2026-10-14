@@ -51,6 +51,7 @@ SLOTS = {
     "healeffect": 9,  # what a Spell leaves on what it touches
     "gravitationeffect": 10,
     "meteoreffect": 15,
+    "forcefield": 30,  # the ring that forms around a Priest struck down
     "manabolt": 4,  # the bolt of Storm Power of each Fury: wind, rain, thunder, sun
     "bridge": 59,  # a frame for every way a cell of bridge joins, whole, cracked and hard
     "fringe": 83,  # the rock that hangs under the southern rim of an island

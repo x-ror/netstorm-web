@@ -24,11 +24,11 @@ import { project, TW, TH } from './projection.js';
 import { MANA_BOLTS, SACRIFICE, overlayOf, shadowOf, slotOf } from './animations.js';
 import {
   MISSILES,
-  MISSILE_SPEED,
   SPELL_BURSTS,
   SHELL_BURST,
   explosionFor,
   missileSlot,
+  missileSpeed,
   type Burst,
 } from './effects.js';
 import { hotSpots } from './assets.js';
@@ -625,11 +625,13 @@ export function createWorldRenderer(
 
     if (missile && first) {
       const far = Math.hypot(to.x - from.x, to.y - from.y);
+      // A missile may have a sound of its own for leaving and for landing (its .type file).
+      sounds.unit(missile.type, 'fire', from);
       const sprite = entityLayer.addChild(new Sprite(first));
       sprite.zIndex = AIR_Z;
       // The speed is in cells; a cell is TW pixels wide. A bomb takes at least its six frames.
       const ticks = Math.max(missile.blast ? missile.frames : 1,
-        Math.round((far / TW / MISSILE_SPEED) * TPS));
+        Math.round((far / TW / missileSpeed(shooter)) * TPS));
       missiles.push({ sprite, shooter, from, to, start: world.tick, ticks });
       return;
     }
@@ -676,6 +678,7 @@ export function createWorldRenderer(
 
       if (done >= 1 || !texture || !spot) {
         const blast = MISSILES[shooter]!.blast;
+        sounds.unit(MISSILES[shooter]!.type, 'impact', to);
         // The game picks one of the Ice Cannon's impact sounds at random; here by the tick.
         sounds.play(
           shooter === 'raincannon' ? `icecannonimpact${1 + (world.tick % ICE_IMPACTS)}` : undefined,

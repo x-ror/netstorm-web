@@ -37,6 +37,7 @@ export const SLOT_COUNTS: Readonly<Record<string, number>> = {
   healeffect: 9,
   gravitationeffect: 10,
   meteoreffect: 15,
+  forcefield: 30,
   manabolt: 4,
   bridge: 59,
   fringe: 83,

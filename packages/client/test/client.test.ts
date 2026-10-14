@@ -15,7 +15,7 @@ import {
   shoreFrame,
 } from '../src/texture-selection.js';
 import { SLOT_COUNTS, heading, overlayOf, shadowOf, slotOf } from '../src/animations.js';
-import { MISSILES, SPELL_BURSTS, explosionFor, missileSlot } from '../src/effects.js';
+import { MISSILES, SPELL_BURSTS, explosionFor, missileSlot, missileSpeed } from '../src/effects.js';
 import { loudness, unitSound, type SoundIndex } from '../src/sound.js';
 import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
@@ -446,6 +446,7 @@ test('missiles point the way they fly, and effects are runs of shipped slots', (
     3,
   ]);
   assert.equal(missileSlot('sunarcher', -3, 2, 7), 0);
+  assert.deepEqual(['windarcher', 'sunarcher', 'raincannon'].map(missileSpeed), [35, 35, 20]);
   // A Whirligig's bomb has one bearing and tumbles through six frames, then blasts.
   assert.deepEqual([4, 5, 6].map((tick) => missileSlot('sunflyer', 0, 1, tick)), [4, 5, 0]);
   assert.deepEqual(MISSILES.sunflyer!.blast, { type: 'sunflyerbomb', first: 6, frames: 17 });

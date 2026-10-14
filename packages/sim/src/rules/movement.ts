@@ -258,8 +258,9 @@ function onIsland(world: World, g: Geyser): boolean {
 
 /**
  * A geyser on an island is gone once it is spent, and its ground is free. One in open sky stays
- * as an "Empty Storm Geyser" (emptygeyser.type), which keeps its islet. That the two differ so is
- * how the game was seen to behave, not read from its code (`?`). Carriers on their way to it look
+ * as an "Empty Storm Geyser" (emptygeyser.type), which keeps its islet. From the mining code of
+ * netstorm.game 10.82: the spent geyser is destroyed, and an empty one is set in its place unless
+ * the ground under it is that of an island. Carriers on their way to it look
  * for another; the one that took the last crystal does so after handing it in.
  */
 function vanish(world: World, g: Geyser): void {
