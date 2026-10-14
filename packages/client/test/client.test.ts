@@ -14,7 +14,8 @@ import {
 } from '../src/game-data.js';
 import { paint, paintOf } from '../src/owner-colours.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
-import { DEFAULT_OPTIONS } from '../src/options.js';
+import { DEFAULT_OPTIONS, MAX_STORM, normalizeOptions } from '../src/options.js';
+import { contract } from '../src/ui/contracts.js';
 import {
   FACING_FRAMES,
   SKY,
@@ -604,4 +605,19 @@ test('the HUD is built as plain data from the world and the tool in hand', () =>
     scale: 40 / 44,
   });
   assert.equal(iconOf(atlas, 'nosuchunit', 40), null);
+});
+
+test('an emptied number field starts with nothing; a missing one keeps the default', () => {
+  const emptied = normalizeOptions({ storm: null, seed: null }, missions);
+  assert.deepEqual([emptied.storm, emptied.seed], [0, 0]);
+  const missing = normalizeOptions({}, missions);
+  assert.deepEqual([missing.storm, missing.seed], [DEFAULT_OPTIONS.storm, DEFAULT_OPTIONS.seed]);
+  assert.equal(normalizeOptions({ storm: 9e9 }, missions).storm, MAX_STORM);
+});
+
+test('a component missing a function its contract promises fails at mount', () => {
+  const hud = { update() {}, addLog() {}, showPage() {} };
+  assert.throws(() => contract('Hud', hud as never, ['update', 'addLog', 'showPage', 'hidePage']),
+    /Hud\.svelte does not export hidePage\(\)/);
+  assert.equal(contract('Hud', hud, ['update', 'addLog']), hud);
 });

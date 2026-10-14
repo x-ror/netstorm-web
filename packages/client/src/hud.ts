@@ -3,17 +3,10 @@ import { type WorldView } from '@netstorm/sim';
 import type { Atlas } from './assets.js';
 import { hudModel, type HudActions, type LogLine } from './hud-model.js';
 import type { UiState } from './ui-state.js';
+import { contract, typed, type HudExports, type HudProps } from './ui/contracts.js';
 import Hud from './ui/Hud.svelte';
 
 export type { HudActions } from './hud-model.js';
-
-/** What Hud.svelte lets the match do with it. */
-interface HudComponent {
-  update(model: ReturnType<typeof hudModel>): void;
-  addLog(lines: LogLine[]): void;
-  showPage(page: { title: string; text: string; buttons: readonly string[]; }): void;
-  hidePage(): void;
-}
 
 /** The panels around the map: drawn by Hud.svelte from the world as `render` finds it. */
 export function createHud(
@@ -24,8 +17,13 @@ export function createHud(
   actions: HudActions,
   atlas: Atlas,
 ) {
-  const hud = mount(Hud, { target: root, props: { atlas, actions } }) as unknown as HudComponent;
-  const component = hud as unknown as Record<string, unknown>;
+  const hud = contract('Hud',
+    mount(typed<HudProps, HudExports>(Hud), { target: root, props: { atlas, actions } }), [
+    'update',
+    'addLog',
+    'showPage',
+    'hidePage',
+  ]);
 
   return {
     render(): void {
@@ -46,7 +44,7 @@ export function createHud(
       hud.hidePage();
     },
     dispose(): void {
-      void unmount(component);
+      void unmount(hud);
       root.replaceChildren();
     },
   };

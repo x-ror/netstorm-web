@@ -185,7 +185,7 @@ export function hudModel(
   };
 }
 
-export function pieceArt(
+function pieceArt(
   atlas: Atlas,
   cells: [number, number][],
   links: number[],

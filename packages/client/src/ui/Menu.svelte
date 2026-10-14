@@ -7,7 +7,6 @@
     KILL_REWARDS,
     UNIT_RATES,
   } from '@netstorm/sim';
-  import type { Atlas } from '../assets.js';
   import type { Mission } from '../game-data.js';
   import {
     BRIDGE_LABELS,
@@ -19,19 +18,10 @@
     type MatchOptions,
     type PlayableTheme,
   } from '../options.js';
+  import type { MenuProps } from './contracts.js';
   import UnitIcon from './UnitIcon.svelte';
 
-  let {
-    missions,
-    atlas,
-    initial,
-    onstart,
-  }: {
-    missions: Mission[];
-    atlas: Atlas;
-    initial: MatchOptions;
-    onstart: (options: MatchOptions) => void;
-  } = $props();
+  let { missions, atlas, initial, onstart }: MenuProps = $props();
 
   /** Each Fury on its card: its name and the units it is known by. */
   const FURIES: Record<PlayableTheme, { name: string; note: string; }> = {
@@ -48,9 +38,11 @@
   const mission = $derived(missions.find((m) => m.id === options.mission));
   let list: HTMLElement | undefined = $state();
 
-  // The chosen mission is in view when the menu opens.
+  // The chosen mission is kept in view, when the menu opens and whenever it changes.
   $effect(() => {
-    list?.querySelector('.mission:has(input:checked)')?.scrollIntoView({ block: 'nearest' });
+    const chosen = options.mission;
+    list?.querySelector(`input[value="${CSS.escape(chosen)}"]`)?.closest('label')
+      ?.scrollIntoView({ block: 'nearest' });
   });
 
   function enemyOf(m: Mission): string {
@@ -171,6 +163,7 @@
     <h2>Місія</h2>
     <div class="mission-list" bind:this={list}>
       {#each missions as m (m.id)}
+        {@const enemy = enemyOf(m)}
         <label class="mission">
           <input
             type="radio"
@@ -180,7 +173,7 @@
             onchange={() => chooseMission(m)}
           />
           <b>{m.title}</b>
-          {#if enemyOf(m)}<small>{enemyOf(m)}</small>{/if}
+          {#if enemy}<small>{enemy}</small>{/if}
         </label>
       {/each}
     </div>

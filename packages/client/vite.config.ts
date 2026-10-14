@@ -128,10 +128,15 @@ export default defineConfig(({ command }) => ({
   base: './',
   publicDir: command === 'build' ? false : 'public',
   plugins: [
-    // The panels around the map. A warning of the Svelte compiler stops the build: with no type
-    // checker for .svelte files, the compiler is what catches their mistakes.
+    // The panels around the map. A warning of the Svelte compiler stops the build, where the
+    // compiler is what catches the mistakes of .svelte files; while editing it is only shown.
     svelte({
-      onwarn(warning) {
+      onwarn(warning, warn) {
+        if (command !== 'build') {
+          warn(warning);
+          return;
+        }
+
         throw new Error(`${warning.filename}:${warning.start?.line}: ${warning.message}`);
       },
     }),

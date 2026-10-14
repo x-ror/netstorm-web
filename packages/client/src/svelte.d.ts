@@ -1,8 +1,6 @@
-// Svelte components, for TypeScript files that mount them. Their props are typed by the modules
-// that build them (hud-model.ts, options.ts); the compiler checks the markup.
+// A Svelte component, for the TypeScript that mounts it: unknown until ui/contracts.ts gives it its
+// props and exports, since nothing here reads the types of the .svelte file itself.
 declare module '*.svelte' {
-  import type { Component } from 'svelte';
-
-  const component: Component<Record<string, unknown>>;
+  const component: unknown;
   export default component;
 }

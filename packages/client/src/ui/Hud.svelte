@@ -1,26 +1,26 @@
 <script lang="ts">
-  import type { Atlas } from '../assets.js';
   import {
     LOG_LINES,
-    type HudActions,
     type HudModel,
     type LogLine,
     type Page,
     type SelectedAction,
   } from '../hud-model.js';
+  import type { HudProps } from './contracts.js';
   import Glyph from './Glyph.svelte';
   import Planks from './Planks.svelte';
   import UnitIcon from './UnitIcon.svelte';
 
-  let { atlas, actions }: { atlas: Atlas; actions: HudActions; } = $props();
+  let { atlas, actions }: HudProps = $props();
 
   const CARD_ICON = 40; // pixels of a unit's picture on its production card
   const PORTRAIT = 48; // pixels of the selected unit's picture
   const PER_CENT = 100;
 
-  let model: HudModel | null = $state(null);
-  let log: LogLine[] = $state([]);
-  let page: Page | null = $state(null);
+  // Each is replaced whole and never changed in place: no proxies for what is only read.
+  let model: HudModel | null = $state.raw(null);
+  let log: LogLine[] = $state.raw([]);
+  let page: Page | null = $state.raw(null);
 
   /** Draw the panels anew from the world as it is now. */
   export function update(next: HudModel): void {

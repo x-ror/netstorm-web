@@ -80,8 +80,8 @@ export function normalizeOptions(
     theme: isTheme(raw.theme) ? raw.theme : d.theme,
     enemyTheme: isTheme(raw.enemyTheme) ? raw.enemyTheme : d.enemyTheme,
     mission: missions.some((m) => m.id === mission) ? mission : missions[0]?.id ?? d.mission,
-    storm: clamp(Number(raw.storm ?? d.storm), MAX_STORM, d.storm),
-    seed: clamp(Number(raw.seed ?? d.seed), MAX_SEED, d.seed),
+    storm: clamp(given(raw.storm, d.storm), MAX_STORM, d.storm),
+    seed: clamp(given(raw.seed, d.seed), MAX_SEED, d.seed),
     opponent: raw.opponent === 'idle' ? 'idle' : 'ai',
     bridges: BRIDGE_SETS.find((id) => id === raw.bridges) ?? d.bridges,
     slots: oneOf(BRIDGE_SLOTS, Number(raw.slots), d.slots),
@@ -112,6 +112,11 @@ export function saveOptions(options: MatchOptions): void {
   } catch {
     // Not remembering the choice is harmless.
   }
+}
+
+/** A number the player gave: an emptied field (null) is 0, a missing one the default. */
+function given(value: unknown, fallback: number): number {
+  return value === undefined ? fallback : Number(value ?? 0);
 }
 
 function clamp(value: number, max: number, fallback: number): number {
