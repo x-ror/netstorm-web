@@ -1,7 +1,7 @@
 import type { World } from '../world.js';
 import {
   DOMINO_PIECE,
-  PIECE_HARD,
+  PIECE_HARDEN,
   PIECE_INTERVAL,
   BRIDGE_SET_WEIGHTS,
   SINGLE_PIECE,
@@ -74,7 +74,7 @@ export function tickPlayer(world: World, player: Player): void {
   player.refresh = player.refresh.filter((entry) => entry.ticks > 0);
 
   for (const entry of player.hand) {
-    entry.age = Math.min(PIECE_HARD, entry.age + 1);
+    entry.age = Math.min(PIECE_HARDEN, entry.age + 1);
   }
 
   if (

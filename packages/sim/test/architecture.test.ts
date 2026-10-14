@@ -30,9 +30,9 @@ test('authoritative hashes stay stable at reference ticks', () => {
   const hashes = new Map([
     [1, 533246786],
     [60, 639585504],
-    [101, 1854270586],
-    [200, 3321864986],
-    [400, 2380527519],
+    [101, 597366234],
+    [200, 1545070366],
+    [400, 2787915563],
   ]);
 
   for (let index = 0; index < 400; index++) {

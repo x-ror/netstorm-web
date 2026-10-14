@@ -13,7 +13,6 @@ import {
   WEAR_FULL,
   isBridge,
   PIECES,
-  PIECE_HARD,
   PIECE_HARDEN,
   oppositeDir,
   rotateLinks,
@@ -162,14 +161,8 @@ export function dropPiece(
   const { cells, links } = site;
   const entry = pl.hand[c.hand]!;
 
-  // The bridge keeps the strength the piece had reached in the window.
-  let strength = Terrain.HardBridge;
-
-  if (entry.age < PIECE_HARDEN) {
-    strength = Terrain.CrackedBridge;
-  } else if (entry.age < PIECE_HARD) {
-    strength = Terrain.Bridge;
-  }
+  // The bridge keeps the strength the piece had reached in the window: cracked or normal.
+  const strength = entry.age < PIECE_HARDEN ? Terrain.CrackedBridge : Terrain.Bridge;
 
   for (const [index, [x, y]] of cells.entries()) {
     world.terrain[world.at(x, y)] = strength;

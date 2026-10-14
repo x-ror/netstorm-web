@@ -20,7 +20,7 @@ import {
   MAX_FACING,
   OUTPOST,
   PIECES,
-  PIECE_HARD,
+  PIECE_HARDEN,
   Terrain,
   W,
   H,
@@ -813,9 +813,9 @@ function bestPiece(
   let bestNeed = head.need;
 
   for (let index = 0; index < hand.length; index++) {
-    // Only pieces that have turned hard in the window: a loose end of anything softer wears away
-    // within a minute and a half, and the bridge would have to be laid again.
-    if (hand[index]!.age < PIECE_HARD) {
+    // Only pieces that are no longer cracked: a cracked loose end soon falls, and the bridge
+    // would have to be laid again.
+    if (hand[index]!.age < PIECE_HARDEN) {
       continue;
     }
 
@@ -1035,7 +1035,11 @@ function barrier(world: WorldView, move: Move, head: { x: number; y: number; }):
 function lay(world: WorldView, move: Move, def: Readonly<UnitDef>, x: number, y: number): boolean {
   const command = { t: 'build', player: move.me, type: def.id, x, y } as const;
 
-  if (def.cost > move.budget || world.canBuild(command) !== null) {
+  // Nor on the cells of the piece laid this move, which canBuild does not see yet.
+  if (
+    def.cost > move.budget || world.canBuild(command) !== null
+    || !clearOfBridges(world, def, x, y, move.planned)
+  ) {
     return false;
   }
 

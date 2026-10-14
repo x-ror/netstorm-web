@@ -11,7 +11,7 @@ import {
   W,
   H,
   PIECES,
-  PIECE_HARD,
+  PIECE_HARDEN,
   FACINGS,
   MAX_ID,
   MAX_PLAYERS,
@@ -30,8 +30,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 26;
-export const RULES_VERSION = 51;
+export const SNAPSHOT_VERSION = 27;
+export const RULES_VERSION = 53;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -385,7 +385,7 @@ function parsePlayer(raw: unknown): SnapshotPlayer {
       keys(entry, ['piece', 'age'], 'hand piece');
       return {
         piece: integer(entry.piece, 'piece', 0, PIECES.length - 1),
-        age: integer(entry.age, 'piece.age', 0, PIECE_HARD),
+        age: integer(entry.age, 'piece.age', 0, PIECE_HARDEN),
       };
     }),
     pieceTimer: integer(value.pieceTimer, 'player.pieceTimer', -Number.MAX_SAFE_INTEGER),

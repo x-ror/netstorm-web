@@ -9,14 +9,12 @@ export const H = 256; // world size in cells
 // once per bridgeDrawRate, which defaults to 1 and is added to a clock that counts seconds.
 const PIECE_INTERVAL_SECONDS = 1;
 export const PIECE_INTERVAL = PIECE_INTERVAL_SECONDS * TPS;
-// A piece in the window has three strengths, as in the original: cracked, then normal, then hard.
-// It moves from normal to hard when a timer of 60 tenths of a second runs out (same code). How long
-// the first step, from cracked to normal, takes is not established (`?`); 6 s is assumed for it too.
+// A piece in the window starts cracked and "becomes more solid" (help 537-540): normal bridge. Hard
+// bridge is never laid by a player; only a mission map or Bridge Harden makes it. The original has
+// a timer of 60 tenths of a second here; that it is this step is our reading (`?`).
 const PIECE_HARDEN_SECONDS = 6;
-/** Ticks in the window after which a piece is no longer cracked. */
+/** Ticks in the window after which a piece is no longer cracked; its age stops there. */
 export const PIECE_HARDEN = PIECE_HARDEN_SECONDS * TPS;
-/** Ticks in the window after which a piece is hard. */
-export const PIECE_HARD = PIECE_HARDEN + PIECE_HARDEN;
 /* oxlint-disable no-magic-numbers -- the values of battle options in netstorm.game 10.82 */
 export const BRIDGE_SLOTS = [2, 4, 6] as const;
 /** "Unit Rate": seconds a unit type stays dimmed after it is laid (Slow, Medium, Fast, Very Fast). */
@@ -79,7 +77,7 @@ export function isBridge(terrain: number | undefined): boolean {
 /** A bridge piece waiting in the Production Window. */
 export interface HandPiece {
   piece: number; // index into PIECES
-  age: number; // ticks in the window, capped at PIECE_HARD
+  age: number; // ticks in the window, capped at PIECE_HARDEN
 }
 export type Facing = 0 | 1 | 2 | 3; // N, E, S, W
 export const DIRS: ReadonlyArray<readonly [number, number]> = [

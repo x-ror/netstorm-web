@@ -187,6 +187,26 @@ test('shooters fire separate shots, lock on the closest target and the Sun Canno
   assert.equal(sun.facing, 1);
 });
 
+test('a cannon fires over its own buildings; an enemy one stops the shot even unseen', () => {
+  const world = mk();
+  world.addIsland(0, 0, 100, 100, 2);
+  world.spawnBuilding('raincannon', 1, 40, 40, 1);
+  world.spawnBuilding('sunblocker', 1, 45, 40); // its own, in the line of fire
+  const enemy = world.spawnBuilding('sunblocker', 2, 50, 40);
+  world.step();
+  land(world);
+  assert.ok(enemy.hp < enemy.hpMax);
+  // An invisible enemy tower cannot be targeted, but still blocks what is behind it.
+  const other = mk();
+  other.addIsland(0, 0, 100, 100, 2);
+  other.spawnBuilding('raincannon', 1, 40, 40, 1);
+  other.spawnBuilding('sunblocker', 2, 45, 40).invisible = 100;
+  const behind = other.spawnBuilding('sunblocker', 2, 50, 40);
+  other.step();
+  land(other);
+  assert.equal(behind.hp, behind.hpMax);
+});
+
 test('a missile lands after its flight, survives a save and outlives its gun', () => {
   const world = mk();
   world.addPlayer(1, 'Blue', 'wind', 0, []);

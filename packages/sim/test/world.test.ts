@@ -12,7 +12,7 @@ import {
   PIECE_INTERVAL,
   GEYSER_STOCK,
   PIECE_HARDEN,
-  PIECE_HARD,
+  Terrain,
   BRIDGE_SCAN,
   PIECES,
   PIECE_WEIGHTS,
@@ -33,6 +33,13 @@ const players = [
   { id: 2, name: 'Red', theme: 'rain' as const, x: 120, y: 40 },
 ];
 const mk = (seed = 1) => createSkirmish(defs, seed, players, [[80, 40]]);
+/** Make bridge cells hard, as Bridge Harden or a mission map does: no player lays hard bridge. */
+const harden = (w: World, cells: [number, number][]) => {
+  for (const [x, y] of cells) {
+    w.terrain[w.at(x, y)] = Terrain.HardBridge;
+    w.wear[w.at(x, y)] = 0;
+  }
+};
 
 test('defs loaded with original numbers', () => {
   const c = defs.get('suncannon')!;
@@ -449,7 +456,8 @@ test('a loose end of bridge wears away; bridge joined at both ends and hard brid
   // with a cannon at its end.
   lay(0, 33);
   lay(PIECE_HARDEN, 36);
-  lay(PIECE_HARD, 39);
+  lay(PIECE_HARDEN, 39);
+  harden(w, [[51, 39], [52, 39]]);
   lay(PIECE_HARDEN, 45);
   assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 53, y: 44 }), null);
   assert.deepEqual([at(52, 33), at(52, 36), at(52, 39), at(52, 45)], [3, 2, 4, 2]);
@@ -478,8 +486,9 @@ test('the islet of a destroyed unit falls and leaves the bridge a jagged end', (
   p.hand = [{ piece: 1, age: PIECE_HARDEN }];
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null);
   assert.equal(w.apply({ t: 'build', player: 1, type: 'suncannon', x: 53, y: 39 }), null);
-  p.hand = [{ piece: 0, age: PIECE_HARD }];
+  p.hand = [{ piece: 0, age: PIECE_HARDEN }];
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 56, y: 40, rot: 1 }), null);
+  harden(w, [[56, 40]]);
   const cannon = w.buildingsOf(1).find((b) => b.type === 'suncannon')!;
   assert.equal(cannon.islet, true);
   assert.deepEqual([at(52, 40), at(53, 40), at(56, 40)], [2, 1, 4]);
@@ -564,9 +573,11 @@ test('a short stretch of bridge left hanging in the sky falls at the next look',
   const at = (x: number, y: number) => w.terrain[y * 256 + x];
 
   for (const x of [51, 53, 55]) {
-    p.hand = [{ piece: 1, age: PIECE_HARD }];
+    p.hand = [{ piece: 1, age: PIECE_HARDEN }];
     assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x, y: 40, rot: 1 }), null);
   }
+
+  harden(w, [51, 52, 53, 54, 55, 56].map((x) => [x, 40] as [number, number]));
 
   // Cut the first two cells out: four cells hang, joined to nothing. They are hard, which does
   // not save them.
@@ -657,19 +668,21 @@ test('a piece hardens in the window; explosions and salvage crack solid bridge a
     'not connected');
 });
 
-test('a piece turns hard in the window; hard bridge survives an explosion next to it', () => {
+test('a piece turns normal in the window, never hard; hard bridge survives an explosion', () => {
   const w = mk();
   const p = w.players.get(1)!;
   const at = (x: number, y: number) => w.terrain[y * 256 + x];
 
-  for (let i = 0; i < PIECE_INTERVAL + PIECE_HARD + 1; i++) {
+  for (let i = 0; i < PIECE_INTERVAL + 2 * PIECE_HARDEN; i++) {
     w.step();
   }
 
-  // Cracked, then normal after PIECE_HARDEN, then hard: the age stops there.
-  assert.equal(p.hand[0]!.age, PIECE_HARD);
-  p.hand = [{ piece: 1, age: PIECE_HARD }, { piece: 1, age: PIECE_HARDEN }];
+  // Cracked, then normal after PIECE_HARDEN: the age stops there, and it is laid as normal bridge.
+  assert.equal(p.hand[0]!.age, PIECE_HARDEN);
+  p.hand = [{ piece: 1, age: PIECE_HARDEN }, { piece: 1, age: PIECE_HARDEN }];
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null);
+  assert.deepEqual([at(51, 40), at(52, 40)], [2, 2]);
+  harden(w, [[51, 40], [52, 40]]);
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 53, y: 40, rot: 1 }), null);
   assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [4, 4, 2, 2]);
   // A cannon touching one hard cell (52) and two normal cells (53, 54).

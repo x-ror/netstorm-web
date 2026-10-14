@@ -726,7 +726,7 @@ function inRadius(world: World, b: Building, def: UnitDef, target: Entity): bool
   return Math.max(dx, dy) <= range;
 }
 
-/** First enemy along a straight line from the muzzle; any building in the way stops the shot. */
+/** First enemy along a straight line from the muzzle; an enemy building in the way stops the shot. */
 export function lineTarget(
   world: World,
   b: Building,
@@ -760,9 +760,11 @@ export function lineTarget(
       return { entity: hit, distance: r };
     }
 
+    // An enemy building stops the shot even when it cannot be targeted: "invisible blockers will
+    // still block". Own and allied buildings are fired over.
     const occ = world.entities.get(world.occupant[world.at(x, y)] ?? 0);
 
-    if (occ?.kind === 'building') {
+    if (occ?.kind === 'building' && world.hostile(b.owner, occ.owner)) {
       return null;
     }
   }
