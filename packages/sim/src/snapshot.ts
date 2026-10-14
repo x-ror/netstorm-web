@@ -30,8 +30,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 27;
-export const RULES_VERSION = 53;
+export const SNAPSHOT_VERSION = 28;
+export const RULES_VERSION = 54;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -341,7 +341,7 @@ function parseEntity(raw: unknown): Entity {
 
 function parseShot(raw: unknown): Shot {
   const value = record(raw, 'shot');
-  keys(value, ['gun', 'target', 'amount', 'land'], 'shot');
+  keys(value, ['gun', 'target', 'x', 'y', 'amount', 'land'], 'shot');
   const gun = parseEntity(value.gun);
 
   if (gun.kind !== 'building') {
@@ -351,6 +351,8 @@ function parseShot(raw: unknown): Shot {
   return {
     gun,
     target: integer(value.target, 'shot.target', 1, MAX_ID),
+    x: integer(value.x, 'shot.x', 0, W - 1),
+    y: integer(value.y, 'shot.y', 0, H - 1),
     amount: finite(value.amount, 'shot.amount'),
     land: integer(value.land, 'shot.land'),
   };

@@ -207,6 +207,31 @@ test('a cannon fires over its own buildings; an enemy one stops the shot even un
   assert.equal(behind.hp, behind.hpMax);
 });
 
+test('a missile flies to where its target stood: one that has walked off is missed', () => {
+  const world = mk();
+  world.addIsland(0, 0, 100, 100, 2);
+  world.spawnBuilding('suncannon', 1, 48, 39, 1);
+  const walker = world.spawnTransport('sunwalker', 2, 60, 40);
+  const stayer = world.spawnTransport('sunwalker', 2, 60, 40);
+  world.step();
+  assert.equal(world.shots.length, 1);
+  assert.deepEqual([world.shots[0]!.x, world.shots[0]!.y], [60, 40]);
+  const aimed = world.entities.get(world.shots[0]!.target)!;
+  // The one aimed at steps aside while the shell is in the air.
+  (aimed.id === walker.id ? walker : stayer).y = 41;
+  land(world);
+  const moved = aimed.id === walker.id ? walker : stayer;
+  assert.equal(moved.hp, moved.hpMax);
+  // Standing still, it would have been hit.
+  const again = mk();
+  again.addIsland(0, 0, 100, 100, 2);
+  again.spawnBuilding('suncannon', 1, 48, 39, 1);
+  const still = again.spawnTransport('sunwalker', 2, 60, 40);
+  again.step();
+  land(again);
+  assert.ok(still.hp < still.hpMax);
+});
+
 test('a missile lands after its flight, survives a save and outlives its gun', () => {
   const world = mk();
   world.addPlayer(1, 'Blue', 'wind', 0, []);

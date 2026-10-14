@@ -136,6 +136,8 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
   const shot = {
     gun: { ...b },
     target: target.id,
+    x: target.x,
+    y: target.y,
     amount,
     land: world.tick + missileTicks(b, target),
   };
@@ -201,6 +203,12 @@ function land(world: World, shot: Shot): void {
 
   // What is gone, fallen or hidden meanwhile is not hit.
   if (!target || !('hp' in target) || target.hp <= 0 || !targetable(world, gun, target)) {
+    return;
+  }
+
+  // The missile flies to where the target stood when the gun fired: what has moved off that cell
+  // is missed (the player's account of the original; not in the help).
+  if (target.kind !== 'building' && (target.x !== shot.x || target.y !== shot.y)) {
     return;
   }
 

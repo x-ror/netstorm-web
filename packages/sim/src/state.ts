@@ -536,6 +536,9 @@ export interface Shot {
   /** The gun as it stood when it fired: the missile lands even if the gun is destroyed meanwhile. */
   gun: Building;
   target: number;
+  /** The cell the target stood on when the gun fired: the missile flies there, not after it. */
+  x: number;
+  y: number;
   amount: number;
   /** Tick the missile lands on. */
   land: number;
