@@ -140,20 +140,172 @@
         font-family: Georgia, serif;
         letter-spacing: 0.02em;
       }
-      .menu-grid {
-        display: grid;
-        grid-template-columns: minmax(220px, 1fr) 2fr;
-        gap: 24px;
+      /* --- the start screen: the clouds of the Pyrosphere, the Furies, the missions */
+      #menu {
+        background:
+          radial-gradient(ellipse at 50% 40%, rgba(20, 21, 31, 0.25), rgba(12, 12, 20, 0.85) 75%),
+          url(sprites/sky.png) 0 0 / 512px 512px,
+          var(--bg);
+        image-rendering: pixelated;
       }
-      @media (max-width: 640px) {
-        .menu-grid {
-          grid-template-columns: 1fr;
-        }
+      .start {
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: 300px minmax(220px, 280px) minmax(300px, 520px);
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 14px;
+        width: min(1180px, calc(100% - 32px));
+        height: min(760px, calc(100vh - 32px));
+        image-rendering: auto;
+      }
+      .title {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: baseline;
+        gap: 16px;
+      }
+      .title h1 {
+        margin: 0;
+        font: 700 44px/1 Georgia, "Times New Roman", serif;
+        letter-spacing: 0.04em;
+        color: var(--gold);
+        text-shadow: 0 2px 0 #5a4210, 0 0 24px rgba(242, 210, 122, 0.25);
+      }
+      .title p {
+        margin: 0;
+        color: var(--muted);
+        letter-spacing: 0.06em;
+      }
+      .pane {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px 16px;
+        background: var(--glass);
+        border: 1px solid var(--edge);
+        border-radius: 10px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(3px);
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--edge) transparent;
+      }
+      .pane h2 {
+        margin: 0;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--edge-soft);
+        color: var(--gold);
+        font: 600 11px/1.3 system-ui, sans-serif;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .furies {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .fury {
+        position: relative;
+        display: grid;
+        justify-items: center;
+        gap: 4px;
+        padding: 8px 4px;
+        border: 1px solid var(--edge-soft);
+        border-radius: 8px;
+        background: radial-gradient(
+          circle at 50% 35%,
+          rgba(86, 90, 120, 0.45),
+          rgba(0, 0, 0, 0.25) 75%
+        );
+        cursor: pointer;
+        text-align: center;
+        transition: border-color 0.12s, box-shadow 0.12s;
+      }
+      .fury input,
+      .mission input,
+      .segmented input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .fury b {
+        color: var(--text);
+      }
+      .fury small {
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.3;
+      }
+      .fury:hover {
+        border-color: var(--edge);
+      }
+      .fury:has(input:checked) {
+        border-color: var(--fury);
+        box-shadow:
+          0 0 0 1px var(--fury),
+          0 0 16px color-mix(in srgb, var(--fury) 35%, transparent);
+      }
+      .fury:has(input:checked) b {
+        color: var(--fury);
+      }
+      .fury:has(input:focus-visible),
+      .mission:has(input:focus-visible),
+      .segmented label:has(input:focus-visible) {
+        outline: 2px solid var(--gold);
+        outline-offset: 1px;
+      }
+      .fury.theme-wind {
+        --fury: var(--wind);
+      }
+      .fury.theme-rain {
+        --fury: var(--rain);
+      }
+      .fury.theme-thunder {
+        --fury: var(--thunder);
+      }
+      .furies.small .fury {
+        grid-auto-flow: column;
+        justify-content: center;
+        align-items: center;
+        padding: 4px;
+      }
+      .segmented {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        padding: 3px;
+        border: 1px solid var(--edge-soft);
+        border-radius: 7px;
+        background: rgba(0, 0, 0, 0.25);
+      }
+      .segmented label {
+        position: relative;
+        display: grid;
+        place-items: center;
+        padding: 5px;
+        border-radius: 5px;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .segmented label:has(input:checked) {
+        background: linear-gradient(180deg, #5b4a22, #3b3018);
+        color: #fff4d2;
+      }
+      .options summary {
+        cursor: pointer;
+        color: var(--muted);
+        padding: 4px 0;
+      }
+      .options summary:hover {
+        color: var(--text);
+      }
+      .options[open] summary {
+        margin-bottom: 8px;
+        color: var(--gold);
       }
       .menu-form {
         display: grid;
-        gap: 10px;
-        align-content: start;
+        gap: 9px;
       }
       .menu-form label {
         display: grid;
@@ -170,12 +322,72 @@
         border-radius: 5px;
         font: 13px system-ui, sans-serif;
       }
-      .briefing h2 {
-        margin-top: 0;
+      .mission-list {
+        display: grid;
+        gap: 4px;
+        min-height: 0;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--edge) transparent;
       }
-      .briefing .note {
-        font-size: 12px;
+      .mission {
+        position: relative;
+        display: grid;
+        padding: 7px 10px;
+        border: 1px solid transparent;
+        border-left: 3px solid transparent;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .mission b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .mission small {
         color: var(--muted);
+        font-size: 11px;
+      }
+      .mission:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .mission:has(input:checked) {
+        background: linear-gradient(90deg, rgba(242, 210, 122, 0.14), rgba(242, 210, 122, 0.02));
+        border-color: var(--edge-soft);
+        border-left-color: var(--gold);
+      }
+      .mission:has(input:checked) b {
+        color: var(--gold);
+      }
+      .briefing h2 {
+        font: 700 22px/1.2 Georgia, serif;
+        letter-spacing: 0.02em;
+        text-transform: none;
+      }
+      .briefing pre {
+        flex: 1;
+        margin: 0;
+        overflow: auto;
+        color: #d9d2bf;
+      }
+      .start-button {
+        align-self: stretch;
+        padding: 12px 20px;
+        font-size: 15px;
+        letter-spacing: 0.04em;
+      }
+      @media (max-width: 980px) {
+        .start {
+          grid-template-columns: 1fr;
+          grid-template-rows: none;
+          height: auto;
+          margin: 16px 0;
+        }
+        .pane {
+          overflow: visible;
+        }
+        .mission-list {
+          max-height: 260px;
+        }
       }
       /* --- the panels around the map */
       #topbar,

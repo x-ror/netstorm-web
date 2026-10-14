@@ -25,14 +25,14 @@ async function main() {
   const menu = document.getElementById('menu')!;
   const game = document.getElementById('game')!;
 
-  let options = await showMenu(menu, missions);
+  let options = await showMenu(menu, missions, data.atlas);
 
   for (;;) {
     // "Next Mission" leads straight on to a mission, if the game has it; otherwise to the menu.
     const next = await runMatch(game, data, options);
     options = missions.some((mission) => mission.id === next)
       ? { ...options, mission: next! }
-      : await showMenu(menu, missions);
+      : await showMenu(menu, missions, data.atlas);
   }
 }
 

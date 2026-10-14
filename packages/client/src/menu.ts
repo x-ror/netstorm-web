@@ -9,6 +9,8 @@ import {
   type Theme,
 } from '@netstorm/sim';
 import { type Mission } from './game-data.js';
+import type { Atlas } from './assets.js';
+import { unitIcon } from './icons.js';
 
 export type PlayableTheme = Exclude<Theme, 'sun'>;
 
@@ -40,6 +42,14 @@ const THEMES: Record<PlayableTheme, string> = {
   rain: 'Дощ (Rain)',
   thunder: 'Грім (Thunder)',
 };
+/** Each Fury on its card: its name and a word on how it fights (help: the Furies' units). */
+const FURIES: Record<PlayableTheme, { name: string; note: string; }> = {
+  wind: { name: 'Вітер', note: 'Crossbow, Wind Tower, Dust Devil' },
+  rain: { name: 'Дощ', note: "Ice Cannon, Ice Tower, Man o' War" },
+  thunder: { name: 'Грім', note: 'Thunder Cannon, Vander Tower, Bulwark' },
+};
+const TEMPLE_ICON = 64; // pixels of a Temple on a Fury's card
+const ENEMY_ICON = 32;
 const BRIDGE_LABELS: Record<BridgeSet, string> = {
   standard: 'Standard — основний набір',
   traditional: 'Traditional — як у версії 10.37',
@@ -72,50 +82,78 @@ export const DEFAULT_OPTIONS: MatchOptions = {
 };
 
 /** Show the skirmish setup and resolve with the chosen options when the player starts. */
-export function showMenu(root: HTMLElement, missions: Mission[]): Promise<MatchOptions> {
+export function showMenu(
+  root: HTMLElement,
+  missions: Mission[],
+  atlas: Atlas,
+): Promise<MatchOptions> {
   const saved = loadOptions(missions);
+  const furies = (name: string, size: number) =>
+    (Object.keys(THEMES) as PlayableTheme[]).map((id) =>
+      `<label class="fury theme-${id}"><input type="radio" name="${name}" value="${id}">${
+        unitIcon(atlas, `${id}vortex`, FURIES[id].name, size)
+      }<b>${FURIES[id].name}</b>${
+        size === TEMPLE_ICON ? `<small>${FURIES[id].note}</small>` : ''
+      }</label>`
+    ).join('');
   root.hidden = false;
   root.innerHTML = `
-    <div class="menu-card">
-      <h1>NetStorm Web</h1>
-      <p class="muted">Фан-ремейк NetStorm: Islands At War. Сутичка проти комп'ютерного суперника.</p>
-      <div class="menu-grid">
-        <form class="menu-form">
-          <label>Ваша стихія <select name="theme">${themeOptions()}</select></label>
-          <label>Стихія суперника <select name="enemyTheme">${themeOptions()}</select></label>
-          <label>Суперник <select name="opponent">
-            <option value="ai">Комп'ютер</option><option value="idle">Без дій</option>
-          </select></label>
-          <label>Карта гейзерів <select name="mission">${
-    missions.map((m) => `<option value="${m.id}">${escapeHtml(m.title)}</option>`).join('')
-  }</select></label>
-          <label>Набір мостів <select name="bridges">${
+    <form class="start">
+      <header class="title">
+        <h1>NetStorm</h1>
+        <p>Islands At War · фан-ремейк для браузера</p>
+      </header>
+      <section class="pane side">
+        <h2>Ваша Фурія</h2>
+        <div class="furies">${furies('theme', TEMPLE_ICON)}</div>
+        <h2>Суперник</h2>
+        <div class="furies small">${furies('enemyTheme', ENEMY_ICON)}</div>
+        <div class="segmented">
+          <label><input type="radio" name="opponent" value="ai"><span>Комп'ютер</span></label>
+          <label><input type="radio" name="opponent" value="idle"><span>Без дій</span></label>
+        </div>
+        <details class="options">
+          <summary>Параметри бою</summary>
+          <div class="menu-form">
+            <label>Набір мостів <select name="bridges">${
     BRIDGE_SETS.map((id) => `<option value="${id}">${BRIDGE_LABELS[id]}</option>`).join('')
   }</select></label>
-          <label>Слотів для сегментів <select name="slots">${
+            <label>Слотів для сегментів <select name="slots">${
     BRIDGE_SLOTS.map((slots) => `<option value="${slots}">${slots}</option>`).join('')
   }</select></label>
-          <label>Пауза між однаковими юнітами <select name="unitRate">${
+            <label>Пауза між однаковими юнітами <select name="unitRate">${
     UNIT_RATES.map((seconds, i) =>
       `<option value="${seconds}">${UNIT_RATE_NAMES[i]} — ${seconds} с</option>`
     ).join('')
   }</select></label>
-          <label>Нагорода за знищення <select name="killReward">${
+            <label>Нагорода за знищення <select name="killReward">${
     KILL_REWARDS.map((share) => `<option value="${share}">${share} % вартості</option>`).join('')
   }</select></label>
-          <label>Запас гейзера <select name="geyserStock">${
+            <label>Запас гейзера <select name="geyserStock">${
     GEYSER_STOCKS.map((stock) => `<option value="${stock}">${stock}</option>`).join('')
   }</select></label>
-          <label>Storm Power на старті
-            <input name="storm" type="number" min="0" max="${MAX_STORM}" step="100"></label>
-          <label>Зерно випадковості <input name="seed" type="number" min="0" max="${MAX_SEED}"></label>
-          <button type="submit" class="primary">Почати</button>
-        </form>
-        <article class="briefing"><h2></h2><pre></pre><p class="muted note">
-          Острови поки прямокутні: з карти беруться лише гейзери, а з місії — текст брифінгу.
-        </p></article>
-      </div>
-    </div>`;
+            <label>Storm Power на старті
+              <input name="storm" type="number" min="0" max="${MAX_STORM}" step="100"></label>
+            <label>Зерно випадковості <input name="seed" type="number" min="0" max="${MAX_SEED}"></label>
+          </div>
+        </details>
+      </section>
+      <section class="pane missions">
+        <h2>Місія</h2>
+        <div class="mission-list">${
+    missions.map((m) =>
+      `<label class="mission"><input type="radio" name="mission" value="${m.id}"><b>${
+        escapeHtml(m.title)
+      }</b>${enemyOf(m)}</label>`
+    ).join('')
+  }</div>
+      </section>
+      <section class="pane briefing">
+        <h2></h2>
+        <pre></pre>
+        <button type="submit" class="primary start-button">Почати бій</button>
+      </section>
+    </form>`;
   const form = root.querySelector('form')!;
   const field = <T extends HTMLInputElement | HTMLSelectElement>(name: string) =>
     form.elements.namedItem(name) as T;
@@ -135,12 +173,14 @@ export function showMenu(root: HTMLElement, missions: Mission[]): Promise<MatchO
     const mission = missions.find((m) => m.id === field<HTMLSelectElement>('mission').value);
     root.querySelector('.briefing h2')!.textContent = mission?.title ?? '';
     root.querySelector('.briefing pre')!.textContent = mission?.briefing ?? '';
+    root.querySelector('.mission input:checked')?.closest('label')
+      ?.scrollIntoView({ block: 'nearest' });
   };
 
   form.addEventListener('change', (event) => {
     showBriefing();
 
-    if (event.target === field('mission')) {
+    if (event.target instanceof HTMLInputElement && event.target.name === 'mission') {
       const mission = missions.find((m) => m.id === field<HTMLSelectElement>('mission').value);
 
       if (mission?.storm) {
@@ -177,10 +217,15 @@ export function showMenu(root: HTMLElement, missions: Mission[]): Promise<MatchO
   });
 }
 
-function themeOptions(): string {
-  return Object.entries(THEMES).map(([id, label]) => `<option value="${id}">${label}</option>`)
-    .join('');
+/** The opponent a mission names, under its title; nothing where the file gives no real name. */
+function enemyOf(mission: Mission): string {
+  const name = mission.enemy.trim();
+  return name && !GENERIC_ENEMIES.has(name.toLowerCase())
+    ? `<small>${escapeHtml(name)}</small>`
+    : '';
 }
+
+const GENERIC_ENEMIES: ReadonlySet<string> = new Set(['player', 'суперник']);
 
 function clamp(value: number, max: number, fallback: number): number {
   return Number.isFinite(value) ? Math.min(max, Math.max(0, Math.floor(value))) : fallback;
