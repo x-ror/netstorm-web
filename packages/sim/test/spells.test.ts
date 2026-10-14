@@ -39,7 +39,9 @@ test('a transport takes a Spell at an Obelisk and pays Storm Power for every cas
     null);
   run(world, 20 * TPS);
   assert.equal(golem.spell, 'bombexplodelarge');
-  assert.ok(world.entities.has(obelisk.id));
+  // The Obelisk is picked up with its Spell: it is gone from the map.
+  assert.ok(!world.entities.has(obelisk.id));
+  assert.equal(world.occupant[world.at(60, 50)], 0);
   assert.equal(cast(), null);
   assert.equal(world.players.get(1)!.storm, 100);
   // It halts until the Spell is cast, and cannot start another meanwhile.

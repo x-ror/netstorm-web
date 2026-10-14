@@ -298,7 +298,8 @@ export function cast(world: World, t: Transport): void {
 }
 
 /** The transport has come to the Obelisk: the Spell is its own, "displacing the previous one".
- * The Obelisk is left standing; whether the original uses it up is not established (`?`). */
+ * The help has transports "pick up Storm Crystals, High Priests, and Spells in the form of
+ * Obelisks", cargo like the rest, so the Obelisk is taken off the map with its Spell. */
 export function arriveAtObelisk(world: World, t: Transport): void {
   const o = t.target === null ? undefined : world.entities.get(t.target);
   t.goal = 'idle';
@@ -306,6 +307,8 @@ export function arriveAtObelisk(world: World, t: Transport): void {
 
   if (o?.kind === 'obelisk' && near(o, t)) {
     t.spell = o.spell;
+    world.occupant[world.at(o.x, o.y)] = 0;
+    world.entities.delete(o.id);
     world.emit({ what: 'spell', who: t.owner, data: { transport: t.id, spell: o.spell } });
   }
 }

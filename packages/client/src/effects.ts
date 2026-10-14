@@ -13,23 +13,27 @@ export interface Burst {
 
 /* oxlint-disable no-magic-numbers -- slots and counts of the .type files */
 /**
- * The explosions of the Anim type: two large ones (groups A and B), a middling one (C, "kaboom")
- * and a small one (D). Which the original plays for what is not read; here a unit goes up in the
- * one that fits its footprint (`?`).
+ * The explosions of the Anim type, by the group of frames the game starts each from (the calls
+ * of its explosion maker in netstorm.game 10.82): group B, the second large one, when a unit is
+ * destroyed and for the blast Spells; group C, "kaboom", where an Ice Cannon's shot or its
+ * ricochet lands; group D, the small one, where any other missile lands. Group A, the first large
+ * one, is not started by any call that was found.
  */
 const EXPLOSIONS = {
-  large: { type: 'anim', first: 0, frames: 35 },
+  large: { type: 'anim', first: 35, frames: 23 },
   middling: { type: 'anim', first: 58, frames: 8 },
   small: { type: 'anim', first: 66, frames: 22 },
 } as const;
 
-/** The explosion of a unit `width` cells wide. */
+/** The explosion of a destroyed unit `width` cells wide. The call found is made for buildings;
+ * that something one cell big goes up in the small one is ours (`?`). */
 export function explosionFor(width: number): Burst {
-  if (width >= 3) {
-    return EXPLOSIONS.large;
-  }
+  return width >= 2 ? EXPLOSIONS.large : EXPLOSIONS.small;
+}
 
-  return width === 2 ? EXPLOSIONS.middling : EXPLOSIONS.small;
+/** What a missile leaves where it lands: "kaboom" for the Ice Cannon, the small one otherwise. */
+export function impactOf(shooter: string): Burst {
+  return shooter === 'raincannon' ? EXPLOSIONS.middling : EXPLOSIONS.small;
 }
 
 /**
@@ -59,7 +63,7 @@ const FAST_MISSILES: ReadonlySet<string> = new Set(['windarcher', 'sunarcher']);
 export function missileSpeed(shooter: string): number {
   return FAST_MISSILES.has(shooter) ? 35 : 20;
 }
-/** What a Sun Cannon's shot leaves where it lands: its shell is not drawn (ours). */
+/** What a Sun Cannon's shot leaves where it lands: its shell has no picture, its impact has. */
 export const SHELL_BURST = EXPLOSIONS.small;
 
 /** The slot of a missile on its way along (dx, dy) in screen pixels, at a tick. */
@@ -80,7 +84,7 @@ export const SPELL_BURSTS: Readonly<
   bombheal: { each: { type: 'healeffect', first: 0, frames: 9 } },
   bombgraviton: { each: { type: 'gravitationeffect', first: 0, frames: 10 }, air: true },
   bombmeteor: { each: { type: 'meteoreffect', first: 0, frames: 15 } },
-  bombexplodesmall: { here: EXPLOSIONS.middling },
+  bombexplodesmall: { here: EXPLOSIONS.large },
   bombexplodemedium: { here: EXPLOSIONS.large },
   bombexplodelarge: { here: EXPLOSIONS.large },
 };

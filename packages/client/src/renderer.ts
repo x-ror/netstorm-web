@@ -32,6 +32,7 @@ import {
   SPELL_BURSTS,
   SHELL_BURST,
   explosionFor,
+  impactOf,
   missileSlot,
   missileSpeed,
   type Burst,
@@ -893,8 +894,9 @@ export function createWorldRenderer(
           to,
         );
 
-        if (blast) {
-          burst(blast, to, AIR_Z);
+        // A bomb ends in its own blast; any other missile in the explosion of its impact.
+        if (done >= 1) {
+          burst(blast ?? impactOf(shooter), to, AIR_Z);
         }
 
         sprite.destroy();

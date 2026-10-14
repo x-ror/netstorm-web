@@ -26,7 +26,14 @@ import {
   shoreFrame,
 } from '../src/texture-selection.js';
 import { SLOT_COUNTS, heading, overlayOf, shadowOf, slotOf } from '../src/animations.js';
-import { MISSILES, SPELL_BURSTS, explosionFor, missileSlot, missileSpeed } from '../src/effects.js';
+import {
+  MISSILES,
+  SPELL_BURSTS,
+  explosionFor,
+  impactOf,
+  missileSlot,
+  missileSpeed,
+} from '../src/effects.js';
 import { loudness, unitSound, type SoundIndex } from '../src/sound.js';
 import { anchorFor, createUiState, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
@@ -462,7 +469,9 @@ test('missiles point the way they fly, and effects are runs of shipped slots', (
   // A Whirligig's bomb has one bearing and tumbles through six frames, then blasts.
   assert.deepEqual([4, 5, 6].map((tick) => missileSlot('sunflyer', 0, 1, tick)), [4, 5, 0]);
   assert.deepEqual(MISSILES.sunflyer!.blast, { type: 'sunflyerbomb', first: 6, frames: 17 });
-  assert.deepEqual([1, 2, 3, 7].map((width) => explosionFor(width).first), [66, 58, 0, 0]);
+  // A building goes up in the second large explosion; an Ice Cannon's shot lands with a kaboom.
+  assert.deepEqual([1, 2, 3, 7].map((width) => explosionFor(width).first), [66, 35, 35, 35]);
+  assert.deepEqual(['raincannon', 'windarcher'].map((s) => impactOf(s).first), [58, 66]);
 
   const runs = [
     ...Object.values(MISSILES).flatMap((m) => (m.blast ? [m.blast] : [])),
