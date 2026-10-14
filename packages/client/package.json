@@ -11,6 +11,10 @@
   },
   "dependencies": {
     "@netstorm/sim": "*",
-    "pixi.js": "^8.22.0"
+    "pixi.js": "^8.22.0",
+    "svelte": "^5.57.2"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1"
   }
 }

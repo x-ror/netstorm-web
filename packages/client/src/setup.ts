@@ -1,6 +1,6 @@
 import { createMission, createSkirmish, H, W, type DefTable, type World } from '@netstorm/sim';
 import { type Maps, type Mission } from './game-data.js';
-import { type MatchOptions } from './menu.js';
+import { type MatchOptions } from './options.js';
 
 export const ME = 1;
 export const ENEMY = 2;

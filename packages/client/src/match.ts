@@ -18,7 +18,7 @@ import {
   type MissionButton,
   type MissionPage,
 } from './game-data.js';
-import { type MatchOptions } from './menu.js';
+import { type MatchOptions } from './options.js';
 import { createMatchWorld, ME } from './setup.js';
 import { createWorldRenderer } from './renderer.js';
 import { createControls } from './controls.js';
@@ -32,7 +32,6 @@ import { ZOOM } from './projection.js';
 import { createUiState } from './ui-state.js';
 
 const HUD_REFRESH_TICKS = 5;
-const LOG_MAX_ENTRIES = 60;
 
 export interface GameData {
   defs: DefTable;
@@ -157,7 +156,6 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   minimapCanvas.id = 'minimap';
   root.append(minimapCanvas);
   const minimap = createMinimap(minimapCanvas, view, ME, camera);
-  const logEl = root.querySelector<HTMLElement>('#log')!;
 
   const pending: SimEvent[] = [];
 
@@ -222,25 +220,16 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     }
   }
 
+  let logId = 0;
+
   function renderLog(): void {
-    for (const event of pending.splice(0)) {
+    const lines = pending.splice(0).flatMap((event) => {
       const line = describeEvent(view, ME, event);
-
-      if (!line) {
-        continue;
-      }
-
-      const entry = document.createElement('div');
-      entry.className = line.tone;
-      const time = document.createElement('time');
-      time.textContent = formatTime(event.tick);
-      entry.append(time, ` ${line.text}`);
-      logEl.prepend(entry);
-    }
-
-    while (logEl.childElementCount > LOG_MAX_ENTRIES) {
-      logEl.lastElementChild!.remove();
-    }
+      return line
+        ? [{ id: logId++, time: formatTime(event.tick), text: line.text, tone: line.tone }]
+        : [];
+    });
+    hud.log(lines);
   }
 
   const me = world.priestOf(ME)!;

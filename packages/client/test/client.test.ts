@@ -14,7 +14,7 @@ import {
 } from '../src/game-data.js';
 import { paint, paintOf } from '../src/owner-colours.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
-import { DEFAULT_OPTIONS } from '../src/menu.js';
+import { DEFAULT_OPTIONS } from '../src/options.js';
 import {
   FACING_FRAMES,
   SKY,
@@ -27,8 +27,9 @@ import {
 import { SLOT_COUNTS, heading, overlayOf, shadowOf, slotOf } from '../src/animations.js';
 import { MISSILES, SPELL_BURSTS, explosionFor, missileSlot, missileSpeed } from '../src/effects.js';
 import { loudness, unitSound, type SoundIndex } from '../src/sound.js';
-import { anchorFor, entityAt, placeable } from '../src/ui-state.js';
+import { anchorFor, createUiState, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
+import { hudModel, iconOf } from '../src/hud-model.js';
 
 const read = (name: string): unknown =>
   JSON.parse(readFileSync(new URL(`../../../data/${name}.json`, import.meta.url), 'utf8'));
@@ -561,4 +562,46 @@ test('rims and bridge rails take the colour of their side; other pictures keep t
   paint(rail, 'rail', 'blue');
   // On a bridge the plank keeps its orange, the rail turns blue.
   assert.deepEqual([...rail], [185, 123, 71, 255, 178, 103, 54, 255, 68, 105, 134, 255]);
+});
+
+test('the HUD is built as plain data from the world and the tool in hand', () => {
+  const world = createMatchWorld(defs, maps, missions, DEFAULT_OPTIONS);
+  const ui = createUiState();
+  const atlas = { atlases: ['atlas.png'], frames: { 'suncannon:1': [0, 10, 20, 44, 41] } };
+  const player = world.players.get(ME)!;
+  player.storm = 300;
+  player.hand = [{ piece: 1, age: 0 }];
+  const model = hudModel(world.view(), ME, ui, atlas);
+  assert.equal(model.slots.length, world.bridgeSlots);
+  assert.deepEqual(model.slots.map((slot) => slot.piece !== null), [
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+  ]);
+  assert.ok(model.slots[0]!.cracked);
+  // Too dear at 300 Storm Power, and laid with a facing: east while in hand.
+  ui.tool = { kind: 'build', type: 'suncannon' };
+  const cannon = hudModel(world.view(), ME, ui, atlas).units.find((card) =>
+    card.id === 'suncannon'
+  );
+  assert.deepEqual([cannon?.poor, cannon?.active, cannon?.facing], [true, true, 'схід']);
+  // The Temple, selected: its owner's side and a full health bar.
+  ui.selected = world.templeOf(ME)!.id;
+  const selected = hudModel(world.view(), ME, ui, atlas).selected!;
+  assert.deepEqual([selected.owner?.side, selected.hp?.band, selected.hp?.share], [
+    'own',
+    'high',
+    1,
+  ]);
+  // A unit's icon is cut out of the atlas, enlarged by whole steps only.
+  assert.deepEqual(iconOf(atlas, 'suncannon', 40), {
+    width: 44,
+    height: 41,
+    background: 'url(atlas.png) -10px -20px',
+    scale: 40 / 44,
+  });
+  assert.equal(iconOf(atlas, 'nosuchunit', 40), null);
 });

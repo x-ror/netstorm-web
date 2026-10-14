@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { TEXTURES, parsePath, selectFrame, type Manifest } from './src/texture-selection.js';
 import { mapsOf, slimMaps, slimMissions, slimUnits } from './src/game-data.js';
 import { buildAtlas } from './atlas.js';
@@ -126,7 +127,16 @@ export default defineConfig(({ command }) => ({
   // Relative URLs let the build run from any path, e.g. a GitHub Pages project site.
   base: './',
   publicDir: command === 'build' ? false : 'public',
-  plugins: [gameAssets()],
+  plugins: [
+    // The panels around the map. A warning of the Svelte compiler stops the build: with no type
+    // checker for .svelte files, the compiler is what catches their mistakes.
+    svelte({
+      onwarn(warning) {
+        throw new Error(`${warning.filename}:${warning.start?.line}: ${warning.message}`);
+      },
+    }),
+    gameAssets(),
+  ],
   server: { fs: { allow: [fileURLToPath(new URL('../..', import.meta.url))] } },
   build: { target: 'es2022' },
 }));
