@@ -513,7 +513,7 @@ test('units sound as their .type files say, and every sound named is shipped', (
   assert.equal(unitSound(index, 'bombheal', 'active'), 'healget');
   assert.equal(unitSound(index, 'sunblocker', 'fire'), undefined);
   // "thunderCannon-1000.wav" is the Thunder Cannon's shot, ten decibels down.
-  assert.deepEqual(index.files.thundercannon, ['sounds/thundercannon.wav', 0.316]);
+  assert.deepEqual(index.files.thundercannon, ['sounds/thundercannon.mp3', 0.316]);
   // A sound is heard in full near the middle of the screen and fades, never quite to nothing.
   assert.deepEqual([0, 320, 800, 5000].map(loudness), [1, 1, 0.5, 0.08]);
   const named = Object.values(index.units).flatMap((sounds) => Object.values(sounds));

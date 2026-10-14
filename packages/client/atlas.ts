@@ -145,22 +145,68 @@ function chunk(name: string, body: Uint8Array): Uint8Array {
   return out;
 }
 
+/** The colours of a picture as a palette and an index per pixel, or null for more than 256. Every
+ * clear pixel shares one entry, whatever colour it carries. */
+function paletted(pixels: Uint8Array): { colours: number[]; indices: Uint8Array; } | null {
+  const colours: number[] = [];
+  const seen = new Map<number, number>();
+  const indices = new Uint8Array(pixels.length / 4);
+
+  for (let i = 0; i < indices.length; i++) {
+    const alpha = pixels[i * 4 + 3]!;
+    const colour = alpha === 0
+      ? 0
+      : ((pixels[i * 4]! << 24) | (pixels[i * 4 + 1]! << 16) | (pixels[i * 4 + 2]! << 8) | alpha)
+        >>> 0;
+    let index = seen.get(colour);
+
+    if (index === undefined) {
+      if (colours.length === 256) {
+        return null;
+      }
+
+      index = colours.push(colour) - 1;
+      seen.set(colour, index);
+    }
+
+    indices[i] = index;
+  }
+
+  return { colours, indices };
+}
+
+/**
+ * A PNG of a picture: a palette PNG when it has at most 256 colours, as the original's artwork
+ * does, or 8-bit RGBA otherwise. Both decode to the same pixels.
+ */
 export function encodePng({ width, height, pixels }: Picture): Uint8Array {
   const header = new Uint8Array(13);
   const view = new DataView(header.buffer);
   view.setUint32(0, width);
   view.setUint32(4, height);
-  header.set([8, RGBA, 0, 0, 0], 8);
-  const stride = width * 4;
+  const palette = paletted(pixels);
+  header.set([8, palette ? PALETTE : RGBA, 0, 0, 0], 8);
+  const stride = width * (palette ? 1 : 4);
+  const rows = palette ? palette.indices : pixels;
   const raw = new Uint8Array((stride + 1) * height);
 
   for (let y = 0; y < height; y++) {
-    raw.set(pixels.subarray(y * stride, (y + 1) * stride), y * (stride + 1) + 1);
+    raw.set(rows.subarray(y * stride, (y + 1) * stride), y * (stride + 1) + 1);
   }
 
+  const extra = palette
+    ? [
+      chunk('PLTE',
+        Uint8Array.from(
+          palette.colours.flatMap((c) => [c >>> 24, (c >>> 16) & 255, (c >>> 8) & 255]),
+        )),
+      chunk('tRNS', Uint8Array.from(palette.colours.map((c) => c & 255))),
+    ]
+    : [];
   return Buffer.concat([
     SIGNATURE,
     chunk('IHDR', header),
+    ...extra,
     chunk('IDAT', deflateSync(raw, { level: 9 })),
     chunk('IEND', new Uint8Array(0)),
   ]);

@@ -14,6 +14,18 @@ test('a picture survives being written as a PNG and read back', () => {
   const made = picture(5, 3, 0);
   made.pixels.set([255, 128, 0, 255, 1, 2, 3, 4], 8);
   assert.deepEqual(decodePng(encodePng(made)), made);
+
+  // With more than 256 colours it is written as RGBA, and still read back the same.
+  const rich = picture(300, 1, 255);
+  rich.pixels.forEach((_, i) => {
+    rich.pixels[i] = i % 4 === 3 ? 255 : (i >> 2) % 256;
+  });
+  rich.pixels[(299 * 4) + 1] = 7;
+  assert.deepEqual(decodePng(encodePng(rich)), rich);
+  // A clear pixel keeps no colour of its own: it comes back clear and black.
+  const clear = picture(2, 1, 0);
+  clear.pixels.set([9, 9, 9, 0], 0);
+  assert.deepEqual([...decodePng(encodePng(clear)).pixels], [0, 0, 0, 0, 0, 0, 0, 0]);
 });
 
 test('the sprites of both kinds, RGBA and palette, are read alike', () => {

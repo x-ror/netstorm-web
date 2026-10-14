@@ -6,7 +6,8 @@ The .type files name a sound for what a unit does ("fireSound", "impactSound", "
 A file may carry a number after its name ("thunderCannon-1000.wav" for "thunderCannon.wav"): it is
 taken for the sound's attenuation in hundredths of a decibel, as DirectSound counts volume (`?`).
 
-This copies the sounds in use to the client's public folder and writes its index:
+This puts the sounds in use into the client's public folder as MP3 (ffmpeg, mono, 48 kbit/s: the
+originals are 8-bit 22 kHz WAV, about four times larger) and writes its index:
 data/sounds.json = {"files": {name: [path, volume 0..1]}, "units": {type: {what: name}}}.
 
 Usage: sounds.py <original/all-assets/sounds> <data/units.json> <packages/client/public>
@@ -16,7 +17,7 @@ from __future__ import annotations
 import json
 import pathlib
 import re
-import shutil
+import subprocess
 import sys
 
 KEYS = {
@@ -38,6 +39,7 @@ EVENTS = [
     # The air of the Pyrosphere: a wind that never stops, and now and then something far off.
     "distantWindQuiet", "thunderQuietDistant", "eagleScream", "whale",
 ]
+BITRATE = "48k"
 HUNDREDTHS_PER_BEL = 2000  # of amplitude: 20 dB is a factor of ten
 
 
@@ -61,10 +63,17 @@ def main() -> None:
             return None
 
         path, volume = found[key]
-        target = public / "sounds" / f"{key}.wav"
+        target = public / "sounds" / f"{key}.mp3"
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(path, target)
-        files[key] = [f"sounds/{key}.wav", volume]
+
+        if not target.exists():
+            subprocess.run(
+                ["ffmpeg", "-loglevel", "error", "-y", "-i", str(path), "-ac", "1", "-b:a", BITRATE,
+                 str(target)],
+                check=True,
+            )
+
+        files[key] = [f"sounds/{key}.mp3", volume]
         return key
 
     by_unit: dict[str, dict[str, str]] = {}
