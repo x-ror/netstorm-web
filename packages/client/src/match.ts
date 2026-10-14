@@ -27,7 +27,7 @@ import type { Atlas } from './assets.js';
 import { loudness, type Sounds } from './sound.js';
 import { createMinimap } from './minimap.js';
 import { describeEvent } from './messages.js';
-import { centerOn } from './camera.js';
+import { centerOn, snapZoom } from './camera.js';
 import { ZOOM } from './projection.js';
 import { createUiState } from './ui-state.js';
 
@@ -42,6 +42,8 @@ export interface GameData {
   /** Where each texture lies in the atlas files, for pictures drawn outside the canvas. */
   atlas: Atlas;
   sounds: Sounds;
+  /** Where each unit's pictures hang in its footprint (game-data.ts `hotFeet`). */
+  hotFeet: ReadonlyMap<string, readonly [number, number]>;
 }
 
 /** Play one local match. Resolves when the player leaves it for the menu. */
@@ -66,11 +68,15 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     background: '#0b1020',
     resizeTo: window,
     antialias: false,
-    resolution: 1,
+    // Draw at the screen's own pixels, and put every picture on whole ones: with the zoom levels
+    // of camera.ts each pixel of the original is a whole square of screen pixels.
+    resolution: window.devicePixelRatio || 1,
+    autoDensity: true,
+    roundPixels: true,
   });
   document.body.prepend(app.canvas);
   const camera = new Container();
-  camera.scale.set(ZOOM);
+  camera.scale.set(snapZoom(ZOOM));
   app.stage.addChild(camera);
   const terrainG = new Graphics();
   const ground = new Container();
@@ -80,7 +86,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const ghost = new Container();
   camera.addChild(terrainG, ground, entityLayer, bars, ghost, overlay);
   const renderer = createWorldRenderer(view, ME, terrainG, ground, entityLayer, bars, data.textures,
-    data.sounds);
+    data.sounds, data.hotFeet);
 
   root.hidden = false;
   let leave: ((next?: string) => void) | undefined;

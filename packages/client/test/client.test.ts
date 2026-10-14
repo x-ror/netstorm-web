@@ -2,7 +2,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { loadDefs } from '@netstorm/sim';
-import { happened, mapsOf, outcome, reflow, slimMaps, slimMissions } from '../src/game-data.js';
+import {
+  happened,
+  hotFeet,
+  mapsOf,
+  outcome,
+  reflow,
+  slimMaps,
+  slimMissions,
+  slimUnits,
+} from '../src/game-data.js';
+import { paint, paintOf } from '../src/owner-colours.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS } from '../src/menu.js';
 import {
@@ -516,4 +526,39 @@ test('units sound as their .type files say, and every sound named is shipped', (
     const file = index.files[name!];
     assert.ok(file && existsSync(new URL(`../public/${file[0]}`, import.meta.url)), name);
   }
+});
+
+test('the hot spot of a unit is read whichever way its .type file spells it', () => {
+  const raw = [
+    { id: 'rainBattery', hotFootRatioX: 0.5, hotFootRatioY: 0.4 },
+    { id: 'windaviary', hotfootratiox: 0.5, hotfootratioy: 0.625 },
+    { id: 'sunAviary', hotfootRatioX: 0, hotfootRatioY: 0.27 },
+    { id: 'sunCannon', hotFootRatioY: 0.625 },
+    { id: 'priest' },
+  ];
+  const feet = hotFeet(raw);
+  assert.deepEqual(feet.get('rainbattery'), [0.5, 0.4]);
+  assert.deepEqual(feet.get('windaviary'), [0.5, 0.625]);
+  assert.deepEqual(feet.get('sunaviary'), [0, 0.27]);
+  assert.deepEqual(feet.get('suncannon'), [0, 0.625]);
+  assert.equal(feet.has('priest'), false);
+  // What is shipped to the browser keeps them, under one spelling.
+  assert.deepEqual(hotFeet(slimUnits(raw)), feet);
+});
+
+/** An orange of the rim, a plank colour that is not a rail colour, and a grey rail. */
+const pixels = () => new Uint8ClampedArray([185, 123, 71, 255, 178, 103, 54, 255, 82, 90, 99, 255]);
+
+test('rims and bridge rails take the colour of their side; other pictures keep theirs', () => {
+  assert.equal(paintOf('shore:wind:3'), 'rim');
+  assert.equal(paintOf('slot:bridge:41'), 'rail');
+  assert.equal(paintOf('slot:bridgeconnector:2'), 'rail');
+  assert.equal(paintOf('slot:priest:0'), null);
+  const rim = pixels();
+  paint(rim, 'rim', 'red');
+  assert.deepEqual(Array.from(rim.slice(0, 3)), [119, 9, 9]);
+  const rail = pixels();
+  paint(rail, 'rail', 'blue');
+  // On a bridge the plank keeps its orange, the rail turns blue.
+  assert.deepEqual([...rail], [185, 123, 71, 255, 178, 103, 54, 255, 68, 105, 134, 255]);
 });

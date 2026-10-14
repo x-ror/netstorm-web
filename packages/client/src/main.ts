@@ -1,6 +1,6 @@
 import { loadDefs } from '@netstorm/sim';
 import { loadTextures, type Atlas } from './assets.js';
-import { type Maps, type Mission } from './game-data.js';
+import { hotFeet, type Maps, type Mission } from './game-data.js';
 import { showMenu } from './menu.js';
 import { createSounds, type SoundIndex } from './sound.js';
 import { runMatch } from './match.js';
@@ -15,6 +15,7 @@ async function main() {
   ]);
   const data = {
     defs: loadDefs(unitsRaw),
+    hotFeet: hotFeet(unitsRaw),
     maps,
     missions,
     textures: await loadTextures(manifest),

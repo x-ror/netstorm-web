@@ -33,6 +33,9 @@ SLOTS = {
     "thundercannon": 36,  # for each facing: the gun, six frames of charge laid over it, two of fire
     "suncannon": 28,  # the facings, the frames of turning, the frames of fire
     "sunbattery": 8,
+    "windbattery": 1,  # the other Generators: one picture each, so they hang on their hot spot
+    "rainbattery": 1,
+    "thunderbattery": 1,
     "thunderarcher": 2,
     "sunarcher": 33,  # the arm of the Disc Thrower in sixteen bearings, wound and flung, then its base
     "sunaviary": 27,  # the dome opening, then the Whirligig rising out of it
@@ -60,7 +63,7 @@ SLOTS = {
 
 
 # The frame lines of each .type file that names shadows: the shadow of slot n is slot n plus this.
-SHADOWS = {"sunwalker": 66, "priest": 168, "geyser": 51, "sunflyer": 9, "windflyer": 23, "rainflyer": 17, "rainballoon": 21, "nugget": 10, "rainwalker": 21, "raincannon": 13, "windwalker": 37, "bulf": 81, "windvortex": 21, "rainvortex": 29, "thundervortex": 16, "suncannon": 29, "sunbattery": 9, "thunderarcher": 3, "sunaviary": 32, "windaviary": 7, "rainaviary": 14, "windarcher": 101}
+SHADOWS = {"sunwalker": 66, "priest": 168, "geyser": 51, "sunflyer": 9, "windflyer": 23, "rainflyer": 17, "rainballoon": 21, "nugget": 10, "rainwalker": 21, "raincannon": 13, "windwalker": 37, "bulf": 81, "windvortex": 21, "rainvortex": 29, "thundervortex": 16, "suncannon": 29, "sunbattery": 9, "windbattery": 2, "rainbattery": 2, "thunderbattery": 2, "thunderarcher": 3, "sunaviary": 32, "windaviary": 7, "rainaviary": 14, "windarcher": 101}
 
 
 def main() -> None:

@@ -24,6 +24,7 @@ import { anchorFor, entityAt, hasFacing, type Tool, type UiState } from './ui-st
 
 const ZOOM_IN = 1.1;
 const ZOOM_OUT = 0.9;
+const PINCH_STEP = 1.3; // how far apart the fingers go for one zoom level
 const PAN_STEP = 48; // screen pixels per arrow key press
 const DRAG_THRESHOLD = 6; // screen pixels a press may move and still count as a click
 const CELL_HALF = 0.5;
@@ -277,8 +278,14 @@ export function createControls(options: {
     if (pinch !== null && pointers.size === 2) {
       const now = distance();
       const [a, b] = [...pointers.values()];
-      zoomAt(camera, (a!.x + b!.x) / 2, (a!.y + b!.y) / 2, now / (pinch || now));
-      pinch = now;
+      // The zoom goes by levels: a step each time the fingers have moved far enough apart.
+      const ratio = now / (pinch || now);
+
+      if (ratio > PINCH_STEP || ratio < 1 / PINCH_STEP) {
+        zoomAt(camera, (a!.x + b!.x) / 2, (a!.y + b!.y) / 2, ratio);
+        pinch = now;
+      }
+
       return;
     }
 

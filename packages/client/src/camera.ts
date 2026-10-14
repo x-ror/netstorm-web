@@ -1,8 +1,26 @@
 import { type Container } from 'pixi.js';
 import { project, unproject } from './projection.js';
 
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 4;
+/** Screen pixels for each pixel of the original's pictures. Only whole numbers (and a half, to
+ * see more) keep the pictures crisp: at 2.2 nearest-neighbour scaling doubles some pixels and
+ * triples others, and the fine patterns of bridge and ground smear. */
+// oxlint-disable-next-line no-magic-numbers -- the levels themselves
+const ZOOM_LEVELS = [0.5, 1, 2, 3, 4] as const;
+/** A level counts as the current one this close to it. */
+const LEVEL_SLACK = 0.01;
+
+/** The zoom levels in CSS pixels on this screen. */
+function levels(): number[] {
+  const density = window.devicePixelRatio || 1;
+  return ZOOM_LEVELS.map((level) => level / density);
+}
+
+/** The zoom level closest to `zoom`. */
+export function snapZoom(zoom: number): number {
+  return levels().reduce((best, level) =>
+    Math.abs(level - zoom) < Math.abs(best - zoom) ? level : best
+  );
+}
 
 /** Put map cell (x, y) in the middle of the screen. */
 export function centerOn(camera: Container, x: number, y: number): void {
@@ -16,10 +34,15 @@ export function centerOnScreenPoint(camera: Container, sx: number, sy: number): 
     window.innerHeight / 2 - sy * camera.scale.y);
 }
 
-/** Zoom by `factor` keeping the screen point (px, py) over the same spot of the map. */
+/** Zoom one level in (`factor` above 1) or out, keeping the screen point (px, py) over the same
+ * spot of the map. */
 export function zoomAt(camera: Container, px: number, py: number, factor: number): void {
-  const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, camera.scale.x * factor));
-  const k = z / camera.scale.x;
+  const now = camera.scale.x;
+  const all = levels();
+  const z = factor > 1
+    ? all.find((level) => level > now * (1 + LEVEL_SLACK)) ?? now
+    : [...all].reverse().find((level) => level < now * (1 - LEVEL_SLACK)) ?? now;
+  const k = z / now;
   camera.x = px - (px - camera.x) * k;
   camera.y = py - (py - camera.y) * k;
   camera.scale.set(z);

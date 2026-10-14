@@ -2,7 +2,6 @@ import {
   PIECES,
   rotateLinks,
   OUTPOST,
-  PIECE_HARD,
   PIECE_HARDEN,
   RUNES,
   TPS,
@@ -153,13 +152,10 @@ export function createHud(
         const rot = index === handTool ? ui.rot : 0;
         const cells = rotatePiece(PIECES[h.piece]!, rot);
         const cracked = h.age < PIECE_HARDEN;
-        const hard = h.age >= PIECE_HARD;
         return `<button data-action="hand" data-value="${index}" class="piece${
           index === handTool ? ' on' : ''
-        }${cracked ? ' cracked' : ''}${hard ? ' hard' : ''}" title="${pieceTitle(cracked, hard)} (${
-          index + 1
-        })">${
-          pieceArt(atlas, cells, rotateLinks(h.piece, rot), strengthOf(cracked, hard))
+        }${cracked ? ' cracked' : ''}" title="${pieceTitle(cracked)} (${index + 1})">${
+          pieceArt(atlas, cells, rotateLinks(h.piece, rot), cracked ? 'cracked' : 'whole')
         }</button>`;
       }).join('')
       : '<span class="muted">Храм ще не видав сегментів</span>');
@@ -196,20 +192,8 @@ export function createHud(
   };
 }
 
-function strengthOf(cracked: boolean, hard: boolean): 'whole' | 'cracked' | 'hard' {
-  if (cracked) {
-    return 'cracked';
-  }
-
-  return hard ? 'hard' : 'whole';
-}
-
-function pieceTitle(cracked: boolean, hard: boolean): string {
-  if (cracked) {
-    return 'Свіжий сегмент: покладений зараз, стане тріснутим мостом';
-  }
-
-  return hard ? 'Твердий сегмент: вибухи поруч його не тріскають' : 'Звичайний сегмент';
+function pieceTitle(cracked: boolean): string {
+  return cracked ? 'Свіжий сегмент: покладений зараз, стане тріснутим мостом' : 'Звичайний сегмент';
 }
 
 /**

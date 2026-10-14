@@ -161,8 +161,45 @@ export function slimUnits(raw: unknown): Record<string, unknown>[] {
       slim.flags = [UNIT_FLAG];
     }
 
+    // For the client: the .type files spell these in more than one way.
+    for (const [field, wanted] of HOT_FOOT_FIELDS) {
+      const value = Object.entries(from).find(([key]) => key.toLowerCase() === wanted)?.[1];
+
+      if (typeof value === 'number') {
+        slim[field] = value;
+      }
+    }
+
     return slim;
   });
+}
+
+const HOT_FOOT_FIELDS = [['hotFootRatioX', 'hotfootratiox'], [
+  'hotFootRatioY',
+  'hotfootratioy',
+]] as const;
+
+/**
+ * Where the hot spot of each unit's pictures lies, as `hotFootRatioX` and `hotFootRatioY` of its
+ * .type file: the share of a cell it stands in from the far (south-east) corner of the footprint,
+ * across and up. Without them it is the corner itself. Read off the pictures: with this every
+ * unit stands in the middle of its islet, without it a Generator stands half a cell to the east.
+ */
+export function hotFeet(raw: unknown): ReadonlyMap<string, readonly [number, number]> {
+  const feet = new Map<string, readonly [number, number]>();
+
+  for (const unit of Array.isArray(raw) ? raw : []) {
+    const from = asRecord(unit);
+    const ratio = HOT_FOOT_FIELDS.map(([, wanted]) =>
+      Object.entries(from).find(([key]) => key.toLowerCase() === wanted)?.[1]
+    );
+
+    if (typeof from.id === 'string' && ratio.some((value) => typeof value === 'number')) {
+      feet.set(from.id.toLowerCase(), [Number(ratio[0] ?? 0), Number(ratio[1] ?? 0)]);
+    }
+  }
+
+  return feet;
 }
 
 /** Keep of each map what the mission builder reads: the islets under units are made by it. */

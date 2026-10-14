@@ -43,6 +43,9 @@ const STRENGTHS: Readonly<Record<number, 'whole' | 'cracked' | 'hard'>> = {
   [Terrain.CrackedBridge]: 'cracked',
 };
 const BRIDGE_DROP = 9; // from the top of a cell down to the hot spot of its Bridge frame
+// The ground a bridge lands on hangs two rows lower: so its rails run on from the bridge's (fitted
+// to the pictures, ours).
+const LANDING_DROP = BRIDGE_DROP + 2;
 const FRINGE_DROP = 44; // from the top of a rim cell down to the hot spot of its Fringe
 const FRINGE_SCATTER = 3;
 const CLIFF_HEIGHT = 6; // rock face drawn under an island's southern rim
@@ -74,7 +77,6 @@ const COLOR = {
   noTint: 0xffffff,
   shadow: 0x000000,
   cliff: 0x3a2a1c,
-  enemyGroundTint: 0xffc8c8,
   barBack: 0x1b1f2a,
   barGood: 0x7bd36b,
   barLow: 0xff5a4a,
@@ -120,6 +122,7 @@ export function createWorldRenderer(
   bars: Graphics,
   textures: Map<string, Texture>,
   sounds: Sounds,
+  hotFeet: ReadonlyMap<string, readonly [number, number]> = new Map(),
 ) {
   // --- terrain: a tile per cell, a cliff face under each southern rim, colours where tiles are missing
   const tiles: Sprite[] = [];
@@ -151,7 +154,7 @@ export function createWorldRenderer(
           const strength = STRENGTHS[terrain] ?? 'whole';
           const slot = bridgeSlot(world.links[y * W + x]!, strength,
             (x * SCATTER_X) ^ (y * SCATTER_Y));
-          const plank = textures.get(`slot:bridge:${slot}`);
+          const plank = painted(`slot:bridge:${slot}`, owner);
           const hang = plank && hotSpots.get(plank);
 
           if (plank && hang) {
@@ -170,7 +173,7 @@ export function createWorldRenderer(
           : shoreFrame(0, skyAround(x, y, CORNERS), x + y);
         const texture = (shore === undefined
           ? undefined
-          : textures.get(`shore:${groundSet(owner)}:${shore}`))
+          : painted(`shore:${groundSet(owner)}:${shore}`, owner))
           ?? textures.get(tileKey(terrain, owner, x, y));
         // The southern rim frames carry their own rock face.
         const faced = shore !== undefined && (sides & SKY.south) !== 0;
@@ -200,9 +203,6 @@ export function createWorldRenderer(
         // A rim frame is cut down to its picture: it keeps to the side its ground is on.
         tile.position.set(sides & SKY.west ? sx + TW - texture.width : sx,
           sides & SKY.north ? sy + TH - texture.height : sy);
-        tile.tint = owner && owner !== me && !isBridge(terrain)
-          ? COLOR.enemyGroundTint
-          : COLOR.noTint;
         ground.addChild(tile);
         tiles.push(tile);
 
@@ -228,7 +228,7 @@ export function createWorldRenderer(
   /**
    * The ground a bridge lands on where it joins an island cell (the BridgeConnector type): one
    * picture for each bridge that joins it, by the side the island lies on from the bridge, north,
-   * east, south or west. Its frames come from the Bridge pictures and hang on the same hot spot.
+   * east, south or west. Its frames come from the Bridge pictures.
    */
   function landingsAt(x: number, y: number, sx: number, sy: number): Sprite[] {
     const found: Sprite[] = [];
@@ -240,18 +240,28 @@ export function createWorldRenderer(
         continue;
       }
 
-      const texture = textures.get(`slot:bridgeconnector:${oppositeDir(dir)}`);
+      const texture = painted(`slot:bridgeconnector:${oppositeDir(dir)}`, world.owner[y * W + x]!);
       const spot = texture && hotSpots.get(texture);
 
       if (texture && spot) {
         const landing = new Sprite(texture);
         landing.anchor.set(spot.x, spot.y);
-        landing.position.set(sx + TW - 1, sy + BRIDGE_DROP);
+        landing.position.set(sx + TW - 1, sy + LANDING_DROP);
         found.push(landing);
       }
     }
 
     return found;
+  }
+
+  /** A rim or bridge frame in the colour of its owner's side: blue for the player and his allies,
+   * red for the enemy, as saved for nobody (owner-colours.ts). */
+  function painted(key: string, owner: number): Texture | undefined {
+    if (owner === 0) {
+      return textures.get(key);
+    }
+
+    return textures.get(`${key}:${world.hostile(me, owner) ? 'red' : 'blue'}`) ?? textures.get(key);
   }
 
   /** Where the island ends around a cell: SKY bits of the neighbours, given as [bit, dx, dy]. */
@@ -427,8 +437,10 @@ export function createWorldRenderer(
       listen(entity);
       // Large things stand on the bottom edge of their footprint, units on the middle of their cell.
       const foot = footprintOf(entity);
+      // A slot hangs on the hot spot its type sets in the far cell of the footprint.
+      const [inX, inY] = bySpot && foot ? hotFeet.get(kindOf(entity)) ?? [0, 0] : [0, 0];
       const { sx, sy } = foot
-        ? project(foot.x + (bySpot ? foot.w : foot.w / 2), foot.y + foot.h)
+        ? project(foot.x + (bySpot ? foot.w - inX : foot.w / 2), foot.y + foot.h - inY)
         : unitSpot(entity);
       sprite.position.set(sx, sy);
       // A flyer is drawn over everything on the ground.
@@ -901,4 +913,9 @@ function entityTint(entity: DeepReadonly<Entity>, me: number): number {
   }
 
   return COLOR.noTint;
+}
+
+/** The unit type of an entity, by which its hot spot is looked up; a geyser is one too. */
+function kindOf(entity: DeepReadonly<Entity>): string {
+  return 'type' in entity ? entity.type : entity.kind;
 }

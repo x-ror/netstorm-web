@@ -39,8 +39,12 @@ const LOOPS: Readonly<Record<string, number>> = {
   rainflyer: 16,
   rainballoon: 20,
   rainwalker: 10,
-  // Buildings: the Sun Generator and the Thunder Temple are whole frames.
+  // Buildings: the Sun Generator and the Thunder Temple are whole frames; the other Generators
+  // have one.
   sunbattery: 8,
+  windbattery: 1,
+  rainbattery: 1,
+  thunderbattery: 1,
   thundervortex: 8,
 };
 /**
