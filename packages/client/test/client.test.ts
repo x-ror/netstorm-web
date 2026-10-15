@@ -11,7 +11,10 @@ import {
   slimMaps,
   slimMissions,
   slimUnits,
+  inOrderOf,
+  translateMissions,
 } from '../src/game-data.js';
+import { knowledgeOf } from '../src/knowledge.js';
 import { paint, paintOf } from '../src/owner-colours.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS, MAX_STORM, normalizeOptions } from '../src/options.js';
@@ -652,4 +655,54 @@ test('a component missing a function its contract promises fails at mount', () =
   assert.throws(() => contract('Hud', hud as never, ['update', 'addLog', 'showPage', 'hidePage']),
     /Hud\.svelte does not export hidePage\(\)/);
   assert.equal(contract('Hud', hud, ['update', 'addLog']), hud);
+});
+
+test('a translation replaces the texts and button labels of a mission and nothing else', () => {
+  const translation = {
+    thunderingpower: {
+      title: 'Міць Грому',
+      sections: { '@500': 'Записка від Маркіза.' },
+      buttons: { Reply: 'Відповісти' },
+    },
+  };
+  const ours = slimMissions(translateMissions(read('missions'), translation), maps);
+  const power = ours.find((m) => m.id === 'thunderingpower')!;
+  const original = missions.find((m) => m.id === 'thunderingpower')!;
+  assert.equal(power.title, 'Міць Грому');
+  const note = power.messages.find((m) => m.on.includes('@500'))!;
+  assert.equal(note.text, 'Записка від Маркіза.');
+  assert.deepEqual(note.buttons.map((b) => [b.label, b.action, b.arg]), [
+    ['Відповісти', 'Tell', 'Wife'],
+    ['Ignore', 'DoNothing', '0'],
+  ]);
+  // What is not translated stays English; how the mission plays does not change.
+  assert.equal(power.pages.wife!.text, original.pages.wife!.text);
+  assert.deepEqual([power.rescue, power.wards, power.sides], [
+    original.rescue,
+    original.wards,
+    original.sides,
+  ]);
+  assert.equal(ours.length, missions.length);
+  // Listed as the original lists them, whatever the translated titles.
+  assert.deepEqual(inOrderOf(missions, [...ours].reverse()).map((m) => m.id),
+    missions.map((m) => m.id));
+});
+
+test('the Knowledge of a mission is what its header gives the player, lowest level first', () => {
+  const first = missions.find((m) => m.id === 'thewarbegins')!;
+  assert.deepEqual(knowledgeOf(defs, first, 'wind').map((k) => k.def.id).sort(), [
+    'rainbattery',
+    'sunaviary',
+    'suncannon',
+    'sunwalker',
+  ]);
+  assert.ok(
+    knowledgeOf(defs, first, 'wind').every((k, i, all) =>
+      i === 0 || all[i - 1]!.def.level <= k.def.level
+    ),
+  );
+  assert.equal(knowledgeOf(defs, first, 'wind').find((k) => k.def.id === 'sunwalker')!.kind,
+    'Транспорт');
+  // Without a mission the Fury's skirmish units are known.
+  assert.ok(knowledgeOf(defs, undefined, 'thunder').some((k) => k.def.id === 'thundercannon'));
 });

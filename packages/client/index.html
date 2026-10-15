@@ -369,6 +369,43 @@
         overflow: auto;
         color: #d9d2bf;
       }
+      .tabs {
+        margin-bottom: 8px;
+      }
+      /* The Knowledge a mission gives: a list of unit cards in two columns. */
+      .knowledge {
+        flex: 1;
+        margin: 0;
+        padding: 0;
+        overflow: auto;
+        list-style: none;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        align-content: start;
+        gap: 6px;
+      }
+      .knowledge li {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: auto auto;
+        column-gap: 10px;
+        align-items: center;
+        padding: 6px 8px;
+        border: 1px solid var(--edge-soft);
+        border-radius: 6px;
+      }
+      .knowledge li > :first-child {
+        grid-row: 1 / 3;
+      }
+      .knowledge small {
+        grid-column: 2;
+        color: #a9a28f;
+      }
+      .knowledge .cost {
+        grid-row: 1 / 3;
+        grid-column: 3;
+        color: var(--gold);
+      }
       .start-button {
         align-self: stretch;
         padding: 12px 20px;

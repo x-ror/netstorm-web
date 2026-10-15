@@ -1,4 +1,5 @@
 import type { Component } from 'svelte';
+import type { DefTable } from '@netstorm/sim';
 import type { Atlas } from '../assets.js';
 import type { Mission } from '../game-data.js';
 import type { HudActions, HudModel, LogLine, Page } from '../hud-model.js';
@@ -25,7 +26,10 @@ export type HudExports = {
 };
 
 export type MenuProps = {
+  /** The missions with the original's English texts, and with Ukrainian ones. */
   missions: Mission[];
+  translated: Mission[];
+  defs: DefTable;
   atlas: Atlas;
   initial: MatchOptions;
   onstart: (options: MatchOptions) => void;

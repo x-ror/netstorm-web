@@ -1,4 +1,5 @@
 import { mount, unmount } from 'svelte';
+import type { DefTable } from '@netstorm/sim';
 import type { Atlas } from './assets.js';
 import type { Mission } from './game-data.js';
 import { loadOptions, saveOptions, type MatchOptions } from './options.js';
@@ -8,7 +9,8 @@ import Menu from './ui/Menu.svelte';
 /** Show the skirmish setup and resolve with the chosen options when the player starts. */
 export function showMenu(
   root: HTMLElement,
-  missions: Mission[],
+  texts: Record<'uk' | 'en', Mission[]>,
+  defs: DefTable,
   atlas: Atlas,
 ): Promise<MatchOptions> {
   root.hidden = false;
@@ -16,9 +18,11 @@ export function showMenu(
     const menu = mount(typed<MenuProps, Record<string, never>>(Menu), {
       target: root,
       props: {
-        missions,
+        missions: texts.en,
+        translated: texts.uk,
+        defs,
         atlas,
-        initial: loadOptions(missions),
+        initial: loadOptions(texts.en),
         onstart: (options: MatchOptions) => {
           saveOptions(options);
           void unmount(menu);

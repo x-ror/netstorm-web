@@ -6,10 +6,11 @@ import { createSounds, type SoundIndex } from './sound.js';
 import { runMatch } from './match.js';
 
 async function main() {
-  const [unitsRaw, maps, missions, manifest, soundIndex] = await Promise.all([
+  const [unitsRaw, maps, missions, translated, manifest, soundIndex] = await Promise.all([
     fetchJson<unknown>('data/units.json'),
     fetchJson<Maps>('data/maps.json'),
     fetchJson<Mission[]>('data/missions.json'),
+    fetchJson<Mission[]>('data/missions-uk.json'),
     fetchJson<Atlas>('data/sprites.json'),
     fetchJson<SoundIndex>('data/sounds.json'),
   ]);
@@ -25,14 +26,17 @@ async function main() {
   const menu = document.getElementById('menu')!;
   const game = document.getElementById('game')!;
 
-  let options = await showMenu(menu, missions, data.atlas);
+  const texts = { en: missions, uk: translated };
+  const menuOf = () => showMenu(menu, texts, data.defs, data.atlas);
+  let options = await menuOf();
 
   for (;;) {
+    // The missions in the language chosen; the same missions either way.
+    const next = await runMatch(game, { ...data, missions: texts[options.lang] }, options);
     // "Next Mission" leads straight on to a mission, if the game has it; otherwise to the menu.
-    const next = await runMatch(game, data, options);
     options = missions.some((mission) => mission.id === next)
       ? { ...options, mission: next! }
-      : await showMenu(menu, missions, data.atlas);
+      : await menuOf();
   }
 }
 

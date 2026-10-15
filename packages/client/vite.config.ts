@@ -3,7 +3,14 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { TEXTURES, parsePath, selectFrame, type Manifest } from './src/texture-selection.js';
-import { mapsOf, slimMaps, slimMissions, slimUnits } from './src/game-data.js';
+import {
+  inOrderOf,
+  mapsOf,
+  slimMaps,
+  slimMissions,
+  slimUnits,
+  translateMissions,
+} from './src/game-data.js';
 import { buildAtlas } from './atlas.js';
 
 function readData(name: string): unknown {
@@ -18,6 +25,9 @@ function gameData(): Record<string, unknown> {
     units: slimUnits(readData('units')),
     maps: mapsOf(missions, maps),
     missions,
+    // The same missions with their texts in Ukrainian (data/missions.uk.json), in the same order.
+    'missions-uk': inOrderOf(missions,
+      slimMissions(translateMissions(readData('missions'), readData('missions.uk')), maps)),
   };
 }
 
@@ -61,7 +71,7 @@ function gameAssets(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const path = (req.url?.split('?')[0] ?? '').replace(/^\//, '');
-        const name = /^data\/(units|maps|missions)\.json$/.exec(path)?.[1];
+        const name = /^data\/(units|maps|missions|missions-uk)\.json$/.exec(path)?.[1];
 
         if (name) {
           res.setHeader('Content-Type', 'application/json');

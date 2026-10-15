@@ -20,8 +20,9 @@
   } from '../options.js';
   import type { MenuProps } from './contracts.js';
   import UnitIcon from './UnitIcon.svelte';
+  import { knowledgeOf } from '../knowledge.js';
 
-  let { missions, atlas, initial, onstart }: MenuProps = $props();
+  let { missions: english, translated, defs, atlas, initial, onstart }: MenuProps = $props();
 
   /** Each Fury on its card: its name and the units it is known by. */
   const FURIES: Record<PlayableTheme, { name: string; note: string; }> = {
@@ -35,8 +36,14 @@
   const GENERIC_ENEMIES: ReadonlySet<string> = new Set(['player', 'суперник']);
 
   let options: MatchOptions = $state(untrack(() => ({ ...initial })));
+  // The same missions in the language chosen; a mission keeps its id in both.
+  const missions = $derived(options.lang === 'en' ? english : translated);
   const mission = $derived(missions.find((m) => m.id === options.mission));
   let list: HTMLElement | undefined = $state();
+  /** The briefing, or the Knowledge the mission gives ("Review Knowledge"). */
+  let view: 'briefing' | 'knowledge' = $state('briefing');
+  const known = $derived(knowledgeOf(defs, mission, options.theme));
+  const KNOWN_ICON = 40;
 
   // The chosen mission is kept in view, when the menu opens and whenever it changes.
   $effect(() => {
@@ -141,7 +148,7 @@
           </select>
         </label>
         <label>
-          Storm Power на старті
+          Буресила на старті
           <input
             name="storm"
             type="number"
@@ -181,7 +188,40 @@
 
   <section class="pane briefing">
     <h2>{mission?.title ?? ''}</h2>
-    <pre>{mission?.briefing ?? ''}</pre>
+    <div class="segmented tabs">
+      <label>
+        <input type="radio" name="lang" value="uk" bind:group={options.lang} />
+        <span>Українською</span>
+      </label>
+      <label>
+        <input type="radio" name="lang" value="en" bind:group={options.lang} />
+        <span>Оригінал</span>
+      </label>
+    </div>
+    <div class="segmented tabs">
+      <label>
+        <input type="radio" name="view" value="briefing" bind:group={view} />
+        <span>Брифінг</span>
+      </label>
+      <label>
+        <input type="radio" name="view" value="knowledge" bind:group={view} />
+        <span>База знань</span>
+      </label>
+    </div>
+    {#if view === 'briefing'}
+      <pre>{mission?.briefing ?? ''}</pre>
+    {:else}
+      <ul class="knowledge">
+        {#each known as { def, kind } (def.id)}
+          <li>
+            <UnitIcon {atlas} type={def.id} name={def.name} size={KNOWN_ICON} />
+            <b>{def.name}</b>
+            <small>{kind}{def.level ? ` · рівень ${def.level}` : ''}</small>
+            <span class="cost">{def.cost}</span>
+          </li>
+        {/each}
+      </ul>
+    {/if}
     <button type="submit" class="primary start-button">Почати бій</button>
   </section>
 </form>

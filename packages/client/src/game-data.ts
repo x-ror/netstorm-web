@@ -283,6 +283,53 @@ function sidesOf(header: Record<string, unknown>): Record<string, MissionSide> {
   return sides;
 }
 
+/**
+ * The mission files with their texts in another language laid over the English: the title, any
+ * section the translation has, and the labels of the buttons. Keys and events stay as they are,
+ * so the missions play the same. `translation` is data/missions.uk.json: by mission, its title,
+ * its sections by name and its button labels by the English ones.
+ */
+export function translateMissions(raw: unknown, translation: unknown): unknown {
+  const byId = asRecord(translation);
+  return (Array.isArray(raw) ? raw : []).map((entry) => {
+    const file = asRecord(entry);
+    const ours = asRecord(byId[String(file.file)]);
+
+    if (!Object.keys(ours).length) {
+      return file;
+    }
+
+    const labels = asRecord(ours.buttons);
+    const goals = asRecord(file.goals);
+    const buttons = Object.fromEntries(
+      Object.entries(asRecord(goals.buttons)).map(([name, list]) => [
+        name,
+        (Array.isArray(list) ? list : []).map((button) =>
+          Array.isArray(button)
+            ? [labels[String(button[0])] ?? button[0], ...button.slice(1)]
+            : button
+        ),
+      ]),
+    );
+    return {
+      ...file,
+      header: {
+        ...asRecord(file.header),
+        ...(typeof ours.title === 'string' ? { title: ours.title } : {}),
+      },
+      sections: { ...asRecord(file.sections), ...asRecord(ours.sections) },
+      goals: { ...goals, buttons },
+    };
+  });
+}
+
+/** The missions of `others` in the order of `order`, by id: a translation lists them as the
+ * original does, not by its own titles. */
+export function inOrderOf(order: readonly Mission[], others: readonly Mission[]): Mission[] {
+  const place = new Map(order.map((m, i) => [m.id, i]));
+  return [...others].sort((a, b) => (place.get(a.id) ?? Infinity) - (place.get(b.id) ?? Infinity));
+}
+
 /** The campaign missions (normal difficulty) that have a map, with their briefing texts. */
 export function slimMissions(raw: unknown, maps: Maps): Mission[] {
   if (!Array.isArray(raw)) {

@@ -331,7 +331,7 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
       } else if (cooling) {
         warning = ' — щойно встановлено, ще недоступний';
       } else if (player.storm < def.cost) {
-        warning = ' — бракує Storm Power';
+        warning = ' — бракує Буресили';
       }
 
       return {
@@ -389,7 +389,7 @@ function workshop(
       actions.push({ kind: 'produce', type: def.id, label: `У виробництво: ${def.name}` });
     }
   } else if (offered.length) {
-    say('Усі слоти зайняті: апгрейд додасть ще один', true);
+    say('Усі слоти зайняті: покращення додасть ще один', true);
   }
 
   if (
@@ -397,7 +397,7 @@ function workshop(
   ) {
     actions.push({
       kind: 'upgrade',
-      label: `Апгрейд до рівня ${b.upgrades + 2}`,
+      label: `Покращити до рівня ${b.upgrades + 2}`,
       cost: upgradeCost(world.def(b.type)),
     });
   }
@@ -487,10 +487,10 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
   } else if (entity.kind === 'flyer') {
     say(entity.returning ? 'летить на заправку' : `у повітрі ще ${Math.ceil(entity.life / TPS)} с`);
   } else if (entity.kind === 'geyser') {
-    say(entity.stock > 0 ? `запас ${entity.stock} Storm Power` : 'вичерпаний');
+    say(entity.stock > 0 ? `запас Буресили: ${entity.stock}` : 'вичерпаний');
   } else if (entity.kind === 'obelisk') {
     const spell = world.defs.get(entity.spell);
-    say(`${spell?.cls ?? ''}: радіус ${spell?.range}, ${spell?.cost} Storm Power за раз`);
+    say(`${spell?.cls ?? ''}: радіус ${spell?.range}, ${spell?.cost} Буресили за раз`);
     say('Виберіть транспорт і клацніть обеліск, щоб здобути', true);
   }
 

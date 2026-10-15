@@ -62,7 +62,7 @@
 
 {#if model}
   <header id="topbar">
-    <span class="stat storm" title="Storm Power">
+    <span class="stat storm" title="Буресила">
       <Glyph name="storm" /><b data-testid="storm">{model.storm}</b>
     </span>
     <span

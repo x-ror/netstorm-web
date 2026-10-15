@@ -34,6 +34,8 @@ export interface MatchOptions {
   killReward: number;
   /** "Money per Geyser": Storm Power a geyser holds. */
   geyserStock: number;
+  /** The language of the missions' texts: Ukrainian, or the original's English. */
+  lang: 'uk' | 'en';
 }
 
 export const PLAYABLE_THEMES: readonly PlayableTheme[] = ['wind', 'rain', 'thunder'];
@@ -66,6 +68,7 @@ export const DEFAULT_OPTIONS: MatchOptions = {
   unitRate: DEFAULT_UNIT_RATE,
   killReward: DEFAULT_KILL_REWARD,
   geyserStock: DEFAULT_GEYSER_STOCK,
+  lang: 'uk',
 };
 
 /** Options made whole and valid: whatever is missing or not one of an option's values falls back
@@ -83,6 +86,7 @@ export function normalizeOptions(
     storm: clamp(given(raw.storm, d.storm), MAX_STORM, d.storm),
     seed: clamp(given(raw.seed, d.seed), MAX_SEED, d.seed),
     opponent: raw.opponent === 'idle' ? 'idle' : 'ai',
+    lang: raw.lang === 'en' ? 'en' : 'uk',
     bridges: BRIDGE_SETS.find((id) => id === raw.bridges) ?? d.bridges,
     slots: oneOf(BRIDGE_SLOTS, Number(raw.slots), d.slots),
     unitRate: oneOf(UNIT_RATES, Number(raw.unitRate), d.unitRate),

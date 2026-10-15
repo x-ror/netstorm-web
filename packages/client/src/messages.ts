@@ -12,14 +12,14 @@ export const REJECTIONS: Record<string, string> = {
   'not connected': 'не з’єднано з вашою землею (сегмент приєднується лише кінцями)',
   'unknown unit': 'невідомий юніт',
   'unknown tech': 'ви ще не знаєте цього юніта',
-  'no storm power': 'бракує Storm Power',
+  'no storm power': 'бракує Буресили',
   'no energy': 'бракує енергії поруч',
   'bad target': 'невідповідна ціль',
   'no temple': 'немає Храму',
   'no altar': 'немає Вівтаря',
   'no workshop': 'немає Майстерні цієї стихії',
   'not in production': 'жодна Майстерня його не виробляє: додайте його в слот Майстерні',
-  'no free slot': 'у Майстерні немає вільного слота — зробіть апгрейд',
+  'no free slot': 'у Майстерні немає вільного слота — покращте її',
   'fully upgraded': 'Майстерню вже покращено тричі',
   'cannot build': 'цей юніт ще не можна будувати',
   'not ready': 'юніт щойно встановлено, зачекайте',
@@ -42,7 +42,7 @@ const COMMANDS: Record<string, string> = {
   castSpell: 'Заклинання',
   dropCargo: 'Вантаж',
   produce: 'Виробництво',
-  upgradeWorkshop: 'Апгрейд',
+  upgradeWorkshop: 'Покращення',
 };
 
 export type Tone = 'good' | 'bad' | 'info';
@@ -89,7 +89,7 @@ export function describeEvent(
         tone: mine ? 'bad' : 'good',
       };
     case 'reward':
-      return mine ? { text: `+${event.data.amount} Storm Power за знищення`, tone: 'good' } : null;
+      return mine ? { text: `+${event.data.amount} Буресили за знищення`, tone: 'good' } : null;
     case 'salvaged':
       return mine
         ? { text: `Розібрано ${name(event.data.type)}: +${event.data.refund}`, tone: 'info' }
