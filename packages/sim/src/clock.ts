@@ -38,6 +38,11 @@ export class FixedStepClock {
     return steps;
   }
 
+  /** How far the time is between the last tick and the next, 0 to 1; for drawing. */
+  get alpha(): number {
+    return Math.min(1, this.accumulator / this.stepMs);
+  }
+
   reset(): void {
     this.accumulator = 0;
   }

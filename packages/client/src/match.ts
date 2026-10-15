@@ -313,7 +313,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       match.step([...commands.splice(0), ...aiCommands()]);
     });
     takeEvents();
-    renderer.sync();
+    renderer.sync(clock.alpha);
 
     if (ui.selected !== null && !world.entities.has(ui.selected)) {
       ui.selected = null;

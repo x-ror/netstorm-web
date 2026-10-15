@@ -20,10 +20,18 @@ const MOVE_SCALE = 100; // fixed-point progress needed to enter the next cell
 // Whether the original slows diagonal steps this way is not established.
 const DIAGONAL_SCALE = 141;
 
+/** What stepCost reads: where a walker stands and the cells ahead of it. */
+type Walker = Pick<Transport, 'x' | 'y'> & { readonly path: readonly (readonly number[])[]; };
+
 /** Progress needed to step from where the unit stands to the next cell of its path. */
-function stepCost(e: Transport | Priest): number {
+function stepCost(e: Walker): number {
   const next = e.path[0];
   return next && next[0] !== e.x && next[1] !== e.y ? DIAGONAL_SCALE : MOVE_SCALE;
+}
+
+/** How far a walker has come towards the next cell of its path, 0 to 1; for drawing. */
+export function stepShare(e: Walker & { readonly move: number; }): number {
+  return Math.min(1, e.move / stepCost(e));
 }
 
 export function advance(world: World, e: Transport | Priest, speed: number): boolean {

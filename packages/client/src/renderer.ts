@@ -16,6 +16,7 @@ import {
   makerOf,
   oppositeDir,
   type Building,
+  stepShare,
 } from '@netstorm/sim';
 import {
   FACING_FRAMES,
@@ -342,6 +343,8 @@ export function createWorldRenderer(
   const headings = new Map<number, number>();
   const scene = { world, headings, aims: new Map<number, number>() };
   const shadows = new Map<number, Sprite>();
+  /** Where each unit was drawn on the previous tick and this one: between ticks it glides. */
+  const glides = new Map<number, { from: Point; to: Point; }>();
   /** Altars with a captive on them. */
   const holding = new Set<number>();
   entityLayer.sortableChildren = true;
@@ -451,6 +454,7 @@ export function createWorldRenderer(
 
       if (chained || (entity.kind === 'crystal' && entity.carriedBy !== null)) {
         sprite.visible = false;
+        glides.delete(entity.id);
         attach(shadows, entity.id, null, sprite, 0, 0);
         continue;
       }
@@ -466,6 +470,14 @@ export function createWorldRenderer(
         ? project(foot.x + (bySpot ? foot.w - inX : foot.w / 2), foot.y + foot.h - inY)
         : unitSpot(entity);
       sprite.position.set(sx, sy);
+
+      if (!foot) {
+        glides.set(entity.id, {
+          from: glides.get(entity.id)?.to ?? { x: sx, y: sy },
+          to: { x: sx, y: sy },
+        });
+      }
+
       // A flyer is drawn over everything on the ground.
       sprite.zIndex = entity.kind === 'flyer' ? AIR_Z : sy;
       sprite.tint = entityTint(entity, me);
@@ -496,6 +508,7 @@ export function createWorldRenderer(
         centres.delete(id);
         rising.delete(id);
         headings.delete(id);
+        glides.delete(id);
         scene.aims.delete(id);
 
         if (holding.delete(id)) {
@@ -947,7 +960,8 @@ export function createWorldRenderer(
   return {
     explode,
     cast,
-    sync() {
+    /** `alpha`: how far the time is between the last tick and the next (FixedStepClock.alpha). */
+    sync(alpha = 1) {
       if (terrainRevision !== world.terrainRevision) {
         drawTerrain();
         terrainRevision = world.terrainRevision;
@@ -956,6 +970,19 @@ export function createWorldRenderer(
       if (entityTick !== world.tick) {
         syncEntities();
         entityTick = world.tick;
+      }
+
+      // ponytail: the health bar is drawn per tick and does not glide with its unit.
+      for (const [id, { from, to }] of glides) {
+        const sprite = sprites.get(id);
+
+        if (!sprite?.visible) {
+          continue;
+        }
+
+        sprite.position.set(from.x + (to.x - from.x) * alpha, from.y + (to.y - from.y) * alpha);
+        overlays.get(id)?.position.copyFrom(sprite.position);
+        shadows.get(id)?.position.copyFrom(sprite.position);
       }
     },
   };
@@ -970,9 +997,15 @@ function middle(entity: DeepReadonly<Entity>): Point {
 
 /** Where a unit of one cell is drawn: a flyer at its exact place, the rest mid-cell. */
 function unitSpot(entity: DeepReadonly<Entity>): { sx: number; sy: number; } {
-  return entity.kind === 'flyer'
-    ? project(entity.px / FLYER_SCALE, entity.py / FLYER_SCALE)
-    : project(entity.x + CELL_CENTER, entity.y + CELL_CENTER);
+  if (entity.kind === 'flyer') {
+    return project(entity.px / FLYER_SCALE, entity.py / FLYER_SCALE);
+  }
+
+  // A walker is drawn on its way to the next cell of its path, as far as its move has come.
+  const [nx, ny] = ('path' in entity && entity.path[0]) || [entity.x, entity.y];
+  const share = 'path' in entity ? stepShare(entity) : 0;
+  return project(entity.x + (nx - entity.x) * share + CELL_CENTER,
+    entity.y + (ny - entity.y) * share + CELL_CENTER);
 }
 
 /** Cells a building or a geyser's islet covers; the sprite stands on their bottom edge, which

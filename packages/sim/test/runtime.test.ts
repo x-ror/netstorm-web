@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FixedStepClock, World, loadDefs, createSkirmish } from '../src/index.js';
+import { FixedStepClock, World, loadDefs, createSkirmish, stepShare } from '../src/index.js';
 import { equipWorkshops } from './workshops.js';
 
 const defs = loadDefs(
@@ -164,4 +164,12 @@ test('definition loading validates numbers and preserves original duplicate over
   ]).get('a')!.cost, 2);
   assert.throws(() => loadDefs([{ id: 'a', speed: NaN }]), /finite/);
   assert.throws(() => loadDefs([{ id: 'a', cost: -1 }]), /non-negative/);
+});
+
+test('the clock and a walker tell how far they are between ticks and cells', () => {
+  const clock = new FixedStepClock(10);
+  clock.advance(150, () => {});
+  assert.equal(clock.alpha, 0.5);
+  assert.equal(stepShare({ x: 0, y: 0, path: [[1, 0]], move: 50 }), 0.5);
+  assert.equal(stepShare({ x: 0, y: 0, path: [[1, 1]], move: 141 }), 1);
 });
