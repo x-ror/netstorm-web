@@ -322,7 +322,9 @@ function jag(world: World, x: number, y: number, side: number): void {
 }
 
 /** A bridge cell falls away. Transports on it are lost with it; a priest cannot be killed, so he is
- * left hanging in place and cannot move until bridge is laid under him again. */
+ * left hanging in place and cannot move until bridge is laid under him again. Every walker on the
+ * cell loses its footing (virtual 0xcc in netstorm.game, from `FUN_004237a0`): a transport carrying
+ * a captive sets him down where it stood, still paralysed, and falls alone (`FUN_0042a980`). */
 export function collapse(world: World, x: number, y: number): void {
   const i = world.at(x, y);
   world.terrain[i] = Terrain.Sky;
@@ -337,6 +339,16 @@ export function collapse(world: World, x: number, y: number): void {
 
     // An Aerial Transport over the cell is not standing on it.
     if (e.kind === 'transport' && !flies(world.def(e.type))) {
+      const captive = e.carrying === null ? undefined : world.entities.get(e.carrying);
+
+      if (captive?.kind === 'priest') {
+        e.carrying = null;
+        captive.carriedBy = null;
+        captive.state = 'down';
+        captive.path = [];
+        captive.move = 0;
+      }
+
       e.hp = 0;
     } else if (e.kind === 'priest' && e.state !== 'carried' && e.state !== 'chained') {
       e.path = [];

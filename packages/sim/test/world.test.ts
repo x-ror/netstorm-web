@@ -753,6 +753,33 @@ test('a priest left without ground hangs in place until bridge is laid under him
   assert.equal(w.apply({ t: 'movePriest', player: 1, x: 45, y: 40 }), null);
 });
 
+test('a transport falling with the bridge leaves its captive hanging where it stood', () => {
+  const w = mk();
+  const p = w.players.get(1)!;
+  p.hand = [{ piece: 1, age: 0 }];
+  assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null);
+  const golem = w.spawnTransport('sunwalker', 1, 51, 40);
+  const captive = w.addPriest(2, 75, 5);
+  captive.hp = 10;
+  captive.state = 'carried';
+  captive.carriedBy = golem.id;
+  golem.carrying = captive.id;
+  const tower = w.spawnBuilding('sunblocker', 2, 51, 41);
+  tower.hp = 0;
+  w.step();
+  w.step();
+  assert.equal(w.terrain[40 * 256 + 51], 0);
+  assert.ok(!w.entities.has(golem.id));
+  // Not released: still paralysed, not healed, over the empty cell.
+  assert.deepEqual([captive.state, captive.hp < captive.hpMax / 2, captive.x, captive.y], [
+    'down',
+    true,
+    51,
+    40,
+  ]);
+  assert.equal(captive.carriedBy, null);
+});
+
 test('the Priest heals a sixth of his hit points every eight seconds and needs a Temple to rise', () => {
   const w = mk();
   const priest = w.priestOf(1)!;
