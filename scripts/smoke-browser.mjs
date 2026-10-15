@@ -67,6 +67,8 @@ try {
     }
   });
   await page.goto(url, { waitUntil: 'networkidle' });
+  // The title screen opens on its categories; a skirmish starts from its own page.
+  await page.getByRole('button', { name: /Сутичка/ }).click();
   await page.getByRole('button', { name: 'Почати' }).click();
   await page.waitForFunction(() => window.ns?.world.players.get(1).hand.length > 0);
   const result = await page.evaluate(() => {
@@ -170,7 +172,7 @@ try {
 
   // Leaving the match returns to the menu and releases the scene.
   await page.getByRole('button', { name: 'Меню' }).click();
-  await page.getByRole('button', { name: 'Почати' }).waitFor();
+  await page.getByRole('button', { name: /Сутичка/ }).waitFor();
   assert.equal(await page.evaluate(() => window.ns), undefined);
   assert.deepEqual(errors, []);
   console.log(

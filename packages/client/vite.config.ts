@@ -108,6 +108,13 @@ function gameAssets(): Plugin {
         source: readFileSync(new URL(`./public/${SKY}`, import.meta.url)),
       });
 
+      // The picture behind the title screen: the title picture, repainted after the original's.
+      this.emitFile({
+        type: 'asset',
+        fileName: TITLE,
+        source: readFileSync(new URL(`./public/${TITLE}`, import.meta.url)),
+      });
+
       // The sounds and their index, as scripts/sounds.py left them in `public`.
       const sounds = readFileSync(new URL('./public/data/sounds.json', import.meta.url), 'utf8');
       const heard = (JSON.parse(sounds) as { files: Record<string, [string, number]>; }).files;
@@ -133,6 +140,7 @@ function gameAssets(): Plugin {
 }
 
 const SKY = 'sprites/sky.png';
+const TITLE = 'sprites/title.webp';
 
 export default defineConfig(({ command }) => ({
   // Relative URLs let the build run from any path, e.g. a GitHub Pages project site.

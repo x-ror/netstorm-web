@@ -51,6 +51,16 @@
   let list: HTMLElement | undefined = $state();
   /** The briefing, or the Knowledge the mission gives ("Review Knowledge"). */
   let view: 'briefing' | 'knowledge' = $state('briefing');
+  /** The title screen with its three categories, or one of them opened. */
+  let screen: 'main' | 'missions' | 'skirmish' | 'settings' = $state('main');
+
+  /** Escape goes back from a category to the title screen. */
+  function back(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && screen !== 'main') {
+      screen = 'main';
+    }
+  }
+
   const known = $derived(knowledgeOf(defs, mission, options.theme));
   const KNOWN_ICON = 40;
 
@@ -71,11 +81,18 @@
 
     const top = row.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
 
-    if (top < list.scrollTop) {
+    // A hidden mission comes up to the top, so the list starts on a whole row.
+    if (top < list.scrollTop || top + row.offsetHeight > list.scrollTop + list.clientHeight) {
       list.scrollTop = top;
-    } else if (top + row.offsetHeight > list.scrollTop + list.clientHeight) {
-      list.scrollTop = top + row.offsetHeight - list.clientHeight;
     }
+  });
+
+  let form: HTMLFormElement | undefined = $state();
+
+  // Each screen opens at its top, whatever the one before was scrolled to.
+  $effect(() => {
+    void screen;
+    form?.parentElement?.scrollTo(0, 0);
   });
 
   function enemyOf(entry: Mission): string {
@@ -96,172 +113,236 @@
   }
 </script>
 
-<form class="start" onsubmit={start}>
+<svelte:window onkeydown={back} />
+
+<form class="start screen-{screen}" onsubmit={start} bind:this={form}>
   {#key options.lang}
-    <header class="title">
-      <h1>NetStorm</h1>
-      <p>{m.menu_tagline()}</p>
-    </header>
+    <h1 class="visually-hidden">NetStorm: Islands At War</h1>
 
-    <section class="pane side">
-      <h2>{m.menu_your_fury()}</h2>
-      <div class="furies">
-        {#each PLAYABLE_THEMES as id (id)}
-          <label class="fury theme-{id}">
-            <input type="radio" name="theme" value={id} bind:group={options.theme} />
-            <UnitIcon {atlas} type="{id}vortex" name={FURIES[id].name()} size={TEMPLE_ICON} />
-            <b>{FURIES[id].name()}</b>
-            <small>{noteOf(id)}</small>
-          </label>
-        {/each}
-      </div>
+    {#if screen === 'main'}
+      <nav class="plate categories" aria-label={m.menu_title()}>
+        <button type="button" class="category" onclick={() => (screen = 'missions')}>
+          {m.menu_missions()}<small>{m.menu_missions_note()}</small>
+        </button>
+        <button type="button" class="category" onclick={() => (screen = 'skirmish')}>
+          {m.menu_skirmish()}<small>{m.menu_skirmish_note()}</small>
+        </button>
+        <button type="button" class="category" onclick={() => (screen = 'settings')}>
+          {m.menu_settings()}<small>{m.menu_settings_note()}</small>
+        </button>
+      </nav>
+    {:else}
+      <section class="plate page page-{screen}">
+        <header class="page-bar">
+          <button type="button" class="back" onclick={() => (screen = 'main')}>
+            ← {m.menu_back()} <kbd>Esc</kbd>
+          </button>
+          <h2>
+            {
+              screen === 'missions'
+              ? m.menu_missions()
+              : (screen === 'skirmish' ? m.menu_skirmish() : m.menu_settings())
+            }
+          </h2>
+        </header>
 
-      <h2>{m.menu_opponent()}</h2>
-      <div class="furies small">
-        {#each PLAYABLE_THEMES as id (id)}
-          <label class="fury theme-{id}">
-            <input type="radio" name="enemyTheme" value={id} bind:group={options.enemyTheme} />
-            <UnitIcon {atlas} type="{id}vortex" name={FURIES[id].name()} size={ENEMY_ICON} />
-            <b>{FURIES[id].name()}</b>
-          </label>
-        {/each}
-      </div>
-      <div class="segmented">
-        <label>
-          <input type="radio" name="opponent" value="ai" bind:group={options.opponent} />
-          <span>{m.menu_computer()}</span>
-        </label>
-        <label>
-          <input type="radio" name="opponent" value="idle" bind:group={options.opponent} />
-          <span>{m.menu_idle()}</span>
-        </label>
-      </div>
+        {#if screen === 'missions'}
+          <div class="mission-list" bind:this={list}>
+            {#each missions as entry (entry.id)}
+              {@const enemy = enemyOf(entry)}
+              <label class="mission">
+                <input
+                  type="radio"
+                  name="mission"
+                  value={entry.id}
+                  bind:group={options.mission}
+                  onchange={() => chooseMission(entry)}
+                />
+                <b>{entry.title}</b>
+                {#if enemy}<small>{enemy}</small>{/if}
+              </label>
+            {/each}
+          </div>
+          <div class="briefing">
+            <div class="segmented tabs">
+              <label>
+                <input type="radio" name="view" value="briefing" bind:group={view} />
+                <span>{m.menu_briefing()}</span>
+              </label>
+              <label>
+                <input type="radio" name="view" value="knowledge" bind:group={view} />
+                <span>{m.menu_knowledge()}</span>
+              </label>
+            </div>
+            <h3>{mission?.title ?? ''}</h3>
+            {#if view === 'briefing'}
+              <pre>{mission?.briefing ?? ''}</pre>
+            {:else}
+              <ul class="knowledge">
+                {#each known as { def, name, kind } (def.id)}
+                  <li>
+                    <UnitIcon {atlas} type={def.id} name={name} size={KNOWN_ICON} />
+                    <b>{name}</b>
+                    <small>{kind}{
+                      def.level ? ` · ${m.menu_level({ level: def.level })}` : ''
+                    }</small>
+                    <span class="cost">{def.cost}</span>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+            <button type="submit" class="primary start-button">{m.menu_start()}</button>
+          </div>
+        {:else if screen === 'skirmish'}
+          <div class="skirmish">
+            <div class="column">
+              <h3>{m.menu_your_fury()}</h3>
+              <div class="furies">
+                {#each PLAYABLE_THEMES as id (id)}
+                  <label class="fury theme-{id}">
+                    <input type="radio" name="theme" value={id} bind:group={options.theme} />
+                    <UnitIcon
+                      {atlas}
+                      type="{id}vortex"
+                      name={FURIES[id].name()}
+                      size={TEMPLE_ICON}
+                    />
+                    <b>{FURIES[id].name()}</b>
+                    <small>{noteOf(id)}</small>
+                  </label>
+                {/each}
+              </div>
+              <h3>{m.menu_opponent()}</h3>
+              <div class="furies small">
+                {#each PLAYABLE_THEMES as id (id)}
+                  <label class="fury theme-{id}">
+                    <input
+                      type="radio"
+                      name="enemyTheme"
+                      value={id}
+                      bind:group={options.enemyTheme}
+                    />
+                    <UnitIcon
+                      {atlas}
+                      type="{id}vortex"
+                      name={FURIES[id].name()}
+                      size={ENEMY_ICON}
+                    />
+                    <b>{FURIES[id].name()}</b>
+                  </label>
+                {/each}
+              </div>
+              <div class="segmented">
+                <label>
+                  <input type="radio" name="opponent" value="ai" bind:group={options.opponent} />
+                  <span>{m.menu_computer()}</span>
+                </label>
+                <label>
+                  <input type="radio" name="opponent" value="idle" bind:group={options.opponent} />
+                  <span>{m.menu_idle()}</span>
+                </label>
+              </div>
+            </div>
+            <div class="column">
+              <h3>{m.menu_battle_options()}</h3>
+              <div class="menu-form">
+                <label>
+                  {m.menu_map()}
+                  <select
+                    name="mission"
+                    bind:value={options.mission}
+                    onchange={() => mission && chooseMission(mission)}
+                  >
+                    {#each missions as entry (entry.id)}<option value={entry.id}>
+                        {entry.title}
+                      </option>{/each}
+                  </select>
+                </label>
+                <label>
+                  {m.menu_bridges()}
+                  <select name="bridges" bind:value={options.bridges}>
+                    {#each BRIDGE_SETS as id (id)}<option value={id}>
+                        {BRIDGE_LABELS[id]()}
+                      </option>{/each}
+                  </select>
+                </label>
+                <label>
+                  {m.menu_bridge_slots()}
+                  <select name="slots" bind:value={options.slots}>
+                    {#each BRIDGE_SLOTS as slots (slots)}<option value={slots}>
+                        {slots}
+                      </option>{/each}
+                  </select>
+                </label>
+                <label>
+                  {m.menu_unit_rate()}
+                  <select name="unitRate" bind:value={options.unitRate}>
+                    {#each UNIT_RATES as seconds, i (seconds)}
+                      <option value={seconds}>
+                        {m.menu_unit_rate_option({ name: UNIT_RATE_NAMES[i] ?? '', seconds })}
+                      </option>
+                    {/each}
+                  </select>
+                </label>
+                <label>
+                  {m.menu_kill_reward()}
+                  <select name="killReward" bind:value={options.killReward}>
+                    {#each KILL_REWARDS as share (share)}<option value={share}>
+                        {m.menu_kill_reward_option({ share })}
+                      </option>{/each}
+                  </select>
+                </label>
+                <label>
+                  {m.menu_geyser_stock()}
+                  <select name="geyserStock" bind:value={options.geyserStock}>
+                    {#each GEYSER_STOCKS as stock (stock)}<option value={stock}>
+                        {stock}
+                      </option>{/each}
+                  </select>
+                </label>
+                <label>
+                  {m.menu_storm()}
+                  <input
+                    name="storm"
+                    type="number"
+                    min="0"
+                    max={MAX_STORM}
+                    step="100"
+                    bind:value={options.storm}
+                  />
+                </label>
+                <label>
+                  {m.menu_seed()}
+                  <input
+                    name="seed"
+                    type="number"
+                    min="0"
+                    max={MAX_SEED}
+                    bind:value={options.seed}
+                  />
+                </label>
+              </div>
+              <button type="submit" class="primary start-button">{m.menu_start()}</button>
+            </div>
+          </div>
+        {:else}
+          <div class="settings">
+            <h3>{m.menu_language()}</h3>
+            <div class="segmented">
+              <label>
+                <input type="radio" name="lang" value="uk" bind:group={options.lang} />
+                <span>Українська</span>
+              </label>
+              <label>
+                <input type="radio" name="lang" value="en" bind:group={options.lang} />
+                <span>English</span>
+              </label>
+            </div>
+          </div>
+        {/if}
+      </section>
+    {/if}
 
-      <details class="options">
-        <summary>{m.menu_battle_options()}</summary>
-        <div class="menu-form">
-          <label>
-            {m.menu_bridges()}
-            <select name="bridges" bind:value={options.bridges}>
-              {#each BRIDGE_SETS as id (id)}<option value={id}>{BRIDGE_LABELS[id]()}</option>{/each}
-            </select>
-          </label>
-          <label>
-            {m.menu_bridge_slots()}
-            <select name="slots" bind:value={options.slots}>
-              {#each BRIDGE_SLOTS as slots (slots)}<option value={slots}>{slots}</option>{/each}
-            </select>
-          </label>
-          <label>
-            {m.menu_unit_rate()}
-            <select name="unitRate" bind:value={options.unitRate}>
-              {#each UNIT_RATES as seconds, i (seconds)}
-                <option value={seconds}>
-                  {m.menu_unit_rate_option({ name: UNIT_RATE_NAMES[i] ?? '', seconds })}
-                </option>
-              {/each}
-            </select>
-          </label>
-          <label>
-            {m.menu_kill_reward()}
-            <select name="killReward" bind:value={options.killReward}>
-              {#each KILL_REWARDS as share (share)}<option value={share}>
-                  {m.menu_kill_reward_option({ share })}
-                </option>{/each}
-            </select>
-          </label>
-          <label>
-            {m.menu_geyser_stock()}
-            <select name="geyserStock" bind:value={options.geyserStock}>
-              {#each GEYSER_STOCKS as stock (stock)}<option value={stock}>{stock}</option>{/each}
-            </select>
-          </label>
-          <label>
-            {m.menu_storm()}
-            <input
-              name="storm"
-              type="number"
-              min="0"
-              max={MAX_STORM}
-              step="100"
-              bind:value={options.storm}
-            />
-          </label>
-          <label>
-            {m.menu_seed()}
-            <input name="seed" type="number" min="0" max={MAX_SEED} bind:value={options.seed} />
-          </label>
-        </div>
-      </details>
-    </section>
-
-    <section class="pane missions">
-      <h2>{m.menu_mission()}</h2>
-      <div class="mission-list" bind:this={list}>
-        {#each missions as entry (entry.id)}
-          {@const enemy = enemyOf(entry)}
-          <label class="mission">
-            <input
-              type="radio"
-              name="mission"
-              value={entry.id}
-              bind:group={options.mission}
-              onchange={() => chooseMission(entry)}
-            />
-            <b>{entry.title}</b>
-            {#if enemy}<small>{enemy}</small>{/if}
-          </label>
-        {/each}
-      </div>
-    </section>
-
-    <section class="pane briefing">
-      <h2>{mission?.title ?? ''}</h2>
-      <div class="segmented tabs">
-        <label>
-          <input
-            type="radio"
-            name="lang"
-            value="uk"
-            bind:group={options.lang}
-          />
-          <span>Українська</span>
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="lang"
-            value="en"
-            bind:group={options.lang}
-          />
-          <span>English</span>
-        </label>
-      </div>
-      <div class="segmented tabs">
-        <label>
-          <input type="radio" name="view" value="briefing" bind:group={view} />
-          <span>{m.menu_briefing()}</span>
-        </label>
-        <label>
-          <input type="radio" name="view" value="knowledge" bind:group={view} />
-          <span>{m.menu_knowledge()}</span>
-        </label>
-      </div>
-      {#if view === 'briefing'}
-        <pre>{mission?.briefing ?? ''}</pre>
-      {:else}
-        <ul class="knowledge">
-          {#each known as { def, name, kind } (def.id)}
-            <li>
-              <UnitIcon {atlas} type={def.id} name={name} size={KNOWN_ICON} />
-              <b>{name}</b>
-              <small>{kind}{def.level ? ` · ${m.menu_level({ level: def.level })}` : ''}</small>
-              <span class="cost">{def.cost}</span>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-      <button type="submit" class="primary start-button">{m.menu_start()}</button>
-    </section>
+    <p class="credit">{m.menu_credit()}</p>
   {/key}
 </form>
