@@ -352,14 +352,19 @@ test('a destroyed shooter hurts everything next to it and can set off a chain', 
   assert.equal(third.hpMax - third.hp, 301);
 });
 
-test('a destroyed Temple deals 400 around it; a generator does not explode', () => {
+test('a destroyed Temple deals 400 in a square from its foot_x; a generator does not explode', () => {
   const world = mk();
   world.addIsland(0, 0, 100, 100, 1);
   const temple = world.spawnBuilding('windvortex', 1, 40, 40, 1);
   const near = world.spawnBuilding('suncannon', 1, 40 + temple.fx, 40, 1);
+  // Half its foot_x (8) plus one on both axes: two rows below the 8×6 Temple, one column aside.
+  const below = world.spawnTransport('sunwalker', 1, 44, 40 + temple.fy + 1);
+  const aside = world.spawnTransport('sunwalker', 1, 40 + temple.fx + 1, 42);
   temple.hp = 0;
   world.step();
   assert.equal(near.hpMax - near.hp, 400);
+  assert.ok(below.hp < below.hpMax);
+  assert.equal(aside.hp, aside.hpMax);
   const battery = world.spawnBuilding('windbattery', 1, 60, 60, 1);
   const beside = world.spawnBuilding('suncannon', 1, 60 + battery.fx, 60, 1);
   battery.hp = 0;

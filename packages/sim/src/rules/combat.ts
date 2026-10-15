@@ -495,8 +495,10 @@ const BLAST_GROUPS: ReadonlySet<string> = new Set(['archer', 'cannon', 'anti-air
  * "When shooting units explode they also damage every other unit nearby! They may explode from
  * that damage in a chain reaction. Temples also explode in this way." In the original a destroyed
  * archer, cannon or anti-air gun deals half of its full hit points plus one, and a Temple 400, to
- * everything with hit points that stands within one cell of its footprint, whoever owns it. The
- * damage belongs to the player who destroyed the unit. Salvage does not come through here.
+ * everything with hit points in a square around its centre, whoever owns it: half of the square
+ * is half its foot_x plus one, on both axes (FUN_004578b0) — one cell around a 3×3 shooter, and
+ * around an 8×6 Temple one cell to the sides but two above and below. The damage belongs to the
+ * player who destroyed the unit. Salvage does not come through here.
  */
 function explode(world: World, b: Building): void {
   const amount = blastDamage(world.def(b.type), b.hpMax);
@@ -504,6 +506,11 @@ function explode(world: World, b: Building): void {
   if (!amount) {
     return;
   }
+
+  // The square about the centre of the footprint; which cells the original counts in it is `?`.
+  const reach = Math.floor(b.fx / 2) + 1;
+  const cx = b.x + b.fx / 2;
+  const cy = b.y + b.fy / 2;
 
   // ponytail: scans every entity for each explosion; use the cell index if blasts get frequent.
   for (const entity of world.entities.values()) {
@@ -515,8 +522,8 @@ function explode(world: World, b: Building): void {
     const height = entity.kind === 'building' ? entity.fy : 1;
 
     if (
-      entity.x + width >= b.x && entity.x <= b.x + b.fx
-      && entity.y + height >= b.y && entity.y <= b.y + b.fy
+      entity.x < cx + reach && entity.x + width > cx - reach
+      && entity.y < cy + reach && entity.y + height > cy - reach
     ) {
       damage(world, b.killer, entity, amount);
 
