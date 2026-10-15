@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Add to data/missions.json how each mission is won and lost.
+"""Add to data/missions.json how each mission is won and lost, and read its header again.
 
 A mission file names its sections in square brackets, and a section may carry a second name: the
 event that brings it up. "[Succeeded][BadTeamDead]" is shown, and the mission won, when every enemy
@@ -10,6 +10,10 @@ its text has in the file. The buttons of every section are kept under "buttons",
 of the section: their label, what they do ("Tell" shows another section, "DoNothing" goes on with
 the battle, "LeaveBattle" and the "Mission..." ones leave it) and what with. data/missions.json keeps the
 first name of each section only, so the events are read from the files again.
+
+The header is read as the original's config.cpp reads a value: up to the end of its line, quotes
+dropped (a quote after ` is kept) and the rest cut at an unquoted "//". A quote left open does not
+run on into the next line, so "ai3Name = \"Marquis de Thunder" is followed by its ai3Tech.
 
 Usage: mission-goals.py <dir with *.english> <data/missions.json>
 """
@@ -24,6 +28,43 @@ LOST = {"failed"}
 
 
 EVENT = re.compile(r"@\d+|ai\d+(priest|temple)\w+")
+ESCAPE = "`"
+
+
+def value(rest: str) -> str:
+    """A value as config.cpp copies it: to the end of the line or an unquoted comment, unquoted."""
+    out: list[str] = []
+    quoted = False
+    previous = ""
+
+    for i, char in enumerate(rest):
+        if char in "\r\n" or (not quoted and rest.startswith("//", i)):
+            break
+
+        if char == '"' and previous != ESCAPE:
+            quoted = not quoted
+        else:
+            out.append(char)
+
+        previous = char
+
+    return "".join(out).rstrip()
+
+
+def header(text: str) -> dict:
+    found: dict = {}
+    inside = False
+
+    for line in text.replace("\r", "").split("\n"):
+        head = HEAD.match(line)
+
+        if head:
+            inside = head[1].lower().startswith("[header]")
+        elif inside and "=" in line and not line.lstrip().startswith("//"):
+            key, rest = line.split("=", 1)
+            found[key.strip()] = value(rest.lstrip(" \t="))
+
+    return found
 
 
 def goals(text: str) -> dict:
@@ -66,7 +107,9 @@ def main() -> None:
         path = source / f"{mission['file']}.english"
 
         if path.exists() and mission.get("header", {}).get("missionType"):
-            mission["goals"] = goals(path.read_bytes().decode("latin-1"))
+            text = path.read_bytes().decode("latin-1")
+            mission["header"] = header(text)
+            mission["goals"] = goals(text)
 
     out.write_text(json.dumps(missions, indent=4) + "\n")
 
