@@ -23,7 +23,7 @@ import {
   type WorldView,
 } from '@netstorm/sim';
 import type { Atlas } from './assets.js';
-import { rejection } from './messages.js';
+import { className, rejection, unitName } from './messages.js';
 import { m } from './paraglide/messages.js';
 import { TH, TW } from './projection.js';
 import { bridgeSlot } from './texture-selection.js';
@@ -335,14 +335,14 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
 
       return {
         id: def.id,
-        name: def.name,
+        name: unitName(def.id, def.name),
         theme: def.theme,
         cost: def.cost,
         active,
         poor: player.storm < def.cost || cooling !== undefined || maker !== null,
         title: m.unit_title({
-          name: def.name,
-          cls: def.cls,
+          name: unitName(def.id, def.name),
+          cls: className(def.cls),
           level: def.level,
           size: `${def.footX}×${def.footY}`,
         }) + warning,
@@ -367,7 +367,7 @@ function workshop(
   actions: SelectedAction[],
 ): void {
   const room = WORKSHOP_SLOTS + b.upgrades;
-  const names = b.slots.map((type) => world.defs.get(type)?.name ?? type);
+  const names = b.slots.map((type) => unitName(type, world.defs.get(type)?.name ?? type));
   say(m.workshop_level({ level: b.upgrades + 1, used: b.slots.length, room }));
   say(names.length ? m.workshop_makes({ names: names.join(', ') }) : m.workshop_empty());
 
@@ -390,7 +390,11 @@ function workshop(
       : m.slot_no_knowledge(), true);
 
     for (const def of offered) {
-      actions.push({ kind: 'produce', type: def.id, label: m.action_produce({ name: def.name }) });
+      actions.push({
+        kind: 'produce',
+        type: def.id,
+        label: m.action_produce({ name: unitName(def.id, def.name) }),
+      });
     }
   } else if (offered.length) {
     say(m.slots_full(), true);
@@ -447,18 +451,20 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
     const spell = entity.spell === null ? undefined : world.defs.get(entity.spell);
 
     if (spell) {
-      say(`${m.spell_fact({ name: spell.name, range: spell.range })}${
-        entity.casting > 0
-          ? ` — ${m.casting({ seconds: Math.ceil(entity.casting / TPS) })}`
-          : ''
-      }`);
+      say(
+        `${m.spell_fact({ name: unitName(spell.id, spell.name), range: spell.range })}${
+          entity.casting > 0
+            ? ` — ${m.casting({ seconds: Math.ceil(entity.casting / TPS) })}`
+            : ''
+        }`,
+      );
     }
 
     if (entity.owner === me) {
       if (spell) {
         actions.push({
           kind: 'cast',
-          label: m.action_cast({ name: spell.name }),
+          label: m.action_cast({ name: unitName(spell.id, spell.name) }),
           cost: spell.cost,
         });
       }
@@ -490,7 +496,7 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
           actions.push({
             kind: 'build',
             type: def.id,
-            label: m.action_build({ name: def.name }),
+            label: m.action_build({ name: unitName(def.id, def.name) }),
             cost: def.cost,
           });
         }
@@ -504,9 +510,11 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
     say(entity.stock > 0 ? m.geyser_stock({ stock: entity.stock }) : m.geyser_depleted());
   } else if (entity.kind === 'obelisk') {
     const spell = world.defs.get(entity.spell);
-    say(
-      m.obelisk_fact({ cls: spell?.cls ?? '', range: spell?.range ?? 0, cost: spell?.cost ?? 0 }),
-    );
+    say(m.obelisk_fact({
+      cls: className(spell?.cls ?? ''),
+      range: spell?.range ?? 0,
+      cost: spell?.cost ?? 0,
+    }));
     say(m.obelisk_hint(), true);
   }
 
@@ -609,14 +617,16 @@ export function entityName(world: WorldView, entity: DeepReadonly<Entity>): stri
     case 'building':
     case 'transport':
     case 'flyer':
-      return world.defs.get(entity.type)?.name ?? entity.type;
+      return unitName(entity.type, world.defs.get(entity.type)?.name ?? entity.type);
     case 'priest':
-      return 'High Priest';
+      return unitName('priest', 'High Priest');
     case 'geyser':
-      return 'Storm Geyser';
+      return unitName('geyser', 'Storm Geyser');
     case 'crystal':
       return m.crystal_name({ value: entity.value });
     case 'obelisk':
-      return m.obelisk_name({ name: world.defs.get(entity.spell)?.name ?? entity.spell });
+      return m.obelisk_name({
+        name: unitName(entity.spell, world.defs.get(entity.spell)?.name ?? entity.spell),
+      });
   }
 }

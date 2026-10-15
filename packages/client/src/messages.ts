@@ -51,6 +51,44 @@ export function rejection(err: string): string {
   return REJECTIONS[err]?.() ?? err;
 }
 
+/** The classes of the units' .type files, as the panels name them. */
+const CLASSES: Readonly<Record<string, () => string>> = {
+  'Shooter': m.class_shooter,
+  'Defense': m.class_defense,
+  'Anti-Air': m.class_anti_air,
+  'Source of Energy': m.class_source_of_energy,
+  'Air Attack Base': m.class_air_attack_base,
+  'Production': m.class_production,
+  'Energy': m.class_energy,
+  'Altar': m.class_altar,
+  'Ground Transport': m.class_ground_transport,
+  'Aerial Transport': m.class_aerial_transport,
+  'Aerial Attack': m.class_aerial_attack,
+  'High Priest': m.class_high_priest,
+  'Defensive Spell': m.class_defensive_spell,
+  'Offensive Spell': m.class_offensive_spell,
+  // So the .type file of Treason spells it.
+  'Offsensive Spell': m.class_offensive_spell,
+  'Summons Spell': m.class_summons_spell,
+  'Source of Storm Power': m.class_source_of_storm_power,
+  'Bridge': m.class_bridge,
+  'Residence': m.class_residence,
+  'Spell': m.class_spell,
+};
+
+/** Every message by its key, for the names looked up by a unit's id. */
+const BY_KEY = m as unknown as Readonly<Record<string, (() => string) | undefined>>;
+
+/** A class of the units' .type files in the player's language, or as the file names it. */
+export function className(cls: string): string {
+  return CLASSES[cls]?.() ?? cls;
+}
+
+/** A unit's name in the player's language (`unit_<id>` in messages/), or the original's name. */
+export function unitName(id: string, original: string): string {
+  return BY_KEY[`unit_${id}`]?.() ?? original;
+}
+
 export type Tone = 'good' | 'bad' | 'info';
 
 /**
@@ -64,7 +102,7 @@ export function describeEvent(
   event: SimEvent,
 ): { text: string; tone: Tone; } | null {
   const mine = event.who === me;
-  const name = (type: string) => world.defs.get(type)?.name ?? type;
+  const name = (type: string) => unitName(type, world.defs.get(type)?.name ?? type);
   const player = (id: number) => world.players.get(id)?.name ?? m.player_number({ id });
 
   switch (event.what) {

@@ -21,17 +21,24 @@
   import type { MenuProps } from './contracts.js';
   import UnitIcon from './UnitIcon.svelte';
   import { knowledgeOf } from '../knowledge.js';
+  import { unitName } from '../messages.js';
   import { m } from '../paraglide/messages.js';
   import { setLocale } from '../paraglide/runtime.js';
 
   let { missions: english, translated, defs, atlas, initial, onstart }: MenuProps = $props();
 
   /** Each Fury on its card: its name and the units it is known by. */
-  const FURIES: Record<PlayableTheme, { name: () => string; note: string; }> = {
-    wind: { name: m.fury_wind, note: 'Crossbow, Wind Tower, Dust Devil' },
-    rain: { name: m.fury_rain, note: "Ice Cannon, Ice Tower, Man o' War" },
-    thunder: { name: m.fury_thunder, note: 'Thunder Cannon, Vander Tower, Bulwark' },
+  const FURIES: Record<PlayableTheme, { name: () => string; units: string[]; }> = {
+    wind: { name: m.fury_wind, units: ['windarcher', 'windblocker', 'windflyer'] },
+    rain: { name: m.fury_rain, units: ['raincannon', 'rainblocker', 'rainflyer'] },
+    thunder: { name: m.fury_thunder, units: ['thundercannon', 'thunderarcher', 'thunderblocker'] },
   };
+
+  /** The units a Fury is known by, named in the player's language. */
+  function noteOf(theme: PlayableTheme): string {
+    return FURIES[theme].units.map((id) => unitName(id, defs.get(id)?.name ?? id)).join(', ');
+  }
+
   const TEMPLE_ICON = 64; // pixels of a Temple on a Fury's card
   const ENEMY_ICON = 32;
   /** Names a mission file gives where it names no one. */
@@ -92,7 +99,7 @@
             <input type="radio" name="theme" value={id} bind:group={options.theme} />
             <UnitIcon {atlas} type="{id}vortex" name={FURIES[id].name()} size={TEMPLE_ICON} />
             <b>{FURIES[id].name()}</b>
-            <small>{FURIES[id].note}</small>
+            <small>{noteOf(id)}</small>
           </label>
         {/each}
       </div>
@@ -232,10 +239,10 @@
         <pre>{mission?.briefing ?? ''}</pre>
       {:else}
         <ul class="knowledge">
-          {#each known as { def, kind } (def.id)}
+          {#each known as { def, name, kind } (def.id)}
             <li>
-              <UnitIcon {atlas} type={def.id} name={def.name} size={KNOWN_ICON} />
-              <b>{def.name}</b>
+              <UnitIcon {atlas} type={def.id} name={name} size={KNOWN_ICON} />
+              <b>{name}</b>
               <small>{kind}{def.level ? ` · ${m.menu_level({ level: def.level })}` : ''}</small>
               <span class="cost">{def.cost}</span>
             </li>

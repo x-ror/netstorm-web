@@ -161,7 +161,7 @@ test('the log speaks of the local player and hides the enemy routine', () => {
     what: 'destroyed',
     who: ENEMY,
     data: { id: 9, type: 'suncannon' },
-  })?.text, 'Знищено ворожий Sun Cannon');
+  })?.text, 'Знищено у ворога: Сонячна гармата');
 });
 
 test('the interface has every message in English too, and speaks it once chosen', () => {

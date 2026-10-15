@@ -97,7 +97,7 @@ try {
   await page.waitForFunction((before) => window.ns.ground.children.length > before, result.before);
 
   // Production Window: picking a unit arms the build tool, Escape returns to selection.
-  const cannon = page.getByRole('button', { name: 'Sun Cannon', exact: true });
+  const cannon = page.getByRole('button', { name: 'Сонячна гармата', exact: true });
   await cannon.click();
   assert.match(await cannon.getAttribute('class'), /\bon\b/);
   await page.keyboard.press('f');
