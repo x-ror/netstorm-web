@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { TEXTURES, parsePath, selectFrame, type Manifest } from './src/texture-selection.js';
 import {
   inOrderOf,
@@ -138,6 +139,13 @@ export default defineConfig(({ command }) => ({
   base: './',
   publicDir: command === 'build' ? false : 'public',
   plugins: [
+    // The texts of the interface, from messages/{locale}.json (inlang); the menu picks the locale.
+    paraglideVitePlugin({
+      project: './project.inlang',
+      outdir: './src/paraglide',
+      strategy: ['globalVariable', 'baseLocale'],
+      emitTsDeclarations: true,
+    }),
     // The panels around the map. A warning of the Svelte compiler stops the build, where the
     // compiler is what catches the mistakes of .svelte files; while editing it is only shown.
     svelte({

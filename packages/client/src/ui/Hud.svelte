@@ -10,6 +10,7 @@
   import Glyph from './Glyph.svelte';
   import Planks from './Planks.svelte';
   import UnitIcon from './UnitIcon.svelte';
+  import { m } from '../paraglide/messages.js';
 
   let { atlas, actions }: HudProps = $props();
 
@@ -62,45 +63,50 @@
 
 {#if model}
   <header id="topbar">
-    <span class="stat storm" title="Буресила">
+    <span class="stat storm" title={m.hud_storm()}>
       <Glyph name="storm" /><b data-testid="storm">{model.storm}</b>
     </span>
     <span
       class="stat energy"
-      title="Енергія від Храму й генераторів: своєї стихії / усього"
+      title={m.hud_energy()}
     >
       <Glyph name="energy" /><b>{model.energy.own}</b><small>/ {model.energy.total}</small>
     </span>
-    <span class="stat clock" title="Час бою"><Glyph name="clock" />{model.clock}</span>
+    <span class="stat clock" title={m.hud_clock()}><Glyph name="clock" />{model.clock}</span>
     <span class="sep"></span>
     <button
       class="icon-button"
       class:on={model.paused}
-      aria-label={model.paused ? 'Продовжити' : 'Пауза'}
-      title="{model.paused ? 'Продовжити' : 'Пауза'} (Space)"
+      aria-label={model.paused ? m.hud_resume() : m.hud_pause()}
+      title="{model.paused ? m.hud_resume() : m.hud_pause()} (Space)"
       onclick={actions.togglePause}
     >
       <Glyph name={model.paused ? 'play' : 'pause'} />
     </button>
     <button
       class="icon-button"
-      aria-label="Звук"
-      title={model.muted ? 'Увімкнути звук' : 'Вимкнути звук'}
+      aria-label={m.hud_sound()}
+      title={model.muted ? m.hud_sound_on() : m.hud_sound_off()}
       onclick={actions.toggleSound}
     >
       <Glyph name={model.muted ? 'muted' : 'sound'} />
     </button>
-    <button class="icon-button" aria-label="Меню" title="Меню" onclick={actions.exit}>
+    <button
+      class="icon-button"
+      aria-label={m.hud_menu()}
+      title={m.hud_menu()}
+      onclick={actions.exit}
+    >
       <Glyph name="menu" />
     </button>
   </header>
 
   <aside id="panel">
     <section class="card">
-      <h3 title="Сегмент приєднується лише відкритими кінцями — там, де немає стінки">
-        Мости
+      <h3 title={m.hud_bridges_hint()}>
+        {m.hud_bridges()}
         <span class="keys"><kbd>1</kbd>–<kbd>{model.bridgeSlots}</kbd> <kbd>R</kbd>
-          поворот</span>
+          {m.hud_rotate()}</span>
       </h3>
       <div id="hand">
         {#each model.slots as slot (slot.index)}
@@ -119,13 +125,13 @@
           {/if}
         {/each}
         {#if !model.hasTemple}
-          <p class="muted note">Без Храму сегментів немає</p>
+          <p class="muted note">{m.hud_no_temple()}</p>
         {/if}
       </div>
     </section>
 
     <section class="card">
-      <h3>Виробництво <span class="keys"><kbd>R</kbd> напрям</span></h3>
+      <h3>{m.hud_production()} <span class="keys"><kbd>R</kbd> {m.hud_facing()}</span></h3>
       <div id="units">
         {#each model.units as card (card.id)}
           <button
@@ -146,7 +152,7 @@
             {/if}
           </button>
         {:else}
-          <span class="muted">Немає відомих споруд</span>
+          <span class="muted">{m.hud_no_units()}</span>
         {/each}
       </div>
       <div id="tools">
@@ -154,13 +160,13 @@
           class:on={model.tool === 'select'}
           onclick={() => actions.setTool({ kind: 'select' })}
         >
-          Вибір <kbd>Esc</kbd>
+          {m.hud_select()} <kbd>Esc</kbd>
         </button>
         <button
           class:on={model.tool === 'salvage'}
           onclick={() => actions.setTool({ kind: 'salvage' })}
         >
-          Розібрати
+          {m.hud_salvage()}
         </button>
       </div>
     </section>

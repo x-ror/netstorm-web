@@ -138,6 +138,7 @@
   "ignorePatterns": [
     "**/dist/**",
     "packages/client/public/**",
-    "data/**"
+    "data/**",
+    "packages/client/src/paraglide/**"
   ]
 }

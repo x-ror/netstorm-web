@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p tsconfig.test.json",
-    "test": "node --import tsx --test --test-isolation=none test/*.test.ts"
+    "test": "node --import tsx --test --test-isolation=none test/*.test.ts",
+    "i18n": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy globalVariable baseLocale --emit-ts-declarations --silent",
+    "pretypecheck": "npm run i18n",
+    "pretest": "npm run i18n"
   },
   "dependencies": {
     "@netstorm/sim": "*",
@@ -15,6 +18,8 @@
     "svelte": "^5.57.2"
   },
   "devDependencies": {
+    "@inlang/paraglide-js": "^2.28.0",
+    "@inlang/plugin-message-format": "^4.5.4",
     "@sveltejs/vite-plugin-svelte": "^7.3.1"
   }
 }

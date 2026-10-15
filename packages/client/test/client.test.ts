@@ -40,6 +40,7 @@ import {
 import { loudness, unitSound, type SoundIndex } from '../src/sound.js';
 import { anchorFor, createUiState, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
+import { setLocale } from '../src/paraglide/runtime.js';
 import { hudModel, iconOf } from '../src/hud-model.js';
 
 const read = (name: string): unknown =>
@@ -161,6 +162,29 @@ test('the log speaks of the local player and hides the enemy routine', () => {
     who: ENEMY,
     data: { id: 9, type: 'suncannon' },
   })?.text, 'Знищено ворожий Sun Cannon');
+});
+
+test('the interface has every message in English too, and speaks it once chosen', () => {
+  const [uk, en] = ['uk', 'en'].map((locale) =>
+    Object.keys(
+      JSON.parse(readFileSync(new URL(`../messages/${locale}.json`, import.meta.url), 'utf8')),
+    )
+  );
+  assert.deepEqual(en, uk);
+  const view = createMatchWorld(defs, maps, missions, DEFAULT_OPTIONS).view();
+  const refused = {
+    tick: 1,
+    what: 'rejected',
+    who: ME,
+    data: { cmd: 'build', err: 'no energy' },
+  } as const;
+
+  try {
+    setLocale('en', { reload: false });
+    assert.equal(describeEvent(view, ME, refused)?.text, 'Build: not enough energy nearby');
+  } finally {
+    setLocale('uk', { reload: false });
+  }
 });
 
 test('a mission sets up its sides: names, knowledge, Storm Power and alliances', () => {

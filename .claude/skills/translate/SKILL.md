@@ -7,8 +7,12 @@ description: Translate NetStorm game texts between English and Ukrainian (missio
 
 Оригінал гри англійський: `data/missions.json`. Український переклад місій лежить у `data/missions.uk.json`.
 Це словник `{ file: { title, sections, buttons } }`. Клієнт накладає його на англійський через
-`translateMissions` у `packages/client/src/game-data.ts`. Назви класів юнітів перекладено в
-`CLASSES` у `packages/client/src/knowledge.ts`.
+`translateMissions` у `packages/client/src/game-data.ts`.
+
+Тексти інтерфейсу (меню, HUD, журнал, назви класів юнітів) — це повідомлення inlang у
+`packages/client/messages/uk.json` (базова мова) і `messages/en.json`. Ключі в обох файлах однакові: новий
+рядок додавай в обидва, а тест `the interface has every message in English too` це перевіряє. Змінні пишуться
+`{name}`, і назви змінних не перекладаються. Код викликає їх як `m.key({ … })` через Paraglide JS.
 
 ## Формат
 

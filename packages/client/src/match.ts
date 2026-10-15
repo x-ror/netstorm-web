@@ -27,6 +27,7 @@ import type { Atlas } from './assets.js';
 import { loudness, type Sounds } from './sound.js';
 import { createMinimap } from './minimap.js';
 import { describeEvent } from './messages.js';
+import { m } from './paraglide/messages.js';
 import { centerOn, snapZoom } from './camera.js';
 import { ZOOM } from './projection.js';
 import { createUiState } from './ui-state.js';
@@ -48,7 +49,7 @@ export interface GameData {
 /** Play one local match. Resolves when the player leaves it for the menu. */
 export async function runMatch(root: HTMLElement, data: GameData, options: MatchOptions) {
   const world = createMatchWorld(data.defs, data.maps, data.missions, options);
-  const mission = data.missions.find((m) => m.id === options.mission);
+  const mission = data.missions.find((entry) => entry.id === options.mission);
   const match = new ReplayRecorder(world);
   const view = match.view();
   const commands: Command[] = [];
@@ -262,9 +263,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     shown = page.buttons.filter((button) => button.action !== 'ShowTechnology');
 
     if (ended) {
-      shown = [...shown, { label: 'До меню', action: 'MissionAbort', arg: '' }];
+      shown = [...shown, { label: m.page_to_menu(), action: 'MissionAbort', arg: '' }];
     } else if (!shown.length) {
-      shown = [{ label: 'Продовжити', action: 'DoNothing', arg: '' }];
+      shown = [{ label: m.page_continue(), action: 'DoNothing', arg: '' }];
     }
 
     hud.showPage(title, page.text, shown.map((button) => button.label));
@@ -343,9 +344,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       renderLog();
       const won = result === 'won';
       const page = mission?.pages[won ? 'succeeded' : 'failed'];
-      show(won ? 'Перемога!' : 'Поразка', {
+      show(won ? m.page_victory() : m.page_defeat(), {
         text: page?.text
-          || (won ? 'Ворожого жерця принесено в жертву.' : 'Вашого жерця принесено в жертву.'),
+          || (won ? m.page_enemy_sacrificed() : m.page_own_sacrificed()),
         buttons: page?.buttons ?? [],
       });
     }

@@ -38,6 +38,7 @@
     "**/dist/**",
     "data/**",
     "packages/client/public/**",
+    "packages/client/src/paraglide/**",
     "package-lock.json"
   ]
 }

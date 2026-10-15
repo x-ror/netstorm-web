@@ -23,7 +23,8 @@ import {
   type WorldView,
 } from '@netstorm/sim';
 import type { Atlas } from './assets.js';
-import { REJECTIONS } from './messages.js';
+import { rejection } from './messages.js';
+import { m } from './paraglide/messages.js';
 import { TH, TW } from './projection.js';
 import { bridgeSlot } from './texture-selection.js';
 import { hasFacing, placeable, type Tool, type UiState } from './ui-state.js';
@@ -139,21 +140,21 @@ const PLANK_FACE = 7; // pixels of a frame's front face under its cell
 const SECONDS_PER_MINUTE = 60;
 const HALF = 0.5;
 const QUARTER = 0.25;
-const FACING_NAMES = ['північ', 'схід', 'південь', 'захід'];
-const GOALS: Record<string, string> = {
-  idle: 'чекає',
-  collect: 'іде до гейзера',
-  pickup: 'іде по кристал',
-  home: 'несе кристал до Храму',
-  capture: 'іде по полоненого',
-  altar: 'несе полоненого до Вівтаря',
-  obelisk: 'іде до обеліска',
+const FACING_NAMES = [m.facing_north, m.facing_east, m.facing_south, m.facing_west];
+const GOALS: Record<string, () => string> = {
+  idle: m.goal_idle,
+  collect: m.goal_collect,
+  pickup: m.goal_pickup,
+  home: m.goal_home,
+  capture: m.goal_capture,
+  altar: m.goal_altar,
+  obelisk: m.goal_obelisk,
 };
-const PRIEST_STATES: Record<string, string> = {
-  normal: 'на ногах',
-  down: 'знерухомлений',
-  carried: 'у полоні, його несуть',
-  chained: 'прикутий до Вівтаря',
+const PRIEST_STATES: Record<string, () => string> = {
+  normal: m.priest_normal,
+  down: m.priest_down,
+  carried: m.priest_carried,
+  chained: m.priest_chained,
 };
 
 export function hudModel(
@@ -186,9 +187,7 @@ export function hudModel(
           : null,
         active: index === handTool,
         cracked,
-        title: `${
-          cracked ? 'Свіжий сегмент: покладений зараз, стане тріснутим мостом' : 'Звичайний сегмент'
-        } (${index + 1})`,
+        title: `${cracked ? m.piece_fresh() : m.piece_whole()} (${index + 1})`,
       };
     }),
     hasTemple: world.templeOf(me) !== undefined,
@@ -327,11 +326,11 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
       let warning = '';
 
       if (maker) {
-        warning = ` — ${REJECTIONS[maker] ?? maker}`;
+        warning = ` — ${rejection(maker)}`;
       } else if (cooling) {
-        warning = ' — щойно встановлено, ще недоступний';
+        warning = ` — ${m.unit_cooling()}`;
       } else if (player.storm < def.cost) {
-        warning = ' — бракує Буресили';
+        warning = ` — ${m.rejected_no_storm_power()}`;
       }
 
       return {
@@ -341,8 +340,13 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
         cost: def.cost,
         active,
         poor: player.storm < def.cost || cooling !== undefined || maker !== null,
-        title: `${def.name}: ${def.cls}, рівень ${def.level}, ${def.footX}×${def.footY}${warning}`,
-        facing: active && hasFacing(def) ? FACING_NAMES[ui.facing]! : null,
+        title: m.unit_title({
+          name: def.name,
+          cls: def.cls,
+          level: def.level,
+          size: `${def.footX}×${def.footY}`,
+        }) + warning,
+        facing: active && hasFacing(def) ? FACING_NAMES[ui.facing]!() : null,
         cooling: cooling
           ? {
             seconds: Math.ceil(cooling.ticks / TPS),
@@ -364,8 +368,8 @@ function workshop(
 ): void {
   const room = WORKSHOP_SLOTS + b.upgrades;
   const names = b.slots.map((type) => world.defs.get(type)?.name ?? type);
-  say(`рівень ${b.upgrades + 1}, слоти ${b.slots.length} з ${room}`);
-  say(names.length ? `виробляє: ${names.join(', ')}` : 'слоти порожні');
+  say(m.workshop_level({ level: b.upgrades + 1, used: b.slots.length, room }));
+  say(names.length ? m.workshop_makes({ names: names.join(', ') }) : m.workshop_empty());
 
   if (b.owner !== me || b.rising > 0) {
     return;
@@ -382,14 +386,14 @@ function workshop(
 
   if (b.slots.length < room) {
     say(offered.length
-      ? 'Вибір слота остаточний: змінити його не можна'
-      : 'Немає знань цієї стихії, щоб заповнити слот', true);
+      ? m.slot_final()
+      : m.slot_no_knowledge(), true);
 
     for (const def of offered) {
-      actions.push({ kind: 'produce', type: def.id, label: `У виробництво: ${def.name}` });
+      actions.push({ kind: 'produce', type: def.id, label: m.action_produce({ name: def.name }) });
     }
   } else if (offered.length) {
-    say('Усі слоти зайняті: покращення додасть ще один', true);
+    say(m.slots_full(), true);
   }
 
   if (
@@ -397,7 +401,7 @@ function workshop(
   ) {
     actions.push({
       kind: 'upgrade',
-      label: `Покращити до рівня ${b.upgrades + 2}`,
+      label: m.action_upgrade({ level: b.upgrades + 2 }),
       cost: upgradeCost(world.def(b.type)),
     });
   }
@@ -420,13 +424,13 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
     combat(world.defs.get(entity.type), entity.hpMax, say);
 
     if (entity.regrow > 0) {
-      say(`відростає: ще ${Math.ceil(entity.regrow / TPS)} с`);
+      say(m.regrow({ seconds: Math.ceil(entity.regrow / TPS) }));
     }
 
     if (entity.builder !== null) {
-      say('чекає на жерця');
+      say(m.waits_priest());
     } else if (entity.rising > 0) {
-      say(`будується: ще ${Math.ceil(entity.rising / TPS)} с`);
+      say(m.rising({ seconds: Math.ceil(entity.rising / TPS) }));
     }
 
     if (world.defs.get(entity.type)?.cls === 'Production') {
@@ -435,37 +439,45 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
   }
 
   if (entity.kind === 'transport') {
-    say(`${GOALS[entity.goal] ?? entity.goal}${entity.carrying === null ? '' : ', з вантажем'}`);
+    say(
+      `${GOALS[entity.goal]?.() ?? entity.goal}${
+        entity.carrying === null ? '' : `, ${m.with_cargo()}`
+      }`,
+    );
     const spell = entity.spell === null ? undefined : world.defs.get(entity.spell);
 
     if (spell) {
-      say(
-        `заклинання: ${spell.name}, радіус ${spell.range}${
-          entity.casting > 0 ? ` — творить, ще ${Math.ceil(entity.casting / TPS)} с` : ''
-        }`,
-      );
+      say(`${m.spell_fact({ name: spell.name, range: spell.range })}${
+        entity.casting > 0
+          ? ` — ${m.casting({ seconds: Math.ceil(entity.casting / TPS) })}`
+          : ''
+      }`);
     }
 
     if (entity.owner === me) {
       if (spell) {
-        actions.push({ kind: 'cast', label: `Застосувати ${spell.name}`, cost: spell.cost });
+        actions.push({
+          kind: 'cast',
+          label: m.action_cast({ name: spell.name }),
+          cost: spell.cost,
+        });
       }
 
-      say('Клацніть гейзер, кристал, обеліск або знерухомленого ворожого жерця', true);
+      say(m.transport_hint(), true);
     }
   } else if (entity.kind === 'priest') {
     say(
-      `${PRIEST_STATES[entity.state] ?? entity.state}${
-        entity.carrying === null ? '' : ', з кристалом'
+      `${PRIEST_STATES[entity.state]?.() ?? entity.state}${
+        entity.carrying === null ? '' : `, ${m.with_crystal()}`
       }`,
     );
 
     if (entity.state === 'chained') {
-      say(`руни: ${entity.runes} з ${RUNES}`);
+      say(m.runes({ runes: entity.runes, total: RUNES }));
     }
 
     if (entity.owner === me && entity.state === 'normal') {
-      say('Клацніть землю, щоб жрець пішов туди, або гейзер чи кристал', true);
+      say(m.priest_hint(), true);
       // "Use your High Priest to build Temples, Workshops, and Altars."
       const player = world.players.get(me);
       const theme = player?.theme;
@@ -478,28 +490,32 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
           actions.push({
             kind: 'build',
             type: def.id,
-            label: `Збудувати ${def.name}`,
+            label: m.action_build({ name: def.name }),
             cost: def.cost,
           });
         }
       }
     }
   } else if (entity.kind === 'flyer') {
-    say(entity.returning ? 'летить на заправку' : `у повітрі ще ${Math.ceil(entity.life / TPS)} с`);
+    say(entity.returning
+      ? m.flyer_returning()
+      : m.flyer_life({ seconds: Math.ceil(entity.life / TPS) }));
   } else if (entity.kind === 'geyser') {
-    say(entity.stock > 0 ? `запас Буресили: ${entity.stock}` : 'вичерпаний');
+    say(entity.stock > 0 ? m.geyser_stock({ stock: entity.stock }) : m.geyser_depleted());
   } else if (entity.kind === 'obelisk') {
     const spell = world.defs.get(entity.spell);
-    say(`${spell?.cls ?? ''}: радіус ${spell?.range}, ${spell?.cost} Буресили за раз`);
-    say('Виберіть транспорт і клацніть обеліск, щоб здобути', true);
+    say(
+      m.obelisk_fact({ cls: spell?.cls ?? '', range: spell?.range ?? 0, cost: spell?.cost ?? 0 }),
+    );
+    say(m.obelisk_hint(), true);
   }
 
   if ('hp' in entity && entity.paralyzed > 0) {
-    say(`паралізований: ще ${Math.ceil(entity.paralyzed / TPS)} с`);
+    say(m.paralyzed({ seconds: Math.ceil(entity.paralyzed / TPS) }));
   }
 
   if ('hp' in entity && entity.invisible > 0) {
-    say(`невидимий: ще ${Math.ceil(entity.invisible / TPS)} с`);
+    say(m.invisible({ seconds: Math.ceil(entity.invisible / TPS) }));
   }
 
   // "Right-click a cargo-carrying Transport, and choose 'Drop ...'."
@@ -507,11 +523,11 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
     (entity.kind === 'transport' || entity.kind === 'priest') && entity.owner === me
     && entity.carrying !== null
   ) {
-    actions.push({ kind: 'drop', label: 'Скинути вантаж' });
+    actions.push({ kind: 'drop', label: m.action_drop() });
   }
 
   if ((entity.kind === 'building' || entity.kind === 'transport') && entity.owner === me) {
-    actions.push({ kind: 'salvage', label: 'Розібрати', key: 'Del' });
+    actions.push({ kind: 'salvage', label: m.hud_salvage(), key: 'Del' });
     // Offered as in the original: a Generator of a Fury, with more than half of its hit points.
     const def = entity.kind === 'building' ? world.defs.get(entity.type) : undefined;
 
@@ -561,30 +577,30 @@ function combat(
   }
 
   if (def.dps && def.range) {
-    say(`шкода ${def.dps}/с, постріл раз на ${shotInterval(def) / TPS} с, дальність ${def.range}`);
+    say(m.weapon({ dps: def.dps, interval: shotInterval(def) / TPS, range: def.range }));
   }
 
   const blast = blastDamage(def, hpMax);
 
   if (blast) {
-    say(`Знищений вибухає: ${blast} шкоди всім поруч`, true);
+    say(m.blast({ blast }), true);
   }
 }
 
 function hint(world: WorldView, ui: UiState): string {
   switch (ui.tool.kind) {
     case 'piece':
-      return "ЛКМ — покласти сегмент кінцем до своєї землі або до кінця свого мосту. Боком сегменти не з'єднуються. R — поворот, права кнопка — скасувати.";
+      return m.hint_piece();
     case 'build':
       return world.defs.get(ui.tool.type)?.cls.endsWith('Transport')
-        ? 'ЛКМ — поставити на вільну клітинку свого острова, поруч з енергією. Golem робить Храм, інші транспорти — Майстерня їхньої стихії.'
-        : `ЛКМ — поставити на своєму острові або біля відкритого кінця свого мосту, поруч з енергією.${
-          hasFacing(world.def(ui.tool.type)) ? ' R — повернути.' : ''
+        ? m.hint_build_transport()
+        : `${m.hint_build()}${
+          hasFacing(world.def(ui.tool.type)) ? ` ${m.hint_build_facing()}` : ''
         }`;
     case 'salvage':
-      return 'ЛКМ по своїй споруді чи транспорту — розібрати за частину вартості.';
+      return m.hint_salvage();
     case 'select':
-      return 'ЛКМ — вибрати. Права кнопка/перетягування — камера, колесо — масштаб, стрілки — прокрутка.';
+      return m.hint_select();
   }
 }
 
@@ -599,8 +615,8 @@ export function entityName(world: WorldView, entity: DeepReadonly<Entity>): stri
     case 'geyser':
       return 'Storm Geyser';
     case 'crystal':
-      return `Кристал (${entity.value})`;
+      return m.crystal_name({ value: entity.value });
     case 'obelisk':
-      return `Обеліск: ${world.defs.get(entity.spell)?.name ?? entity.spell}`;
+      return m.obelisk_name({ name: world.defs.get(entity.spell)?.name ?? entity.spell });
   }
 }

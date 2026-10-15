@@ -4,6 +4,7 @@ import { hotFeet, type Maps, type Mission } from './game-data.js';
 import { showMenu } from './menu.js';
 import { createSounds, type SoundIndex } from './sound.js';
 import { runMatch } from './match.js';
+import { m } from './paraglide/messages.js';
 
 async function main() {
   const [unitsRaw, maps, missions, translated, manifest, soundIndex] = await Promise.all([
@@ -54,5 +55,5 @@ main().catch((error) => {
   console.error(error);
   const menu = document.getElementById('menu')!;
   menu.hidden = false;
-  menu.textContent = 'Не вдалося запустити гру. Перевірте доступність даних та WebGL.';
+  menu.textContent = m.start_failed();
 });

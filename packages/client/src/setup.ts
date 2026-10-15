@@ -1,6 +1,7 @@
 import { createMission, createSkirmish, H, W, type DefTable, type World } from '@netstorm/sim';
 import { type Maps, type Mission } from './game-data.js';
 import { type MatchOptions } from './options.js';
+import { m } from './paraglide/messages.js';
 
 export const ME = 1;
 export const ENEMY = 2;
@@ -27,9 +28,9 @@ export function createMatchWorld(
   missions: Mission[],
   options: MatchOptions,
 ): World {
-  const mission = missions.find((m) => m.id === options.mission);
+  const mission = missions.find((entry) => entry.id === options.mission);
   const map = maps[options.mission];
-  const enemy = mission?.enemy || 'Суперник';
+  const enemy = mission?.enemy || m.player_opponent();
   const battle = {
     bridges: options.bridges,
     slots: options.slots,
@@ -45,7 +46,7 @@ export function createMatchWorld(
     return createMission(defs, options.seed, map, (id) => {
       const side = mission?.sides[id] ?? {};
       return id === ME
-        ? { ...side, name: 'Ви', theme: options.theme, storm: options.storm }
+        ? { ...side, name: m.player_you(), theme: options.theme, storm: options.storm }
         : { ...side, name: side.name || enemy, theme: options.enemyTheme, storm: side.storm ?? 0 };
     }, battle);
   }
@@ -57,7 +58,7 @@ export function createMatchWorld(
     )
   );
   return createSkirmish(defs, options.seed, [
-    { id: ME, name: 'Ви', theme: options.theme, ...HOMES[ME], storm: options.storm },
+    { id: ME, name: m.player_you(), theme: options.theme, ...HOMES[ME], storm: options.storm },
     { id: ENEMY, name: enemy, theme: options.enemyTheme, ...HOMES[ENEMY], storm: options.storm },
   ], geysers.length ? geysers : [[FALLBACK_X, FALLBACK_Y]], battle);
 }

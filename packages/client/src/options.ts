@@ -9,6 +9,7 @@ import {
   type Theme,
 } from '@netstorm/sim';
 import { type Mission } from './game-data.js';
+import { m } from './paraglide/messages.js';
 
 /** The options of a skirmish, what the start screen sets and the match reads; no DOM here. */
 
@@ -34,16 +35,16 @@ export interface MatchOptions {
   killReward: number;
   /** "Money per Geyser": Storm Power a geyser holds. */
   geyserStock: number;
-  /** The language of the missions' texts: Ukrainian, or the original's English. */
+  /** The language of the interface and the missions' texts: Ukrainian, or the original's English. */
   lang: 'uk' | 'en';
 }
 
 export const PLAYABLE_THEMES: readonly PlayableTheme[] = ['wind', 'rain', 'thunder'];
-export const BRIDGE_LABELS: Record<BridgeSet, string> = {
-  standard: 'Standard — основний набір',
-  traditional: 'Traditional — як у версії 10.37',
-  simplified: 'Simplified — лише найкорисніші',
-  crazy: 'Crazy — усі форми порівну',
+export const BRIDGE_LABELS: Record<BridgeSet, () => string> = {
+  standard: m.bridges_standard,
+  traditional: m.bridges_traditional,
+  simplified: m.bridges_simplified,
+  crazy: m.bridges_crazy,
 };
 export const UNIT_RATE_NAMES = ['Slow', 'Medium', 'Fast', 'Very Fast'];
 export const MAX_STORM = 100_000;
@@ -78,11 +79,15 @@ export function normalizeOptions(
   missions: readonly Mission[],
 ): MatchOptions {
   const d = DEFAULT_OPTIONS;
-  const mission = missions.some((m) => m.id === raw.mission) ? String(raw.mission) : d.mission;
+  const mission = missions.some((entry) => entry.id === raw.mission)
+    ? String(raw.mission)
+    : d.mission;
   return {
     theme: isTheme(raw.theme) ? raw.theme : d.theme,
     enemyTheme: isTheme(raw.enemyTheme) ? raw.enemyTheme : d.enemyTheme,
-    mission: missions.some((m) => m.id === mission) ? mission : missions[0]?.id ?? d.mission,
+    mission: missions.some((entry) => entry.id === mission)
+      ? mission
+      : missions[0]?.id ?? d.mission,
     storm: clamp(given(raw.storm, d.storm), MAX_STORM, d.storm),
     seed: clamp(given(raw.seed, d.seed), MAX_SEED, d.seed),
     opponent: raw.opponent === 'idle' ? 'idle' : 'ai',
