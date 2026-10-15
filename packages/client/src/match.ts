@@ -49,7 +49,10 @@ export interface GameData {
 /** Play one local match. Resolves when the player leaves it for the menu. */
 export async function runMatch(root: HTMLElement, data: GameData, options: MatchOptions) {
   const world = createMatchWorld(data.defs, data.maps, data.missions, options);
-  const mission = data.missions.find((entry) => entry.id === options.mission);
+  // A skirmish borrows the map's geysers alone: no script, no goals, no orders for the computer.
+  const mission = options.mode === 'mission'
+    ? data.missions.find((entry) => entry.id === options.mission)
+    : undefined;
   const match = new ReplayRecorder(world);
   const view = match.view();
   const commands: Command[] = [];

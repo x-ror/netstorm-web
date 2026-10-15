@@ -23,7 +23,7 @@ import {
   type WorldView,
 } from '@netstorm/sim';
 import type { Atlas } from './assets.js';
-import { className, rejection, unitName } from './messages.js';
+import { className, unitName } from './messages.js';
 import { m } from './paraglide/messages.js';
 import { TH, TW } from './projection.js';
 import { bridgeSlot } from './texture-selection.js';
@@ -43,6 +43,8 @@ export interface HudModel {
   /** Every slot of the Production Window, filled or waiting for the Temple's next piece. */
   slots: Slot[];
   hasTemple: boolean;
+  /** No Workshop yet, so the Production Window holds the Golem alone: how to get more is told. */
+  hasWorkshop: boolean;
   units: UnitCard[];
   tool: Tool['kind'];
   selected: Selected | null;
@@ -110,8 +112,8 @@ export interface UnitCard {
   active: boolean;
   /** Too dear, or laid a moment ago (the Unit Rate). */
   poor: boolean;
-  /** Why it cannot be laid, besides the Unit Rate: nothing makes it yet, or it is too dear. */
-  blocked: 'temple' | 'workshop' | 'slot' | 'storm' | null;
+  /** Too dear: the cost the original draws in red. */
+  short: boolean;
   title: string;
   /** The way a unit laid with a facing will face, while it is in hand. */
   facing: string | null;
@@ -144,12 +146,6 @@ const PLANK_FACE = 7; // pixels of a frame's front face under its cell
 const SECONDS_PER_MINUTE = 60;
 const HALF = 0.5;
 const QUARTER = 0.25;
-/** The reason a card is stamped with, for each reason nothing makes its unit yet. */
-const BLOCKED: Record<string, UnitCard['blocked']> = {
-  'no temple': 'temple',
-  'no workshop': 'workshop',
-  'not in production': 'slot',
-};
 const FACING_NAMES = [m.facing_north, m.facing_east, m.facing_south, m.facing_west];
 const GOALS: Record<string, () => string> = {
   idle: m.goal_idle,
@@ -201,6 +197,7 @@ export function hudModel(
       };
     }),
     hasTemple: world.templeOf(me) !== undefined,
+    hasWorkshop: world.buildingsOf(me).some((b) => world.defs.get(b.type)?.cls === 'Production'),
     units: unitCards(world, me, ui),
     tool: ui.tool.kind,
     selected: selected(world, me, ui),
@@ -328,16 +325,16 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
   return [...player.tech]
     .map((id) => world.defs.get(id))
     .filter((def): def is Readonly<UnitDef> => def !== undefined && placeable(def))
+    // As the original's Production Window: the Golem of the Temple, and what a Workshop has in
+    // its Production Slots, nothing that has no maker yet.
+    .filter((def) => makerError(world, me, def) === null)
     .sort((a, b) => a.level - b.level || a.cost - b.cost)
     .map((def) => {
       const active = ui.tool.kind === 'build' && ui.tool.type === def.id;
       const cooling = player.refresh.find((entry) => entry.type === def.id);
-      const maker = makerError(world, me, def);
       let warning = '';
 
-      if (maker) {
-        warning = ` — ${rejection(maker)}`;
-      } else if (cooling) {
+      if (cooling) {
         warning = ` — ${m.unit_cooling()}`;
       } else if (player.storm < def.cost) {
         warning = ` — ${m.rejected_no_storm_power()}`;
@@ -349,8 +346,8 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
         theme: def.theme,
         cost: def.cost,
         active,
-        poor: player.storm < def.cost || cooling !== undefined || maker !== null,
-        blocked: maker ? BLOCKED[maker] ?? 'workshop' : (player.storm < def.cost ? 'storm' : null),
+        poor: player.storm < def.cost || cooling !== undefined,
+        short: player.storm < def.cost,
         title: m.unit_title({
           name: unitName(def.id, def.name),
           cls: className(def.cls),

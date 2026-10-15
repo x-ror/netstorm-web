@@ -5,7 +5,6 @@
     type LogLine,
     type Page,
     type SelectedAction,
-    type UnitCard,
   } from '../hud-model.js';
   import type { HudProps } from './contracts.js';
   import Glyph from './Glyph.svelte';
@@ -21,12 +20,6 @@
   const PER_CENT = 100;
   const EDGE = 8; // pixels the menu keeps from the sides of the window
   /** Actions that destroy what they act on: kept apart at the foot of the menu. */
-  const STAMPS: Record<NonNullable<UnitCard['blocked']>, () => string> = {
-    temple: m.hud_stamp_temple,
-    workshop: m.hud_stamp_workshop,
-    slot: m.hud_stamp_slot,
-    storm: m.hud_short,
-  };
   const DESTRUCTIVE: ReadonlySet<SelectedAction['kind']> = new Set(['salvage', 'meltdown']);
 
   // Each is replaced whole and never changed in place: no proxies for what is only read.
@@ -220,7 +213,7 @@
             class="unit theme-{card.theme}"
             class:on={card.active}
             class:poor={card.poor}
-            class:short={card.blocked === 'storm'}
+            class:short={card.short}
             aria-label={card.name}
             title={card.title}
             onclick={() => actions.setTool({ kind: 'build', type: card.id })}
@@ -235,13 +228,14 @@
                 style:--left="{Math.round(card.cooling.left * PER_CENT)}%"
               ></span>
               <span class="stamp">{m.hud_stamp_cooling({ seconds: card.cooling.seconds })}</span>
-            {:else if card.blocked}
-              <span class="stamp">{STAMPS[card.blocked]()}</span>
+            {:else if card.short}
+              <span class="stamp">{m.hud_short()}</span>
             {/if}
           </button>
-        {:else}
-          <span class="muted">{m.hud_no_units()}</span>
         {/each}
+        {#if !model.hasWorkshop}
+          <p class="muted note">{m.hud_no_units()}</p>
+        {/if}
       </div>
       <div id="tools">
         <button

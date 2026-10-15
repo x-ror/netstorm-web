@@ -109,7 +109,9 @@
 
   function start(event: SubmitEvent): void {
     event.preventDefault();
-    onstart(normalizeOptions(options, missions));
+    // The page the battle is started from says what it is.
+    const mode = screen === 'skirmish' ? 'skirmish' : 'mission';
+    onstart(normalizeOptions({ ...options, mode }, missions));
   }
 </script>
 

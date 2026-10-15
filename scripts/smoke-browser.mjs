@@ -98,10 +98,11 @@ try {
   assert.ok(result.sprites > 0);
   await page.waitForFunction((before) => window.ns.ground.children.length > before, result.before);
 
-  // Production Window: picking a unit arms the build tool, Escape returns to selection.
-  const cannon = page.getByRole('button', { name: 'Сонячна гармата', exact: true });
-  await cannon.click();
-  assert.match(await cannon.getAttribute('class'), /\bon\b/);
+  // Production Window: picking a unit arms the build tool, Escape returns to selection. Without a
+  // Workshop it holds only what the Temple makes, the Golem.
+  const golem = page.getByRole('button', { name: 'Голем', exact: true });
+  await golem.click();
+  assert.match(await golem.getAttribute('class'), /\bon\b/);
   await page.keyboard.press('f');
   await page.keyboard.press('Escape');
   assert.equal(await page.evaluate(() => window.ns.ui.tool.kind), 'select');

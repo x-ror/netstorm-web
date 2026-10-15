@@ -17,9 +17,11 @@ export type PlayableTheme = Exclude<Theme, 'sun'>;
 export type Opponent = 'ai' | 'idle';
 
 export interface MatchOptions {
+  /** A mission played as its file sets it up, or a skirmish on its map between the Furies chosen. */
+  mode: 'mission' | 'skirmish';
   theme: PlayableTheme;
   enemyTheme: PlayableTheme;
-  /** Mission whose geysers and texts the match uses. */
+  /** The mission played, or the one whose map's geysers a skirmish is fought among. */
   mission: string;
   storm: number;
   seed: number;
@@ -58,6 +60,7 @@ const DEFAULT_STORM = 2000;
 const STORAGE_KEY = 'netstorm.menu';
 
 export const DEFAULT_OPTIONS: MatchOptions = {
+  mode: 'mission',
   theme: 'wind',
   enemyTheme: 'rain',
   mission: 'thewarbegins',
@@ -83,6 +86,7 @@ export function normalizeOptions(
     ? String(raw.mission)
     : d.mission;
   return {
+    mode: raw.mode === 'skirmish' ? 'skirmish' : 'mission',
     theme: isTheme(raw.theme) ? raw.theme : d.theme,
     enemyTheme: isTheme(raw.enemyTheme) ? raw.enemyTheme : d.enemyTheme,
     mission: missions.some((entry) => entry.id === mission)

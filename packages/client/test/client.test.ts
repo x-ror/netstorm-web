@@ -108,6 +108,41 @@ test('the default match is the first mission on its own map', () => {
   }
 });
 
+test('a skirmish on a mission map takes the Furies from the menu and none of its units', () => {
+  const world = createMatchWorld(defs, maps, missions, {
+    ...DEFAULT_OPTIONS,
+    mode: 'skirmish',
+    theme: 'thunder',
+    enemyTheme: 'wind',
+  });
+  assert.equal(world.players.get(ME)!.theme, 'thunder');
+  assert.equal(world.players.get(ENEMY)!.theme, 'wind');
+  // On the map's own islands each side keeps its Temple, of the Fury chosen, and nothing else.
+  assert.equal(world.templeOf(ME)!.type, 'thundervortex');
+  assert.equal(world.templeOf(ENEMY)!.type, 'windvortex');
+  assert.deepEqual(world.buildingsOf(ENEMY).map((b) => b.type), ['windvortex']);
+  assert.ok([...world.entities.values()].some((e) => e.kind === 'geyser'));
+  const laid = maps['thewarbegins']!.bridges;
+  assert.ok(laid.length > 0 && laid.every(([x, y]) => world.links[world.at(x, y)] === 0),
+    'no bridge of the mission');
+
+  // The map chosen is the battlefield: another one sets the bases elsewhere.
+  const other = createMatchWorld(defs, maps, missions, {
+    ...DEFAULT_OPTIONS,
+    mode: 'skirmish',
+    mission: 'masterofwhirligigs',
+  });
+  const at = (w: typeof world) => [w.templeOf(ME)!.x, w.templeOf(ME)!.y];
+  assert.notDeepEqual(at(other), at(world));
+  // A map with one side of its own falls back to the rectangles.
+  const alone = createMatchWorld(defs, maps, missions, {
+    ...DEFAULT_OPTIONS,
+    mode: 'skirmish',
+    mission: 'bridgethegap',
+  });
+  assert.equal(alone.players.size, 2);
+});
+
 test('without a map, geysers that would cut into a home island are dropped', () => {
   const world = skirmish();
   assert.equal(world.players.get(ME)!.theme, 'wind');
@@ -626,12 +661,18 @@ test('the HUD is built as plain data from the world and the tool in hand', () =>
     false,
   ]);
   assert.ok(model.slots[0]!.cracked);
-  // Too dear at 300 Storm Power, and laid with a facing: east while in hand.
-  ui.tool = { kind: 'build', type: 'suncannon' };
-  const cannon = hudModel(world.view(), ME, ui, atlas).units.find((card) =>
-    card.id === 'suncannon'
-  );
-  assert.deepEqual([cannon?.poor, cannon?.active, cannon?.facing], [true, true, 'схід']);
+  // The Production Window holds what something makes: the Temple's Golem, not the Sun Cannon
+  // the player knows but has no Workshop for. The Golem is too dear at 300 Storm Power.
+  ui.tool = { kind: 'build', type: 'sunwalker' };
+  const units = hudModel(world.view(), ME, ui, atlas).units;
+  assert.ok(!units.some((card) => card.id === 'suncannon'));
+  const golem = units.find((card) => card.id === 'sunwalker');
+  assert.deepEqual([golem?.poor, golem?.short, golem?.active, golem?.facing], [
+    true,
+    true,
+    true,
+    null,
+  ]);
   // The Temple, selected: its owner's side and a full health bar.
   ui.selected = world.templeOf(ME)!.id;
   const selected = hudModel(world.view(), ME, ui, atlas).selected!;
