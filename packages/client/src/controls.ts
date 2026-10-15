@@ -27,6 +27,7 @@ const ZOOM_OUT = 0.9;
 const PINCH_STEP = 1.3; // how far apart the fingers go for one zoom level
 const PAN_STEP = 48; // screen pixels per arrow key press
 const DRAG_THRESHOLD = 6; // screen pixels a press may move and still count as a click
+const LONG_PRESS = 500; // milliseconds a finger rests on a unit to open its menu
 const CELL_HALF = 0.5;
 const ARC_TAN = 0.577; // tan 30°, half the width of the Crossbow's arc at a distance of one
 // Size, in cells, of the mark at an open end of a piece: across the edge and along it.
@@ -94,6 +95,8 @@ export function createControls(options: {
   /** Called after the interface state changed and the panels should be redrawn. */
   changed: () => void;
   togglePause: () => void;
+  /** Open the menu of the selected unit at a point on the screen. */
+  context: (x: number, y: number) => void;
 }) {
   const { world, me, ui, app, camera, overlay, ghost, textures, submit, changed, sounds } = options;
   const abort = new AbortController();
@@ -237,12 +240,34 @@ export function createControls(options: {
     }
   }
 
+  /**
+   * Right click or long press: with nothing in hand, the unit there is selected and its menu
+   * opened, as "Right Click on a window or unit to get a menu of commands" of the original.
+   * Anywhere else it cancels, as before.
+   */
+  function secondary(clientX: number, clientY: number): void {
+    const cell = cellAt(camera, clientX, clientY);
+    const target = ui.tool.kind === 'select' ? entityAt(world, cell.x, cell.y) : undefined;
+
+    if (!target) {
+      cancel();
+      return;
+    }
+
+    ui.selected = target.id;
+    voice(target, 'move');
+    changed();
+    drawOverlay();
+    options.context(clientX, clientY);
+  }
+
   // --- pointer: mouse, pen and touch
   const pointers = new Map<number, { x: number; y: number; }>();
   let press:
     | { id: number; button: number; x: number; y: number; cx: number; cy: number; moved: boolean; }
     | null = null;
   let pinch: number | null = null; // distance between two touches
+  let hold: ReturnType<typeof setTimeout> | undefined;
 
   const distance = () => {
     const [a, b] = [...pointers.values()];
@@ -252,6 +277,8 @@ export function createControls(options: {
   app.canvas.addEventListener('contextmenu', (ev) => ev.preventDefault(), { signal });
   app.canvas.addEventListener('pointerdown', (ev) => {
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+
+    clearTimeout(hold);
 
     if (pointers.size === 2) {
       pinch = distance();
@@ -268,6 +295,16 @@ export function createControls(options: {
       cy: camera.y,
       moved: false,
     };
+
+    if (ev.pointerType === 'touch') {
+      const held = press;
+      hold = setTimeout(() => {
+        if (press === held && !held.moved) {
+          press = null; // the finger lifting later is not a tap
+          secondary(held.x, held.y);
+        }
+      }, LONG_PRESS);
+    }
   }, { signal });
 
   window.addEventListener('pointermove', (ev) => {
@@ -323,6 +360,7 @@ export function createControls(options: {
       return;
     }
 
+    clearTimeout(hold);
     const click = !press.moved && ev.type === 'pointerup';
     const button = press.button;
     press = null;
@@ -336,7 +374,7 @@ export function createControls(options: {
       ui.hover = cell;
       primary(cell.x, cell.y);
     } else if (button === 2) {
-      cancel();
+      secondary(ev.clientX, ev.clientY);
     }
   };
   window.addEventListener('pointerup', release, { signal });
@@ -636,6 +674,7 @@ export function createControls(options: {
       }
     },
     dispose() {
+      clearTimeout(hold);
       abort.abort();
     },
   };

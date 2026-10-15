@@ -3,3 +3,9 @@ dist
 # Original game files: copyrighted, kept locally for reference only
 original/
 .env
+# Impeccable working files: mockups carry the original game art
+packages/client/.impeccable/mocks/
+packages/client/.impeccable/review/
+packages/client/.impeccable/decision/
+packages/client/.impeccable/tmp/
+packages/client/.impeccable/questions/

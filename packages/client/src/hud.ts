@@ -23,6 +23,7 @@ export function createHud(
     'addLog',
     'showPage',
     'hidePage',
+    'openContext',
   ]);
 
   return {
@@ -42,6 +43,10 @@ export function createHud(
     },
     hidePage(): void {
       hud.hidePage();
+    },
+    /** The menu of the selected unit, opened at a point on the screen. */
+    context(x: number, y: number): void {
+      hud.openContext(x, y);
     },
     dispose(): void {
       void unmount(hud);

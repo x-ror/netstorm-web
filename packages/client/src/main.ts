@@ -1,3 +1,5 @@
+import './styles.css';
+import '@fontsource-variable/golos-text';
 import { loadDefs } from '@netstorm/sim';
 import { loadTextures, type Atlas } from './assets.js';
 import { hotFeet, type Maps, type Mission } from './game-data.js';

@@ -13,6 +13,7 @@
     "pretest": "npm run i18n"
   },
   "dependencies": {
+    "@fontsource-variable/golos-text": "^5.3.0",
     "@netstorm/sim": "*",
     "pixi.js": "^8.22.0",
     "svelte": "^5.57.2"

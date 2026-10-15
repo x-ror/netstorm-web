@@ -23,6 +23,8 @@ export type HudExports = {
   addLog(lines: LogLine[]): void;
   showPage(page: Page): void;
   hidePage(): void;
+  /** Open the menu of the selected unit at a point on the screen. */
+  openContext(x: number, y: number): void;
 };
 
 export type MenuProps = {

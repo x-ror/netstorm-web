@@ -110,6 +110,8 @@ export interface UnitCard {
   active: boolean;
   /** Too dear, or laid a moment ago (the Unit Rate). */
   poor: boolean;
+  /** Why it cannot be laid, besides the Unit Rate: nothing makes it yet, or it is too dear. */
+  blocked: 'temple' | 'workshop' | 'slot' | 'storm' | null;
   title: string;
   /** The way a unit laid with a facing will face, while it is in hand. */
   facing: string | null;
@@ -119,6 +121,8 @@ export interface UnitCard {
 
 export interface Selected {
   type: string;
+  /** The Fury of the unit; null for one of no Fury. */
+  theme: Theme | null;
   name: string;
   owner: { name: string; side: 'own' | 'enemy'; } | null;
   hp: { value: number; max: number; share: number; band: 'high' | 'mid' | 'low'; } | null;
@@ -140,6 +144,12 @@ const PLANK_FACE = 7; // pixels of a frame's front face under its cell
 const SECONDS_PER_MINUTE = 60;
 const HALF = 0.5;
 const QUARTER = 0.25;
+/** The reason a card is stamped with, for each reason nothing makes its unit yet. */
+const BLOCKED: Record<string, UnitCard['blocked']> = {
+  'no temple': 'temple',
+  'no workshop': 'workshop',
+  'not in production': 'slot',
+};
 const FACING_NAMES = [m.facing_north, m.facing_east, m.facing_south, m.facing_west];
 const GOALS: Record<string, () => string> = {
   idle: m.goal_idle,
@@ -340,6 +350,7 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
         cost: def.cost,
         active,
         poor: player.storm < def.cost || cooling !== undefined || maker !== null,
+        blocked: maker ? BLOCKED[maker] ?? 'workshop' : (player.storm < def.cost ? 'storm' : null),
         title: m.unit_title({
           name: unitName(def.id, def.name),
           cls: className(def.cls),
@@ -550,6 +561,7 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
   const share = 'hp' in entity && entity.hpMax > 0 ? entity.hp / entity.hpMax : 0;
   return {
     type: 'type' in entity ? entity.type : entity.kind,
+    theme: 'type' in entity ? world.defs.get(entity.type)?.theme ?? null : null,
     name: entityName(world, entity),
     owner: owner && ownerId !== null
       ? {

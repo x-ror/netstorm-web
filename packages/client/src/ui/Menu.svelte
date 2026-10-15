@@ -59,11 +59,23 @@
     setLocale(options.lang, { reload: false });
   });
 
-  // The chosen mission is kept in view, when the menu opens and whenever it changes.
+  // The chosen mission is kept in view, when the menu opens and whenever it changes. Only the
+  // list scrolls: scrollIntoView would scroll the whole menu too where it is taller than the window.
   $effect(() => {
     const chosen = options.mission;
-    list?.querySelector(`input[value="${CSS.escape(chosen)}"]`)?.closest('label')
-      ?.scrollIntoView({ block: 'nearest' });
+    const row = list?.querySelector(`input[value="${CSS.escape(chosen)}"]`)?.closest('label');
+
+    if (!list || !row) {
+      return;
+    }
+
+    const top = row.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
+
+    if (top < list.scrollTop) {
+      list.scrollTop = top;
+    } else if (top + row.offsetHeight > list.scrollTop + list.clientHeight) {
+      list.scrollTop = top + row.offsetHeight - list.clientHeight;
+    }
   });
 
   function enemyOf(entry: Mission): string {

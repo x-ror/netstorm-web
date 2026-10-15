@@ -1,0 +1,1156 @@
+/* A synoptic weather chart over the storm: the Furies are weather, so the panels are chart
+ * paper with isobars, fronts mark their edges, and the colour of a Fury is the only code. */
+:root {
+  --paper: #e9ede4;
+  --paper-2: #dde3d6;
+  --paper-hi: #f6f8f2;
+  --ink: #2f3d5c;
+  --ink-soft: #55617b;
+  --rule: rgba(47, 61, 92, 0.22);
+  --rule-soft: rgba(47, 61, 92, 0.12);
+  --warm: #c8322a;
+  --cold: #1f5fbf;
+  --sun: #c98a12;
+  --wind: #23887a;
+  --rain: #1f5fbf;
+  --thunder: #7a3fa0;
+  --own: #2f3d5c; /* the player's side is the chart's own ink, not any Fury's colour */
+  --enemy: #c8322a;
+  --good: #2f7d3a;
+  --bad: #c8322a;
+  --storm-sky: #4a4d63;
+  --radius: 2px;
+  --shadow: 0 6px 18px rgba(10, 14, 30, 0.38), 0 1px 2px rgba(10, 14, 30, 0.3);
+  --isobars: repeating-radial-gradient(
+    circle at 112% -30%,
+    transparent 0 26px,
+    rgba(47, 61, 92, 0.075) 26px 27px
+  );
+  /* Front symbols, as the chart draws them: a warm front's half discs, a cold front's teeth. */
+  --warm-front: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='7'%3E%3Cpath d='M4 0a7 7 0 0 0 14 0z' fill='%23c8322a'/%3E%3C/svg%3E");
+  --cold-front: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='7'%3E%3Cpath d='M3 7 10 0l7 7z' fill='%231f5fbf'/%3E%3C/svg%3E");
+  --font: "Golos Text Variable", "Golos Text", system-ui, sans-serif;
+  font-synthesis: none;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--storm-sky);
+  color: var(--ink);
+  font: 13px/1.4 var(--font);
+  overflow: hidden;
+  touch-action: none;
+}
+::selection {
+  background: var(--ink);
+  color: var(--paper);
+}
+canvas {
+  display: block;
+}
+b {
+  font-weight: 650;
+}
+.muted {
+  color: var(--ink-soft);
+  font-weight: normal;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+button {
+  padding: 6px 11px;
+  background: var(--paper-hi);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font: 500 13px/1.25 var(--font);
+  transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.08s;
+}
+button:hover {
+  border-color: var(--ink);
+  background: #fff;
+}
+button:active {
+  transform: translateY(1px);
+}
+button:focus-visible,
+[role="menu"]:focus-visible {
+  outline: 2px solid var(--warm);
+  outline-offset: 2px;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+button.on {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+button.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper-hi);
+  font-weight: 650;
+  padding: 9px 20px;
+}
+button.primary:hover {
+  background: #23304c;
+}
+kbd {
+  display: inline-block;
+  min-width: 1.2em;
+  padding: 0 4px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  font: 600 10px/1.45 var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+  text-align: center;
+  background: var(--paper-hi);
+}
+button.on kbd {
+  color: var(--paper);
+  background: transparent;
+  border-color: rgba(233, 237, 228, 0.4);
+}
+pre {
+  white-space: pre-wrap;
+  font: 14px/1.6 var(--font);
+}
+[hidden] {
+  display: none !important;
+}
+/* A chart sheet: paper, isobars, and the teeth of a cold front along its top. */
+.sheet,
+.pane,
+.menu-card,
+#panel .card,
+#context,
+#log,
+#minimap {
+  position: relative;
+  background:
+    var(--isobars),
+    var(--paper);
+  color: var(--ink);
+  border-top: 2px solid var(--cold);
+  border-radius: 0 0 var(--radius) var(--radius);
+  box-shadow: var(--shadow);
+}
+.menu-card::before,
+#panel .card::before,
+#context::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -9px;
+  height: 7px;
+  background: var(--cold-front) 0 0 / 20px 7px repeat-x;
+  pointer-events: none;
+}
+/* --- menu and pages over the map */
+#menu,
+#overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+}
+#overlay {
+  background: rgba(22, 24, 38, 0.55);
+}
+.menu-card {
+  box-sizing: border-box;
+  max-width: 760px;
+  width: calc(100% - 32px);
+  margin: 16px;
+  padding: 22px 26px;
+}
+.menu-card h1,
+.menu-card h2 {
+  margin: 0 0 10px;
+  font: 700 22px/1.2 var(--font);
+  letter-spacing: -0.01em;
+}
+.menu-card pre {
+  max-height: 55vh;
+  overflow: auto;
+}
+.menu-card button + button {
+  margin-left: 8px;
+}
+/* --- the start screen: the clouds of the Pyrosphere under a sheet of charts */
+#menu {
+  background:
+    linear-gradient(rgba(30, 33, 52, 0.55), rgba(30, 33, 52, 0.7)),
+    url(/sprites/sky.png) 0 0 / 512px 512px,
+    var(--storm-sky);
+  image-rendering: pixelated;
+}
+.start {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 300px minmax(220px, 280px) minmax(300px, 540px);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 22px 16px;
+  width: min(1180px, calc(100% - 32px));
+  height: min(760px, calc(100vh - 32px));
+  image-rendering: auto;
+}
+.title {
+  grid-column: 1 / -1;
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  padding: 10px 18px 12px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -7px;
+  height: 7px;
+  background: var(--warm-front) 0 0 / 22px 7px repeat-x;
+}
+.title h1 {
+  margin: 0;
+  font: 800 38px/1 var(--font);
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.title p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+.pane {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 16px 16px;
+  overflow: auto;
+  /* It scrolls, so the front is drawn inside its top edge rather than above it. */
+  background:
+    var(--cold-front) 0 0 / 20px 7px repeat-x,
+    var(--isobars),
+    var(--paper);
+}
+.pane h2 {
+  margin: 4px 0 0;
+  font: 700 15px/1.25 var(--font);
+  color: var(--ink);
+}
+.pane h2:first-child {
+  margin-top: 0;
+}
+/* A Fury is a station on the chart: its circle filled with its colour. */
+.furies {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.fury {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 10px 4px 9px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper-hi);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.fury input,
+.mission input,
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.fury b {
+  color: var(--ink);
+}
+.fury small {
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.3;
+}
+.fury:hover {
+  border-color: var(--ink);
+}
+.fury::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--fury);
+  border-radius: 50%;
+}
+.fury:has(input:checked) {
+  border-color: var(--fury);
+  box-shadow: inset 0 0 0 1px var(--fury);
+  background: color-mix(in srgb, var(--fury) 9%, var(--paper-hi));
+}
+.fury:has(input:checked)::before {
+  background: var(--fury);
+}
+.fury:has(input:checked) b {
+  color: var(--fury);
+}
+.fury:has(input:focus-visible),
+.mission:has(input:focus-visible),
+.segmented label:has(input:focus-visible) {
+  outline: 2px solid var(--warm);
+  outline-offset: 2px;
+}
+.theme-sun {
+  --fury: var(--sun);
+}
+.theme-wind {
+  --fury: var(--wind);
+}
+.theme-rain {
+  --fury: var(--rain);
+}
+.theme-thunder {
+  --fury: var(--thunder);
+}
+.furies.small .fury {
+  grid-auto-flow: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 4px;
+}
+.furies.small .fury::before {
+  display: none;
+}
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper-hi);
+}
+.segmented label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.segmented label + label {
+  border-left: 1px solid var(--ink);
+}
+.segmented label:hover {
+  background: #fff;
+}
+.segmented label:has(input:checked) {
+  background: var(--ink);
+  color: var(--paper-hi);
+  font-weight: 600;
+}
+.options summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 600;
+  padding: 4px 0;
+}
+.options summary:hover {
+  color: var(--cold);
+}
+.options[open] summary {
+  margin-bottom: 8px;
+}
+.menu-form {
+  display: grid;
+  gap: 10px;
+}
+.menu-form label {
+  display: grid;
+  gap: 4px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.menu-form select,
+.menu-form input {
+  padding: 6px 7px;
+  background: var(--paper-hi);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font: 13px var(--font);
+  font-variant-numeric: tabular-nums;
+  accent-color: var(--ink);
+}
+.menu-form select:focus-visible,
+.menu-form input:focus-visible {
+  outline: 2px solid var(--warm);
+  outline-offset: 1px;
+  border-color: var(--ink);
+}
+.mission-list {
+  display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
+  gap: 2px;
+  min-height: 0;
+  overflow: auto;
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+.mission {
+  position: relative;
+  display: grid;
+  align-content: center;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.mission b {
+  font-weight: 600;
+}
+.mission small {
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+.mission:hover {
+  background: var(--paper-hi);
+}
+.mission:has(input:checked) {
+  background: var(--ink);
+  color: var(--paper-hi);
+}
+.mission:has(input:checked) small {
+  color: #c3cad8;
+}
+.briefing h2 {
+  font: 750 24px/1.15 var(--font);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.briefing pre {
+  flex: 1;
+  margin: 0;
+  overflow: auto;
+  max-width: 70ch;
+}
+.tabs {
+  margin-bottom: 0;
+}
+/* The Knowledge a mission gives: a legend of units. */
+.knowledge {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  align-content: start;
+  gap: 6px;
+}
+.knowledge li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid var(--rule-soft);
+  background: var(--paper-hi);
+}
+.knowledge li > :first-child {
+  grid-row: 1 / 3;
+}
+.knowledge small {
+  grid-column: 2;
+  color: var(--ink-soft);
+}
+.knowledge .cost {
+  grid-row: 1 / 3;
+  grid-column: 3;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.start-button {
+  position: relative;
+  align-self: stretch;
+  margin-top: 4px;
+  padding: 13px 20px;
+  font-size: 16px;
+}
+@media (max-width: 980px) {
+  .start {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    height: auto;
+    margin: 16px 0;
+  }
+  .pane {
+    overflow: visible;
+  }
+  .mission-list {
+    max-height: 260px;
+  }
+}
+/* --- the panels around the map. The top strip is the chart's title band, a warm front
+ * along its foot. */
+#topbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 8px 0 14px;
+  background:
+    var(--isobars),
+    var(--paper);
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+}
+#topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -7px;
+  height: 7px;
+  background: var(--warm-front) 0 0 / 22px 7px repeat-x;
+  pointer-events: none;
+}
+#topbar svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 0 0;
+  margin-right: 10px;
+  border-right: 1px solid var(--rule);
+  font-variant-numeric: tabular-nums;
+}
+.stat b {
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+.stat small {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.stat .label {
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+}
+.stat.storm b {
+  font-size: 22px;
+}
+.stat.clock {
+  color: var(--ink-soft);
+  font-weight: 600;
+  border-right: 0;
+}
+/* Energy read off a scale, as a barograph is: ticks, a long one each quarter, and a needle at
+ * the share of it that is the player's own Fury. */
+.meter {
+  position: relative;
+  width: 72px;
+  height: 14px;
+  margin-left: 4px;
+  border-bottom: 1.5px solid var(--ink);
+  background:
+    repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px 18px) left bottom / 100% 10px
+    no-repeat,
+    repeating-linear-gradient(90deg, var(--ink-soft) 0 1px, transparent 1px 6px) left bottom / 100%
+    5px no-repeat;
+}
+.meter::before {
+  content: "";
+  position: absolute;
+  left: var(--share);
+  top: -1px;
+  bottom: -1.5px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--warm);
+}
+.sep {
+  flex: 1;
+}
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  padding: 0;
+}
+#panel {
+  position: fixed;
+  left: 10px;
+  top: 62px;
+  bottom: 10px;
+  z-index: 2;
+  width: 262px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: auto;
+  padding-top: 8px;
+  margin-top: -8px;
+}
+#panel .card {
+  padding: 9px 11px 11px;
+}
+#panel h3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 9px;
+  font: 700 14px/1.3 var(--font);
+}
+#panel h3 .keys {
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 500;
+}
+/* Two columns of three, as the bridge slots stand in the original's Production Window. */
+#hand {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+#hand .note {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+.piece {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 58px;
+  padding: 4px;
+  box-sizing: border-box;
+  border-radius: var(--radius);
+  background: var(--paper-hi);
+}
+.piece kbd {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+}
+.piece.on {
+  background: var(--ink);
+}
+.piece.empty {
+  border: 1px dashed var(--rule);
+  background: transparent;
+}
+button.piece.cracked .planks {
+  opacity: 0.85;
+}
+/* A piece is drawn with the frames of the bridge it will be: cells cut out of the atlas. */
+.planks {
+  display: block;
+  position: relative;
+  image-rendering: pixelated;
+}
+.planks i {
+  display: block;
+  position: absolute;
+}
+/* Production is the chart's legend. The card under the cursor reads out; the rest recede. */
+#units {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+#units:has(button.unit:is(:hover, :focus-visible)) button.unit:not(:hover, :focus-visible) {
+  opacity: 0.55;
+}
+button.unit {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  padding: 16px 3px 5px;
+  background: var(--paper-hi);
+  overflow: hidden;
+  transition: opacity 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+button.unit:is(:hover, :focus-visible) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(10, 14, 30, 0.22);
+}
+button.unit .mark {
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--fury, var(--ink));
+  border-radius: 50%;
+  background: var(--fury, transparent);
+}
+button.unit .name {
+  display: -webkit-box;
+  max-width: 100%;
+  min-height: 2.4em;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  text-wrap: balance;
+}
+button.unit .cost {
+  position: absolute;
+  right: 5px;
+  top: 3px;
+  color: var(--ink);
+  font: 700 12px/1.3 var(--font);
+  font-variant-numeric: tabular-nums;
+}
+button.unit.on {
+  background: var(--ink);
+  color: var(--paper);
+}
+button.unit.on .cost {
+  color: var(--paper);
+}
+button.unit.poor .icon,
+button.unit.poor .name {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+button.unit.short .cost {
+  color: var(--bad);
+}
+/* A state is stamped on the card under its name, as a chart is stamped: picture and name stay
+ * readable, and the stamp says why. */
+.stamp {
+  position: relative;
+  transform: rotate(-4deg);
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 1px;
+  padding: 0 4px;
+  border: 2px solid var(--warm);
+  border-radius: 2px;
+  color: var(--warm);
+  background: rgba(246, 248, 242, 0.85);
+  font: 800 9px/1.3 var(--font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+/* The Unit Rate running out: a wash that empties, and the seconds left stamped over it. */
+button.unit .cooling {
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(rgba(47, 61, 92, 0.32) var(--left), transparent 0);
+}
+button.unit .cooling + .stamp {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.icon {
+  position: relative;
+  display: block;
+  width: var(--size);
+  height: var(--size);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.icon i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  image-rendering: pixelated;
+}
+.icon b {
+  position: absolute;
+  image-rendering: pixelated;
+}
+.icon.glyph {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
+  font: 700 16px var(--font);
+}
+#tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 9px;
+}
+#info {
+  display: grid;
+  gap: 6px;
+}
+#info .hint {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+#info .who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+#info .who b {
+  display: block;
+  font-size: 15px;
+  line-height: 1.25;
+}
+/* A unit is a station: its picture inside the circle, the ring in its side's colour. */
+.station {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 3px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper-hi);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--fury, var(--ink)) 35%, transparent);
+}
+.station.own {
+  border-color: var(--own);
+}
+.station.enemy {
+  border-color: var(--enemy);
+}
+.station .icon {
+  border-radius: 50%;
+}
+.owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.owner::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.own {
+  color: var(--own);
+}
+.enemy {
+  color: var(--enemy);
+}
+.fact {
+  font-size: 12.5px;
+}
+.hp {
+  position: relative;
+  height: 15px;
+  border: 1px solid var(--ink);
+  background: var(--paper-hi);
+  overflow: hidden;
+}
+.hp::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--hp);
+  background: var(--bar);
+}
+.hp.high {
+  --bar: #9aa3b5;
+}
+.hp.mid {
+  --bar: repeating-linear-gradient(135deg, #9aa3b5 0 4px, transparent 4px 7px);
+}
+.hp.low {
+  --bar: #eb948c;
+}
+.hp span {
+  position: relative;
+  display: block;
+  text-align: center;
+  color: var(--ink);
+  font: 700 10.5px/13px var(--font);
+  font-variant-numeric: tabular-nums;
+}
+#info .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+#info .actions small {
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* --- the menu of a unit, opened by a right click or a long press */
+#context {
+  position: fixed;
+  z-index: 4;
+  width: 264px;
+  padding: 0 0 4px;
+  display: grid;
+  animation: context-open 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top left;
+}
+@keyframes context-open {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #context {
+    animation: none;
+  }
+}
+#context .head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--rule);
+}
+#context .head b {
+  display: block;
+  font-size: 14px;
+  line-height: 1.25;
+}
+#context .hp-figure {
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+#context .hp-figure small {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+#context [role="menuitem"] {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 14px;
+  text-align: left;
+}
+#context [role="menuitem"]:is(:hover, :focus-visible) {
+  background: var(--ink);
+  color: var(--paper-hi);
+  outline: none;
+}
+#context [role="menuitem"]:active {
+  transform: none;
+}
+#context .cost {
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+#context [role="menuitem"]:is(:hover, :focus-visible) kbd {
+  color: var(--paper);
+  background: transparent;
+  border-color: rgba(233, 237, 228, 0.4);
+}
+#context .about {
+  display: grid;
+  gap: 4px;
+  padding: 6px 14px 10px;
+  background: var(--paper-hi);
+  border-block: 1px solid var(--rule-soft);
+}
+#context .about p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+/* What destroys sits apart, behind the dashed line of the warm front. */
+#context .harsh {
+  display: grid;
+  margin-top: 12px;
+  border-top: 1px dashed var(--warm);
+}
+#context .danger {
+  color: var(--warm);
+}
+#context .danger:is(:hover, :focus-visible) {
+  background: var(--warm);
+  color: #fff;
+}
+/* --- events */
+#log {
+  position: fixed;
+  right: 10px;
+  top: 62px;
+  z-index: 2;
+  width: 290px;
+  max-height: 33vh;
+  overflow: auto;
+  padding: 4px 0;
+  font-size: 12.5px;
+}
+#log:empty {
+  display: none;
+}
+#log > div {
+  position: relative;
+  padding: 4px 12px 4px 24px;
+  line-height: 1.4;
+}
+#log > div::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 9px;
+  width: 6px;
+  height: 6px;
+  border: 1.5px solid var(--ink-soft);
+  border-radius: 50%;
+}
+#log > div + div {
+  border-top: 1px solid var(--rule-soft);
+}
+#log time {
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+#log .good {
+  color: var(--good);
+}
+#log .good::before {
+  border-color: var(--good);
+  background: var(--good);
+}
+#log .bad {
+  color: var(--bad);
+}
+#log .bad::before {
+  border-color: var(--bad);
+  background: var(--bad);
+}
+#minimap {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2;
+  padding: 4px;
+  image-rendering: pixelated;
+  cursor: crosshair;
+}
+@media (max-width: 760px) {
+  #panel {
+    top: auto;
+    right: 10px;
+    width: auto;
+    max-height: 38vh;
+  }
+  #units {
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  }
+  #hand {
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  }
+  .stat {
+    padding-right: 8px;
+    margin-right: 4px;
+  }
+  .meter {
+    width: 40px;
+  }
+  .stat .label {
+    display: none;
+  }
+  #log {
+    top: 62px;
+    width: 220px;
+    max-height: 20vh;
+  }
+  #minimap {
+    bottom: calc(38vh + 20px);
+    width: 140px;
+  }
+}
+/* A short window: the left column packs closer so the selected unit's commands stay in view. */
+@media (max-height: 820px) {
+  #panel {
+    gap: 12px;
+  }
+  #panel .card {
+    padding: 7px 10px 9px;
+  }
+  #panel h3 {
+    margin-bottom: 6px;
+  }
+  .piece {
+    height: 42px;
+  }
+  #hand {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+/* A finger needs room: on touch screens every control is a full fingertip. */
+@media (pointer: coarse) {
+  button,
+  .segmented label,
+  .mission {
+    min-height: 40px;
+  }
+  .icon-button {
+    width: 44px;
+    height: 36px;
+  }
+  #context [role="menuitem"] {
+    min-height: 48px;
+  }
+}

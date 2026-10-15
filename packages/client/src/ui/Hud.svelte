@@ -5,6 +5,7 @@
     type LogLine,
     type Page,
     type SelectedAction,
+    type UnitCard,
   } from '../hud-model.js';
   import type { HudProps } from './contracts.js';
   import Glyph from './Glyph.svelte';
@@ -16,12 +17,26 @@
 
   const CARD_ICON = 40; // pixels of a unit's picture on its production card
   const PORTRAIT = 48; // pixels of the selected unit's picture
+  const MENU_ICON = 32; // pixels of the unit's picture at the head of its menu
   const PER_CENT = 100;
+  const EDGE = 8; // pixels the menu keeps from the sides of the window
+  /** Actions that destroy what they act on: kept apart at the foot of the menu. */
+  const STAMPS: Record<NonNullable<UnitCard['blocked']>, () => string> = {
+    temple: m.hud_stamp_temple,
+    workshop: m.hud_stamp_workshop,
+    slot: m.hud_stamp_slot,
+    storm: m.hud_short,
+  };
+  const DESTRUCTIVE: ReadonlySet<SelectedAction['kind']> = new Set(['salvage', 'meltdown']);
 
   // Each is replaced whole and never changed in place: no proxies for what is only read.
   let model: HudModel | null = $state.raw(null);
   let log: LogLine[] = $state.raw([]);
   let page: Page | null = $state.raw(null);
+  /** The menu of the selected unit, where it was opened; and whether it reads the unit's facts. */
+  let menu: { x: number; y: number; } | null = $state.raw(null);
+  let about = $state(false);
+  let menuBox: HTMLElement | undefined = $state();
 
   /** Draw the panels anew from the world as it is now. */
   export function update(next: HudModel): void {
@@ -39,6 +54,63 @@
 
   export function hidePage(): void {
     page = null;
+  }
+
+  export function openContext(x: number, y: number): void {
+    menu = { x, y };
+    about = false;
+  }
+
+  function closeMenu(): void {
+    menu = null;
+  }
+
+  function outside(ev: PointerEvent): void {
+    if (!menuBox?.contains(ev.target as Node)) {
+      closeMenu();
+    }
+  }
+
+  // Inside the window, and its first command under the keyboard, once it is drawn.
+  $effect(() => {
+    if (!menu || !menuBox) {
+      return;
+    }
+
+    const box = menuBox;
+    box.style.left = `${Math.max(EDGE, Math.min(menu.x, innerWidth - box.offsetWidth - EDGE))}px`;
+    box.style.top = `${Math.max(EDGE, Math.min(menu.y, innerHeight - box.offsetHeight - EDGE))}px`;
+    box.querySelector<HTMLElement>('[role=menuitem]')?.focus({ preventScroll: true });
+  });
+
+  // A press anywhere else closes it; a right click on another unit opens that one's after.
+  $effect(() => {
+    if (!menu) {
+      return;
+    }
+
+    window.addEventListener('pointerdown', outside, true);
+    return () => window.removeEventListener('pointerdown', outside, true);
+  });
+
+  /** Keys inside the menu are its own: arrows walk it, Escape closes it. */
+  function menuKey(ev: KeyboardEvent): void {
+    ev.stopPropagation();
+    const items = [...(menuBox?.querySelectorAll<HTMLElement>('[role=menuitem]') ?? [])];
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    const step = { ArrowDown: 1, ArrowUp: -1 }[ev.key] ?? 0;
+
+    if (ev.key === 'Escape') {
+      closeMenu();
+    } else if (step && items.length) {
+      ev.preventDefault();
+      items[(at + step + items.length) % items.length]?.focus();
+    }
+  }
+
+  function choose(action: SelectedAction): void {
+    closeMenu();
+    act(action);
   }
 
   function act(action: SelectedAction): void {
@@ -64,15 +136,25 @@
 {#if model}
   <header id="topbar">
     <span class="stat storm" title={m.hud_storm()}>
-      <Glyph name="storm" /><b data-testid="storm">{model.storm}</b>
+      <Glyph name="storm" /><span class="label">{m.hud_storm()}</span><b data-testid="storm">{
+        model.storm
+      }</b>
     </span>
     <span
       class="stat energy"
       title={m.hud_energy()}
     >
-      <Glyph name="energy" /><b>{model.energy.own}</b><small>/ {model.energy.total}</small>
+      <Glyph name="energy" /><span class="label">{m.hud_energy_label()}</span><b>{
+        model.energy.own
+      }</b><small>/ {model.energy.total}</small>
+      <span
+        class="meter"
+        style:--share="{model.energy.total ? Math.round(model.energy.own / model.energy.total * PER_CENT) : 0}%"
+      ></span>
     </span>
-    <span class="stat clock" title={m.hud_clock()}><Glyph name="clock" />{model.clock}</span>
+    <span class="stat clock" title={m.hud_clock()}><Glyph name="clock" /><span class="label">{
+        m.hud_clock_label()
+      }</span>{model.clock}</span>
     <span class="sep"></span>
     <button
       class="icon-button"
@@ -138,17 +220,23 @@
             class="unit theme-{card.theme}"
             class:on={card.active}
             class:poor={card.poor}
+            class:short={card.blocked === 'storm'}
             aria-label={card.name}
             title={card.title}
             onclick={() => actions.setTool({ kind: 'build', type: card.id })}
           >
+            <span class="mark"></span>
             <UnitIcon {atlas} type={card.id} name={card.name} size={CARD_ICON} />
             <span class="name">{card.name}{card.facing ? ` · ${card.facing}` : ''}</span>
             <span class="cost">{card.cost}</span>
             {#if card.cooling}
-              <span class="cooling" style:--left="{Math.round(card.cooling.left * PER_CENT)}%">
-                {card.cooling.seconds}
-              </span>
+              <span
+                class="cooling"
+                style:--left="{Math.round(card.cooling.left * PER_CENT)}%"
+              ></span>
+              <span class="stamp">{m.hud_stamp_cooling({ seconds: card.cooling.seconds })}</span>
+            {:else if card.blocked}
+              <span class="stamp">{STAMPS[card.blocked]()}</span>
             {/if}
           </button>
         {:else}
@@ -174,8 +262,10 @@
     <section class="card" id="info">
       {#if model.selected}
         {@const chosen = model.selected}
-        <div class="who">
-          <UnitIcon {atlas} type={chosen.type} name={chosen.name} size={PORTRAIT} />
+        <div class="who theme-{chosen.theme ?? 'none'}">
+          <span class="station {chosen.owner?.side ?? ''}">
+            <UnitIcon {atlas} type={chosen.type} name={chosen.name} size={PORTRAIT} />
+          </span>
           <div>
             <b>{chosen.name}</b>
             {#if chosen.owner}
@@ -214,6 +304,63 @@
     {#each log as line (line.id)}
       <div class={line.tone}><time>{line.time}</time> {line.text}</div>
     {/each}
+  </div>
+{/if}
+
+{#if menu && model?.selected}
+  {@const chosen = model.selected}
+  {@const plain = chosen.actions.filter((action) => !DESTRUCTIVE.has(action.kind))}
+  {@const harsh = chosen.actions.filter((action) => DESTRUCTIVE.has(action.kind))}
+  <div
+    id="context"
+    class="theme-{chosen.theme ?? 'none'}"
+    role="menu"
+    tabindex="-1"
+    aria-label={m.ctx_menu({ name: chosen.name })}
+    bind:this={menuBox}
+    onkeydown={menuKey}
+    oncontextmenu={(ev) => ev.preventDefault()}
+  >
+    <div class="head">
+      <span class="station {chosen.owner?.side ?? ''}">
+        <UnitIcon {atlas} type={chosen.type} name={chosen.name} size={MENU_ICON} />
+      </span>
+      <div>
+        <b>{chosen.name}</b>
+        {#if chosen.owner}
+          <span class="owner {chosen.owner.side}">{chosen.owner.name}</span>
+        {/if}
+      </div>
+      {#if chosen.hp}
+        <span class="hp-figure">{chosen.hp.value}<small>/{chosen.hp.max}</small></span>
+      {/if}
+    </div>
+    {#each plain as action, i (i)}
+      <button role="menuitem" onclick={() => choose(action)}>
+        <span>{action.label}</span>
+        {#if 'cost' in action}<span class="cost">{action.cost}</span>{/if}
+      </button>
+    {/each}
+    <button role="menuitem" aria-expanded={about} onclick={() => (about = !about)}>
+      <span>{m.ctx_about()}</span>
+    </button>
+    {#if about}
+      <div class="about">
+        {#each chosen.facts as fact, i (i)}
+          <p class:muted={fact.muted}>{fact.text}</p>
+        {/each}
+      </div>
+    {/if}
+    {#if harsh.length}
+      <div class="harsh">
+        {#each harsh as action, i (i)}
+          <button role="menuitem" class="danger" onclick={() => choose(action)}>
+            <span>{action.label}</span>
+            {#if 'key' in action}<kbd>{action.key}</kbd>{/if}
+          </button>
+        {/each}
+      </div>
+    {/if}
   </div>
 {/if}
 

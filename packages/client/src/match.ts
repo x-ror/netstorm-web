@@ -154,6 +154,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     sounds: data.sounds,
     changed: () => hud.render(),
     togglePause,
+    context: (x, y) => hud.context(x, y),
   });
   const minimapCanvas = document.createElement('canvas');
   minimapCanvas.id = 'minimap';
