@@ -6,7 +6,7 @@ description: Translate NetStorm game texts between English and Ukrainian (missio
 # Переклад en ↔ uk
 
 Оригінал гри англійський: `data/missions.json`. Український переклад місій лежить у `data/missions.uk.json`.
-Це словник `{ file: { title, sections, buttons } }`. Клієнт накладає його на англійський через
+Це словник `{ file: { title, names, sections, buttons } }`; `names` перекриває імена сторін із заголовка місії (`aiName`, `ai2Name`…). Клієнт накладає його на англійський через
 `translateMissions` у `packages/client/src/game-data.ts`.
 
 Тексти інтерфейсу (меню, HUD, журнал, назви класів юнітів) — це повідомлення inlang у
@@ -40,6 +40,7 @@ description: Translate NetStorm game texts between English and Ukrainian (missio
 | Furies | Фурії |
 | Temple / Wind Temple / Altar | Храм / Храм Вітру / Вівтар |
 | Marquis, Duke, Minister, Ambassador | Маркіз, Герцог, Міністр, Посол |
+| Lord, Earl, Knight, Chamberlain, Governor (імена ворогів) | Владика, Граф, Лицар, Камергер, Намісник; The Jailer — Тюремник, Storm Lord — Владика Бурі |
 | Cherok Isle | острів Черок |
 | Balloon | Повітряна куля |
 | Knowledge / Review Knowledge | Знання (дар Вівтаря) / База знань (екран і кнопка) |

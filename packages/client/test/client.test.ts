@@ -712,6 +712,12 @@ test('a translation replaces the texts and button labels of a mission and nothin
     missions.map((m) => m.id));
 });
 
+test('a translation names the enemies of a mission', () => {
+  const translation = { thewarbegins: { names: { aiName: 'Тюремник' } } };
+  const ours = slimMissions(translateMissions(read('missions'), translation), maps);
+  assert.equal(ours.find((m) => m.id === 'thewarbegins')!.enemy, 'Тюремник');
+});
+
 test('the Knowledge of a mission is what its header gives the player, lowest level first', () => {
   const first = missions.find((m) => m.id === 'thewarbegins')!;
   assert.deepEqual(knowledgeOf(defs, first, 'wind').map((k) => k.def.id).sort(), [

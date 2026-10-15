@@ -316,6 +316,8 @@ export function translateMissions(raw: unknown, translation: unknown): unknown {
       header: {
         ...asRecord(file.header),
         ...(typeof ours.title === 'string' ? { title: ours.title } : {}),
+        // The names of the sides (`aiName`, `ai2Name`…).
+        ...asRecord(ours.names),
       },
       sections: { ...asRecord(file.sections), ...asRecord(ours.sections) },
       goals: { ...goals, buttons },
