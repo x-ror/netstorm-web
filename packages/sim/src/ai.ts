@@ -412,6 +412,20 @@ function aiMoveOn(
     }
   }
 
+  // The Temple draws a piece only into a free slot: a full hand of pieces that come nearer to no
+  // target would stop the bridge for good. The one that fits worst goes to the back of the island,
+  // where it is in nobody's way, and the next second a new one comes.
+  const grows = first && !(first.target.enemy && options.attack === false) ? first.target : null;
+
+  if (laidPieces === 0 && grows && bounds && reached && player.hand.length >= world.bridgeSlots) {
+    const dump = dumpPiece(world, move, skyField(world, move, grows), grows, bounds, reached);
+
+    if (dump) {
+      move.commands.push(dump);
+      because('a full hand and no piece comes nearer: the worst goes to the back of the island');
+    }
+  }
+
   // Units go where the bridge is most wanted: to the enemy, when attacking, even in a move whose
   // only piece went on toward a geyser because none could be laid nearer to him.
   if (first && (!target || (attack && first.target.enemy))) {
@@ -1507,6 +1521,7 @@ function bridgeHeads(
   field: Int32Array,
   bounds: Bounds,
   reached: Uint8Array,
+  order: 'nearest' | 'farthest' = 'nearest',
 ): Head[] {
   const all: Head[] = [];
 
@@ -1532,8 +1547,10 @@ function bridgeHeads(
     }
   }
 
-  // Nearest first, and no two within reach of the same search for a piece.
-  all.sort((a, b) => a.need - b.need || a.y - b.y || a.x - b.x);
+  // Nearest first (or farthest, for a piece to be rid of), and no two within reach of the same
+  // search for a piece.
+  const sign = order === 'nearest' ? 1 : -1;
+  all.sort((a, b) => sign * (a.need - b.need) || a.y - b.y || a.x - b.x);
   const heads: Head[] = [];
 
   for (const head of all) {
@@ -1601,6 +1618,107 @@ function bestPiece(
 }
 
 /** Better than reaching the target's surroundings: an open end joined to new ground. */
+/** How far from the nearest heads a piece to be rid of is laid: out of the way of the bridge. */
+const DUMP_CLEARANCE = SEARCH_RADIUS * 2;
+const DUMP_RADIUS = 2;
+
+/**
+ * Of a full hand that laid nothing, the piece that comes nearest to no target, laid at the back of
+ * the island: off the own shore farthest from the target, clear of the nearest heads, where the
+ * drop is allowed. The shore is any cell of own ground a transport can reach with sky on a side it
+ * joins on, whether or not the sky there leads anywhere: the own bridge may have cut the sky in
+ * two. Null when no piece can be laid anywhere there.
+ */
+function dumpPiece(
+  world: WorldView,
+  move: Move,
+  field: Int32Array,
+  target: { x: number; y: number; },
+  bounds: Bounds,
+  reached: Uint8Array,
+): Extract<Command, { t: 'dropPiece'; }> | null {
+  const me = move.me;
+  const hand = world.players.get(me)!.hand;
+  const heads = bridgeHeads(world, me, field, bounds, reached);
+
+  // The best each piece could do at any head: the worst of them goes. A piece still cracked is
+  // kept: it may fit once it has hardened.
+  const bestNeedOf = (index: number): number => {
+    let best = Infinity;
+
+    for (let rot = 0; rot < ROTATIONS; rot++) {
+      const cells = rotatePiece(PIECES[hand[index]!.piece]!, rot);
+      const ends = pieceEnds(hand[index]!.piece, rot);
+      const spots = heads.flatMap((head) => nearby(head, SEARCH_RADIUS));
+
+      for (const [x, y] of spots) {
+        const need = needAfter(world, me, field, reached, cells, ends, x, y);
+
+        if (need < best && world.canDropPiece({ player: me, hand: index, x, y, rot }) === null) {
+          best = need;
+        }
+      }
+    }
+
+    return best;
+  };
+  let worst = -1;
+  let worstNeed = -Infinity;
+
+  for (let index = 0; index < hand.length; index++) {
+    const best = hand[index]!.age < PIECE_HARDEN ? -Infinity : bestNeedOf(index);
+
+    if (best > worstNeed) {
+      worst = index;
+      worstNeed = best;
+    }
+  }
+
+  if (worst < 0) {
+    return null;
+  }
+
+  const clear = (x: number, y: number) =>
+    heads.slice(0, 2).every((head) =>
+      Math.max(Math.abs(head.x - x), Math.abs(head.y - y)) >= DUMP_CLEARANCE
+    );
+  const backs: { x: number; y: number; far: number; }[] = [];
+
+  for (let y = bounds.y0; y <= bounds.y1; y++) {
+    for (let x = bounds.x0; x <= bounds.x1; x++) {
+      const i = y * W + x;
+      const shore = world.owner[i] === me && reached[i] === 1 && clear(x, y)
+        && DIRS.some(([dx, dy], dir) =>
+          world.inside(x + dx, y + dy) && world.terrain[world.at(x + dx, y + dy)] === Terrain.Sky
+          && joins(world, i, dir)
+        );
+
+      if (shore) {
+        backs.push({ x, y, far: distance(x, y, target.x, target.y) });
+      }
+    }
+  }
+
+  backs.sort((a, b) => b.far - a.far || a.y - b.y || a.x - b.x);
+
+  for (const back of backs) {
+    for (let rot = 0; rot < ROTATIONS; rot++) {
+      const cells = rotatePiece(PIECES[hand[worst]!.piece]!, rot);
+
+      for (const [x, y] of nearby(back, DUMP_RADIUS)) {
+        if (
+          cells.every(([dx, dy]) => !move.planned.has(world.at(x + dx, y + dy)))
+          && world.canDropPiece({ player: me, hand: worst, x, y, rot }) === null
+        ) {
+          return { t: 'dropPiece', player: me, hand: worst, x, y, rot };
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 const JOINED = -1;
 
 /** Bridge still needed once the piece lies at (x, y): none if it reaches the target's surroundings,

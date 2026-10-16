@@ -9,6 +9,7 @@ import {
   loadDefs,
   MEMORY_MOVES,
   parseCommand,
+  PIECE_HARDEN,
   playReplay,
   ReplayRecorder,
   Terrain,
@@ -829,4 +830,33 @@ test('a side with no transport buys its first before its guns, without savings, 
   world.players.get(2)!.storm = fare - 50;
   const poor = aiMove(world.view(), { player: 2, difficulty: 'easy' });
   assert.ok(!poor.some((c) => c.t === 'build' && defs.get(c.type)!.cost > 50));
+});
+
+test('a full hand that comes nearer to nothing is rid of its worst piece, at the back of the island', () => {
+  // No geyser to grow toward: the enemy is the only target.
+  const world = equipWorkshops(createSkirmish(defs, 42, [
+    { id: 1, name: 'Idle', theme: 'wind', x: 70, y: 150 },
+    { id: 2, name: 'AI', theme: 'rain', x: 150, y: 90 },
+  ], []));
+  world.players.get(2)!.storm = 0; // nothing to build, so the move is about the hand alone
+  const priest = world.priestOf(1)!;
+  // The AI's ground has come up to the enemy's island: no piece brings the bridge nearer.
+  world.addIsland(85, 99, 70, 1, 2);
+  world.addIsland(85, 99, 5, 69, 2);
+  world.addIsland(60, 160, 26, 8, 2);
+  world.invalidateTerrain();
+  world.spawnBuilding('sunarcher', 2, priest.x - 1, 161);
+  const player = world.players.get(2)!;
+  player.hand = Array.from({ length: world.bridgeSlots },
+    (_, i) => ({ piece: i + 2, age: PIECE_HARDEN }));
+  const drops = aiMove(world.view(), { player: 2, difficulty: 'hard', geysers: 0 })
+    .filter((c) => c.t === 'dropPiece');
+  assert.equal(drops.length, 1);
+  assert.ok(drops[0]!.y < 140, `far from the enemy at ${priest.y}: ${JSON.stringify(drops[0])}`);
+  world.step(drops);
+  assert.ok(world.drainEvents().every((e) => !(e.what === 'rejected' && e.who === 2)),
+    'the drop lands');
+  // Told to keep off the enemy, with him the only target, the hand is left alone.
+  assert.equal(aiMove(world.view(), { player: 2, difficulty: 'hard', geysers: 0, attack: false })
+    .filter((c) => c.t === 'dropPiece').length, 0);
 });
