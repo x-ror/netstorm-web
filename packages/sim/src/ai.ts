@@ -376,7 +376,6 @@ function cacheBuildingsForMove(world: WorldView): WorldView {
     number,
     Map<UnitGroup | undefined, ReturnType<WorldView['buildingsOf']>>
   >();
-
   Object.defineProperty(cached, 'buildingsOf', {
     value: (player: number, group?: UnitGroup) => {
       let byGroup = byPlayer.get(player);
@@ -393,7 +392,6 @@ function cacheBuildingsForMove(world: WorldView): WorldView {
       return byGroup.get(group)!;
     },
   });
-
   return cached;
 }
 
