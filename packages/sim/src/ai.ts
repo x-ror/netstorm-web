@@ -17,7 +17,8 @@
  */
 import type { Command } from './commands.js';
 import { remember, type AiMemory } from './ai/memory.js';
-import type { Difficulty } from './ai/params.js';
+import { DIFFICULTY, type Difficulty } from './ai/params.js';
+import { skyCosts, threatMap, type ThreatMap } from './ai/threat.js';
 import { flies, upgradeCost, type UnitDef } from './defs.js';
 import {
   DIRS,
@@ -27,6 +28,7 @@ import {
   PIECES,
   PIECE_HARDEN,
   Terrain,
+  TPS,
   W,
   WORKSHOP_SLOTS,
   H,
@@ -116,14 +118,25 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     return [];
   }
 
+  const params = DIFFICULTY[options.difficulty ?? 'normal'];
   // The commands of one move are checked against the same world, so this move's own spending and
   // cells are tracked here: later commands must not count on Storm Power or ground already used.
-  const move: Move = { me, budget: player.storm, planned: new Set(), commands: [] };
+  const move: Move = {
+    me,
+    budget: player.storm,
+    planned: new Set(),
+    commands: [],
+    threat: threatMap(world, me, noticed(world, memory, params.reactionMoves * params.moveSeconds)),
+    weight: params.threatWeight,
+    fleeing: false,
+  };
   const transports = owned<Transport>(world, me, 'transport');
   const geysers = reachableGeysers(world, me);
   // Ground the transports can walk to now; joining anything else is what a bridge is for.
   const home = world.templeOf(me);
   const reached = home ? walkableFrom(world, me, home) : null;
+
+  shelter(world, move);
 
   if (options.collect !== false) {
     collect(world, move, transports, geysers);
@@ -139,7 +152,7 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     capture(world, move, transports);
   }
 
-  const ward = wardSpot(world, me);
+  const ward = move.fleeing ? null : wardSpot(world, me, move.threat);
 
   if (ward) {
     move.commands.push({ t: 'movePriest', player: me, ...ward });
@@ -155,7 +168,7 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
   // Grow toward the first target a piece can be laid toward. When none can, the last target, the
   // enemy, still decides where units go.
   for (const candidate of bridgeTargets(world, me, attack, options.enemy)) {
-    const field = skyField(world, candidate);
+    const field = skyField(world, move, candidate);
     target = candidate;
     const heads = bounds && reached ? bridgeHeads(world, me, field, bounds, reached) : [];
     head = heads[0] ?? null;
@@ -231,6 +244,61 @@ interface Move {
   /** Cells taken by the piece and units already chosen this move. */
   planned: Set<number>;
   commands: Command[];
+  /** Enemy damage per second on each cell, as far as this move has noticed the enemy's guns. */
+  threat: ThreatMap;
+  /** How much a cell under fire lengthens a bridge for the level played. */
+  weight: number;
+  /** The Priest is sent out of the enemy's fire this move, and is free for nothing else. */
+  fleeing: boolean;
+}
+
+/**
+ * Which enemy buildings this move takes into account: with a memory, those seen for at least the
+ * level's reaction time; the memory notes the new ones. Without a memory, every one.
+ */
+function noticed(
+  world: WorldView,
+  memory: AiMemory | undefined,
+  reactionSeconds: number,
+): (b: View<Building>) => boolean {
+  if (!memory) {
+    return () => true;
+  }
+
+  for (const id of memory.firstSeen.keys()) {
+    if (!world.entities.has(id)) {
+      memory.firstSeen.delete(id);
+    }
+  }
+
+  for (const e of world.entities.values()) {
+    if (e.kind === 'building' && !memory.firstSeen.has(e.id)) {
+      memory.firstSeen.set(e.id, world.tick);
+    }
+  }
+
+  return (b) => world.tick - memory.firstSeen.get(b.id)! >= reactionSeconds * TPS;
+}
+
+/** "Lest the Priest fall": standing under the enemy's guns, he walks to the nearest cell out of
+ * their reach, and does nothing else this move. */
+function shelter(world: WorldView, move: Move): void {
+  const priest = world.priestOf(move.me);
+
+  if (!priest || priest.state !== 'normal' || move.threat[world.at(priest.x, priest.y)] === 0) {
+    return;
+  }
+
+  const safe = world.findPath(move.me, priest.x, priest.y,
+    ([x, y]) =>
+      move.threat[world.at(x, y)] === 0 && !world.occupant[world.at(x, y)]
+      && !world.priestAt(x, y));
+  const end = safe?.at(-1);
+
+  if (end) {
+    move.fleeing = true;
+    move.commands.push({ t: 'movePriest', player: move.me, x: end[0], y: end[1] });
+  }
 }
 
 type Head = { x: number; y: number; need: number; };
@@ -298,7 +366,7 @@ function buildAltar(world: WorldView, move: Move): void {
 
 /** Whether the Priest is on his way to a site, or is sent to one this move. */
 function priestBusy(world: WorldView, move: Move): boolean {
-  return world.buildingsOf(move.me).some((b) => b.builder !== null)
+  return move.fleeing || world.buildingsOf(move.me).some((b) => b.builder !== null)
     || move.commands.some((c) =>
       c.t === 'build' && PRIEST_BUILT.has(world.defs.get(c.type)?.cls ?? '')
     );
@@ -424,7 +492,7 @@ function inRange(world: WorldView, t: View<Transport>, range: number): Reach {
   const reach: Reach = { foes: 0, friends: 0, foesAir: 0, friendsAir: 0, hurt: 0 };
 
   for (const e of world.entities.values()) {
-    if (!('hp' in e) || e.id === t.id || e.hp <= 0 || !inReach(t, e, range)) {
+    if (!('hp' in e) || e.id === t.id || e.hp <= 0 || e.invisible > 0 || !inReach(t, e, range)) {
       continue;
     }
 
@@ -708,7 +776,10 @@ function enemyPriest(
   state: Priest['state'],
 ): View<Priest> | undefined {
   for (const entity of world.entities.values()) {
-    if (entity.kind === 'priest' && world.hostile(entity.owner, me) && entity.state === state) {
+    if (
+      entity.kind === 'priest' && world.hostile(entity.owner, me) && entity.state === state
+      && entity.invisible === 0
+    ) {
       return entity;
     }
   }
@@ -717,14 +788,22 @@ function enemyPriest(
 }
 
 /** A free cell beside the altar a captive is chained on, if the AI's priest is not there yet. */
-function wardSpot(world: WorldView, me: number): { x: number; y: number; } | null {
+function wardSpot(
+  world: WorldView,
+  me: number,
+  threat: ThreatMap,
+): { x: number; y: number; } | null {
   const chained = enemyPriest(world, me, 'chained');
   const altar = chained && chained.chainedAt !== null
     ? world.entities.get(chained.chainedAt)
     : undefined;
   const priest = world.priestOf(me);
 
-  if (!altar || altar.kind !== 'building' || altar.owner !== me || priest?.state !== 'normal') {
+  // Nor while the Altar is under fire: the ritual waits until the ground around it is held.
+  if (
+    !altar || altar.kind !== 'building' || altar.owner !== me || priest?.state !== 'normal'
+    || threat[world.at(altar.x, altar.y)]! > 0
+  ) {
     return null;
   }
 
@@ -803,13 +882,14 @@ function bridgeTargets(
 }
 
 /**
- * Steps through open sky from each cell to the target's surroundings: the cells within `radius`
- * of the target (Chebyshev). Bridge can only be laid in the sky, so this is the length of bridge
- * still needed from there, going around islands rather than straight at the target. -1 where
- * the target cannot be reached through the sky, and on every cell that is not sky. The grid is
- * scratch, valid until the next call.
+ * The cost of bridging through open sky from each cell to the target's surroundings: the cells
+ * within `radius` of the target (Chebyshev). Bridge can only be laid in the sky, so this is the
+ * bridge still needed from there, going around islands rather than straight at the target, and
+ * around the enemy's fire when the level weighs it (ai/threat.ts). -1 where the target cannot be
+ * reached through the sky, and on every cell that is not sky. The grid is scratch, valid until
+ * the next call.
  */
-function skyField(world: WorldView, target: Target): Int32Array {
+function skyField(world: WorldView, move: Move, target: Target): Int32Array {
   const field = scratch.field.fill(-1);
   const queue = scratch.queue;
   let tail = 0;
@@ -834,25 +914,7 @@ function skyField(world: WorldView, target: Target): Int32Array {
     }
   }
 
-  for (let head = 0; head < tail; head++) {
-    const i = queue[head]!;
-    const x = i % W;
-    const y = (i / W) | 0;
-
-    for (const [dx, dy] of DIRS) {
-      const nx = x + dx;
-      const ny = y + dy;
-
-      if (
-        world.inside(nx, ny) && field[world.at(nx, ny)] === -1
-        && world.terrain[world.at(nx, ny)] === Terrain.Sky
-      ) {
-        field[world.at(nx, ny)] = field[i]! + 1;
-        queue[tail++] = world.at(nx, ny);
-      }
-    }
-  }
-
+  skyCosts(world, field, queue, tail, move.threat, move.weight);
   return field;
 }
 
@@ -1089,7 +1151,7 @@ function bestUnit(
 /** Whether some other side has an air base, a flyer or an Aerial Transport. */
 function enemyFlies(world: WorldView, me: number): boolean {
   for (const e of world.entities.values()) {
-    if ('type' in e && world.hostile(e.owner, me)) {
+    if ('type' in e && world.hostile(e.owner, me) && e.invisible === 0) {
       const def = world.def(e.type);
 
       if (flies(def) || def.group === 'aviary') {
@@ -1257,8 +1319,14 @@ function place(
     return { placed: false, noEnergy };
   }
 
+  const byPriest = PRIEST_BUILT.has(def.cls);
+
   for (const [x, y] of nearby(head, radius)) {
-    if (!clearOfBridges(world, def, x, y, move.planned)) {
+    // The Priest is not sent to raise anything under the enemy's guns.
+    if (
+      !clearOfBridges(world, def, x, y, move.planned)
+      || (byPriest && world.inside(x, y) && move.threat[world.at(x, y)]! > 0)
+    ) {
       continue;
     }
 

@@ -5,15 +5,19 @@ import {
   aiMove,
   createAiMemory,
   createSkirmish,
+  H,
   loadDefs,
   MEMORY_MOVES,
   parseCommand,
   playReplay,
   ReplayRecorder,
+  threatMap,
   TPS,
   upgradeCost,
+  W,
   World,
 } from '../src/index.js';
+import { skyCosts } from '../src/ai/threat.js';
 import { equipWorkshops } from './workshops.js';
 
 const read = (name: string): unknown =>
@@ -336,4 +340,65 @@ test('with the geysers it is asked for, the AI bridges to the enemy, unless told
     aiMove(world.view(), { player: 2, ...options }).some((c) => c.t === 'dropPiece');
   assert.ok(lays({ geysers: 0 }));
   assert.ok(!lays({ geysers: 0, attack: false }));
+});
+
+test("under the enemy's guns the Priest walks out of their reach and builds nothing", () => {
+  const world = equipWorkshops(mk());
+  world.players.get(2)!.storm = 5000;
+  const priest = world.priestOf(2)!;
+  // A Disc Thrower of the idle side right beside him: his cell is in its square.
+  world.spawnBuilding('sunarcher', 1, priest.x + 2, priest.y + 2);
+  const orders = aiMove(world.view(), { player: 2 });
+  const walk = orders.find((c) => c.t === 'movePriest');
+  assert.ok(walk && walk.t === 'movePriest');
+  assert.equal(threatMap(world.view(), 2)[world.at(walk.x, walk.y)], 0);
+  assert.ok(!orders.some((c) => c.t === 'build' && c.type === 'altar'));
+  // Easy takes three moves to notice a gun; with a memory, the first move still sees nothing.
+  const memory = createAiMemory();
+  const easy = aiMove(world.view(), { player: 2, difficulty: 'easy' }, memory);
+  assert.ok(!easy.some((c) => c.t === 'movePriest'));
+  world.step([]);
+  assert.ok(
+    aiMove(world.view(), { player: 2, difficulty: 'hard' }, memory).some((c) =>
+      c.t === 'movePriest'
+    ),
+  );
+});
+
+test("the threat map covers a cannon's line and a Disc Thrower's square, not an invisible gun", () => {
+  const world = mk();
+  const cannon = world.spawnBuilding('raincannon', 1, 60, 140, 1); // Ice Cannon facing east
+  const archer = world.spawnBuilding('sunarcher', 1, 80, 160);
+  const threat = threatMap(world.view(), 2);
+  const row = cannon.y + (cannon.fy >> 1);
+  assert.equal(threat[world.at(cannon.x + cannon.fx, row)], defs.get('raincannon')!.dps);
+  assert.equal(threat[world.at(cannon.x + cannon.fx, row + 1)], 0);
+  assert.equal(threat[world.at(archer.x + 1 + 8, archer.y + 1 + 8)], defs.get('sunarcher')!.dps);
+  assert.equal(threat[world.at(archer.x + 1 + 9, archer.y + 1)], 0);
+  archer.invisible = 100;
+  assert.equal(threatMap(world.view(), 2)[world.at(archer.x + 1, archer.y + 1)], 0);
+});
+
+test("a bridge goes around the enemy's fire when the detour is cheaper than crossing it", () => {
+  // Open sky, a seed at (10, 10) and a wall of fire down column 15 from the top to row 14: the
+  // straight way to (20, 10) crosses one cell of it, the way around its foot takes ten more.
+  const world = new World(defs, 1);
+  const threat = new Int32Array(W * H);
+
+  for (let y = 0; y <= 14; y++) {
+    threat[world.at(15, y)] = 100;
+  }
+
+  const cost = (weight: number) => {
+    const field = new Int32Array(W * H).fill(-1);
+    const queue = new Int32Array(1);
+    field[world.at(10, 10)] = 0;
+    queue[0] = world.at(10, 10);
+    skyCosts(world.view(), field, queue, 1, threat, weight);
+    return field[world.at(20, 10)];
+  };
+
+  assert.equal(cost(0), 10); // the breadth-first length
+  assert.equal(cost(1), 20); // crossing costs 10 more: as cheap as the way around, which wins
+  assert.equal(cost(2), 20); // crossing would cost 20 more: the way around
 });

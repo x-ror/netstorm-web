@@ -9,13 +9,16 @@ export interface AiMemory {
   storm: number[];
   /** Storm Power each of those moves spent. */
   spent: number[];
+  /** The tick each enemy building was first seen on, by id: a new gun is reacted to only after
+   * the level's delay. */
+  firstSeen: Map<number, number>;
 }
 
 /** Moves the memory keeps a figure for: enough to average an income over (invented). */
 export const MEMORY_MOVES = 10;
 
 export function createAiMemory(): AiMemory {
-  return { storm: [], spent: [] };
+  return { storm: [], spent: [], firstSeen: new Map() };
 }
 
 /** Record one move: what it started with and what it spent, forgetting the oldest. */
