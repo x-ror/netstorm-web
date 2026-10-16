@@ -134,7 +134,8 @@ test('one transport goes for a downed priest, and the others keep working', () =
   world.invalidateTerrain();
   const sent = () =>
     aiMove(world.view(), { player: 2 }).filter((command) => command.t === 'capturePriest');
-  assert.equal(sent().length, 1);
+  // Both transports go, in case one is shot down; nobody else is sent after them.
+  assert.equal(sent().length, 2);
   world.step(sent());
   assert.ok(world.drainEvents().every((event) => event.what !== 'rejected'));
   assert.deepEqual(sent(), []);
@@ -632,4 +633,86 @@ test('a full Workshop is Upgraded for a shooter it has no slot for, once Storm P
   assert.ok(!aiMove(world.view(), { player: 2 }).some((c) => c.t === 'upgradeWorkshop'));
   world.players.get(2)!.storm = 5000;
   assert.ok(aiMove(world.view(), { player: 2 }).some((c) => c.t === 'upgradeWorkshop'));
+});
+
+test('the transports with the shortest way go for a downed priest, nearest first', () => {
+  const world = mk();
+  const priest = world.priestOf(1)!;
+  priest.state = 'down';
+  priest.hp = 1;
+  world.addIsland(70, 99, 85, 1, 2);
+  world.addIsland(70, 99, 5, 45, 2);
+  world.invalidateTerrain();
+  const near = world.spawnTransport('rainwalker', 2, 72, 140);
+  world.spawnTransport('rainwalker', 2, 151, 97);
+  world.spawnTransport('rainwalker', 2, 153, 97);
+  const sent = aiMove(world.view(), { player: 2 }).filter((c) => c.t === 'capturePriest');
+  assert.equal(sent.length, 2);
+  assert.ok(sent[0]!.t === 'capturePriest' && sent[0]!.transport === near.id);
+});
+
+test('a transport leaves a geyser under fire alone while another remains, unless told not to', () => {
+  const world = mk();
+  world.players.get(2)!.storm = 100;
+  const temple = world.templeOf(2)!;
+  // Two geysers on the AI's island; a Disc Thrower of the idle side covers the first.
+  const hot = world.addGeyser(temple.x - 4, temple.y + 8, 2000, false);
+  const calm = world.addGeyser(temple.x + 12, temple.y + 2, 2000, false);
+  world.spawnBuilding('sunarcher', 1, hot.x + 2, hot.y + 2);
+  const t = world.spawnTransport('rainwalker', 2, temple.x - 2, temple.y - 2);
+  const to = (options: object) =>
+    aiMove(world.view(), { player: 2, ...options }).find((c) =>
+      c.t === 'collect' && c.transport === t.id
+    );
+  const careful = to({});
+  assert.ok(careful?.t === 'collect' && careful.geyser === calm.id);
+  const told = to({ avoidDanger: false });
+  assert.ok(told?.t === 'collect' && told.geyser === hot.id);
+});
+
+test('guns stand about the Altar while a captive is chained on it, on Hard', () => {
+  const world = equipWorkshops(mk());
+  world.players.get(2)!.storm = 1500; // short of hoarding, so only a guard would be laid
+  // Its three defence guns stand north of the Temple, out of reach of the Altar.
+  world.spawnBuilding('suncannon', 2, 141, 83);
+  world.spawnBuilding('suncannon', 2, 145, 83);
+  world.spawnBuilding('suncannon', 2, 149, 83);
+  const altar = world.spawnBuilding('altar', 2, 150, 94);
+  const priest = world.priestOf(1)!;
+  priest.state = 'chained';
+  priest.chainedAt = altar.id;
+  priest.x = altar.x + 3;
+  priest.y = altar.y + 3;
+  const guards = (difficulty: 'easy' | 'hard') =>
+    aiMove(world.view(), { player: 2, difficulty }).filter((c) =>
+      c.t === 'build' && defs.get(c.type)!.dps > 0 && Math.abs(c.x - 153) <= 12
+      && Math.abs(c.y - 97) <= 12
+    );
+  assert.ok(guards('hard').length >= 1);
+  assert.equal(guards('easy').length, 0);
+});
+
+test("Easy lays one gun on the enemy's Priest and waits; Hard keeps laying until three reach him", () => {
+  const world = equipWorkshops(mk());
+  world.players.get(2)!.storm = 1500; // short of hoarding
+  world.spawnBuilding('suncannon', 2, 141, 83); // its defence guns, so none is laid for that
+  world.spawnBuilding('suncannon', 2, 145, 83);
+  world.spawnBuilding('suncannon', 2, 149, 83);
+  const priest = world.priestOf(1)!;
+  // The AI's own ground right beside the enemy's island, joined to its home by a strip of land
+  // so its transports can walk there, with Energy, so guns can stand there.
+  world.addIsland(85, 99, 70, 1, 2);
+  world.addIsland(85, 99, 5, 69, 2);
+  world.addIsland(60, 160, 26, 8, 2);
+  world.invalidateTerrain();
+  world.spawnBuilding('rainbattery', 2, 62, 162);
+  world.spawnBuilding('sunbattery', 2, 78, 162);
+  // One Disc Thrower already in reach of him.
+  world.spawnBuilding('sunarcher', 2, priest.x - 1, 161);
+  const laid = (difficulty: 'easy' | 'hard') =>
+    aiMove(world.view(), { player: 2, difficulty, geysers: 0 }).filter((c) =>
+      c.t === 'build' && defs.get(c.type)!.dps > 0 && c.y >= 159
+    );
+  assert.equal(laid('easy').length, 0);
+  assert.ok(laid('hard').length >= 1);
 });

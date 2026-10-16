@@ -29,6 +29,10 @@ export interface AiParams {
   planningGeysers: number;
   /** Bridges it grows in one move, each toward another target. */
   bridgeHeads: number;
+  /** Guns it wants to have the enemy's Priest in reach of before it lays no more at him. */
+  concentrate: number;
+  /** Guns it keeps within reach of its Altar while it holds a captive. */
+  altarGuards: number;
 }
 
 /* oxlint-disable no-magic-numbers -- the tuning table of an invented opponent */
@@ -44,6 +48,8 @@ export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
     salvageChance: 0,
     planningGeysers: 1,
     bridgeHeads: 1,
+    concentrate: 1,
+    altarGuards: 0,
   },
   normal: {
     moveSeconds: 5,
@@ -56,6 +62,8 @@ export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
     salvageChance: 0.5,
     planningGeysers: 3,
     bridgeHeads: 2,
+    concentrate: 2,
+    altarGuards: 1,
   },
   hard: {
     moveSeconds: 3,
@@ -68,6 +76,8 @@ export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
     salvageChance: 1,
     planningGeysers: 99,
     bridgeHeads: 3,
+    concentrate: 3,
+    altarGuards: 2,
   },
 };
 /* oxlint-enable no-magic-numbers */

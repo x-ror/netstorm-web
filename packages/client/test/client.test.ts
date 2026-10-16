@@ -474,11 +474,15 @@ test('a mission gives its computer sides their orders, income and pace, and its 
   // "aiMoneyRechargeRate = 8" is shared by the computer sides, not the player.
   assert.equal(side('enemyterritory', 3).income, 8);
   assert.equal(side('enemyterritory', 1).income, undefined);
-  assert.deepEqual(side('enemyterritory', 2).ai, { collect: false, attack: false });
+  assert.deepEqual(side('enemyterritory', 2).ai, {
+    collect: false,
+    attack: false,
+    encircle: false,
+  });
   assert.equal(side('enemyterritory', 3).delay, 4);
   assert.equal(side('guardmyback', 3).ai?.enemy, 2);
   // The first mission: one collector, one geyser, and the keys this AI has no use for dropped.
-  assert.deepEqual(side('thewarbegins', 2).ai, { transports: 1, geysers: 1 });
+  assert.deepEqual(side('thewarbegins', 2).ai, { encircle: false, transports: 1, geysers: 1 });
 
   const rescue = missions.find((m) => m.id === 'totherescue')!;
   assert.deepEqual(rescue.messages.map((m) => m.on), [['@120']]);

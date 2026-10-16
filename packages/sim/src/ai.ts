@@ -107,6 +107,12 @@ export interface AiOptions {
   difficulty?: Difficulty;
   /** `aiSalvageChance`, 0 to 1: how readily it salvages a gun that has nothing to shoot at. */
   salvageChance?: number;
+  /** `!CONCENTRATE_FIRE`: false has it content with one gun on the enemy's Priest. */
+  concentrate?: boolean;
+  /** `!ENCIRCLE_ENEMY_ISLAND`: false has it grow one bridge a move. */
+  encircle?: boolean;
+  /** `!STOP_COLLECTING_FROM_DANGEROUS_GEYSERS`: false sends transports to geysers under fire. */
+  avoidDanger?: boolean;
 }
 
 /**
@@ -121,7 +127,12 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     return [];
   }
 
-  const params = DIFFICULTY[options.difficulty ?? 'normal'];
+  // The level's knobs, turned down where the mission denies an ability.
+  const params: Readonly<AiParams> = {
+    ...DIFFICULTY[options.difficulty ?? 'normal'],
+    ...(options.concentrate === false ? { concentrate: 1 } : {}),
+    ...(options.encircle === false ? { bridgeHeads: 1 } : {}),
+  };
   const seen = noticed(world, memory, params.reactionMoves * params.moveSeconds);
   // The commands of one move are checked against the same world, so this move's own spending and
   // cells are tracked here: later commands must not count on Storm Power or ground already used.
@@ -164,8 +175,10 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
   }
 
   if (options.collect !== false) {
-    collect(world, move, transports, geysers);
+    collect(world, move, transports, geysers, options.avoidDanger !== false);
   }
+
+  guardAltar(world, move);
 
   fetchSpell(world, move, transports, reached);
   castSpells(world, move, transports);
@@ -274,8 +287,16 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
       }
     }
 
+    // Guns at the enemy until the level's number have his Priest in reach; then the Storm Power
+    // waits for the capture.
+    const covering = target.enemy
+      ? world.buildingsOf(me).filter((b) => reaches(world.def(b.type), b.x, b.y, target) !== false)
+        .length
+      : 0;
+
     if (
-      (target.enemy && distance(head.x, head.y, target.x, target.y) <= ATTACK_REACH)
+      (target.enemy && distance(head.x, head.y, target.x, target.y) <= ATTACK_REACH
+        && covering < params.concentrate)
       || shooters < DEFENCE_SHOOTERS || hoards
     ) {
       // As many as the level lays in a move, each of another type: the refresh after a unit
@@ -386,10 +407,18 @@ function collect(
   world: WorldView,
   move: Move,
   transports: View<Transport>[],
-  walked: View<Geyser>[],
+  reachable: View<Geyser>[],
+  avoidDanger: boolean,
 ): void {
+  // A geyser under the enemy's guns costs transports: it is left alone while others remain,
+  // unless the mission says to keep collecting from dangerous geysers.
+  const calm = (g: View<Geyser>) => !avoidDanger || move.threat[world.at(g.x, g.y)] === 0;
+  const walked = reachable.some(calm) ? reachable.filter(calm) : reachable;
   // An Aerial Transport needs no bridge: any geyser with stock will do for it.
-  const flown = transports.some((t) => flies(world.def(t.type))) ? geysersFor(world, move.me) : [];
+  const flownAll = transports.some((t) => flies(world.def(t.type)))
+    ? geysersFor(world, move.me)
+    : [];
+  const flown = flownAll.some(calm) ? flownAll.filter(calm) : flownAll;
   const crews = new Map([...walked, ...flown].map((g) => [g.id, 0]));
 
   for (const t of transports) {
@@ -694,12 +723,16 @@ function buildOutpost(world: WorldView, move: Move, reached: Uint8Array | null):
 function capture(world: WorldView, move: Move, transports: View<Transport>[]): void {
   const captive = enemyPriest(world, move.me, 'down');
 
-  if (!captive || transports.some((t) => t.goal === 'capture' && t.target === captive.id)) {
+  if (!captive) {
     return;
   }
 
-  const free = transports.find((t) => t.carrying === null && t.goal === 'idle')
-    ?? transports.find((t) => t.carrying === null);
+  const going = transports.filter((t) => t.goal === 'capture' && t.target === captive.id).length;
+
+  if (going >= CATCHERS) {
+    return;
+  }
+
   const home = world.templeOf(move.me);
 
   // He has to be within a step of ground the transports can walk to: a bridge that merely lies
@@ -719,13 +752,57 @@ function capture(world: WorldView, move: Move, transports: View<Transport>[]): v
     return;
   }
 
-  if (free) {
+  // He is up again within seconds: the transports with the shortest way to him go, idle or not,
+  // and more than one, in case the first is shot down on the way.
+  const runners = transports
+    .filter((t) => t.carrying === null && t.goal !== 'capture')
+    .map((t) => ({
+      t,
+      way: world.findPath(move.me, t.x, t.y, ([x, y]) => distance(x, y, captive.x, captive.y) <= 1)
+        ?.length ?? Infinity,
+    }))
+    .filter((r) => r.way < Infinity)
+    .sort((a, b) => a.way - b.way || a.t.id - b.t.id)
+    .slice(0, CATCHERS - going);
+
+  for (const { t } of runners) {
     move.commands.push({
       t: 'capturePriest',
       player: move.me,
-      transport: free.id,
+      transport: t.id,
       target: captive.id,
     });
+  }
+}
+
+/** Transports sent for a downed Priest at once (invented). */
+const CATCHERS = 2;
+
+/**
+ * Guns about the Altar while a captive is carried home or chained on it: destroying the carrier
+ * or the Altar sets him free whole, so the level's guard stands within reach of the Altar.
+ */
+function guardAltar(world: WorldView, move: Move): void {
+  const altar = world.buildingsOf(move.me).find((b) => b.type === ALTAR && b.rising === 0);
+  const captive = enemyPriest(world, move.me, 'chained') ?? enemyPriest(world, move.me, 'carried');
+
+  if (!altar || !captive || move.params.altarGuards === 0) {
+    return;
+  }
+
+  const at = centre(altar);
+  const guards =
+    world.buildingsOf(move.me).filter((b) =>
+      groundDps(world.def(b.type)) > 0 && reaches(world.def(b.type), b.x, b.y, at) !== false
+    ).length;
+
+  for (let have = guards; have < move.params.altarGuards; have++) {
+    if (
+      move.actions >= move.params.actionsPerMove
+      || !bestUnit(world, move, at, { ...at, enemy: false })
+    ) {
+      return;
+    }
   }
 }
 
