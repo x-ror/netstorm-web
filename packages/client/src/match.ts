@@ -34,6 +34,7 @@ import { m } from './paraglide/messages.js';
 import { centerOn, snapZoom } from './camera.js';
 import { ZOOM } from './projection.js';
 import { createUiState } from './ui-state.js';
+import { PerformanceMonitor } from './perf.js';
 
 const HUD_REFRESH_TICKS = 5;
 
@@ -107,6 +108,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   camera.addChild(terrainG, ground, entityLayer, bars, ghost, overlay);
   const renderer = createWorldRenderer(view, ME, terrainG, ground, entityLayer, bars, data.textures,
     data.sounds, data.hotFeet);
+  const perf = new URLSearchParams(location.search).get('perf') === '1'
+    ? new PerformanceMonitor(world, app.renderer)
+    : undefined;
 
   root.hidden = false;
   let leave: ((next?: string) => void) | undefined;
@@ -137,7 +141,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
       const memory = memories.get(player) ?? createAiMemory(options.seed + player);
       memories.set(player, memory);
-      return aiMove(view, { ...side?.ai, player, difficulty: options.difficulty }, memory);
+      const move = () =>
+        aiMove(view, { ...side?.ai, player, difficulty: options.difficulty }, memory);
+      return perf ? perf.measure('ai', move) : move();
     });
   const togglePause = () => {
     ui.paused = !ui.paused;
@@ -270,6 +276,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     ground,
     entityLayer,
     ui,
+    ...(perf ? { perf: () => perf.snapshot() } : {}),
   };
 
   let hudTick = -1;
@@ -319,6 +326,16 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   renderer.sync();
   minimap.draw();
 
+  function simulationStep(): void {
+    if (perf) {
+      perf.measure('simulationTick', stepWorld);
+    } else {
+      stepWorld();
+    }
+  }
+
+  const stepWorld = () => match.step([...commands.splice(0), ...aiCommands()]);
+
   app.ticker.add((t) => {
     sky.setSize(app.screen.width, app.screen.height);
     sky.tileScale.set(camera.scale.x);
@@ -327,11 +344,16 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       return;
     }
 
-    const steps = ui.paused ? 0 : clock.advance(t.deltaMS, () => {
-      match.step([...commands.splice(0), ...aiCommands()]);
-    });
+    perf?.frame();
+    const steps = ui.paused ? 0 : clock.advance(t.deltaMS, simulationStep);
+
     takeEvents();
-    renderer.sync(clock.alpha);
+
+    if (perf) {
+      perf.measure('renderSync', () => renderer.sync(clock.alpha));
+    } else {
+      renderer.sync(clock.alpha);
+    }
 
     if (ui.selected !== null && !world.entities.has(ui.selected)) {
       ui.selected = null;
@@ -381,6 +403,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   minimap.dispose();
   hud.dispose();
   document.removeEventListener('visibilitychange', resetClock);
+  perf?.dispose();
   app.destroy(true, { children: true });
   root.hidden = true;
   delete (window as unknown as { ns?: unknown; }).ns;

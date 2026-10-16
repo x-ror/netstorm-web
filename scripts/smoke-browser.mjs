@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 
-const url = 'http://127.0.0.1:4173/';
+const url = 'http://127.0.0.1:4173/?perf=1';
 const server = spawn(process.execPath, [
   'node_modules/vite/bin/vite.js',
   'preview',
@@ -170,6 +170,24 @@ try {
   });
   assert.equal(replay.actual, replay.replayed);
   assert.ok(replay.tick > result.tick);
+  const perf = await page.evaluate(() => window.ns.perf());
+  assert.ok(perf.frameMs.samples > 0);
+  assert.ok(perf.simulationTickMs.samples > 0);
+  assert.ok(perf.renderMs.samples > 0);
+  assert.ok(perf.drawCalls.samples > 0);
+  assert.ok(perf.entities.total > 0);
+  console.log(`Browser performance smoke (two-player mission): ${
+    JSON.stringify({
+      frameMs: perf.frameMs,
+      simulationTickMs: perf.simulationTickMs,
+      renderSyncMs: perf.renderSyncMs,
+      renderMs: perf.renderMs,
+      drawCalls: perf.drawCalls,
+      entities: perf.entities,
+      heap: perf.heap,
+      heapSupported: perf.heapSupported,
+    })
+  }`);
 
   // Leaving the match returns to the menu and releases the scene.
   await page.getByRole('button', { name: 'Меню' }).click();
@@ -177,7 +195,7 @@ try {
   assert.equal(await page.evaluate(() => window.ns), undefined);
   assert.deepEqual(errors, []);
   console.log(
-    'Browser smoke passed: menu, assets, ticking, bridge redraw, production, orders, pause, minimap, camera and replay.',
+    'Browser smoke passed: menu, assets, ticking, render metrics, bridge redraw, production, orders, pause, minimap, camera and replay.',
   );
 } finally {
   await browser?.close();

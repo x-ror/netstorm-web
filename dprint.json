@@ -22,7 +22,7 @@
     "doctypeKeywordCase": "lower"
   },
   "plugins": [
-    "https://plugins.dprint.dev/typescript-0.96.1.wasm",
+    "npm:@dprint/typescript@0.96.1",
     "npm:@dprint/json@0.25.2",
     "npm:dprint-plugin-yaml@0.6.0",
     "npm:dprint-plugin-markup@0.27.5",
