@@ -463,13 +463,17 @@ function airborne(world: World, e: Entity): boolean {
 }
 
 function aimsAt(world: World, b: Building, target: Entity): boolean {
-  // The Vander Tower shoots at flyers only; the Crossbow cannot hit them, and nothing can shoot
-  // down a Dust Devil.
-  if (airborne(world, target)) {
-    return b.type !== CROSSBOW && (target.kind !== 'flyer' || world.def(target.type).hp > 0);
+  // The Vander Tower shoots at flyers only, and nothing can shoot down a Dust Devil. The Crossbow
+  // shoots into its arc at both: "Crossbows can once again target air units" (DevLog 10.81 V1).
+  if (b.type === CROSSBOW && !inArc(b, target)) {
+    return false;
   }
 
-  return b.type !== VANDER_TOWER && (b.type !== CROSSBOW || inArc(b, target));
+  if (airborne(world, target)) {
+    return target.kind !== 'flyer' || world.def(target.type).hp > 0;
+  }
+
+  return b.type !== VANDER_TOWER;
 }
 
 /** "On three sides it takes normal damage, but on its curved back it is utterly invulnerable":

@@ -855,7 +855,7 @@ test("a Man o' War lives a minute and gains fifteen seconds for a kill that is n
   assert.equal(war.life, 60 * TPS);
 });
 
-test('anti-air: the Vander Tower and the Disc Thrower hit flyers, a Bulwark shrugs them off', () => {
+test('anti-air: the Vander Tower, the Disc Thrower and the Crossbow hit flyers, a Bulwark shrugs them off', () => {
   const world = mk();
   world.addIsland(0, 0, 120, 100, 2);
   const base = world.spawnBuilding('sunaviary', 1, 20, 40);
@@ -864,9 +864,10 @@ test('anti-air: the Vander Tower and the Disc Thrower hit flyers, a Bulwark shru
   const gig = flyerOf(world, base)!;
   run(world, 10);
   assert.equal(bulwark.hp, bulwark.hpMax);
-  const crossbow = world.spawnBuilding('windarcher', 2, 30, 46, 0);
+  // A Crossbow facing away from it leaves it be.
+  const away = world.spawnBuilding('windarcher', 2, 30, 46, 2);
   run(world, 3);
-  assert.equal(crossbow.target, null);
+  assert.equal(away.target, null);
   assert.equal(gig.hp, gig.hpMax);
   const thrower = world.spawnBuilding('sunarcher', 2, 34, 44);
   thrower.cooldown = 0;
@@ -877,6 +878,9 @@ test('anti-air: the Vander Tower and the Disc Thrower hit flyers, a Bulwark shru
   world.step();
   assert.equal(vander.target, gig.id);
   assert.equal(gig.hpMax - gig.hp, 24 + 21);
+  const crossbow = world.spawnBuilding('windarcher', 2, 30, 49, 0);
+  world.step();
+  assert.equal(crossbow.target, gig.id);
 });
 
 test('an Aerial Transport flies over the sky to a geyser and back', () => {
@@ -910,7 +914,6 @@ test('only archers and anti-air guns can hit an Aerial Transport', () => {
   world.addIsland(0, 0, 120, 100, 2);
   const balloon = world.spawnTransport('sunballoon', 1, 50, 40);
   world.spawnBuilding('suncannon', 2, 40, 39, 1);
-  world.spawnBuilding('windarcher', 2, 50, 46, 0);
   world.spawnBuilding('thunderfence', 2, 30, 39);
   world.spawnBuilding('thunderfence', 2, 60, 39);
   run(world, 6);
@@ -918,6 +921,9 @@ test('only archers and anti-air guns can hit an Aerial Transport', () => {
   world.spawnBuilding('thunderarcher', 2, 54, 44);
   world.step();
   assert.equal(balloon.hpMax - balloon.hp, 21);
+  const crossbow = world.spawnBuilding('windarcher', 2, 50, 46, 0);
+  world.step();
+  assert.equal(crossbow.target, balloon.id);
 });
 
 test('half the shots at a Cloud Floater miss, and it mends while it carries a crystal', () => {
