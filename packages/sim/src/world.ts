@@ -172,9 +172,28 @@ export class World {
     return world;
   }
 
-  snapshot(): WorldSnapshot {
-    assertWorldInvariants(this);
-    return parseSnapshot({
+  /**
+   * The world as data for another thread, unchecked: the grids are copies of the typed arrays and
+   * the rest is as it stands, to be cloned by the message. `fromSnapshot` on the other side checks
+   * it as it reads it; checking here would cost the frame what the hand-off is meant to save.
+   */
+  handoff(): unknown {
+    return {
+      ...this.header(),
+      terrain: this.terrain.slice(),
+      owner: this.owner.slice(),
+      links: this.links.slice(),
+      wear: this.wear.slice(),
+      occupant: this.occupant.slice(),
+      defs: [...this.defs.values()],
+      entities: [...this.entities.values()],
+      shots: this.shots,
+      players: [...this.players.values()].map((player) => ({ ...player, tech: [...player.tech] })),
+    };
+  }
+
+  private header() {
+    return {
       formatVersion: SNAPSHOT_VERSION,
       rulesVersion: RULES_VERSION,
       tick: this.tick,
@@ -187,6 +206,13 @@ export class World {
       killReward: this.killReward,
       geyserStock: this.geyserStock,
       anyCapture: this.anyCapture,
+    };
+  }
+
+  snapshot(): WorldSnapshot {
+    assertWorldInvariants(this);
+    return parseSnapshot({
+      ...this.header(),
       terrain: Array.from(this.terrain),
       owner: Array.from(this.owner),
       links: Array.from(this.links),

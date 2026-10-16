@@ -145,7 +145,8 @@ export class PerformanceMonitor {
     this.restore.length = 0;
   }
 
-  private record(metric: Metric, value: number): void {
+  /** A sample measured elsewhere, as by the worker that makes the computer's moves. */
+  record(metric: Metric, value: number): void {
     const values = this.samples.get(metric)!;
 
     if (values.length < SAMPLE_LIMIT) {

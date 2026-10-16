@@ -2,12 +2,10 @@ import { Application, Assets, Container, Graphics, TilingSprite, type Texture } 
 import {
   FixedStepClock,
   aiMove,
-  createAiMemory,
   DIFFICULTY,
   ReplayRecorder,
   TPS,
   playReplay,
-  type AiMemory,
   type Command,
   type DefTable,
   type Event as SimEvent,
@@ -35,8 +33,13 @@ import { cellAt, centerOn, snapZoom, zoomAt } from './camera.js';
 import { ZOOM } from './projection.js';
 import { createUiState } from './ui-state.js';
 import { PerformanceMonitor } from './perf.js';
+import { AiSchedule } from './ai-schedule.js';
+import type { AiReply, AiRequest } from './ai-worker.js';
 
 const HUD_REFRESH_TICKS = 5;
+/** Ticks between asking the computer for a move and applying it: a second, so that the move is
+ * worked out off the main thread meanwhile and no frame waits for it. */
+const AI_LEAD = TPS;
 /** Lines of the computer's reasons kept for copying; the oldest go first (about an hour of a
  * match of two sides at the hardest level). */
 const AI_LOG_LINES = 200_000;
@@ -130,7 +133,6 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   // gives it. Its moves are commands like the player's, so the replay records them.
   // A skirmish plays at the level chosen; a mission at the pace its file sets. Each side keeps
   // its memory between moves here, outside the world: the replay records only the commands.
-  const memories = new Map<number, AiMemory>();
   /** Why the computer did what it did, each move of each side it plays, oldest first. */
   const aiLog: string[] = [];
   const explain = (line: string) => {
@@ -142,8 +144,20 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   };
   // Watching, the computer plays the player's side too.
   const computer = (player: number) => ui.watching || (options.opponent === 'ai' && player !== ME);
-  const aiCommands = () =>
-    [...world.players.keys()].flatMap((player) => {
+  // The move is worked out in a worker from the world as it stands and applied AI_LEAD ticks
+  // later, so the frame never waits for it; a tick whose moves are late waits instead.
+  const schedule = new AiSchedule(AI_LEAD);
+  const aiWorker = [...world.players.keys()].some(computer)
+    ? new Worker(new URL('./ai-worker.ts', import.meta.url), { type: 'module' })
+    : undefined;
+  aiWorker?.addEventListener('message', ({ data: reply }: MessageEvent<AiReply>) => {
+    schedule.deliver(reply.due, reply.player, reply.commands);
+    reply.lines.forEach(explain);
+    perf?.record('ai', reply.ms);
+  });
+  /** Ask for the moves of the sides whose turn it is on this tick. */
+  const requestAi = () => {
+    for (const player of world.players.keys()) {
       const side = mission?.sides[player];
       const delay = mission
         ? side?.delay ?? mission.aiDelay ?? DEFAULT_AI_DELAY
@@ -152,16 +166,18 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       const due = computer(player)
         && (world.tick - player) % Math.max(1, Math.round(delay * TPS)) === 0;
 
-      if (!due) {
-        return [];
+      if (due && aiWorker) {
+        const request: AiRequest = {
+          due: schedule.request(world.tick, player),
+          world: world.handoff(),
+          options: { ...side?.ai, player, difficulty: options.difficulty },
+          seed: options.seed,
+        };
+        // oxlint-disable-next-line unicorn/require-post-message-target-origin -- a worker's
+        aiWorker.postMessage(request);
       }
-
-      const memory = memories.get(player) ?? createAiMemory(options.seed + player);
-      memories.set(player, memory);
-      const move = () =>
-        aiMove(view, { ...side?.ai, player, difficulty: options.difficulty }, memory, explain);
-      return perf ? perf.measure('ai', move) : move();
-    });
+    }
+  };
   /** Time while paused or hidden does not pile up as ticks to catch up on. */
   const resetClock = () => {
     renderer.resetTime();
@@ -398,7 +414,18 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   renderer.sync();
   minimap.draw();
 
-  const stepWorld = () => match.step([...commands.splice(0), ...aiCommands()]);
+  /** One tick, or false while the computer's moves owed on it are still to come. */
+  const stepWorld = (): boolean => {
+    const owed = schedule.take(world.tick);
+
+    if (!owed) {
+      return false;
+    }
+
+    requestAi();
+    match.step([...commands.splice(0), ...owed]);
+    return true;
+  };
 
   app.ticker.add((t) => {
     sky.setSize(app.screen.width, app.screen.height);
@@ -412,14 +439,15 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
     perf?.frame();
     const steps = ui.paused ? 0 : clock.advance(t.deltaMS, () => {
-      if (perf) {
-        perf.measure('simulationTick', stepWorld);
-      } else {
-        stepWorld();
+      const stepped = perf ? perf.measure('simulationTick', stepWorld) : stepWorld();
+
+      if (!stepped) {
+        return false;
       }
 
       takeEvents();
       renderer.capture();
+      return true;
     });
     takeEvents();
 
@@ -479,6 +507,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   hud.dispose();
   document.removeEventListener('visibilitychange', resetClock);
   perf?.dispose();
+  aiWorker?.terminate();
   app.destroy(true, { children: true });
   root.hidden = true;
   delete (window as unknown as { ns?: unknown; }).ns;

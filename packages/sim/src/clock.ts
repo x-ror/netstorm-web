@@ -21,7 +21,8 @@ export class FixedStepClock {
     this.stepMs = MS_PER_SECOND / ticksPerSecond;
   }
 
-  advance(elapsedMs: number, step: () => void): number {
+  /** `step` may return false to wait: the tick is not taken and its time stays in the clock. */
+  advance(elapsedMs: number, step: () => boolean | void): number {
     if (!Number.isFinite(elapsedMs) || elapsedMs < 0) {
       return 0;
     }
@@ -30,7 +31,10 @@ export class FixedStepClock {
     let steps = 0;
 
     while (this.accumulator >= this.stepMs && steps < this.maxSteps) {
-      step();
+      if (step() === false) {
+        break;
+      }
+
       this.accumulator -= this.stepMs;
       steps++;
     }
