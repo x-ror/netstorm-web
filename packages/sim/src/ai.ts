@@ -266,6 +266,19 @@ function aiMoveOn(
     because('an idle transport: to a loose crystal, or the geyser fewest transports work');
   }
 
+  // Transports for the geysers in reach, on foot or in the air, unless the mission says how many:
+  // before Workshops and guns, because every transport short is 200 Storm Power a trip not earned,
+  // and nothing is kept back for them but the defence reserve.
+  const mined = transports.some((t) => flies(world.def(t.type)))
+    ? geysersFor(world, me).length
+    : geysers.length;
+  const wanted = options.transports ?? wantedTransports(mined, params.maxTransports);
+
+  if (options.collect !== false && !firstTransport && transports.length < wanted) {
+    newTransport(world, move, geysers.length === 0, 0);
+    because(`${transports.length} transports, ${wanted} wanted for ${mined} geysers`);
+  }
+
   guardAltar(world, move);
   because('a captive on the Altar: guns kept about it');
 
@@ -451,17 +464,6 @@ function aiMoveOn(
     const shooters = world.buildingsOf(me).filter((b) => world.def(b.type).dps > 0).length;
     const hoards = hoarding(move.budget, knownShooters(world, me));
 
-    if (target.enemy && !powered(world, me, head, GENERATOR_SPACING)) {
-      // Carry Energy along the bridge: a Generator at the own ground nearest the target that is
-      // still inside a circle to build in.
-      const site = poweredHead(world, me, target, bounds);
-
-      if (site) {
-        generator(world, move, site);
-        because('the bridge head toward the enemy has no Energy: a Generator nearer it');
-      }
-    }
-
     // Guns at the enemy until the level's number have his Priest in reach, or his Temple: a Priest
     // who keeps out of the fire is still brought down once his Temple, which heals him past half,
     // is gone. Then the Storm Power waits for the capture.
@@ -519,17 +521,6 @@ function aiMoveOn(
       barrier(world, move, head);
       because('the bridge comes up to the enemy: a barrier or anti-air at its head');
     }
-  }
-
-  // Transports for the geysers in reach, on foot or in the air, unless the mission says how many.
-  const mined = transports.some((t) => flies(world.def(t.type)))
-    ? geysersFor(world, me).length
-    : geysers.length;
-  const wanted = options.transports ?? wantedTransports(mined, params.maxTransports);
-
-  if (options.collect !== false && !firstTransport && transports.length < wanted) {
-    newTransport(world, move, geysers.length === 0);
-    because(`${transports.length} transports, ${wanted} wanted for ${mined} geysers`);
   }
 
   if (explain && !move.commands.length) {
@@ -1806,16 +1797,13 @@ function bestUnit(
   const bases = known.filter((def) => def.group === 'aviary')
     .sort((a, b) => b.range - a.range || a.id.localeCompare(b.id));
   const near = Math.max(Math.abs(head.x - target.x), Math.abs(head.y - target.y));
-
-  for (const def of bases) {
-    const have = mine.filter((b) => world.def(b.type).group === 'aviary').length;
-
-    if (
-      target.enemy && have < AIR_BASES && near <= def.range && place(world, move, def, head).placed
-    ) {
-      return true;
-    }
-  }
+  // An air base comes after the guns: its flyers harass, a gun that reaches the Priest wins.
+  const airBase = () =>
+    bases.some((def) => {
+      const have = mine.filter((b) => world.def(b.type).group === 'aviary').length;
+      return target.enemy && have < AIR_BASES && near <= def.range
+        && place(world, move, def, head).placed;
+    });
 
   // A gun that hits only the air is worth its price once the enemy flies.
   const air = enemyFlies(world, move.me);
@@ -1859,11 +1847,21 @@ function bestUnit(
     short ||= spot.noEnergy;
   }
 
-  if (short) {
-    return generator(world, move, head);
+  if (airBase()) {
+    move.actions++;
+    return true;
   }
 
-  return false;
+  // No Energy at the head: a Generator there, or, where the head is too far from any Energy for
+  // a Generator to be built, at the own ground nearest the target that is still within reach of
+  // Energy, so the next one comes nearer. Only ever for a gun that is wanted, never ahead of it.
+  if (short && !generator(world, move, head)) {
+    const bounds = ownBounds(world, move.me);
+    const site = bounds && poweredHead(world, move.me, target, bounds);
+    return site ? generator(world, move, site) : false;
+  }
+
+  return short;
 }
 
 /**

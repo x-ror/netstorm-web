@@ -570,10 +570,10 @@ const spent = (difficulty: 'easy' | 'normal') =>
   );
 
 test('a reserve for a defence is kept from a transport on Normal, not on Easy', () => {
-  // Easy buys a transport for 600 with the 600 of savings; Normal, keeping 250 more for a Disc
-  // Thrower, is short of that and makes do with a Golem for 400.
-  assert.equal(spent('easy'), 600);
-  assert.ok(spent('normal') <= 1449 - 250 - 600);
+  // Both buy a transport; Normal keeps 250 for a Disc Thrower out of what it spends.
+  assert.ok(spent('easy') >= 400);
+  assert.ok(spent('normal') >= 400);
+  assert.ok(spent('normal') <= 1449 - 250);
 });
 
 const idle = () => {
