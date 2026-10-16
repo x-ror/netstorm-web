@@ -198,10 +198,10 @@ function aiMoveOn(
     actions: 0,
   };
   const transports = owned<Transport>(world, me, 'transport');
-  const geysers = reachableGeysers(world, me);
   // Ground the transports can walk to now; joining anything else is what a bridge is for.
   const home = world.templeOf(me);
   const reached = home ? walkableFrom(world, me, home) : null;
+  const geysers = home && reached ? reachableGeysers(world, me, home, reached) : [];
   const bounds = ownBounds(world, me);
   const pressure = sense(world, move, memory, bounds);
   const defend = defendScore(pressure);
@@ -1150,14 +1150,14 @@ function geysersFor(world: WorldView, me: number): View<Geyser>[] {
 
 /** Geysers with stock on the AI's own ground that a transport can walk to from the Temple,
  * nearest to the Temple first. */
-function reachableGeysers(world: WorldView, me: number): View<Geyser>[] {
-  const home = world.templeOf(me);
-
-  if (!home) {
-    return [];
-  }
-
-  const reached = walkableFrom(world, me, home);
+/** The side's geysers with a walkable cell beside them, nearest the Temple first. `reached` is
+ * `walkableFrom(world, me, home)`, found once for the move. */
+function reachableGeysers(
+  world: WorldView,
+  me: number,
+  home: View<Building>,
+  reached: Uint8Array,
+): View<Geyser>[] {
   const { x, y } = centre(home);
   return [...world.entities.values()]
     .filter((e): e is View<Geyser> =>

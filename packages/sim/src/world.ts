@@ -355,7 +355,7 @@ export class World {
 
   // ---------- queries ----------
   def(type: string): UnitDef {
-    const d = this.defs.get(type.toLowerCase());
+    const d = this.defs.get(type) ?? this.defs.get(type.toLowerCase());
 
     if (!d) {
       throw new Error('unknown unit ' + type);
@@ -423,8 +423,8 @@ export class World {
   }
 
   /** The Priest standing on (x, y), on his feet or down; not one carried or chained. */
-  priestAt(x: number, y: number): Priest | undefined {
-    for (const p of this.priests) {
+  priestAt(x: number, y: number, among: readonly Priest[] = this.priests): Priest | undefined {
+    for (const p of among) {
       if (
         p.x === x && p.y === y && (p.state === 'normal' || p.state === 'down')
         && this.entities.get(p.id) === p
@@ -716,14 +716,23 @@ export class World {
   }
 
   private tickBuilding(building: Building): void {
-    tickBuilding(this, building, (owner, x, y) => this.enemyAt(owner, x, y));
+    // A gun asks about hundreds of cells a tick; only the Priests standing within its reach can
+    // answer any of them, and there are at most a handful, found once here.
+    const reach = this.def(building.type).range + Math.max(building.fx, building.fy) + 1;
+    const cx = building.x + (building.fx >> 1);
+    const cy = building.y + (building.fy >> 1);
+    const near = this.priests.filter((p) =>
+      Math.abs(p.x - cx) <= reach && Math.abs(p.y - cy) <= reach
+    );
+    tickBuilding(this, building, (owner, x, y) => this.enemyAt(owner, x, y, near));
 
     if (this.entities.has(building.id)) {
       tickAirBase(this, building);
     }
   }
 
-  private enemyAt(me: number, x: number, y: number): Entity | null {
+  /** `priests`: the Priests that could stand on any cell asked about, when the caller knows. */
+  private enemyAt(me: number, x: number, y: number, priests = this.priests): Entity | null {
     if (!this.inside(x, y)) {
       return null;
     }
@@ -737,7 +746,7 @@ export class World {
       return occ;
     }
 
-    const priest = this.priestAt(x, y);
+    const priest = this.priestAt(x, y, priests);
 
     if (priest && this.hostile(me, priest.owner) && priest.invisible === 0) {
       return priest;
