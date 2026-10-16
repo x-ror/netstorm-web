@@ -184,6 +184,7 @@ export function createWorldRenderer(
     w: number;
     h: number;
     start: number;
+    entity?: number;
     graphic?: Graphics;
   }[] = [];
 
@@ -542,6 +543,7 @@ export function createWorldRenderer(
           w: entity.fx,
           h: entity.fy,
           start: world.tick,
+          entity: entity.id,
         });
       }
 
@@ -1411,8 +1413,11 @@ export function createWorldRenderer(
         for (let i = placementsAccent.length - 1; i >= 0; i--) {
           const accent = placementsAccent[i]!;
           const done = progress(presentationTick, accent.start, PLACE_TICKS);
+          const gone = accent.entity === undefined
+            ? !isBridge(world.terrain[world.at(accent.x, accent.y)]!)
+            : !world.entities.has(accent.entity);
 
-          if (done >= 1) {
+          if (done >= 1 || gone) {
             accent.graphic?.destroy();
             placementsAccent.splice(i, 1);
             continue;

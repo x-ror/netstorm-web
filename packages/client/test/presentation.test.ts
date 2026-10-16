@@ -352,6 +352,16 @@ test('construction feedback completes on the authoritative tick and placement ac
   renderer.capture();
   renderer.sync(0);
   assert.equal(renderer.inspect().accents, 0);
+  const placed = world.spawnBuilding('windarcher', 1, 60, 60);
+  world.tick++;
+  renderer.capture();
+  renderer.sync(0);
+  assert.equal(renderer.inspect().accents, 1);
+  world.entities.delete(placed.id);
+  world.tick++;
+  renderer.capture();
+  renderer.sync(0);
+  assert.equal(renderer.inspect().accents, 0);
 });
 
 test('crossings use displayed depth, while temple overlays cannot interleave with another entity', () => {
