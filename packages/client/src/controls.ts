@@ -19,13 +19,16 @@ import { project, TW, TH } from './projection.js';
 import { hotSpots } from './assets.js';
 import { unitSound, type Sounds } from './sound.js';
 import { bridgeSlot } from './texture-selection.js';
-import { cellAt, zoomAt } from './camera.js';
+import { cellAt, moveCamera, zoomAt } from './camera.js';
 import { anchorFor, entityAt, hasFacing, type Tool, type UiState } from './ui-state.js';
 
 const ZOOM_IN = 1.1;
 const ZOOM_OUT = 0.9;
 const PINCH_STEP = 1.3; // how far apart the fingers go for one zoom level
 const PAN_STEP = 48; // screen pixels per arrow key press
+const PAN_SPEED = 480; // CSS pixels per second, independent of OS key repeat
+const CAMERA_MAX_DELTA = 100; // do not replay a stalled navigation gesture
+const MS_PER_SECOND = 1000;
 const DRAG_THRESHOLD = 6; // screen pixels a press may move and still count as a click
 const LONG_PRESS = 500; // milliseconds a finger rests on a unit to open its menu
 const CELL_HALF = 0.5;
@@ -86,6 +89,7 @@ export function createControls(options: {
   ui: UiState;
   app: Application;
   camera: Container;
+  improved: () => boolean;
   overlay: Graphics;
   /** Where the piece under the cursor is drawn, and the textures to draw it with. */
   ghost: Container;
@@ -334,8 +338,7 @@ export function createControls(options: {
       const pans = press.button !== 0 || ev.pointerType === 'touch';
 
       if (pans && press.moved) {
-        camera.x = press.cx + dx;
-        camera.y = press.cy + dy;
+        moveCamera(camera, press.cx + dx, press.cy + dy);
       }
     }
 
@@ -397,6 +400,63 @@ export function createControls(options: {
     ArrowUp: [0, 1],
     ArrowDown: [0, -1],
   };
+  const panKeys = new Set<string>();
+  let pointer: { x: number; y: number; } | undefined;
+  app.canvas.addEventListener('pointermove', (ev) => {
+    pointer = { x: ev.clientX, y: ev.clientY };
+  }, { signal });
+  app.canvas.addEventListener('pointerleave', () => {
+    pointer = undefined;
+  }, { signal });
+  let motionX = camera.x;
+  let motionY = camera.y;
+  let displayedX = camera.x;
+  let displayedY = camera.y;
+  const cancelCamera = () => {
+    panKeys.clear();
+    motionX = camera.x;
+    motionY = camera.y;
+  };
+  window.addEventListener('keyup', (ev) => panKeys.delete(ev.key), { signal });
+  window.addEventListener('blur', cancelCamera, { signal });
+  document.addEventListener('visibilitychange', cancelCamera, { signal });
+
+  function updateCamera(deltaMS: number): void {
+    // A drag, minimap target or cursor-centred zoom takes precedence immediately.
+    if (camera.x !== displayedX || camera.y !== displayedY) {
+      motionX = camera.x;
+      motionY = camera.y;
+    }
+
+    if (options.improved() && panKeys.size && Number.isFinite(deltaMS)) {
+      let dx = 0;
+      let dy = 0;
+
+      for (const key of panKeys) {
+        const direction = PAN[key]!;
+        dx += direction[0];
+        dy += direction[1];
+      }
+
+      const length = Math.max(1, Math.hypot(dx, dy));
+      const travel = PAN_SPEED * Math.max(0, Math.min(CAMERA_MAX_DELTA, deltaMS)) / MS_PER_SECOND;
+      motionX += dx * travel / length;
+      motionY += dy * travel / length;
+      moveCamera(camera, motionX, motionY);
+    }
+
+    displayedX = camera.x;
+    displayedY = camera.y;
+
+    if (pointer) {
+      const cell = cellAt(camera, pointer.x, pointer.y);
+
+      if (cell.x !== ui.hover.x || cell.y !== ui.hover.y) {
+        ui.hover = cell;
+        drawOverlay();
+      }
+    }
+  }
 
   window.addEventListener('keydown', (ev) => {
     if (ev.target instanceof HTMLInputElement || ev.target instanceof HTMLSelectElement) {
@@ -408,8 +468,12 @@ export function createControls(options: {
     const pan = PAN[ev.key];
 
     if (pan) {
-      camera.x += pan[0] * PAN_STEP;
-      camera.y += pan[1] * PAN_STEP;
+      if (options.improved()) {
+        panKeys.add(ev.key);
+      } else {
+        moveCamera(camera, camera.x + pan[0] * PAN_STEP, camera.y + pan[1] * PAN_STEP);
+      }
+
       ev.preventDefault();
     } else if ((key === 'r' || key === 'к') && !aiming()) {
       ui.rot = (ui.rot + 1) & ROTATION_MASK;
@@ -644,6 +708,7 @@ export function createControls(options: {
   return {
     setTool,
     drawOverlay,
+    updateCamera,
     dropSelected() {
       if (ui.selected !== null) {
         submit({ t: 'dropCargo', player: me, transport: ui.selected });
@@ -674,6 +739,7 @@ export function createControls(options: {
       }
     },
     dispose() {
+      cancelCamera();
       clearTimeout(hold);
       abort.abort();
     },

@@ -7,11 +7,22 @@ import { createWorldRenderer } from '../src/renderer.js';
 import { hotSpots } from '../src/assets.js';
 import { firstEmission, PresentationTime, progress, VisualStates } from '../src/presentation.js';
 import { slotOf } from '../src/animations.js';
+import { physicalPixel } from '../src/camera.js';
 import type { Sounds } from '../src/sound.js';
 
 const defs = loadDefs(
   JSON.parse(readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8')),
 );
+
+test('physical-pixel snapping is bounded at DPR 1, 1.5 and 2, including negative pans', () => {
+  for (const density of [1, 1.5, 2]) {
+    for (const value of [-100.3, -0.4, 0, 0.4, 100.3]) {
+      const snapped = physicalPixel(value, density);
+      assert.ok(Math.abs(snapped - value) <= 0.5 / density);
+      assert.ok(Math.abs(snapped * density - Math.round(snapped * density)) < 1e-10);
+    }
+  }
+});
 
 function fixture() {
   const world = new World(defs, 42);

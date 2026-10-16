@@ -171,6 +171,35 @@ try {
   assert.equal(replay.actual, replay.replayed);
   assert.ok(replay.tick > result.tick);
 
+  // Synthetic key schedules are independent of OS repeats and display refresh rate.
+  const cameraTiming = await page.evaluate(() => {
+    const { app, camera, advanceCamera } = window.ns;
+    app.stop();
+    const distances = [];
+
+    for (const fps of [30, 60, 144]) {
+      camera.position.set(0, 0);
+      advanceCamera(0);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+
+      for (let frame = 0; frame < fps; frame++) {
+        advanceCamera(1000 / fps);
+      }
+
+      window.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowLeft' }));
+      distances.push(camera.x);
+    }
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+    window.dispatchEvent(new Event('blur'));
+    const before = camera.x;
+    advanceCamera(100);
+    app.start();
+    return { distances, stoppedOnBlur: camera.x === before };
+  });
+  assert.deepEqual(cameraTiming.distances, [480, 480, 480]);
+  assert.equal(cameraTiming.stoppedOnBlur, true);
+
   // Opt-in, reproducible CPU measurements; no debug mutation is recorded as a replay.
   if (process.env.NS_ANIMATION_BENCH) {
     const session = await page.context().newCDPSession(page);
@@ -236,6 +265,7 @@ try {
             animation.setImproved(improved);
             const sync = [];
             const frame = [];
+            const heapBefore = performance.memory?.usedJSHeapSize;
 
             for (let i = 0; i < 90; i++) {
               // Synthetic ticks exercise capture and transient creation without running AI.
@@ -259,6 +289,8 @@ try {
               round,
               entities: world.entities.size,
               displayObjects: window.ns.entityLayer.children.length,
+              effects: animation.inspect?.(),
+              heapDelta: performance.memory ? performance.memory.usedJSHeapSize - heapBefore : null,
               syncMedian: percentile(sync, 0.5),
               syncP95: percentile(sync, 0.95),
               frameMedian: percentile(frame, 0.5),
@@ -283,10 +315,52 @@ try {
   }
 
   // Leaving the match returns to the menu and releases the scene.
-  await page.getByRole('button', { name: 'Меню' }).click({ force: !!process.env.NS_ANIMATION_BENCH });
+  if (process.env.NS_ANIMATION_BENCH) {
+    await page.getByRole('button', { name: 'Меню' }).dispatchEvent('click');
+  } else {
+    await page.getByRole('button', { name: 'Меню' }).click();
+  }
+
   await page.getByRole('button', { name: /Сутичка/ }).waitFor();
   assert.equal(await page.evaluate(() => window.ns), undefined);
   assert.deepEqual(errors, []);
+
+  // Actual emulated DPRs and each discrete physical-pixel zoom level, with reduced motion.
+  for (const deviceScaleFactor of [1, 1.5, 2]) {
+    const pixelPage = await browser.newPage({
+      viewport: { width: 1280, height: 800 },
+      deviceScaleFactor,
+      reducedMotion: 'reduce',
+    });
+    await pixelPage.goto(url, { waitUntil: 'networkidle' });
+    await pixelPage.getByRole('button', { name: /Сутичка/ }).click();
+    await pixelPage.getByRole('button', { name: 'Почати' }).click();
+    await pixelPage.waitForFunction(() => !!window.ns);
+    const pixels = await pixelPage.evaluate(() => {
+      const { camera, cameraTools, app } = window.ns;
+      app.stop();
+      const samples = [];
+      camera.scale.set(0.5 / devicePixelRatio);
+
+      for (let level = 0; level < 5; level++) {
+        const before = cameraTools.cellAt(camera, 640, 400);
+        cameraTools.zoomAt(camera, 640, 400, 1.1);
+        const after = cameraTools.cellAt(camera, 640, 400);
+        samples.push({
+          scale: camera.scale.x * devicePixelRatio,
+          snapped: Math.abs(camera.x * devicePixelRatio - Math.round(camera.x * devicePixelRatio))
+            < 1e-8,
+          error: Math.hypot(before.x - after.x, before.y - after.y),
+        });
+      }
+
+      return samples;
+    });
+    assert.deepEqual(pixels.map((sample) => sample.scale), [1, 2, 3, 4, 4]);
+    assert.ok(pixels.every((sample) => sample.snapped && sample.error <= 1));
+    await pixelPage.close();
+  }
+
   console.log(
     'Browser smoke passed: menu, assets, ticking, bridge redraw, production, orders, pause, minimap, camera and replay.',
   );

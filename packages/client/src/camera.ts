@@ -9,6 +9,16 @@ const ZOOM_LEVELS = [0.5, 1, 2, 3, 4] as const;
 /** A level counts as the current one this close to it. */
 const LEVEL_SLACK = 0.01;
 
+export function physicalPixel(value: number, density: number): number {
+  return Math.round(value * density) / density;
+}
+
+/** The displayed transform is also the transform used by input and the minimap. */
+export function moveCamera(camera: Container, x: number, y: number): void {
+  const density = window.devicePixelRatio || 1;
+  camera.position.set(physicalPixel(x, density), physicalPixel(y, density));
+}
+
 /** The zoom levels in CSS pixels on this screen. */
 function levels(): number[] {
   const density = window.devicePixelRatio || 1;
@@ -30,7 +40,7 @@ export function centerOn(camera: Container, x: number, y: number): void {
 
 /** Put an unscaled screen point in the middle of the screen. */
 export function centerOnScreenPoint(camera: Container, sx: number, sy: number): void {
-  camera.position.set(window.innerWidth / 2 - sx * camera.scale.x,
+  moveCamera(camera, window.innerWidth / 2 - sx * camera.scale.x,
     window.innerHeight / 2 - sy * camera.scale.y);
 }
 
@@ -43,8 +53,7 @@ export function zoomAt(camera: Container, px: number, py: number, factor: number
     ? all.find((level) => level > now * (1 + LEVEL_SLACK)) ?? now
     : [...all].reverse().find((level) => level < now * (1 - LEVEL_SLACK)) ?? now;
   const k = z / now;
-  camera.x = px - (px - camera.x) * k;
-  camera.y = py - (py - camera.y) * k;
+  moveCamera(camera, px - (px - camera.x) * k, py - (py - camera.y) * k);
   camera.scale.set(z);
 }
 

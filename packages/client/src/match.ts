@@ -31,7 +31,7 @@ import { loudness, type Sounds } from './sound.js';
 import { createMinimap } from './minimap.js';
 import { describeEvent } from './messages.js';
 import { m } from './paraglide/messages.js';
-import { centerOn, snapZoom } from './camera.js';
+import { cellAt, centerOn, snapZoom, zoomAt } from './camera.js';
 import { ZOOM } from './projection.js';
 import { createUiState } from './ui-state.js';
 
@@ -169,6 +169,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     ui,
     app,
     camera,
+    improved: () => renderer.improved,
     overlay,
     ghost,
     textures: data.textures,
@@ -274,6 +275,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     entityLayer,
     ui,
     animation: renderer,
+    cameraTools: { cellAt, zoomAt },
+    advanceCamera: controls.updateCamera,
   };
 
   let hudTick = -1;
@@ -334,6 +337,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     if (document.hidden) {
       return;
     }
+
+    controls.updateCamera(t.deltaMS);
 
     const steps = ui.paused ? 0 : clock.advance(t.deltaMS, () => {
       match.step([...commands.splice(0), ...aiCommands()]);
