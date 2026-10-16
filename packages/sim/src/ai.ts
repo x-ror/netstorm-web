@@ -23,7 +23,7 @@ import { LOSS_MOVES, random, remember, type AiMemory } from './ai/memory.js';
 import { hoarding, useful, wantedTransports, worth } from './ai/economy.js';
 import { DIFFICULTY, type AiParams, type Difficulty } from './ai/params.js';
 import { skyCosts, threatMap, type ThreatMap } from './ai/threat.js';
-import { flies, upgradeCost, type UnitDef } from './defs.js';
+import { flies, upgradeCost, type UnitDef, type UnitGroup } from './defs.js';
 import {
   DIRS,
   MAX_FACING,
@@ -133,6 +133,40 @@ export function aiMove(
   options: AiOptions,
   memory?: AiMemory,
   explain?: AiExplain,
+): Command[] {
+  return aiMoveOn(withBuildingsCached(world), options, memory, explain);
+}
+
+/**
+ * The world as the move reads it, with `buildingsOf` answered once per side and group: a move
+ * asks for a side's buildings hundreds of times (every `canBuild` looks for a Workshop and for
+ * Energy) and changes nothing meanwhile, so the answer stays the same. The arrays are shared:
+ * nothing here may sort or splice them.
+ */
+function withBuildingsCached(world: WorldView): WorldView {
+  const cache = new Map<string, ReturnType<WorldView['buildingsOf']>>();
+  return Object.create(world, {
+    buildingsOf: {
+      value(p: number, group?: UnitGroup) {
+        const key = `${p}:${group ?? ''}`;
+        let found = cache.get(key);
+
+        if (!found) {
+          found = world.buildingsOf(p, group);
+          cache.set(key, found);
+        }
+
+        return found;
+      },
+    },
+  });
+}
+
+function aiMoveOn(
+  world: WorldView,
+  options: AiOptions,
+  memory: AiMemory | undefined,
+  explain: AiExplain | undefined,
 ): Command[] {
   const me = options.player;
   const player = world.players.get(me);
