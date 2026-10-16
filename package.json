@@ -20,6 +20,7 @@
     "test:browser": "node scripts/smoke-browser.mjs",
     "benchmark": "node --import tsx scripts/benchmark-sim.ts",
     "perf:stress": "node --import tsx scripts/perf-stress.ts",
+    "perf:ai-quality": "node --import tsx scripts/ai-quality.ts",
     "prepare": "husky",
     "lint:commit": "commitlint",
     "lint:commits": "commitlint --verbose",

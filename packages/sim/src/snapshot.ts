@@ -32,7 +32,7 @@ import {
 } from './validation.js';
 
 export const SNAPSHOT_VERSION = 30;
-export const RULES_VERSION = 61;
+export const RULES_VERSION = 62;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 

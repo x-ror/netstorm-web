@@ -183,7 +183,9 @@ export function aiReact(
   let underAttack = false;
 
   for (const shot of world.shots) {
-    if (world.entities.get(shot.target)?.owner !== player) {
+    const target = world.entities.get(shot.target);
+
+    if (!target || !('owner' in target) || target.owner !== player) {
       continue;
     }
 
