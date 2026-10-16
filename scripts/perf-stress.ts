@@ -126,13 +126,13 @@ const memories = new Map(
 const interval = Math.max(1, Math.round(DIFFICULTY.hard.moveSeconds * TPS));
 const aiCalls: { tick: number; player: number; ms: number; commands: number; }[] = [];
 
-/** Every side moves on the same tick, as the client schedules them (match.ts). */
+/** The sides take their turns on successive ticks, as the client schedules them (match.ts). */
 function aiCommands(monitor?: PerformanceMonitor): Command[] {
-  if (world.tick % interval !== 0) {
-    return [];
-  }
-
   return [...world.players.keys()].flatMap((player) => {
+    if ((world.tick - player) % interval !== 0) {
+      return [];
+    }
+
     const start = performance.now();
     const move = () => aiMove(view, { player, difficulty: 'hard' }, memories.get(player)!);
     const commands = monitor ? monitor.measure('ai', move) : move();

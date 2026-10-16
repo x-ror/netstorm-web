@@ -148,7 +148,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       const delay = mission
         ? side?.delay ?? mission.aiDelay ?? DEFAULT_AI_DELAY
         : DIFFICULTY[options.difficulty].moveSeconds;
-      const due = computer(player) && world.tick % Math.max(1, Math.round(delay * TPS)) === 0;
+      // The sides take their turns on successive ticks, so that no frame carries every move.
+      const due = computer(player)
+        && (world.tick - player) % Math.max(1, Math.round(delay * TPS)) === 0;
 
       if (!due) {
         return [];
