@@ -25,6 +25,10 @@ export interface AiParams {
   pushRatio: number;
   /** Chance that a gun which has had nothing to shoot at for long is salvaged, 0 to 1. */
   salvageChance: number;
+  /** Free geysers it weighs as the next to bridge to, the best first. */
+  planningGeysers: number;
+  /** Bridges it grows in one move, each toward another target. */
+  bridgeHeads: number;
 }
 
 /* oxlint-disable no-magic-numbers -- the tuning table of an invented opponent */
@@ -38,6 +42,8 @@ export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
     reserveShooters: 0,
     pushRatio: 1.6,
     salvageChance: 0,
+    planningGeysers: 1,
+    bridgeHeads: 1,
   },
   normal: {
     moveSeconds: 5,
@@ -48,6 +54,8 @@ export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
     reserveShooters: 1,
     pushRatio: 1.2,
     salvageChance: 0.5,
+    planningGeysers: 3,
+    bridgeHeads: 2,
   },
   hard: {
     moveSeconds: 3,
@@ -58,6 +66,8 @@ export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
     reserveShooters: 2,
     pushRatio: 1,
     salvageChance: 1,
+    planningGeysers: 99,
+    bridgeHeads: 3,
   },
 };
 /* oxlint-enable no-magic-numbers */

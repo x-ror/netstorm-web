@@ -16,6 +16,7 @@ import {
   TPS,
   upgradeCost,
   W,
+  WORKSHOP_SLOTS,
   World,
 } from '../src/index.js';
 import { skyCosts } from '../src/ai/threat.js';
@@ -89,17 +90,12 @@ test('the AI wins against an idle player, and its recorded commands replay exact
   assert.equal(world.winner, 2);
   assert.equal(world.players.get(1)!.alive, false);
   assert.equal(memory.storm.length, MEMORY_MOVES);
-  // It collected, bridged, built, filled and Upgraded its Workshops, captured and warded the
-  // runes on its own.
-  assert.deepEqual([...seen].sort(), [
-    'build',
-    'capturePriest',
-    'collect',
-    'dropPiece',
-    'movePriest',
-    'produce',
-    'upgradeWorkshop',
-  ]);
+
+  // It collected, bridged, built, filled its Workshops, captured and warded the runes on its own.
+  for (const kind of ['build', 'capturePriest', 'collect', 'dropPiece', 'movePriest', 'produce']) {
+    assert.ok(seen.has(kind), kind);
+  }
+
   const replayed = playReplay(JSON.parse(JSON.stringify(match.export())));
   assert.equal(replayed.tick, world.tick);
   assert.equal(replayed.winner, 2);
@@ -568,4 +564,72 @@ test("a push waits for the guns to outweigh the enemy's, and holds on once begun
   assert.ok(pushing(120, 100, 1.2, false));
   assert.ok(pushing(90, 100, 1.2, true));
   assert.ok(!pushing(80, 100, 1.2, true));
+});
+
+test('the bridge goes for the geyser nearest by the sky, not by the map', () => {
+  // An island of the AI's at (100, 100), a geyser 12 cells east of it behind a wall of neutral
+  // island that runs the whole way across, and one 20 cells south in open sky.
+  const world = createSkirmish(defs, 1, [
+    { id: 1, name: 'Idle', theme: 'wind', x: 200, y: 200 },
+    { id: 2, name: 'AI', theme: 'rain', x: 100, y: 100 },
+  ], [[120, 100], [100, 128]]);
+  world.addIsland(112, 60, 3, 80, 0);
+
+  for (let i = 0; i < 20 * TPS; i++) {
+    world.step();
+  }
+
+  const pieces = aiMove(world.view(), { player: 2, difficulty: 'hard' }).filter((c) =>
+    c.t === 'dropPiece'
+  );
+  assert.ok(pieces.length >= 1);
+  const south = pieces[0]!;
+  assert.ok(south.t === 'dropPiece' && south.y > 105, JSON.stringify(pieces));
+});
+
+test('Hard grows two bridges a move, from two pieces of its hand, and the drops both land', () => {
+  const world = createSkirmish(defs, 1, [
+    { id: 1, name: 'Idle', theme: 'wind', x: 200, y: 200 },
+    { id: 2, name: 'AI', theme: 'rain', x: 100, y: 100 },
+  ], [[100, 130], [130, 100]]);
+
+  for (let i = 0; i < 20 * TPS; i++) {
+    world.step();
+  }
+
+  const drops = (difficulty: 'easy' | 'hard') =>
+    aiMove(world.view(), { player: 2, difficulty }).filter((c) => c.t === 'dropPiece');
+  assert.equal(drops('easy').length, 1);
+  // Two geysers and the enemy: Hard grows toward up to three targets at once.
+  const several = drops('hard');
+  assert.ok(several.length >= 2, JSON.stringify(several));
+  world.step(several);
+  assert.ok(world.drainEvents().every((e) => !(e.what === 'rejected' && e.who === 2)),
+    'both drops land');
+});
+
+test("the bridge keeps heading for where the enemy's Priest was until he strays", () => {
+  const world = mk();
+  world.players.get(2)!.storm = 9000; // attacking from the start
+  const memory = createAiMemory();
+  aiMove(world.view(), { player: 2 }, memory);
+  const mark = { ...memory.mark! };
+  const priest = world.priestOf(1)!;
+  priest.x += 3;
+  aiMove(world.view(), { player: 2 }, memory);
+  assert.deepEqual(memory.mark, mark);
+  priest.x += 9;
+  aiMove(world.view(), { player: 2 }, memory);
+  assert.deepEqual(memory.mark, { x: priest.x, y: priest.y });
+});
+
+test('a full Workshop is Upgraded for a shooter it has no slot for, once Storm Power is plenty', () => {
+  const world = mk();
+  world.spawnBuilding('sunfactory', 2, 150, 94); // a Workshop for each Fury it knows comes first
+  const shop = world.spawnBuilding('rainfactory', 2, 141, 86);
+  shop.slots = ['rainwalker', 'rainfence', 'rainaviary', 'rainballoon'].slice(0, WORKSHOP_SLOTS);
+  world.players.get(2)!.storm = 600;
+  assert.ok(!aiMove(world.view(), { player: 2 }).some((c) => c.t === 'upgradeWorkshop'));
+  world.players.get(2)!.storm = 5000;
+  assert.ok(aiMove(world.view(), { player: 2 }).some((c) => c.t === 'upgradeWorkshop'));
 });

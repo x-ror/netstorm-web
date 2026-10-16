@@ -20,6 +20,9 @@ export interface AiMemory {
   idle: Map<number, number>;
   /** Whether the last move was pushing for the enemy. */
   pushing: boolean;
+  /** Where the bridge to the enemy was last headed: his Priest's cell then, kept while he stays
+   * near it, so the bridge does not wander after his every step. */
+  mark: { x: number; y: number; } | null;
   /** The state of the AI's own random numbers, for its mistakes and its salvage; never the
    * world's. */
   rng: number;
@@ -37,6 +40,7 @@ export function createAiMemory(seed = 1): AiMemory {
     losses: [],
     idle: new Map(),
     pushing: false,
+    mark: null,
     rng: seed >>> 0 || 1,
   };
 }

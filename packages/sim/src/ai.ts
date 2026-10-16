@@ -196,26 +196,33 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
 
   let target: Target | undefined;
   let head: Head | null = null;
-  let piece: Extract<Command, { t: 'dropPiece'; }> | null = null;
   let first: { target: Target; head: Head | null; } | null = null;
+  const usedHands = new Set<number>();
+  let laidPieces = 0;
+  const reach = bounds && reached ? reachField(world, move, reached, bounds) : null;
 
-  // Grow toward the first target a piece can be laid toward. When none can, the first target,
-  // the one most wanted, still decides where units go.
-  for (const candidate of bridgeTargets(world, me, attack, options.enemy)) {
+  // Grow toward each target a piece can be laid toward, as many bridges as the level grows in a
+  // move, each from another piece in hand. The first target a piece goes toward decides where
+  // units go; when none can be laid, the first target, the one most wanted, does.
+  for (const candidate of bridgeTargets(world, move, memory, attack, options.enemy, reach)) {
+    if (laidPieces >= params.bridgeHeads) {
+      break;
+    }
+
     const field = skyField(world, move, candidate);
-    target = candidate;
     const heads = bounds && reached ? bridgeHeads(world, me, field, bounds, reached) : [];
-    head = heads[0] ?? null;
-    piece = null;
-    first ??= { target: candidate, head };
+    first ??= { target: candidate, head: heads[0] ?? null };
+    let piece: Extract<Command, { t: 'dropPiece'; }> | null = null;
 
     // The nearest head may sit in a pocket of the AI's own bridge, where every piece only leads
-    // further from the target; then the bridge goes on from the next head that a piece improves.
+    // further from the target; then the bridge goes on from the next head whose piece comes
+    // nearer than the nearest head already is. A bridge that has arrived grows no further, and
+    // leaves the sky about the target for the guns.
     for (const from of heads) {
       // Told to keep off the enemy's island, it lays no bridge toward him; he still decides
       // where its units go.
       piece = reached && !(candidate.enemy && options.attack === false)
-        ? bestPiece(world, move, from, field, reached)
+        ? bestPiece(world, move, from, field, reached, usedHands, heads[0]!.need)
         : null;
 
       if (piece) {
@@ -223,25 +230,34 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
       }
     }
 
-    if (piece) {
-      break;
+    if (!piece) {
+      continue;
     }
-  }
 
-  // With no piece to lay anywhere, units still go where the bridge is most wanted.
-  if (!piece && first) {
-    target = first.target;
-    head = first.head;
-  }
-
-  if (piece) {
     const shape = rotatePiece(PIECES[player.hand[piece.hand]!.piece]!, piece.rot);
 
     for (const [dx, dy] of shape) {
       move.planned.add(world.at(piece.x + dx, piece.y + dy));
     }
 
-    move.commands.push(piece);
+    // A dropped piece leaves the hand and the pieces after it close up, so a later drop of this
+    // move names its piece by where it will be once the earlier ones are gone.
+    const shift = [...usedHands].filter((h) => h < piece.hand).length;
+    move.commands.push({ ...piece, hand: piece.hand - shift });
+    usedHands.add(piece.hand);
+    laidPieces++;
+
+    if (!target) {
+      target = candidate;
+      head = heads[0] ?? null;
+    }
+  }
+
+  // Units go where the bridge is most wanted: to the enemy, when attacking, even in a move whose
+  // only piece went on toward a geyser because none could be laid nearer to him.
+  if (first && (!target || (attack && first.target.enemy))) {
+    target = first.target;
+    head = first.head;
   }
 
   if (target && head && bounds) {
@@ -835,6 +851,7 @@ function walkableFrom(world: WorldView, me: number, from: View<Building>): Uint8
  * from one move to the next: each use overwrites them first. */
 const scratch = {
   field: new Int32Array(W * H),
+  reach: new Int32Array(W * H),
   queue: new Int32Array(W * H),
   order: new Int32Array(W * H),
   reached: new Uint8Array(W * H),
@@ -925,15 +942,29 @@ function wardSpot(
 
 type Target = { x: number; y: number; enemy: boolean; };
 
-/** Where the bridge may grow, best first: free geysers nearest the Temple (unless the AI is
- * attacking), then the nearest enemy's High Priest — knocking him down is how a battle is won —
- * or his Temple while the priest is carried. */
+/** Cells of the Temple's distance that weigh as much as one cell of bridge in a geyser's worth: a
+ * transport walks there and back for every crystal (invented). */
+const WALK_PER_BRIDGE = 4;
+/** Cells the enemy's Priest may stray from where the bridge is headed before it is headed anew
+ * (invented). */
+const MARK_DRIFT = 8;
+
+/**
+ * Where the bridge may grow, best first. Free geysers by their worth, the stock over the bridge
+ * it takes (by the sky, around islands and the enemy's fire) and the walk from the Temple, as
+ * many as the level weighs; and the nearest enemy's High Priest, where he was last headed for
+ * while he stays near it, or his Temple while he is carried. Attacking, the enemy comes first,
+ * and the geysers follow only for the levels that grow more than one bridge a move.
+ */
 function bridgeTargets(
   world: WorldView,
-  me: number,
+  move: Move,
+  memory: AiMemory | undefined,
   attack: boolean,
-  prefer?: number,
+  prefer: number | undefined,
+  reach: Int32Array | null,
 ): Target[] {
+  const me = move.me;
   // The side a mission names as this one's enemy comes first while it stands.
   const chosen = prefer !== undefined && world.players.get(prefer)?.alive
       && world.hostile(prefer, me) && world.templeOf(prefer)
@@ -948,17 +979,33 @@ function bridgeTargets(
   const from = centre(home);
   const byDistance = (a: Target, b: Target) =>
     distance(a.x, a.y, from.x, from.y) - distance(b.x, b.y, from.x, from.y);
-  const geysers: Target[] = [];
+  const geysers: { target: Target; worth: number; }[] = [];
   const enemies: Target[] = [];
 
-  for (const entity of world.entities.values()) {
-    if (
-      !attack && entity.kind === 'geyser' && entity.stock > 0
-      && !world.owner[world.at(entity.x, entity.y)]
-    ) {
-      geysers.push({ x: entity.x, y: entity.y, enemy: false });
+  if (!attack || move.params.bridgeHeads > 1) {
+    for (const entity of world.entities.values()) {
+      if (
+        entity.kind !== 'geyser' || entity.stock <= 0
+        || world.owner[world.at(entity.x, entity.y)]
+      ) {
+        continue;
+      }
+
+      const bridge = reach ? bridgeTo(world, reach, entity) : 0;
+
+      if (bridge < 0) {
+        continue; // no way there through the sky
+      }
+
+      geysers.push({
+        target: { x: entity.x, y: entity.y, enemy: false },
+        worth: entity.stock
+          / (bridge + 1 + distance(entity.x, entity.y, from.x, from.y) / WALK_PER_BRIDGE),
+      });
     }
   }
+
+  geysers.sort((a, b) => b.worth - a.worth || a.target.y - b.target.y || a.target.x - b.target.x);
 
   for (const [id, other] of world.players) {
     const foe = world.hostile(id, me) && other.alive && (chosen === undefined || chosen === id);
@@ -974,7 +1021,78 @@ function bridgeTargets(
     }
   }
 
-  return [...geysers.sort(byDistance), ...enemies.sort(byDistance).slice(0, 1)];
+  const nearest = enemies.sort(byDistance).slice(0, 1);
+
+  // A Priest who paces about his island would have the bridge turn after him every move: it is
+  // headed for where he was, until he strays.
+  if (memory && nearest[0]) {
+    const mark = memory.mark;
+    const near = mark && Math.max(Math.abs(mark.x - nearest[0].x), Math.abs(mark.y - nearest[0].y))
+        <= MARK_DRIFT;
+    memory.mark = near ? mark : { x: nearest[0].x, y: nearest[0].y };
+    nearest[0] = { ...memory.mark, enemy: true };
+  }
+
+  const wanted = geysers.slice(0, move.params.planningGeysers).map((g) => g.target);
+  return attack ? [...nearest, ...wanted] : [...wanted, ...nearest];
+}
+
+/** The bridge it takes to come within GEYSER_REACH of a geyser, from the field of bridge costs
+ * out from own ground; -1 when the sky does not lead there. */
+function bridgeTo(world: WorldView, reach: Int32Array, g: { x: number; y: number; }): number {
+  let least = -1;
+
+  for (let y = g.y - GEYSER_REACH; y <= g.y + GEYSER_REACH; y++) {
+    for (let x = g.x - GEYSER_REACH; x <= g.x + GEYSER_REACH; x++) {
+      const cost = world.inside(x, y) ? reach[world.at(x, y)]! : -1;
+
+      if (cost >= 0 && (least < 0 || cost < least)) {
+        least = cost;
+      }
+    }
+  }
+
+  return least;
+}
+
+/**
+ * The cost of bridging out from own ground to every sky cell: seeded with the sky beside own
+ * walkable ground on a side it joins on, then the same walk as skyField. The grid is scratch,
+ * valid until the next call.
+ */
+function reachField(
+  world: WorldView,
+  move: Move,
+  reached: Uint8Array,
+  bounds: Bounds,
+): Int32Array {
+  const field = scratch.reach.fill(-1);
+  const queue = scratch.queue;
+  let tail = 0;
+
+  for (let y = bounds.y0; y <= bounds.y1; y++) {
+    for (let x = bounds.x0; x <= bounds.x1; x++) {
+      if (world.owner[y * W + x] !== move.me || reached[y * W + x] !== 1) {
+        continue;
+      }
+
+      for (const [dir, [dx, dy]] of DIRS.entries()) {
+        const nx = x + dx;
+        const ny = y + dy;
+
+        if (
+          world.inside(nx, ny) && world.terrain[world.at(nx, ny)] === Terrain.Sky
+          && field[world.at(nx, ny)] === -1 && joins(world, world.at(x, y), dir)
+        ) {
+          field[world.at(nx, ny)] = 0;
+          queue[tail++] = world.at(nx, ny);
+        }
+      }
+    }
+  }
+
+  skyCosts(world, field, queue, tail, move.threat, move.weight);
+  return field;
 }
 
 /**
@@ -1078,16 +1196,19 @@ function bestPiece(
   head: Head,
   field: Int32Array,
   reached: Uint8Array,
+  used: ReadonlySet<number>,
+  bar: number,
 ): Extract<Command, { t: 'dropPiece'; }> | null {
   const me = move.me;
   const hand = world.players.get(me)!.hand;
   let best: Extract<Command, { t: 'dropPiece'; }> | null = null;
-  let bestNeed = head.need;
+  // A piece must bring the bridge nearer than its nearest head is now, wherever it is laid from.
+  let bestNeed = Math.min(head.need, bar);
 
   for (let index = 0; index < hand.length; index++) {
     // Only pieces that are no longer cracked: a cracked loose end soon falls, and the bridge
-    // would have to be laid again.
-    if (hand[index]!.age < PIECE_HARDEN) {
+    // would have to be laid again. Nor a piece another bridge of this move already takes.
+    if (hand[index]!.age < PIECE_HARDEN || used.has(index)) {
       continue;
     }
 
