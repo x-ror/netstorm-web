@@ -21,7 +21,7 @@ import { LOSS_MOVES, random, remember, type AiMemory } from './ai/memory.js';
 import { hoarding, useful, wantedTransports, worth } from './ai/economy.js';
 import { DIFFICULTY, type AiParams, type Difficulty } from './ai/params.js';
 import { skyCosts, threatMap, type ThreatMap } from './ai/threat.js';
-import { flies, upgradeCost, type UnitDef } from './defs.js';
+import { flies, upgradeCost, type UnitDef, type UnitGroup } from './defs.js';
 import {
   DIRS,
   MAX_FACING,
@@ -120,12 +120,18 @@ export interface AiOptions {
  * time, with the same `memory` each time: the move reads it and writes this move into it.
  */
 export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory): Command[] {
-  const me = options.player;
-  const player = world.players.get(me);
+  const player = world.players.get(options.player);
 
   if (!player?.alive || world.winner !== null) {
     return [];
   }
+
+  return planAiMove(cacheBuildingsForMove(world), options, memory);
+}
+
+function planAiMove(world: WorldView, options: AiOptions, memory?: AiMemory): Command[] {
+  const me = options.player;
+  const player = world.players.get(me)!;
 
   // The level's knobs, turned down where the mission denies an ability.
   const params: Readonly<AiParams> = {
@@ -361,6 +367,34 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
   }
 
   return move.commands;
+}
+
+/** Buildings cannot change while a move only reads its world and plans commands. */
+function cacheBuildingsForMove(world: WorldView): WorldView {
+  const cached = Object.create(world) as WorldView;
+  const byPlayer = new Map<
+    number,
+    Map<UnitGroup | undefined, ReturnType<WorldView['buildingsOf']>>
+  >();
+
+  Object.defineProperty(cached, 'buildingsOf', {
+    value: (player: number, group?: UnitGroup) => {
+      let byGroup = byPlayer.get(player);
+
+      if (!byGroup) {
+        byGroup = new Map();
+        byPlayer.set(player, byGroup);
+      }
+
+      if (!byGroup.has(group)) {
+        byGroup.set(group, world.buildingsOf(player, group));
+      }
+
+      return byGroup.get(group)!;
+    },
+  });
+
+  return cached;
 }
 
 interface Move {
