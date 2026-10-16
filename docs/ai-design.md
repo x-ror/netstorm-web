@@ -85,10 +85,10 @@ function aiMove(view: WorldView, options: AiOptions, memory?: AiMemory): Command
 
 Додаткові правила:
 
-- Поки немає Вівтаря і є гроші — Вівтар входить у **Push** з оцінкою 1 (без нього перемогти неможливо), але ставиться за Храмом, у клітинці з найменшою загрозою (A-3).
+- Поки немає Вівтаря, Вівтар входить у **Push** (без нього перемогти неможливо): будується, щойно почався наступ чи ворожий жрець лежить, не раніше, але ставиться за Храмом, у клітинці з найменшою загрозою (A-3).
 - Якщо ворожий жрець `down` і до нього є шлях — **Push** = 1 негайно, решта чекає.
 - Expand ніколи не падає до нуля, поки є гейзер із `value` вище `minGeyserValue`: закриває A-15.
-- Місійні прапорці: `!ATTACH_TO_ENEMY_ISLAND` обнуляє Push-міст, `!COLLECT_STORM_POWER` — Expand, `!SACRIFICE_ENEMY_PRIEST` — захоплення; нові `!ENCIRCLE_ENEMY_ISLAND` (одна голова замість кількох), `!CONCENTRATE_FIRE` (не вимагати перекриття цілі кількома стрільцями), `!REPEAT_SUCCESSFUL_DROPS` (не читати `drops`), `!USE_PRIEST_TO_COLLECT` (жрець не носить кристали — у нас і так ні), `!STOP_COLLECTING_FROM_DANGEROUS_GEYSERS` (ігнорувати `threat` на гейзері), `aiSalvageChance` (імовірність salvage із §3).
+- Місійні прапорці: `!ATTACH_TO_ENEMY_ISLAND` обнуляє Push-міст, `!COLLECT_STORM_POWER` — Expand, `!SACRIFICE_ENEMY_PRIEST` — захоплення; нові `!ENCIRCLE_ENEMY_ISLAND` (одна голова замість кількох), `!CONCENTRATE_FIRE` (не вимагати перекриття цілі кількома стрільцями), `!REPEAT_SUCCESSFUL_DROPS` (не читати `drops`), `!USE_PRIEST_TO_COLLECT` (жрець не носить кристали; без нього носить між будівництвами з гейзера поза ворожим вогнем), `!STOP_COLLECTING_FROM_DANGEROUS_GEYSERS` (ігнорувати `threat` на гейзері), `aiSalvageChance` (імовірність salvage із §3).
 
 ## 3. Економіка (economy.ts)
 
