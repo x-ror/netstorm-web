@@ -2324,6 +2324,7 @@ function clearOfBridges(
   planned: ReadonlySet<number>,
 ): boolean {
   let sky = 0;
+  let nearBridge = false;
 
   for (let y = y0; y < y0 + def.footY; y++) {
     for (let x = x0; x < x0 + def.footX; x++) {
@@ -2332,28 +2333,15 @@ function clearOfBridges(
       }
 
       sky += world.terrain[world.at(x, y)] === Terrain.Sky ? 1 : 0;
+      nearBridge ||= DIRS.some(([dx, dy]) =>
+        world.inside(x + dx, y + dy)
+        && (isBridge(world.terrain[world.at(x + dx, y + dy)])
+          || planned.has(world.at(x + dx, y + dy)))
+      );
     }
   }
 
-  if (sky === def.footX * def.footY) {
-    return true;
-  }
-
-  for (let y = y0; y < y0 + def.footY; y++) {
-    for (let x = x0; x < x0 + def.footX; x++) {
-      if (
-        DIRS.some(([dx, dy]) =>
-          world.inside(x + dx, y + dy)
-          && (isBridge(world.terrain[world.at(x + dx, y + dy)])
-            || planned.has(world.at(x + dx, y + dy)))
-        )
-      ) {
-        return false;
-      }
-    }
-  }
-
-  return true;
+  return sky === def.footX * def.footY || !nearBridge;
 }
 
 /** Cells around a centre in rings of growing radius, nearest first. */

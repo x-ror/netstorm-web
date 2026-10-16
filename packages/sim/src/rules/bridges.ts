@@ -20,6 +20,14 @@ import {
   type Building,
 } from '../state.js';
 
+interface ConnectedCache {
+  revision: number;
+  depots: number[];
+  cells: Uint8Array | null;
+}
+
+const connectedCache = new WeakMap<WorldView, Map<number, ConnectedCache>>();
+
 /** Sides a ground cell joins on: every side for island, and for bridge laid without a piece. */
 function linksAt(world: WorldView, i: number): number {
   return world.terrain[i] === Terrain.Island ? LINK_ALL : world.links[i] || LINK_ALL;
@@ -34,8 +42,25 @@ export function joins(world: WorldView, i: number, dir: number): boolean {
  * of the island containing the Outpost"), by an unbroken run of own island and bridge. */
 function connectedToTemple(world: WorldView, player: number): Uint8Array | null {
   const depots = world.depotsOf(player);
+  let byPlayer = connectedCache.get(world);
+
+  if (!byPlayer) {
+    byPlayer = new Map();
+    connectedCache.set(world, byPlayer);
+  }
+
+  const cached = byPlayer.get(player);
+
+  if (
+    cached?.revision === world.terrainRevision
+    && cached.depots.length === depots.length
+    && depots.every((depot, index) => cached.depots[index] === depot.id)
+  ) {
+    return cached.cells;
+  }
 
   if (!depots.length) {
+    byPlayer.set(player, { revision: world.terrainRevision, depots: [], cells: null });
     return null;
   }
 
@@ -76,6 +101,11 @@ function connectedToTemple(world: WorldView, player: number): Uint8Array | null 
     }
   }
 
+  byPlayer.set(player, {
+    revision: world.terrainRevision,
+    depots: depots.map((depot) => depot.id),
+    cells: connected,
+  });
   return connected;
 }
 
