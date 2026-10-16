@@ -21,6 +21,7 @@
     "benchmark": "node --import tsx scripts/benchmark-sim.ts",
     "perf:stress": "node --import tsx scripts/perf-stress.ts",
     "perf:render": "node scripts/perf-render-browser.mjs",
+    "ai:arena": "node --import tsx scripts/ai-arena.ts",
     "prepare": "husky",
     "lint:commit": "commitlint",
     "lint:commits": "commitlint --verbose",
