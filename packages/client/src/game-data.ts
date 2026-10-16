@@ -254,6 +254,7 @@ function sidesOf(header: Record<string, unknown>): Record<string, MissionSide> {
       ...(denied.has('!CONCENTRATE_FIRE') ? { concentrate: false } : {}),
       ...(denied.has('!ENCIRCLE_ENEMY_ISLAND') ? { encircle: false } : {}),
       ...(denied.has('!STOP_COLLECTING_FROM_DANGEROUS_GEYSERS') ? { avoidDanger: false } : {}),
+      ...(denied.has('!USE_PRIEST_TO_COLLECT') ? { priestCollects: false } : {}),
       ...(count('collectors') === undefined ? {} : { transports: count('collectors')! }),
       ...(count('geyserattachments') === undefined ? {} : { geysers: count('geyserattachments')! }),
       ...(count('enemy') === undefined ? {} : { enemy: count('enemy')! }),

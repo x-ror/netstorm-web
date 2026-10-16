@@ -148,6 +148,26 @@
     <span class="stat clock" title={m.hud_clock()}><Glyph name="clock" /><span class="label">{
         m.hud_clock_label()
       }</span>{model.clock}</span>
+    {#if model.watching}
+      <span class="sides" role="group" aria-label={m.hud_watching()}>
+        <span class="label">{m.hud_watching()}</span>
+        {#each model.sides as side (side.id)}
+          <button
+            class:on={side.on}
+            aria-pressed={side.on}
+            title="{side.name} (Tab)"
+            onclick={() => actions.view(side.id)}
+          >
+            {side.name}
+          </button>
+        {/each}
+      </span>
+    {/if}
+    {#if model.aiLog}
+      <button class="ai-log" title={m.hud_ai_log_hint()} onclick={actions.copyAiLog}>
+        {m.hud_ai_log()}
+      </button>
+    {/if}
     <span class="sep"></span>
     <button
       class="icon-button"
@@ -191,6 +211,7 @@
               class:on={slot.active}
               class:cracked={slot.cracked}
               title={slot.title}
+              disabled={model.watching}
               onclick={() => actions.setTool({ kind: 'piece', hand: slot.index })}
             >
               <kbd>{slot.index + 1}</kbd><Planks piece={slot.piece} />
@@ -216,6 +237,7 @@
             class:short={card.short}
             aria-label={card.name}
             title={card.title}
+            disabled={model.watching}
             onclick={() => actions.setTool({ kind: 'build', type: card.id })}
           >
             <span class="mark"></span>
@@ -246,6 +268,7 @@
         </button>
         <button
           class:on={model.tool === 'salvage'}
+          disabled={model.watching}
           onclick={() => actions.setTool({ kind: 'salvage' })}
         >
           {m.hud_salvage()}

@@ -39,6 +39,9 @@ import { createUiState } from './ui-state.js';
 import { PerformanceMonitor } from './perf.js';
 
 const HUD_REFRESH_TICKS = 5;
+/** Lines of the computer's reasons kept for copying; the oldest go first (about an hour of a
+ * match of two sides at the hardest level). */
+const AI_LOG_LINES = 200_000;
 
 export interface GameData {
   defs: DefTable;
@@ -62,7 +65,10 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const match = new ReplayRecorder(world);
   const view = match.view();
   const commands: Command[] = [];
-  const ui = createUiState();
+  const ui = createUiState(ME);
+  // Watching, the computer plays every side and the screen only looks on, through one side's
+  // eyes at a time.
+  ui.watching = options.opponent === 'watch';
   ui.muted = data.sounds.muted; // the choice outlives a match
   // A sound is as loud as its place is near the middle of the screen, measured on the map.
   data.sounds.heard = (at) =>
@@ -111,8 +117,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const perf = new URLSearchParams(location.search).get('perf') === '1'
     ? new PerformanceMonitor(world, app.renderer)
     : undefined;
-  const renderer = createWorldRenderer(view, ME, terrainG, ground, entityLayer, bars, data.textures,
-    data.sounds, data.hotFeet);
+  const renderer = createWorldRenderer(view, () => ui.viewer, terrainG, ground, entityLayer, bars,
+    data.textures, data.sounds, data.hotFeet);
 
   root.hidden = false;
   let leave: ((next?: string) => void) | undefined;
@@ -128,9 +134,17 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const memories = new Map<number, AiMemory>();
   const pendingAi: number[] = [];
   const queuedAi = new Set<number>();
+  /** Why the computer did what it did, each move of each side it plays, oldest first. */
+  const aiLog: string[] = [];
+  const explain = (line: string) => {
+    aiLog.push(line);
+
+    if (aiLog.length > AI_LOG_LINES) {
+      aiLog.shift();
+    }
+  };
   // Watching, the computer plays the player's side too.
-  const computer = (player: number) =>
-    options.opponent === 'watch' || (options.opponent === 'ai' && player !== ME);
+  const computer = (player: number) => ui.watching || (options.opponent === 'ai' && player !== ME);
   const aiCommands = () => {
     for (const player of world.players.keys()) {
       const side = mission?.sides[player];
@@ -165,7 +179,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     const side = mission?.sides[player];
     const memory = memories.get(player)!;
     const move = () =>
-      aiMove(view, { ...side?.ai, player, difficulty: options.difficulty }, memory);
+      aiMove(view, { ...side?.ai, player, difficulty: options.difficulty }, memory, explain);
     return perf ? perf.measure('ai', move) : move();
   };
   const togglePause = () => {
@@ -173,7 +187,50 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     clock.reset();
     hud.render();
   };
-  const hud = createHud(root, view, ME, ui, {
+  /** Look through another side's eyes: its colours, panels, sounds and log, at its Priest. */
+  const lookThrough = (player: number) => {
+    if (!ui.watching || player === ui.viewer || !world.players.has(player)) {
+      return;
+    }
+
+    ui.viewer = player;
+    ui.selected = null;
+    renderer.repaint();
+    minimap.repaint();
+    const priest = world.priestOf(player);
+
+    if (priest) {
+      centerOn(camera, priest.x, priest.y);
+    }
+
+    hud.render();
+    controls.drawOverlay();
+  };
+  const nextViewer = () => {
+    const sides = [...world.players.keys()];
+    lookThrough(sides[(sides.indexOf(ui.viewer) + 1) % sides.length]!);
+  };
+  /** Put the reasons on the clipboard with how the match was set up, or into a file when the
+   * browser keeps the clipboard closed. */
+  const copyAiLog = async () => {
+    const text = [`NetStorm Web, AI log. Match: ${JSON.stringify(options)}`, ...aiLog].join('\n');
+    let said: string;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      said = m.ai_log_copied({ lines: aiLog.length });
+    } catch {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+      link.download = `netstorm-ai-${options.seed}-${world.tick}.txt`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      said = m.ai_log_saved();
+    }
+
+    hud.log([{ id: logId++, time: formatTime(world.tick), text: said, tone: 'info' }]);
+  };
+  const hud = createHud(root, view, ui, {
     setTool: (tool) => controls.setTool(tool),
     togglePause,
     toggleSound: () => {
@@ -188,12 +245,13 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     meltdownSelected: () => controls.meltdownSelected(),
     castSelected: () => controls.castSelected(),
     dropSelected: () => controls.dropSelected(),
+    view: lookThrough,
+    copyAiLog: () => void copyAiLog(),
     page: (button) => press(shown[button]),
     exit: () => leave?.(),
-  }, data.atlas);
+  }, data.atlas, [...world.players.keys()].some(computer));
   const controls = createControls({
     world: view,
-    me: ME,
     ui,
     app,
     camera,
@@ -202,6 +260,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     textures: data.textures,
     submit: (command) => commands.push(command),
     sounds: data.sounds,
+    nextViewer,
     changed: () => hud.render(),
     togglePause,
     context: (x, y) => hud.context(x, y),
@@ -209,7 +268,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const minimapCanvas = document.createElement('canvas');
   minimapCanvas.id = 'minimap';
   root.append(minimapCanvas);
-  const minimap = createMinimap(minimapCanvas, view, ME, camera);
+  const minimap = createMinimap(minimapCanvas, view, () => ui.viewer, camera);
 
   const pending: SimEvent[] = [];
 
@@ -225,7 +284,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   /** The sound of an event of the battle. Spells and transports sound as their .type files say;
    * the rest are matched to the events by the names of the original's sound files (ours). */
   function hear(event: SimEvent): void {
-    const mine = event.who === ME;
+    const mine = event.who === ui.viewer;
     const { sounds } = data;
 
     switch (event.what) {
@@ -278,7 +337,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
   function renderLog(): void {
     const lines = pending.splice(0).flatMap((event) => {
-      const line = describeEvent(view, ME, event);
+      const line = describeEvent(view, ui.viewer, event);
       return line
         ? [{ id: logId++, time: formatTime(event.tick), text: line.text, tone: line.tone }]
         : [];
@@ -300,6 +359,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     entityLayer,
     ui,
     ...(perf ? { perf: () => perf.snapshot() } : {}),
+    aiLog,
   };
 
   let hudTick = -1;
