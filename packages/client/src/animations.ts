@@ -100,8 +100,10 @@ interface Turn {
  * (23), east (3), ESE (20), SSE (21), south (0), SSW (22), WSW (23), west (2), WNW (20), NNW (21).
  */
 const SUN_CANNON_RING = [1, 22, 23, 3, 20, 21, 0, 22, 23, 2, 20, 21] as const;
-/** The Crossbow has 25 frames to a facing: five of a shot, then twenty of turning to the next. */
-const CROSSBOW = { frames: 25, shot: 5 } as const;
+/** The Crossbow turns through twenty bearings, `orientations = 20` in its type, five frames of a
+ * shot to each; a facing is every fifth. It leans at most `reach` bearings (36°) off its facing,
+ * the nearest to the 30° of its arc. */
+const CROSSBOW = { bearings: 20, shot: 5, perFacing: 5, reach: 2 } as const;
 /** The frames of a sacrifice in the Altar type, after the horns and the struggling captive. */
 export const SACRIFICE = { first: 15, frames: 74 } as const;
 
@@ -222,9 +224,9 @@ function daisSlot(b: DeepReadonly<Building>, world: WorldView): Slot {
   return ['dais', warded * DAIS.stage + (going < 0 ? DAIS.still : DAIS.going + going)];
 }
 
-/** Which of sixteen bearings, clockwise from north, a Disc Thrower's target lies on. Only the
- * picture depends on it, so the arithmetic need not match between machines. */
-function bearing(b: DeepReadonly<Building>, world: WorldView): number {
+/** Which of `count` bearings, clockwise from north, a gun's target lies on. Only the picture
+ * depends on it, so the arithmetic need not match between machines. */
+function bearing(b: DeepReadonly<Building>, world: WorldView, count: number): number {
   const target = b.target === null ? undefined : world.entities.get(b.target);
 
   if (!target) {
@@ -232,7 +234,7 @@ function bearing(b: DeepReadonly<Building>, world: WorldView): number {
   }
 
   const turn = Math.atan2(target.x - (b.x + b.fx / 2), b.y + b.fy / 2 - target.y) / (2 * Math.PI);
-  return (Math.round(turn * DISC_THROWER.bearings) + DISC_THROWER.bearings) % DISC_THROWER.bearings;
+  return (Math.round(turn * count) + count) % count;
 }
 
 function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Slot | null {
@@ -263,9 +265,18 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Sl
       return [b.type, fired ? SUN_CANNON.fire[b.facing] : SUN_CANNON_RING[at]!];
     }
     case 'windarcher': {
+      // It leans a bearing a tick toward its target, and back to its facing when it has none.
+      const { bearings, shot, perFacing, reach } = CROSSBOW;
+      const rest = b.facing * perFacing;
+      const off = b.target === null
+        ? 0
+        : ((bearing(b, world, bearings) - rest + bearings + bearings / 2) % bearings)
+          - bearings / 2;
+      const want = (rest + Math.max(-reach, Math.min(reach, off)) + bearings) % bearings;
+      const at = turnTo(scene.aims, b.id, want, bearings);
       // Its shots are 0.8 s apart: the frames of a shot follow each one.
-      const since = b.target === null ? CROSSBOW.shot : CROSSBOW_COOLDOWN - b.cooldown;
-      return [b.type, b.facing * CROSSBOW.frames + (since < CROSSBOW.shot - 1 ? since + 1 : 0)];
+      const since = b.target === null ? shot : CROSSBOW_COOLDOWN - b.cooldown;
+      return [b.type, at * shot + (since < shot - 1 ? since + 1 : 0)];
     }
     case 'thundercannon': {
       const since = sinceShot(b);
@@ -429,7 +440,10 @@ export function overlayOf(
 
   if (entity.type === 'sunarcher') {
     const flung = entity.target !== null && entity.cooldown >= DISC_THROWER.flungFrom;
-    return [entity.type, bearing(entity, world) + (flung ? DISC_THROWER.bearings : 0)];
+    return [
+      entity.type,
+      bearing(entity, world, DISC_THROWER.bearings) + (flung ? DISC_THROWER.bearings : 0),
+    ];
   }
 
   if (entity.type === 'sunaviary') {

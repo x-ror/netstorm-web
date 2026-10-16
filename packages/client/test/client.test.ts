@@ -418,6 +418,13 @@ test('animated entities show a slot of their type for the tick', () => {
   assert.deepEqual(slotOf(gun, 0, headings), ['suncannon', 1]);
   gun.facing = 1;
   assert.deepEqual([1, 2, 3, 4].map((tick) => slotOf(gun, tick, headings)![1]), [22, 23, 3, 3]);
+  // A Crossbow facing east leans toward a target to the north-east, two of its twenty bearings at
+  // most, a bearing a tick; five frames to a bearing.
+  const crossbow = world.spawnBuilding('windarcher', ME, 90, 80, 1);
+  assert.deepEqual(slotOf(crossbow, 0, headings), ['windarcher', 25]);
+  crossbow.target = world.spawnTransport('sunwalker', ENEMY, 101, 72).id;
+  crossbow.cooldown = 0;
+  assert.deepEqual([1, 2, 3].map((tick) => slotOf(crossbow, tick, headings)![1]), [20, 15, 15]);
   // A Bulf turns the shorter way round its 24 frames: from east to north, anticlockwise.
   bulf.path = [[bulf.x, bulf.y - 1]];
   assert.deepEqual([1, 2].map((tick) => slotOf(bulf, tick, headings)), [['bulf', 32 + 5], [
