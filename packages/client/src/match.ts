@@ -108,11 +108,11 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const overlay = new Graphics();
   const ghost = new Container();
   camera.addChild(terrainG, ground, entityLayer, bars, ghost, overlay);
-  const renderer = createWorldRenderer(view, ME, terrainG, ground, entityLayer, bars, data.textures,
-    data.sounds, data.hotFeet);
   const perf = new URLSearchParams(location.search).get('perf') === '1'
     ? new PerformanceMonitor(world, app.renderer)
     : undefined;
+  const renderer = createWorldRenderer(view, ME, terrainG, ground, entityLayer, bars, data.textures,
+    data.sounds, data.hotFeet);
 
   root.hidden = false;
   let leave: ((next?: string) => void) | undefined;
@@ -373,7 +373,10 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     takeEvents();
 
     if (perf) {
-      perf.measure('renderSync', () => renderer.sync(clock.alpha));
+      const scene = perf.measure('renderSync', () =>
+        renderer.sync(clock.alpha, (metric, run) => perf.measure(metric, run))
+      );
+      perf.recordSceneCounts(scene.terrainTiles, scene.displayObjects);
     } else {
       renderer.sync(clock.alpha);
     }

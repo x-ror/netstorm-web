@@ -23,6 +23,9 @@ test('performance monitor records metrics without changing world state', () => {
 
   monitor.frame();
   monitor.measure('simulationTick', () => world.step());
+  monitor.measure('terrainBuild', () => undefined);
+  monitor.measure('entitySync', () => undefined);
+  monitor.recordSceneCounts(12, 24);
   world.findPath(1, 0, 0, ([x, y]) => x === 3 && y === 3);
   renderer.render();
   reference.step();
@@ -38,6 +41,9 @@ test('performance monitor records metrics without changing world state', () => {
   assert.equal(metrics.frameMs.samples, 1);
   assert.equal(metrics.simulationTickMs.samples, 1);
   assert.equal(metrics.systemsMs.pathfinding.samples, 1);
+  assert.equal(metrics.terrainBuildMs.samples, 1);
+  assert.equal(metrics.entitySyncMs.samples, 1);
+  assert.deepEqual(metrics.scene, { terrainTiles: 12, displayObjects: 24 });
   assert.equal(metrics.renderMs.samples, 1);
   assert.equal(metrics.drawCalls.average, 1);
   assert.equal(metrics.entities.total, 0);

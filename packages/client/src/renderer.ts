@@ -961,14 +961,27 @@ export function createWorldRenderer(
     explode,
     cast,
     /** `alpha`: how far the time is between the last tick and the next (FixedStepClock.alpha). */
-    sync(alpha = 1) {
+    sync(
+      alpha = 1,
+      measure?: <T>(metric: 'terrainBuild' | 'entitySync', run: () => T) => T,
+    ) {
       if (terrainRevision !== world.terrainRevision) {
-        drawTerrain();
+        if (measure) {
+          measure('terrainBuild', drawTerrain);
+        } else {
+          drawTerrain();
+        }
+
         terrainRevision = world.terrainRevision;
       }
 
       if (entityTick !== world.tick) {
-        syncEntities();
+        if (measure) {
+          measure('entitySync', syncEntities);
+        } else {
+          syncEntities();
+        }
+
         entityTick = world.tick;
       }
 
@@ -984,6 +997,11 @@ export function createWorldRenderer(
         overlays.get(id)?.position.copyFrom(sprite.position);
         shadows.get(id)?.position.copyFrom(sprite.position);
       }
+
+      return {
+        terrainTiles: tiles.length,
+        displayObjects: ground.children.length + entityLayer.children.length,
+      };
     },
   };
 }

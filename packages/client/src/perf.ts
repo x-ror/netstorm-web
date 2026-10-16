@@ -12,6 +12,8 @@ type Metric =
   | 'pathfinding'
   | 'combat'
   | 'movement'
+  | 'terrainBuild'
+  | 'entitySync'
   | 'renderSync'
   | 'render'
   | 'drawCalls';
@@ -45,6 +47,8 @@ export class PerformanceMonitor {
     pathfinding: [],
     combat: [],
     movement: [],
+    terrainBuild: [],
+    entitySync: [],
     renderSync: [],
     render: [],
     drawCalls: [],
@@ -57,6 +61,8 @@ export class PerformanceMonitor {
     pathfinding: 0,
     combat: 0,
     movement: 0,
+    terrainBuild: 0,
+    entitySync: 0,
     renderSync: 0,
     render: 0,
     drawCalls: 0,
@@ -69,6 +75,7 @@ export class PerformanceMonitor {
   private lastHeapAt = this.startedAt;
   private elapsedMs = 0;
   private currentDrawCalls = 0;
+  private sceneCounts = { terrainTiles: 0, displayObjects: 0 };
 
   constructor(private readonly world: World, renderer?: object) {
     this.hookWorld('findPath', 'pathfinding');
@@ -120,6 +127,10 @@ export class PerformanceMonitor {
     }
   }
 
+  recordSceneCounts(terrainTiles: number, displayObjects: number): void {
+    this.sceneCounts = { terrainTiles, displayObjects };
+  }
+
   snapshot() {
     const entities = { total: this.world.entities.size } as Record<string, number>;
 
@@ -137,9 +148,12 @@ export class PerformanceMonitor {
         combat: summarize(this.samples.combat),
         movement: summarize(this.samples.movement),
       },
+      terrainBuildMs: summarize(this.samples.terrainBuild),
+      entitySyncMs: summarize(this.samples.entitySync),
       renderSyncMs: summarize(this.samples.renderSync),
       renderMs: summarize(this.samples.render),
       drawCalls: summarize(this.samples.drawCalls),
+      scene: { ...this.sceneCounts },
       entities,
       projectiles: this.world.shots.length,
       heap: [...this.heap],
