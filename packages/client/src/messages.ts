@@ -198,6 +198,8 @@ export function describeEvent(
       return { text: m.event_victory({ player: player(event.who) }), tone: mine ? 'good' : 'bad' };
     case 'priest down':
       return mine ? { text: m.event_priest_down(), tone: 'bad' } : null;
+    case 'ricochet':
+      return null; // shown by the renderer, not worth a line
     case 'priest up':
       return mine ? { text: m.event_priest_up(), tone: 'good' } : null;
   }

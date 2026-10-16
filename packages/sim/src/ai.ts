@@ -1018,10 +1018,12 @@ function capture(world: WorldView, move: Move, transports: View<Transport>[]): v
   }
 
   const home = world.templeOf(move.me);
+  // Without an Altar that stands, the world refuses the capture: the Altar comes first.
+  const altar = world.buildingsOf(move.me).some((b) => b.type === ALTAR && b.rising === 0);
 
   // He has to be within a step of ground the transports can walk to: a bridge that merely lies
   // beside his island does not lead onto it.
-  if (!home) {
+  if (!home || !altar) {
     return;
   }
 
