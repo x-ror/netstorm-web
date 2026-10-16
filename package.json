@@ -21,6 +21,7 @@
     "benchmark": "node --import tsx scripts/benchmark-sim.ts",
     "perf:stress": "node --import tsx scripts/perf-stress.ts",
     "perf:ai-quality": "node --import tsx scripts/ai-quality.ts",
+    "perf:pathfinding": "node --import tsx scripts/pathfinding-load.ts",
     "prepare": "husky",
     "lint:commit": "commitlint",
     "lint:commits": "commitlint --verbose",
