@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
+  aiReact,
   aiMove,
+  aiStrategicDue,
   createAiMemory,
   loadDefs,
   skirmishTech,
@@ -117,17 +119,37 @@ const world = stressWorld();
 const memories = new Map(
   [...world.players.keys()].map((player) => [player, createAiMemory(SEED + player)]),
 );
+const pendingAi: number[] = [];
+const queuedAi = new Set<number>();
 
-for (let index = 0; index < WARMUP_TICKS; index++) {
-  const commands: Command[] = [];
+function aiCommands(
+  measure: (player: number, run: () => Command[]) => Command[] = (_player, run) => run(),
+): Command[] {
+  const view = world.view();
 
-  if ((world.tick + 1) % 30 === 0) {
-    for (const player of world.players.keys()) {
-      commands.push(...aiMove(world.view(), { player, difficulty: 'hard' }, memories.get(player)!));
+  for (const player of world.players.keys()) {
+    const memory = memories.get(player)!;
+    const interval = 30;
+    const reactive = aiReact(view, player, memory, interval);
+
+    if ((aiStrategicDue(world.tick, player, interval) || reactive) && !queuedAi.has(player)) {
+      pendingAi.push(player);
+      queuedAi.add(player);
     }
   }
 
-  world.step(commands);
+  const player = pendingAi.shift();
+
+  if (player === undefined) {
+    return [];
+  }
+
+  queuedAi.delete(player);
+  return measure(player, () => aiMove(view, { player, difficulty: 'hard' }, memories.get(player)!));
+}
+
+for (let index = 0; index < WARMUP_TICKS; index++) {
+  world.step(aiCommands());
 }
 
 const monitor = new PerformanceMonitor(world);
@@ -141,30 +163,23 @@ const aiCalls: {
 
 for (let index = 0; index < SAMPLE_TICKS; index++) {
   const start = performance.now();
-  const commands: Command[] = [];
+  const commands = aiCommands((player, runAi) => {
+    const aiStart = performance.now();
+    const playerCommands = monitor.measure('ai', runAi);
+    const decisions: Record<string, number> = {};
 
-  if ((world.tick + 1) % 30 === 0) {
-    for (const player of world.players.keys()) {
-      const runAi = () =>
-        aiMove(world.view(), { player, difficulty: 'hard' }, memories.get(player)!);
-      const aiStart = performance.now();
-      const playerCommands = monitor.measure('ai', runAi);
-      const decisions: Record<string, number> = {};
-
-      for (const command of playerCommands) {
-        decisions[command.t] = (decisions[command.t] ?? 0) + 1;
-      }
-
-      aiCalls.push({
-        tick: world.tick + 1,
-        player,
-        elapsedMs: performance.now() - aiStart,
-        decisions,
-      });
-      commands.push(...playerCommands);
+    for (const command of playerCommands) {
+      decisions[command.t] = (decisions[command.t] ?? 0) + 1;
     }
-  }
 
+    aiCalls.push({
+      tick: world.tick + 1,
+      player,
+      elapsedMs: performance.now() - aiStart,
+      decisions,
+    });
+    return playerCommands;
+  });
   world.step(commands);
   times.push(performance.now() - start);
 

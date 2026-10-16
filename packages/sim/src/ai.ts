@@ -129,6 +129,73 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
   return planAiMove(cacheBuildingsForMove(world), options, memory);
 }
 
+/** A player's strategic move is spread by player id without changing its update interval. */
+export function aiStrategicDue(tick: number, player: number, interval: number): boolean {
+  return tick % interval === (player - 1) % interval;
+}
+
+/** Cheap per-tick checks that can enqueue a full AI move. */
+export function aiReact(
+  world: WorldView,
+  player: number,
+  memory: AiMemory,
+  interval: number,
+): boolean {
+  if (!world.players.get(player)?.alive || world.winner !== null) {
+    return false;
+  }
+
+  const buildings = new Map<number, { x: number; y: number; }>();
+  const idle = new Set<number>();
+
+  for (const entity of world.entities.values()) {
+    if (entity.kind === 'building' && entity.owner === player) {
+      buildings.set(entity.id, { x: entity.x, y: entity.y });
+    } else if (
+      entity.kind === 'transport' && entity.owner === player && entity.goal === 'idle'
+      && entity.carrying === null
+    ) {
+      idle.add(entity.id);
+    }
+  }
+
+  let lost = false;
+
+  for (const [id, at] of memory.buildings) {
+    if (!buildings.has(id)) {
+      memory.losses.push({ ...at, tick: world.tick });
+      lost = true;
+    }
+  }
+
+  memory.buildings = buildings;
+  memory.losses = memory.losses.filter((loss) => world.tick - loss.tick <= LOSS_MOVES * interval);
+
+  let newlyIdle = false;
+
+  for (const id of idle) {
+    newlyIdle ||= !memory.reactiveIdle.has(id);
+  }
+
+  memory.reactiveIdle = idle;
+
+  const incoming = new Set<string>();
+  let underAttack = false;
+
+  for (const shot of world.shots) {
+    if (world.entities.get(shot.target)?.owner !== player) {
+      continue;
+    }
+
+    const key = `${shot.gun.id}:${shot.target}:${shot.land}:${shot.x}:${shot.y}`;
+    incoming.add(key);
+    underAttack ||= !memory.reactiveShots.has(key);
+  }
+
+  memory.reactiveShots = incoming;
+  return lost || newlyIdle || underAttack;
+}
+
 function planAiMove(world: WorldView, options: AiOptions, memory?: AiMemory): Command[] {
   const me = options.player;
   const player = world.players.get(me)!;

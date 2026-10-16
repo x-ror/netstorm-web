@@ -18,6 +18,10 @@ export interface AiMemory {
   losses: { x: number; y: number; tick: number; }[];
   /** Own guns with nothing in reach, by id, and the tick that began. */
   idle: Map<number, number>;
+  /** Transports first observed idle by the per-tick reactive check. */
+  reactiveIdle: Set<number>;
+  /** Incoming shots first observed by the per-tick reactive check. */
+  reactiveShots: Set<string>;
   /** Whether the last move was pushing for the enemy. */
   pushing: boolean;
   /** Where the bridge to the enemy was last headed: his Priest's cell then, kept while he stays
@@ -41,6 +45,8 @@ export function createAiMemory(seed = 1): AiMemory {
     buildings: new Map(),
     losses: [],
     idle: new Map(),
+    reactiveIdle: new Set(),
+    reactiveShots: new Set(),
     pushing: false,
     mark: null,
     slotLook: -Infinity,

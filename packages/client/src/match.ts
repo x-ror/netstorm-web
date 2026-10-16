@@ -1,6 +1,8 @@
 import { Application, Assets, Container, Graphics, TilingSprite, type Texture } from 'pixi.js';
 import {
   FixedStepClock,
+  aiReact,
+  aiStrategicDue,
   aiMove,
   createAiMemory,
   DIFFICULTY,
@@ -124,27 +126,48 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   // A skirmish plays at the level chosen; a mission at the pace its file sets. Each side keeps
   // its memory between moves here, outside the world: the replay records only the commands.
   const memories = new Map<number, AiMemory>();
+  const pendingAi: number[] = [];
+  const queuedAi = new Set<number>();
   // Watching, the computer plays the player's side too.
   const computer = (player: number) =>
     options.opponent === 'watch' || (options.opponent === 'ai' && player !== ME);
-  const aiCommands = () =>
-    [...world.players.keys()].flatMap((player) => {
+  const aiCommands = () => {
+    for (const player of world.players.keys()) {
       const side = mission?.sides[player];
       const delay = mission
         ? side?.delay ?? mission.aiDelay ?? DEFAULT_AI_DELAY
         : DIFFICULTY[options.difficulty].moveSeconds;
-      const due = computer(player) && world.tick % Math.max(1, Math.round(delay * TPS)) === 0;
 
-      if (!due) {
-        return [];
+      if (!computer(player)) {
+        continue;
       }
 
       const memory = memories.get(player) ?? createAiMemory(options.seed + player);
       memories.set(player, memory);
-      const move = () =>
-        aiMove(view, { ...side?.ai, player, difficulty: options.difficulty }, memory);
-      return perf ? perf.measure('ai', move) : move();
-    });
+      const interval = Math.max(1, Math.round(delay * TPS));
+      const reactive = aiReact(view, player, memory, interval);
+
+      if (
+        (aiStrategicDue(world.tick, player, interval) || reactive) && !queuedAi.has(player)
+      ) {
+        pendingAi.push(player);
+        queuedAi.add(player);
+      }
+    }
+
+    const player = pendingAi.shift();
+
+    if (player === undefined) {
+      return [];
+    }
+
+    queuedAi.delete(player);
+    const side = mission?.sides[player];
+    const memory = memories.get(player)!;
+    const move = () =>
+      aiMove(view, { ...side?.ai, player, difficulty: options.difficulty }, memory);
+    return perf ? perf.measure('ai', move) : move();
+  };
   const togglePause = () => {
     ui.paused = !ui.paused;
     clock.reset();
