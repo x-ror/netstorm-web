@@ -19,6 +19,8 @@ const SUN_CANNON = 'suncannon';
 const ARC_RATIO = 3;
 /** Damage per second that costs a bridge one more cell of length to cross (invented). */
 export const THREAT_UNIT = 10;
+const DX = DIRS.map(([dx]) => dx);
+const DY = DIRS.map(([, dy]) => dy);
 
 export type ThreatMap = Int32Array;
 
@@ -145,6 +147,10 @@ export function skyCosts(
 ): void {
   // Every step costs one or more whole cells, so the cells come out in order of cost from buckets,
   // one per cost: no heap. With no weight it is a breadth-first search in one bucket after another.
+  // The neighbours are tried in the order of DIRS: with equal costs that is the order the cells
+  // come out in, so it must not change. The loop is plain on purpose: it visits every sky cell of
+  // the map, and a closure or a destructuring in it costs a move several milliseconds.
+  const { terrain } = world;
   const buckets: number[][] = [[]];
 
   for (let k = 0; k < tail; k++) {
@@ -168,22 +174,26 @@ export function skyCosts(
       const x: number = i % W;
       const y: number = (i / W) | 0;
 
-      for (const [dx, dy] of DIRS) {
-        const nx: number = x + dx;
-        const ny: number = y + dy;
+      for (let d = 0; d < DIRS.length; d++) {
+        const nx: number = x + DX[d]!;
+        const ny: number = y + DY[d]!;
 
-        if (!world.inside(nx, ny) || world.terrain[ny * W + nx] !== Terrain.Sky) {
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) {
           continue;
         }
 
         const j: number = ny * W + nx;
-        const next: number = cost + 1 + crossingCost(threat, weight, j);
+
+        if (terrain[j] !== Terrain.Sky) {
+          continue;
+        }
+
+        const next: number = cost + 1 + (weight === 0 ? 0 : crossingCost(threat, weight, j));
 
         if (field[j] === -1 || next < field[j]!) {
           field[j] = next;
-          const later: number[] = buckets[next] ?? [];
-          later.push(j);
-          buckets[next] = later;
+          buckets[next] ??= [];
+          buckets[next].push(j);
         }
       }
     }
