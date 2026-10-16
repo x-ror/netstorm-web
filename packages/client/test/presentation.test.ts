@@ -30,8 +30,19 @@ function fixture() {
   hotSpots.set(texture, { x: 0.5, y: 1 });
   const textures = new Map<string, Texture>();
 
-  for (const type of ['bolt', 'explosion', 'explosion2', 'explosion3', 'iceball', 'bomb']) {
-    for (let i = 0; i < 40; i++) {
+  for (
+    const type of [
+      'bolt',
+      'anim',
+      'raincannonmissile',
+      'sunflyerbomb',
+      'thundercannonmissile',
+      'sundisc',
+      'healeffect',
+      'manabolt',
+    ]
+  ) {
+    for (let i = 0; i < 100; i++) {
       textures.set(`slot:${type}:${i}`, texture);
     }
   }
@@ -134,6 +145,105 @@ test('legacy/improved switches leave world unchanged and do not replay audio', (
   renderer.sync(0);
   assert.equal(world.hash(), hash);
   assert.equal(heard.length, count);
+});
+
+test('damage feedback restores ownership tint, ignores healing and preserves HP alpha', () => {
+  const { world, renderer, layer } = fixture();
+  const unit = world.spawnTransport('sunwalker', 2, 40, 40);
+  renderer.sync(1);
+  const sprite = layer.children[0]!.children[0] as Graphics;
+  const ownership = sprite.tint;
+  unit.hp /= 2;
+  world.tick++;
+  renderer.capture();
+  renderer.sync(0);
+  assert.notEqual(sprite.tint, ownership);
+  assert.equal(sprite.alpha, 0.75);
+  world.tick += 2;
+  renderer.sync(0);
+  assert.equal(sprite.tint, ownership);
+  unit.hp++;
+  world.tick++;
+  renderer.sync(0);
+  assert.equal(sprite.tint, ownership);
+});
+
+test('missiles sample fractional positions, land once, initialize frame zero and keep expiry', () => {
+  for (const type of ['windarcher', 'raincannon', 'suncannon', 'sunflyer']) {
+    const { world, renderer, heard } = fixture();
+    const target = world.spawnTransport('sunwalker', 2, 44, 40);
+    const gun = type === 'sunflyer'
+      ? world.spawnFlyer(type, 1, world.spawnBuilding('sunaviary', 1, 40, 40))
+      : world.spawnBuilding(type, 1, 40, 40);
+    gun.cooldown = 0;
+    gun.target = target.id;
+    renderer.sync(1);
+    world.tick++;
+    gun.cooldown = 10;
+
+    if (gun.kind === 'building') {
+      world.shots.push({
+        gun: { ...gun },
+        target: target.id,
+        x: target.x,
+        y: target.y,
+        land: world.tick + 2,
+        amount: 1,
+      });
+    }
+
+    renderer.capture();
+    renderer.sync(0);
+    const initial = renderer.inspect().missiles[0];
+    renderer.sync(0.5);
+
+    if (initial) {
+      const half = renderer.inspect().missiles[0]!;
+      assert.notEqual(half.x + half.y, initial.x + initial.y, type);
+    }
+
+    // Removing both ends must not erase the in-flight effect or its recorded landing point.
+    world.entities.delete(target.id);
+    world.entities.delete(gun.id);
+    const land = renderer.inspect().missiles[0]?.land ?? world.tick + 2;
+
+    while (world.tick < land) {
+      world.tick++;
+      renderer.capture();
+    }
+
+    renderer.sync(0);
+    const burst = renderer.inspect().bursts[0]!;
+    assert.ok(burst, type);
+    assert.equal(burst.start, land, type);
+    assert.equal(burst.initialized, true, type);
+    const count = heard.length;
+    renderer.sync(0.5);
+    assert.equal(renderer.inspect().bursts.length, 1, type);
+    assert.equal(heard.length, count, type);
+    world.tick = burst.expires;
+    renderer.sync(0);
+    assert.equal(renderer.inspect().bursts.length, 0, type);
+  }
+});
+
+test('death/spell bursts initialize immediately and expired catch-up effects do not backlog', () => {
+  const { world, renderer } = fixture();
+  const unit = world.spawnTransport('sunwalker', 1, 40, 40);
+  renderer.sync(1);
+  renderer.explode(unit.id);
+  renderer.cast(unit.id, 'bombexplodesmall');
+  renderer.capture();
+  // Event-created bursts are followed by capture on the completed tick, before frame sync.
+  world.tick++;
+  renderer.capture();
+  const effects = renderer.inspect().bursts;
+  assert.equal(effects.length, 2);
+  assert.ok(effects.every((effect) => effect.initialized));
+  world.tick += 30;
+  renderer.capture();
+  renderer.sync(0);
+  assert.equal(renderer.inspect().bursts.length, 0);
 });
 
 test('synthetic 30/60/144 Hz, irregular, catch-up and clock-cap schedules preserve gameplay', () => {

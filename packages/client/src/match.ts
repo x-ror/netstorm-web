@@ -232,6 +232,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
         renderer.explode(event.data.id);
       } else if (event.what === 'cast') {
         renderer.cast(event.data.transport, event.data.spell);
+      } else if (event.what === 'bridge') {
+        renderer.placed(event.data);
       } else if (event.what === 'saved' && !world.hostile(event.who, ME)) {
         saved.add(event.data.owner);
       } else if (event.what === 'captured') {

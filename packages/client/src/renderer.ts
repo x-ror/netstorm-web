@@ -17,6 +17,7 @@ import {
   oppositeDir,
   type Building,
   stepShare,
+  BUILD_SECONDS,
 } from '@netstorm/sim';
 import {
   FACING_FRAMES,
@@ -40,7 +41,13 @@ import {
 } from './effects.js';
 import { hotSpots } from './assets.js';
 import { unitSound, type Sounds } from './sound.js';
-import { firstEmission, PresentationTime, progress, VisualStates } from './presentation.js';
+import {
+  easeOut,
+  firstEmission,
+  PresentationTime,
+  progress,
+  VisualStates,
+} from './presentation.js';
 
 const SPRITE_ANCHOR_X = 0.5;
 const UNIT_ANCHOR_Y = 0.85; // a unit's feet sit a little above the bottom of its frame
@@ -132,6 +139,11 @@ const OVERLAY_Z = 0.5; // an overlay lies just over its own entity, a shadow jus
 const SHADOW_ALPHA = 0.45; // the original draws shadows translucent; how much is not read (`?`)
 const FIELD_WIDTH = 2;
 const FIELD_ALPHA = 0.7;
+const HIT_TICKS = 2; // presentation approximation, not original sprite timing
+const HIT_TINT = 0xff8888;
+const PLACE_TICKS = 3;
+const MAX_PLACE_CELLS = 64;
+const PROGRESS_COLOR = 0xbfe9ff;
 const FIELD_COLOR: Readonly<Record<string, number>> = {
   sunfence: COLOR.sunField,
   rainfence: COLOR.acidField,
@@ -156,6 +168,25 @@ export function createWorldRenderer(
   const bars = barsLayer.addChild(new Graphics());
   const movingBars = barsLayer.addChild(new Graphics());
   const streamG = barsLayer.addChild(new Graphics());
+  const polishG = barsLayer.addChild(new Graphics());
+  const previousHp = new Map<number, number>();
+  const damaged = new Map<number, number>();
+  const placementsAccent: { x: number; y: number; w: number; h: number; start: number; }[] = [];
+
+  function placed(cells: readonly (readonly [number, number])[]): void {
+    if (!improved) {
+      return;
+    }
+
+    for (const [x, y] of cells) {
+      if (placementsAccent.length >= MAX_PLACE_CELLS) {
+        placementsAccent.shift();
+      }
+
+      placementsAccent.push({ x, y, w: 1, h: 1, start: world.tick });
+    }
+  }
+
   /** Minimal previous-tick placements, including targets removed by an instant shot. */
   const placements = new Map<number, {
     at: Point;
@@ -471,6 +502,31 @@ export function createWorldRenderer(
 
     for (const entity of world.entities.values()) {
       let sprite = sprites.get(entity.id);
+      const hp = 'hp' in entity ? entity.hp : undefined;
+      const was = previousHp.get(entity.id);
+
+      if (hp !== undefined) {
+        if (improved && was !== undefined && hp < was && !rebasing) {
+          damaged.set(entity.id, world.tick);
+        }
+
+        previousHp.set(entity.id, hp);
+      }
+
+      if (!sprite && entity.kind === 'building' && improved && !rebasing && entityTick >= 0) {
+        if (placementsAccent.length >= MAX_PLACE_CELLS) {
+          placementsAccent.shift();
+        }
+
+        placementsAccent.push({
+          x: entity.x,
+          y: entity.y,
+          w: entity.fx,
+          h: entity.fy,
+          start: world.tick,
+        });
+      }
+
       const slot = slotOf(entity, world.tick, scene);
       const texture = (slot ? textures.get(`slot:${slot[0]}:${slot[1]}`) : undefined)
         ?? textures.get(textureKey(entity));
@@ -570,6 +626,8 @@ export function createWorldRenderer(
         glides.delete(id);
         scene.aims.delete(id);
         states.delete(id);
+        previousHp.delete(id);
+        damaged.delete(id);
 
         if (holding.delete(id)) {
           burst({ type: 'altar', ...SACRIFICE }, sprite.position, sprite.zIndex);
@@ -1085,6 +1143,7 @@ export function createWorldRenderer(
   return {
     explode,
     cast,
+    placed,
     get improved() {
       return improved;
     },
@@ -1096,6 +1155,9 @@ export function createWorldRenderer(
       improved = enabled;
       scene.states = enabled ? states : undefined;
       states.clear();
+      damaged.clear();
+      placementsAccent.length = 0;
+      polishG.clear();
       rebasing = true;
 
       for (const [id, sprite] of sprites) {
@@ -1152,6 +1214,31 @@ export function createWorldRenderer(
     resetTime() {
       timeline.reset();
     },
+    inspect() {
+      return {
+        tick: entityTick,
+        presentationTick,
+        missiles: missiles.map((effect) => ({
+          start: effect.start,
+          land: effect.start + effect.ticks,
+          x: effect.sprite.x,
+          y: effect.sprite.y,
+          from: { ...effect.from },
+          to: { ...effect.to },
+        })),
+        bursts: bursts.map((effect) => ({
+          type: effect.type,
+          first: effect.first,
+          start: effect.start,
+          expires: effect.start + effect.frames,
+          initialized: effect.sprite !== undefined,
+        })),
+        bolts: bolts.length,
+        streams: streams.size,
+        beams: beams.length,
+        accents: placementsAccent.length,
+      };
+    },
     /** `alpha`: how far the time is between the last tick and the next (FixedStepClock.alpha). */
     sync(alpha = 1) {
       if (terrainRevision !== world.terrainRevision) {
@@ -1180,6 +1267,7 @@ export function createWorldRenderer(
       if (improved) {
         movingBars.clear();
         streamG.clear();
+        polishG.clear();
 
         for (const entity of world.entities.values()) {
           const sprite = sprites.get(entity.id);
@@ -1188,11 +1276,29 @@ export function createWorldRenderer(
             continue;
           }
 
+          const hit = damaged.get(entity.id);
+          const flashing = hit !== undefined && progress(presentationTick, hit, HIT_TICKS) < 1;
+          sprite.tint = flashing ? HIT_TINT : entityTint(entity, me);
+
+          if (hit !== undefined && !flashing) {
+            damaged.delete(entity.id);
+          }
+
           if ('hp' in entity && entity.hp < entity.hpMax) {
             const top = sprite instanceof Sprite
               ? sprite.y - sprite.height * sprite.anchor.y
               : sprite.y;
             drawBar(sprite.x, top - BAR_GAP - BAR_HEIGHT, entity.hp / entity.hpMax, movingBars);
+          }
+
+          if (entity.kind === 'building' && entity.rising > 0 && entity.regrow === 0) {
+            const top = sprite instanceof Sprite
+              ? sprite.y - sprite.height * sprite.anchor.y
+              : sprite.y;
+            const share = Math.max(0, 1 - entity.rising / (BUILD_SECONDS * TPS));
+            polishG.moveTo(sprite.x - BAR_WIDTH / 2, top - BAR_GAP)
+              .lineTo(sprite.x - BAR_WIDTH / 2 + BAR_WIDTH * share, top - BAR_GAP)
+              .stroke({ color: PROGRESS_COLOR, width: 1 });
           }
         }
 
@@ -1206,6 +1312,20 @@ export function createWorldRenderer(
 
         for (const stream of streams.values()) {
           drawStream(stream, presentationTick, streamG);
+        }
+
+        for (let i = placementsAccent.length - 1; i >= 0; i--) {
+          const accent = placementsAccent[i]!;
+          const done = progress(presentationTick, accent.start, PLACE_TICKS);
+
+          if (done >= 1) {
+            placementsAccent.splice(i, 1);
+            continue;
+          }
+
+          const { sx, sy } = project(accent.x, accent.y);
+          polishG.rect(sx, sy, accent.w * TW, accent.h * TH)
+            .stroke({ color: PROGRESS_COLOR, width: 1, alpha: 1 - easeOut(done) });
         }
       }
     },
