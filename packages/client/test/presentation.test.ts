@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Container, Graphics, Texture, TextureSource } from 'pixi.js';
-import { FixedStepClock, World, loadDefs, TPS } from '@netstorm/sim';
+import { FixedStepClock, ReplayRecorder, World, loadDefs, playReplay, TPS } from '@netstorm/sim';
 import { createWorldRenderer } from '../src/renderer.js';
 import { hotSpots } from '../src/assets.js';
 import { firstEmission, PresentationTime, progress, VisualStates } from '../src/presentation.js';
@@ -423,12 +423,14 @@ test('synthetic 30/60/144 Hz, irregular, catch-up and clock-cap schedules preser
     for (const improved of [false, true]) {
       const { world, renderer } = fixture();
       renderer.setImproved(improved);
-      const gun = world.spawnBuilding('windarcher', 1, 40, 40);
+      const gun = world.spawnBuilding('windarcher', 1, 40, 40, 1);
       gun.rising = 0;
-      world.spawnTransport('sunwalker', 2, 43, 40);
+      world.spawnTransport('sunwalker', 2, 50, 41);
       const site = world.spawnBuilding('sunfactory', 1, 50, 50);
       site.builder = null;
       site.rising = 8;
+      world.addPriest(1, 38, 38);
+      const recorder = new ReplayRecorder(world);
       const clock = new FixedStepClock(TPS);
       const events: unknown[] = [];
       const shots: unknown[] = [];
@@ -438,8 +440,13 @@ test('synthetic 30/60/144 Hz, irregular, catch-up and clock-cap schedules preser
 
       for (let frame = 0; frame < 160; frame++) {
         clock.advance(schedule[frame % schedule.length]!, () => { // oxlint-disable-line max-nested-callbacks
-          world.step();
-          events.push(...world.drainEvents());
+          recorder.step(world.tick === 0
+            ? [
+              { t: 'movePriest', player: 1, x: 39, y: 39 },
+              { t: 'build', player: 1, type: 'windfactory', x: 60, y: 60 },
+            ]
+            : []);
+          events.push(...recorder.drainEvents());
           shots.push(world.shots.map((shot) => [shot.gun.id, shot.target, shot.land]));
 
           if (site.rising === 0) {
@@ -462,7 +469,11 @@ test('synthetic 30/60/144 Hz, irregular, catch-up and clock-cap schedules preser
         }
       }
 
-      runs.push({ events, shots, completed, hashes, tick: world.tick });
+      const replayed = playReplay(recorder.export()).hash();
+      assert.equal(replayed, world.hash());
+      assert.equal(completed[0], 8);
+      assert.ok(shots.some((entry) => Array.isArray(entry) && entry.length > 0));
+      runs.push({ events, shots, completed, hashes, tick: world.tick, replayed });
     }
 
     assert.deepEqual(runs[1], runs[0], `schedule ${schedule}`);
