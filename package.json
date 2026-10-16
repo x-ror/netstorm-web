@@ -22,6 +22,7 @@
     "perf:stress": "node --import tsx scripts/perf-stress.ts",
     "perf:ai-quality": "node --import tsx scripts/ai-quality.ts",
     "perf:pathfinding": "node --import tsx scripts/pathfinding-load.ts",
+    "perf:render": "node scripts/perf-render-browser.mjs",
     "prepare": "husky",
     "lint:commit": "commitlint",
     "lint:commits": "commitlint --verbose",
