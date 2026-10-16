@@ -166,24 +166,6 @@ test('depth follows displayed feet and attachments stay in an atomic entity grou
   assert.equal(group.zIndex, sprite.y);
   const health = bars.children[1]!.getLocalBounds();
   assert.equal(health.minY, sprite.y - 4);
-  renderer.setImproved(false);
-  assert.ok(layer.children.includes(sprite));
-  renderer.setImproved(true);
-  assert.ok(layer.children[0]!.children.includes(sprite));
-});
-
-test('legacy/improved switches leave world unchanged and do not replay audio', () => {
-  const { world, renderer, heard } = fixture();
-  const gun = world.spawnBuilding('windarcher', 1, 40, 40);
-  gun.rising = 20;
-  renderer.sync();
-  const hash = world.hash();
-  const count = heard.length;
-  renderer.setImproved(false);
-  renderer.setImproved(true);
-  renderer.sync(0);
-  assert.equal(world.hash(), hash);
-  assert.equal(heard.length, count);
 });
 
 test('damage feedback restores ownership tint, ignores healing and preserves HP alpha', () => {
@@ -428,66 +410,55 @@ test('synthetic 30/60/144 Hz, irregular, catch-up and clock-cap schedules preser
   let reference: number[] | undefined;
 
   for (const schedule of schedules) {
-    const runs = [];
+    const { world, renderer } = fixture();
+    const gun = world.spawnBuilding('windarcher', 1, 40, 40, 1);
+    gun.rising = 0;
+    world.spawnTransport('sunwalker', 2, 50, 41);
+    const site = world.spawnBuilding('sunfactory', 1, 50, 50);
+    site.builder = null;
+    site.rising = 8;
+    world.addPriest(1, 38, 38);
+    const recorder = new ReplayRecorder(world);
+    const clock = new FixedStepClock(TPS);
+    const events: unknown[] = [];
+    const shots: unknown[] = [];
+    const completed: number[] = [];
+    const hashes: number[] = [];
+    renderer.sync(1);
 
-    for (const improved of [false, true]) {
-      const { world, renderer } = fixture();
-      renderer.setImproved(improved);
-      const gun = world.spawnBuilding('windarcher', 1, 40, 40, 1);
-      gun.rising = 0;
-      world.spawnTransport('sunwalker', 2, 50, 41);
-      const site = world.spawnBuilding('sunfactory', 1, 50, 50);
-      site.builder = null;
-      site.rising = 8;
-      world.addPriest(1, 38, 38);
-      const recorder = new ReplayRecorder(world);
-      const clock = new FixedStepClock(TPS);
-      const events: unknown[] = [];
-      const shots: unknown[] = [];
-      const completed: number[] = [];
-      const hashes: number[] = [];
-      renderer.sync(1);
+    for (let frame = 0; frame < 160; frame++) {
+      clock.advance(schedule[frame % schedule.length]!, () => { // oxlint-disable-line max-nested-callbacks
+        recorder.step(world.tick === 0
+          ? [
+            { t: 'movePriest', player: 1, x: 39, y: 39 },
+            { t: 'build', player: 1, type: 'windfactory', x: 60, y: 60 },
+          ]
+          : []);
+        events.push(...recorder.drainEvents());
+        shots.push(world.shots.map((shot) => [shot.gun.id, shot.target, shot.land]));
 
-      for (let frame = 0; frame < 160; frame++) {
-        clock.advance(schedule[frame % schedule.length]!, () => { // oxlint-disable-line max-nested-callbacks
-          recorder.step(world.tick === 0
-            ? [
-              { t: 'movePriest', player: 1, x: 39, y: 39 },
-              { t: 'build', player: 1, type: 'windfactory', x: 60, y: 60 },
-            ]
-            : []);
-          events.push(...recorder.drainEvents());
-          shots.push(world.shots.map((shot) => [shot.gun.id, shot.target, shot.land]));
-
-          if (site.rising === 0) {
-            completed.push(world.tick);
-          }
-
-          hashes.push(world.hash());
-
-          if (improved) {
-            renderer.capture();
-          }
-        });
-        renderer.sync(clock.alpha);
-
-        // Both explicit pause and hidden-tab suspension discard accumulator time, not sim ticks.
-        if (frame === 40 || frame === 80) {
-          renderer.resetTime();
-          clock.reset();
-          renderer.sync(0);
+        if (site.rising === 0) {
+          completed.push(world.tick);
         }
-      }
 
-      const replayed = playReplay(recorder.export()).hash();
-      assert.equal(replayed, world.hash());
-      assert.equal(completed[0], 8);
-      assert.ok(shots.some((entry) => Array.isArray(entry) && entry.length > 0));
-      runs.push({ events, shots, completed, hashes, tick: world.tick, replayed });
+        hashes.push(world.hash());
+
+        renderer.capture();
+      });
+      renderer.sync(clock.alpha);
+
+      // Both explicit pause and hidden-tab suspension discard accumulator time, not sim ticks.
+      if (frame === 40 || frame === 80) {
+        renderer.resetTime();
+        clock.reset();
+        renderer.sync(0);
+      }
     }
 
-    assert.deepEqual(runs[1], runs[0], `schedule ${schedule}`);
-    const hashes = runs[0]!.hashes;
+    const replayed = playReplay(recorder.export()).hash();
+    assert.equal(replayed, world.hash());
+    assert.equal(completed[0], 8);
+    assert.ok(shots.some((entry) => Array.isArray(entry) && entry.length > 0));
 
     if (reference) {
       const shared = Math.min(reference.length, hashes.length);

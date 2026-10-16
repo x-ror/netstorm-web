@@ -25,7 +25,6 @@ import { anchorFor, entityAt, hasFacing, type Tool, type UiState } from './ui-st
 const ZOOM_IN = 1.1;
 const ZOOM_OUT = 0.9;
 const PINCH_STEP = 1.3; // how far apart the fingers go for one zoom level
-const PAN_STEP = 48; // screen pixels per arrow key press
 const PAN_SPEED = 480; // CSS pixels per second, independent of OS key repeat
 const CAMERA_MAX_DELTA = 100; // do not replay a stalled navigation gesture
 const MS_PER_SECOND = 1000;
@@ -88,7 +87,6 @@ export function createControls(options: {
   ui: UiState;
   app: Application;
   camera: Container;
-  improved: () => boolean;
   overlay: Graphics;
   /** Where the piece under the cursor is drawn, and the textures to draw it with. */
   ghost: Container;
@@ -437,7 +435,7 @@ export function createControls(options: {
       motionY = camera.y;
     }
 
-    if (options.improved() && panKeys.size && Number.isFinite(deltaMS)) {
+    if (panKeys.size && Number.isFinite(deltaMS)) {
       let dx = 0;
       let dy = 0;
 
@@ -477,12 +475,7 @@ export function createControls(options: {
     const pan = PAN[ev.key];
 
     if (pan) {
-      if (options.improved()) {
-        panKeys.add(ev.key);
-      } else {
-        moveCamera(camera, camera.x + pan[0] * PAN_STEP, camera.y + pan[1] * PAN_STEP);
-      }
-
+      panKeys.add(ev.key);
       ev.preventDefault();
     } else if ((key === 'r' || key === 'к') && !aiming()) {
       ui.rot = (ui.rot + 1) & ROTATION_MASK;

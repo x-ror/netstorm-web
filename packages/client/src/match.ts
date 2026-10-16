@@ -31,7 +31,7 @@ import { loudness, type Sounds } from './sound.js';
 import { createMinimap } from './minimap.js';
 import { describeEvent } from './messages.js';
 import { m } from './paraglide/messages.js';
-import { centerOn, snapZoom } from './camera.js';
+import { cellAt, centerOn, snapZoom, zoomAt } from './camera.js';
 import { ZOOM } from './projection.js';
 import { createUiState } from './ui-state.js';
 
@@ -153,10 +153,14 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       memories.set(player, memory);
       return aiMove(view, { ...side?.ai, player, difficulty: options.difficulty }, memory, explain);
     });
-  const togglePause = () => {
-    ui.paused = !ui.paused;
+  /** Time while paused or hidden does not pile up as ticks to catch up on. */
+  const resetClock = () => {
     renderer.resetTime();
     clock.reset();
+  };
+  const togglePause = () => {
+    ui.paused = !ui.paused;
+    resetClock();
     hud.render();
   };
   /** Look through another side's eyes: its colours, panels, sounds and log, at its Priest. */
@@ -227,7 +231,6 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     ui,
     app,
     camera,
-    improved: () => renderer.improved,
     overlay,
     ghost,
     textures: data.textures,
@@ -335,6 +338,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     ui,
     animation: renderer,
     aiLog,
+    cameraTools: { cellAt, zoomAt },
+    advanceCamera: controls.updateCamera,
   };
 
   let hudTick = -1;
@@ -367,8 +372,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     } else if (button?.action === 'DoNothing' && !ended) {
       hud.hidePage();
       ui.paused = false;
-      renderer.resetTime();
-      clock.reset();
+      resetClock();
       hud.render();
     } else if (button?.action === 'MissionBegin') {
       leave?.(button.arg.toLowerCase());
@@ -379,10 +383,6 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     }
   }
 
-  const resetClock = () => {
-    renderer.resetTime();
-    clock.reset();
-  };
   document.addEventListener('visibilitychange', resetClock);
   hud.render();
   renderer.sync();
@@ -400,11 +400,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
     const steps = ui.paused ? 0 : clock.advance(t.deltaMS, () => {
       match.step([...commands.splice(0), ...aiCommands()]);
-
-      if (renderer.improved) {
-        takeEvents();
-        renderer.capture();
-      }
+      takeEvents();
+      renderer.capture();
     });
     takeEvents();
     renderer.sync(clock.alpha);

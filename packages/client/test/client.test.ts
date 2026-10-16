@@ -29,6 +29,7 @@ import {
   shoreFrame,
 } from '../src/texture-selection.js';
 import { SLOT_COUNTS, heading, overlayOf, shadowOf, slotOf } from '../src/animations.js';
+import { VisualStates } from '../src/presentation.js';
 import {
   MISSILES,
   SPELL_BURSTS,
@@ -343,6 +344,7 @@ test('animated entities show a slot of their type for the tick', () => {
     world: world.view(),
     headings: new Map<number, number>(),
     aims: new Map<number, number>(),
+    states: new VisualStates(),
   };
   const golem = world.spawnTransport('sunwalker', ME, 40, 40);
   // Standing, the Golem shows the default frame of its file; walking east, the frames of group C.
@@ -350,7 +352,9 @@ test('animated entities show a slot of their type for the tick', () => {
 
   golem.path = [[golem.x + 1, golem.y]];
 
-  assert.deepEqual(slotOf(golem, 3, headings), ['sunwalker', 2 * 8 + 3]);
+  // The walk starts on its first frame as it sets off, whatever the tick.
+  assert.deepEqual(slotOf(golem, 3, headings), ['sunwalker', 2 * 8]);
+  assert.deepEqual(slotOf(golem, 6, headings), ['sunwalker', 2 * 8 + 3]);
 
   golem.path = [];
 
@@ -386,7 +390,8 @@ test('animated entities show a slot of their type for the tick', () => {
   // A Bulf has four headings: a step to the north-east shows the frames of east.
   const bulf = world.spawnTransport('bulf', ME, 41, 41);
   bulf.path = [[42, 40]];
-  assert.deepEqual(slotOf(bulf, 2, headings), ['bulf', 8 + 2]);
+  assert.deepEqual(slotOf(bulf, 2, headings), ['bulf', 8]);
+  assert.deepEqual(slotOf(bulf, 4, headings), ['bulf', 8 + 2]);
   // A Thunder Cannon fires, rests on its gun and charges up to the next shot, 4 s later.
   const cannon = world.spawnBuilding('thundercannon', ME, 60, 60, 1);
   assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0, world.view())], [

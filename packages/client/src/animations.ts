@@ -30,7 +30,8 @@ export interface Scene {
   headings: Map<number, number>;
   /** Where on its ring of turning frames each unit that turns has come to. */
   aims: Map<number, number>;
-  states?: VisualStates | undefined;
+  /** When each entity entered its visual state, for a walk that starts on the step. */
+  states: VisualStates;
 }
 
 /* oxlint-disable no-magic-numbers -- slot counts and frame groups of the .type files */
@@ -259,11 +260,10 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Sl
         b.facing * ICE_CANNON_FRAMES + (b.target === null ? 0 : tick % ICE_CANNON_FRAMES),
       ];
     case 'suncannon': {
-      // The ring follows facing; improved presentation never delays an authoritative shot for it.
+      // The ring follows the facing, but the shot is the simulation's: it is never held for a turn.
       const quarter = SUN_CANNON_RING.length / SUN_CANNON.rest.length;
       const at = turnTo(scene.aims, b.id, b.facing * quarter, SUN_CANNON_RING.length);
-      const fired = (scene.states !== undefined || at === b.facing * quarter) && b.target !== null
-        && b.cooldown >= SUN_CANNON_FIRE_FROM;
+      const fired = b.target !== null && b.cooldown >= SUN_CANNON_FIRE_FROM;
       return [b.type, fired ? SUN_CANNON.fire[b.facing] : SUN_CANNON_RING[at]!];
     }
     case 'windarcher': {
@@ -334,7 +334,7 @@ export function slotOf(entity: DeepReadonly<Entity>, tick: number, scene: Scene)
   const { headings, world } = scene;
   const ritual = entity.kind === 'priest' ? ritualOf(world, entity.owner) : undefined;
   const state = visualStateOf(entity, ritual !== undefined);
-  const elapsed = scene.states?.enter(entity.id, state, tick) ?? tick;
+  const elapsed = scene.states.enter(entity.id, state, tick);
 
   if (entity.kind === 'geyser') {
     return [
@@ -395,7 +395,7 @@ export function slotOf(entity: DeepReadonly<Entity>, tick: number, scene: Scene)
     const at = turnTo(scene.aims, entity.id, want, walker.turn.size);
 
     if (at !== want) {
-      scene.states?.enter(entity.id, 'turning', tick);
+      scene.states.enter(entity.id, 'turning', tick);
       return [type, walker.turn.first + at];
     }
   }
