@@ -259,7 +259,7 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Sl
         b.facing * ICE_CANNON_FRAMES + (b.target === null ? 0 : tick % ICE_CANNON_FRAMES),
       ];
     case 'suncannon': {
-      // It swings round to a new facing through the frames between; it fires once it is there.
+      // The ring follows facing; improved presentation never delays an authoritative shot for it.
       const quarter = SUN_CANNON_RING.length / SUN_CANNON.rest.length;
       const at = turnTo(scene.aims, b.id, b.facing * quarter, SUN_CANNON_RING.length);
       const fired = (scene.states !== undefined || at === b.facing * quarter) && b.target !== null
@@ -310,10 +310,6 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Sl
   return loop ? [b.type, working ? tick % loop : 0] : null;
 }
 
-/**
- * The type and slot an entity shows, or null when it has no animation and keeps its one picture.
- * `headings` remembers which way each walker last went, so that it stands as it stopped.
- */
 function visualStateOf(entity: DeepReadonly<Entity>, ritual: boolean): VisualState {
   if (entity.kind === 'building' && (entity.rising > 0 || entity.regrow > 0)) {
     return 'constructing';
@@ -330,6 +326,10 @@ function visualStateOf(entity: DeepReadonly<Entity>, ritual: boolean): VisualSta
   return 'path' in entity && entity.path.length > 0 ? 'walking' : 'idle';
 }
 
+/**
+ * The type and slot an entity shows, or null when it has no animation and keeps its one picture.
+ * `headings` remembers which way each walker last went, so that it stands as it stopped.
+ */
 export function slotOf(entity: DeepReadonly<Entity>, tick: number, scene: Scene): Slot | null {
   const { headings, world } = scene;
   const ritual = entity.kind === 'priest' ? ritualOf(world, entity.owner) : undefined;
