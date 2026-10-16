@@ -1,14 +1,14 @@
 import {
   createMission,
   createSkirmish,
+  generateMap,
   H,
   W,
   type DefTable,
-  type MissionMap,
   type World,
 } from '@netstorm/sim';
 import { type Maps, type Mission } from './game-data.js';
-import { type MatchOptions, type PlayableTheme } from './options.js';
+import { type MatchOptions } from './options.js';
 import { m } from './paraglide/messages.js';
 
 export const ME = 1;
@@ -26,31 +26,6 @@ const HOME_REACH_X = 13;
 const HOME_REACH_Y = 11;
 const MAP_EDGE = 2;
 
-const PRIEST = 'priest';
-const TEMPLE = /vortex$/;
-
-/**
- * The map of a mission cleared for a skirmish: its islands and geysers, and on them only the
- * Temple and the Priest of each of the two sides, the Temple turned to the Fury the menu gave.
- * Every Temple stands on the same 8×6 cells, so the swap moves nothing. Null when the map does
- * not hold both sides' Priests, as a mission played alone does not.
- */
-function skirmishMap(map: MissionMap, furies: Record<number, PlayableTheme>): MissionMap | null {
-  const units = map.units
-    .filter(([type, owner]) => owner in furies && (type === PRIEST || TEMPLE.test(type)))
-    .map(([type, owner, x, y, frame]): MissionMap['units'][number] => [
-      type === PRIEST ? type : `${furies[owner]}vortex`,
-      owner,
-      x,
-      y,
-      frame,
-    ]);
-  const priests = new Set(units.filter(([type]) => type === PRIEST).map(([, owner]) => owner));
-  return priests.size === Object.keys(furies).length
-    ? { islands: map.islands, geysers: map.geysers, bridges: [], units }
-    : null;
-}
-
 function inside([x, y]: [number, number]): boolean {
   return x >= MAP_EDGE && y >= MAP_EDGE && x < W - MAP_EDGE && y < H - MAP_EDGE;
 }
@@ -61,8 +36,7 @@ export function createMatchWorld(
   missions: Mission[],
   options: MatchOptions,
 ): World {
-  const map = maps[options.mission];
-  // A skirmish takes the map of a mission and nothing else of it: not its opponent, not its rules.
+  const map = options.mode === 'mission' ? maps[options.mission] : undefined;
   const mission = options.mode === 'mission'
     ? missions.find((entry) => entry.id === options.mission)
     : undefined;
@@ -87,21 +61,23 @@ export function createMatchWorld(
     }, battle);
   }
 
-  // A skirmish is fought on the map's own islands, from the bases its two sides hold there.
-  const cleared = options.mode === 'skirmish' && map?.islands.length
-    ? skirmishMap(map, { [ME]: options.theme, [ENEMY]: options.enemyTheme })
-    : null;
-
-  if (cleared) {
-    return createMission(defs, options.seed, cleared, (id) => ({
+  // A skirmish is fought on a map made up from its seed: two homes, the islands and geysers the
+  // menu asks for.
+  if (options.mode === 'skirmish') {
+    const made = generateMap(options.seed, {
+      islands: options.islands,
+      geysers: options.geysers,
+      sides: [{ id: ME, theme: options.theme }, { id: ENEMY, theme: options.enemyTheme }],
+    });
+    return createMission(defs, options.seed, made, (id) => ({
       name: id === ME ? m.player_you() : enemy,
       theme: id === ME ? options.theme : options.enemyTheme,
       storm: options.storm,
     }), battle);
   }
 
-  // Without a map, or on one with a single side: both bases are rectangles at fixed spots, each
-  // with the Fury the menu gave it, among the map's geysers.
+  // A mission without a map: both bases are rectangles at fixed spots, each with the Fury the
+  // menu gave it, among the map's geysers.
   const geysers = (map?.geysers ?? []).filter(inside).filter(([x, y]) =>
     Object.values(HOMES).every((home) =>
       Math.abs(x - home.x) > HOME_REACH_X || Math.abs(y - home.y) > HOME_REACH_Y

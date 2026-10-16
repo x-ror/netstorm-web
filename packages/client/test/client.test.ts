@@ -108,39 +108,31 @@ test('the default match is the first mission on its own map', () => {
   }
 });
 
-test('a skirmish on a mission map takes the Furies from the menu and none of its units', () => {
-  const world = createMatchWorld(defs, maps, missions, {
+/** A skirmish from the menu: Thunder against Wind, six islands and twelve geysers. */
+const make = (seed: number, more = {}) =>
+  createMatchWorld(defs, maps, missions, {
     ...DEFAULT_OPTIONS,
     mode: 'skirmish',
     theme: 'thunder',
     enemyTheme: 'wind',
+    islands: 6,
+    geysers: 12,
+    seed,
+    ...more,
   });
-  assert.equal(world.players.get(ME)!.theme, 'thunder');
-  assert.equal(world.players.get(ENEMY)!.theme, 'wind');
-  // On the map's own islands each side keeps its Temple, of the Fury chosen, and nothing else.
+
+test('a skirmish is fought on a map made from its seed, with the Furies and the counts chosen', () => {
+  const world = make(5);
   assert.equal(world.templeOf(ME)!.type, 'thundervortex');
   assert.equal(world.templeOf(ENEMY)!.type, 'windvortex');
   assert.deepEqual(world.buildingsOf(ENEMY).map((b) => b.type), ['windvortex']);
-  assert.ok([...world.entities.values()].some((e) => e.kind === 'geyser'));
-  const laid = maps['thewarbegins']!.bridges;
-  assert.ok(laid.length > 0 && laid.every(([x, y]) => world.links[world.at(x, y)] === 0),
-    'no bridge of the mission');
-
-  // The map chosen is the battlefield: another one sets the bases elsewhere.
-  const other = createMatchWorld(defs, maps, missions, {
-    ...DEFAULT_OPTIONS,
-    mode: 'skirmish',
-    mission: 'masterofwhirligigs',
-  });
+  assert.ok(world.priestOf(ME) && world.priestOf(ENEMY));
+  assert.equal([...world.entities.values()].filter((e) => e.kind === 'geyser').length, 12);
+  // The same seed gives the same map; another seed, another.
   const at = (w: typeof world) => [w.templeOf(ME)!.x, w.templeOf(ME)!.y];
-  assert.notDeepEqual(at(other), at(world));
-  // A map with one side of its own falls back to the rectangles.
-  const alone = createMatchWorld(defs, maps, missions, {
-    ...DEFAULT_OPTIONS,
-    mode: 'skirmish',
-    mission: 'bridgethegap',
-  });
-  assert.equal(alone.players.size, 2);
+  assert.deepEqual(at(make(5)), at(world));
+  assert.notDeepEqual(at(make(6)), at(world));
+  assert.equal(make(5).hash(), world.hash());
 });
 
 test('without a map, geysers that would cut into a home island are dropped', () => {
@@ -726,6 +718,10 @@ test('an emptied number field starts with nothing; a missing one keeps the defau
   assert.equal(normalizeOptions({ storm: 9e9 }, missions).storm, MAX_STORM);
   assert.equal(normalizeOptions({ difficulty: 'hard' }, missions).difficulty, 'hard');
   assert.equal(normalizeOptions({ difficulty: 'cheat' }, missions).difficulty, 'normal');
+  assert.equal(normalizeOptions({ opponent: 'watch' }, missions).opponent, 'watch');
+  assert.equal(normalizeOptions({ islands: 9, geysers: 5 }, missions).islands, 9);
+  assert.equal(normalizeOptions({ islands: 9, geysers: 5 }, missions).geysers,
+    DEFAULT_OPTIONS.geysers);
 });
 
 test('a component missing a function its contract promises fails at mount', () => {

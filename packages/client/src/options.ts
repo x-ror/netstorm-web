@@ -16,7 +16,8 @@ import { m } from './paraglide/messages.js';
 /** The options of a skirmish, what the start screen sets and the match reads; no DOM here. */
 
 export type PlayableTheme = Exclude<Theme, 'sun'>;
-export type Opponent = 'ai' | 'idle';
+/** Who plays the other side: the computer, nobody, or the computer on both sides to watch. */
+export type Opponent = 'ai' | 'idle' | 'watch';
 
 export interface MatchOptions {
   /** A mission played as its file sets it up, or a skirmish on its map between the Furies chosen. */
@@ -31,6 +32,10 @@ export interface MatchOptions {
   opponent: Opponent;
   /** How well the computer plays a skirmish; the campaign's missions set their own pace. */
   difficulty: Difficulty;
+  /** Islands of a skirmish's made-up map, the two homes included. */
+  islands: number;
+  /** Geysers of a skirmish's made-up map. */
+  geysers: number;
   /** The "Bridges" battle option: which set of pieces the Temples hand out. */
   bridges: BridgeSet;
   /** The "Bridge Slots" battle option: pieces the Production Window holds. */
@@ -46,6 +51,11 @@ export interface MatchOptions {
 }
 
 export const PLAYABLE_THEMES: readonly PlayableTheme[] = ['wind', 'rain', 'thunder'];
+export const OPPONENTS: readonly Opponent[] = ['ai', 'idle', 'watch'];
+/* oxlint-disable no-magic-numbers -- the choices the menu offers */
+export const ISLAND_COUNTS: readonly number[] = [2, 4, 6, 9];
+export const GEYSER_COUNTS: readonly number[] = [4, 8, 12, 16];
+/* oxlint-enable no-magic-numbers */
 export const BRIDGE_LABELS: Record<BridgeSet, () => string> = {
   standard: m.bridges_standard,
   traditional: m.bridges_traditional,
@@ -77,6 +87,8 @@ export const DEFAULT_OPTIONS: MatchOptions = {
   seed: DEFAULT_SEED,
   opponent: 'ai',
   difficulty: 'normal',
+  islands: 4,
+  geysers: 8,
   bridges: 'standard',
   slots: HAND_SIZE,
   unitRate: DEFAULT_UNIT_RATE,
@@ -104,7 +116,9 @@ export function normalizeOptions(
       : missions[0]?.id ?? d.mission,
     storm: clamp(given(raw.storm, d.storm), MAX_STORM, d.storm),
     seed: clamp(given(raw.seed, d.seed), MAX_SEED, d.seed),
-    opponent: raw.opponent === 'idle' ? 'idle' : 'ai',
+    opponent: OPPONENTS.find((id) => id === raw.opponent) ?? d.opponent,
+    islands: oneOf(ISLAND_COUNTS, Number(raw.islands), d.islands),
+    geysers: oneOf(GEYSER_COUNTS, Number(raw.geysers), d.geysers),
     difficulty: DIFFICULTIES.find((id) => id === raw.difficulty) ?? d.difficulty,
     lang: raw.lang === 'en' ? 'en' : 'uk',
     bridges: BRIDGE_SETS.find((id) => id === raw.bridges) ?? d.bridges,

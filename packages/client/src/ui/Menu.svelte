@@ -12,6 +12,8 @@
   import {
     BRIDGE_LABELS,
     DIFFICULTY_LABELS,
+    GEYSER_COUNTS,
+    ISLAND_COUNTS,
     MAX_SEED,
     MAX_STORM,
     PLAYABLE_THEMES,
@@ -245,8 +247,12 @@
                   <input type="radio" name="opponent" value="idle" bind:group={options.opponent} />
                   <span>{m.menu_idle()}</span>
                 </label>
+                <label>
+                  <input type="radio" name="opponent" value="watch" bind:group={options.opponent} />
+                  <span>{m.menu_watch()}</span>
+                </label>
               </div>
-              {#if options.opponent === 'ai'}
+              {#if options.opponent !== 'idle'}
                 <div class="segmented">
                   {#each DIFFICULTIES as id (id)}
                     <label>
@@ -266,14 +272,18 @@
               <h3>{m.menu_battle_options()}</h3>
               <div class="menu-form">
                 <label>
-                  {m.menu_map()}
-                  <select
-                    name="mission"
-                    bind:value={options.mission}
-                    onchange={() => mission && chooseMission(mission)}
-                  >
-                    {#each missions as entry (entry.id)}<option value={entry.id}>
-                        {entry.title}
+                  {m.menu_islands()}
+                  <select name="islands" bind:value={options.islands}>
+                    {#each ISLAND_COUNTS as count (count)}<option value={count}>
+                        {count}
+                      </option>{/each}
+                  </select>
+                </label>
+                <label>
+                  {m.menu_geysers()}
+                  <select name="geysers" bind:value={options.geysers}>
+                    {#each GEYSER_COUNTS as count (count)}<option value={count}>
+                        {count}
                       </option>{/each}
                   </select>
                 </label>
