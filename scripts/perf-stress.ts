@@ -132,6 +132,12 @@ for (let index = 0; index < WARMUP_TICKS; index++) {
 
 const monitor = new PerformanceMonitor(world);
 const times: number[] = [];
+const aiCalls: {
+  tick: number;
+  player: number;
+  elapsedMs: number;
+  decisions: Record<string, number>;
+}[] = [];
 
 for (let index = 0; index < SAMPLE_TICKS; index++) {
   const start = performance.now();
@@ -141,7 +147,21 @@ for (let index = 0; index < SAMPLE_TICKS; index++) {
     for (const player of world.players.keys()) {
       const runAi = () =>
         aiMove(world.view(), { player, difficulty: 'hard' }, memories.get(player)!);
-      commands.push(...monitor.measure('ai', runAi));
+      const aiStart = performance.now();
+      const playerCommands = monitor.measure('ai', runAi);
+      const decisions: Record<string, number> = {};
+
+      for (const command of playerCommands) {
+        decisions[command.t] = (decisions[command.t] ?? 0) + 1;
+      }
+
+      aiCalls.push({
+        tick: world.tick + 1,
+        player,
+        elapsedMs: performance.now() - aiStart,
+        decisions,
+      });
+      commands.push(...playerCommands);
     }
   }
 
@@ -183,6 +203,9 @@ console.log(JSON.stringify({
     entities: report.entities,
     projectiles: report.projectiles,
     hash: world.hash(),
+    slowAiCalls: aiCalls
+      .toSorted((a, b) => b.elapsedMs - a.elapsedMs)
+      .slice(0, 10),
   },
   simulationTickMs: {
     average: times.reduce((sum, value) => sum + value, 0) / times.length,
