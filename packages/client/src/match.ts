@@ -374,8 +374,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
     if (perf) {
       const scene = perf.measure('renderSync', () =>
-        renderer.sync(clock.alpha, (metric, run) => perf.measure(metric, run))
-      );
+        renderer.sync(clock.alpha, (metric, run) => perf.measure(metric, run)));
       perf.recordSceneCounts(scene.terrainTiles, scene.displayObjects);
     } else {
       renderer.sync(clock.alpha);
