@@ -150,10 +150,10 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     actions: 0,
   };
   const transports = owned<Transport>(world, me, 'transport');
-  const geysers = reachableGeysers(world, me);
   // Ground the transports can walk to now; joining anything else is what a bridge is for.
   const home = world.templeOf(me);
   const reached = home ? walkableFrom(world, me, home) : null;
+  const geysers = reachableGeysers(world, me, reached);
   const bounds = ownBounds(world, me);
   const pressure = sense(world, move, memory, bounds);
   const defend = defendScore(pressure);
@@ -187,7 +187,7 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
   buildOutpost(world, move, reached);
 
   if (options.capture !== false) {
-    capture(world, move, transports);
+    capture(world, move, transports, reached);
   }
 
   const ward = move.fleeing ? null : wardSpot(world, me, move.threat);
@@ -755,7 +755,12 @@ function buildOutpost(world: WorldView, move: Move, reached: Uint8Array | null):
 }
 
 /** Send one transport for a downed enemy priest, unless one is already on its way to him. */
-function capture(world: WorldView, move: Move, transports: View<Transport>[]): void {
+function capture(
+  world: WorldView,
+  move: Move,
+  transports: View<Transport>[],
+  reached: Uint8Array | null,
+): void {
   const captive = enemyPriest(world, move.me, 'down');
 
   if (!captive) {
@@ -768,15 +773,12 @@ function capture(world: WorldView, move: Move, transports: View<Transport>[]): v
     return;
   }
 
-  const home = world.templeOf(move.me);
-
   // He has to be within a step of ground the transports can walk to: a bridge that merely lies
   // beside his island does not lead onto it.
-  if (!home) {
+  if (!reached) {
     return;
   }
 
-  const reached = walkableFrom(world, move.me, home);
   const near = (x: number, y: number): boolean =>
     world.inside(x, y) && reached[world.at(x, y)] === 1;
 
@@ -906,14 +908,17 @@ function geysersFor(world: WorldView, me: number): View<Geyser>[] {
 
 /** Geysers with stock on the AI's own ground that a transport can walk to from the Temple,
  * nearest to the Temple first. */
-function reachableGeysers(world: WorldView, me: number): View<Geyser>[] {
+function reachableGeysers(
+  world: WorldView,
+  me: number,
+  reached: Uint8Array | null,
+): View<Geyser>[] {
   const home = world.templeOf(me);
 
-  if (!home) {
+  if (!home || !reached) {
     return [];
   }
 
-  const reached = walkableFrom(world, me, home);
   const { x, y } = centre(home);
   return [...world.entities.values()]
     .filter((e): e is View<Geyser> =>
