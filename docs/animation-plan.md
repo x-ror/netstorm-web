@@ -1,5 +1,7 @@
 # Animation improvement plan
 
+> Historical: implemented in Phase 3, see [animation-results.md](animation-results.md). The comparison toggle of §0 served its measurement and was removed at merge.
+
 ## Phase and scope
 
 Phase 1 analysis is approved. This is the Phase 2 proposal, based on the findings in [animation-analysis.md](animation-analysis.md). Implementation requires a separate approval.

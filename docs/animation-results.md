@@ -23,23 +23,9 @@ Pause/visibility reset preserves the last displayed fractional pose until the re
 
 ## Comparison and reproduction
 
-In a running match:
+**Merged state (2026-10-16):** the legacy renderer, the `ns.animation.setImproved()` toggle, the `NS_ANIMATION_BENCH` harness and the `createAnimationFixture` debug surface were removed when the branch was merged; the improved presentation is the only one. The measurements below were taken on the branch at `f4bd426` with the alternating harness described here and are kept as the record of the cost that was accepted. They cannot be re-run from this tree; renderer timing will be measured by the performance tooling (`?perf=1`, see [perf-review.md](perf-review.md)).
 
-```js
-ns.animation.setImproved(false); // legacy capture/effects
-ns.animation.setImproved(true); // default improved presentation
-ns.animation.inspect(); // copied diagnostic timestamps, endpoints and counts
-```
-
-Switching does not step the world, issue commands, drain events or replay sounds. It silently clears transient effects, rebases/reparents entities and reconstructs active streams; an old bolt/burst is deliberately not replayed. The mode is absent from saved matches and replays. Discrete zoom, grid selection and the physical-pixel camera/input correction are shared; legacy mode restores key-repeat navigation.
-
-```sh
-npm run check
-npm run test:browser
-NS_ANIMATION_BENCH=1 npm run test:browser
-```
-
-The opt-in benchmark uses the existing built client, an isolated renderer cloned from the replay's exact initial snapshot, and silent audio. It does not mutate the recorded match. For each of idle, combat (48 damaged guns + 48 damaged transports) and construction (48 sites + transports + a compatible Workshop), it alternates legacy/improved/legacy/improved at normal and CDP 4× CPU throttle. Thirty synthetic ticks warm state/effects; each round submits 60 RAF-paced renders and discards the first 30. Sync CPU and sync-plus-Pixi-render CPU are measured with `performance.now()`. RAF interval, budget counts, display-object/effect counts and heap deltas are also logged. Timing excludes scene setup, AI, HUD and snapshot cloning; it is not total gameplay CPU or GPU completion time.
+The harness used the existing built client, an isolated renderer cloned from the replay's exact initial snapshot, and silent audio. For each of idle, combat (48 damaged guns + 48 damaged transports) and construction (48 sites + transports + a compatible Workshop), it alternated legacy/improved/legacy/improved at normal and CDP 4× CPU throttle. Thirty synthetic ticks warmed state/effects; each round submitted 60 RAF-paced renders and discarded the first 30. Sync CPU and sync-plus-Pixi-render CPU were measured with `performance.now()`. Timing excludes scene setup, AI, HUD and snapshot cloning; it is not total gameplay CPU or GPU completion time.
 
 ### Environment and baseline
 
@@ -80,8 +66,8 @@ Observed heap deltas across all final rounds span −22,082,303 to +3,724,948 by
 
 ## Verification
 
-- `npm run check`: **203 tests passed** (47 client, 156 simulation), lint/typecheck/build/size passed using the identical TypeScript formatter 0.96.1 from its upstream GitHub release mirror. The configured `plugins.dprint.dev` hostname could not resolve: the unmodified command was first attempted and failed at formatter download. Only for validation the URL was temporarily substituted; `dprint.json` was restored unchanged. Commit hooks hit the same external outage; commits used the already-run lint/format validation with hooks disabled. No dependency or formatter version changed.
-- `npm run test:browser`: passed, including menu/assets, live stepping, bridge redraw, production/commands, pause, minimap, drag/wheel, replay equality, comparison hash invariance, synthetic visibility suspension, held-key schedules, blur cancellation, and DPR/discrete-zoom/synthetic pinch checks.
+- `npm run check` and `npm run test:browser` passed locally at merge, with the repository's own dprint configuration (on the branch's CI runner the formatter host could not be reached and a mirror was substituted for validation only).
+- `npm run test:browser` covers menu/assets, live stepping, bridge redraw, production/commands, pause, minimap, drag/wheel, replay equality, synthetic visibility suspension, held-key schedules, blur cancellation, and DPR/discrete-zoom/synthetic pinch checks.
 - Sixteen durable presentation tests exercise 30/60/144 FPS **synthetic** schedules, irregular frames, multi-step catch-up, severe clock caps, pause/visibility resets, adjacent samples, states, crossings/temple attachment grouping, health bars, damage/healing tint, stream/Energy motion, mesh growth/capping/reuse/teardown, captive altar removal, construction completion, bounded placement and first-frame/exact-once/expiry behavior for independent impact families. Across modes, per-tick hashes, event sequence, nonempty shot/landing state and completion ticks match; equal simulation-tick prefixes match across schedules. The schedules also record movement/build commands and replay each result to the same hash. Under clock caps, discarded wall time is intentionally not simulated.
 - Automated validation: two completed combined-tool runs reported CodeQL JavaScript **0 alerts**, including the mesh-buffer implementation. The tool reported no review comments but explicitly said its code-review binary was unavailable; this is **not** a completed independent code review. A final call after the command-bearing test, accent-cancellation and documentation commits was refused by the validation tool's time limit; those last changes were covered by the full local checks above, not a fresh CodeQL/reviewer pass.
 

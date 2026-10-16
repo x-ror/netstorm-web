@@ -5,7 +5,7 @@
 | [game-rules.md](game-rules.md) | Правила оригінальної гри з посиланнями на довідку і стан кожного в симуляції | Перед будь-якою зміною правил у `packages/sim` |
 | [architecture.md](architecture.md) | Будова коду: модулі, порядок тіку, детермінізм, snapshot і replay | Перед зміною структури коду |
 | [client-decisions.md](client-decisions.md) | Рішення веб-клієнта, ухвалені без даних оригіналу: проєкція, тайли, керування, меню | Перед зміною клієнта; щоб перевірити й підтвердити |
-| [animation-results.md](animation-results.md) | Implemented presentation changes, comparison controls, tests and measured costs | Before changing animation timing, depth, camera or the performance harness |
+| [animation-analysis.md](animation-analysis.md), [animation-plan.md](animation-plan.md), [animation-results.md](animation-results.md) | Анімація клієнта: розбір вад, план виправлень і що з нього зроблено з вимірами (англійською) | Перед зміною таймінгу анімації, глибини чи камери |
 | [TODO.md](TODO.md) | Черга робіт за пріоритетом | Щоб обрати наступну задачу |
 | [ai-analysis.md](ai-analysis.md) | Розбір теперішнього комп'ютерного суперника: будова, поведінка, слабкі місця з посиланнями на код | Перед зміною `ai.ts` |
 | [ai-design.md](ai-design.md) | Дизайн нового суперника: цілі, економіка, планувальник, розширення, військо, перемога, складність | Перед реалізацією нового ШІ; крок за кроком за його §10 |
