@@ -16,6 +16,8 @@
  * shooters first, and Upgrades a full Workshop once Storm Power is plenty.
  */
 import type { Command } from './commands.js';
+import { remember, type AiMemory } from './ai/memory.js';
+import type { Difficulty } from './ai/params.js';
 import { flies, upgradeCost, type UnitDef } from './defs.js';
 import {
   DIRS,
@@ -98,10 +100,15 @@ export interface AiOptions {
   geysers?: number;
   /** `aiNEnemy`: the side it goes for while that side stands. */
   enemy?: number;
+  /** The level chosen for a skirmish; a campaign side plays at `normal`. */
+  difficulty?: Difficulty;
 }
 
-/** Commands for one move of an AI player. Call it every few seconds of game time. */
-export function aiMove(world: WorldView, options: AiOptions): Command[] {
+/**
+ * Commands for one move of an AI player. Call it every `DIFFICULTY[level].moveSeconds` of game
+ * time, with the same `memory` each time: the move reads it and writes this move into it.
+ */
+export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory): Command[] {
   const me = options.player;
   const player = world.players.get(me);
 
@@ -208,6 +215,10 @@ export function aiMove(world: WorldView, options: AiOptions): Command[] {
 
   if (options.collect !== false && transports.length < (options.transports ?? TRANSPORTS)) {
     newTransport(world, move, geysers.length === 0);
+  }
+
+  if (memory) {
+    remember(memory, player.storm, player.storm - move.budget);
   }
 
   return move.commands;

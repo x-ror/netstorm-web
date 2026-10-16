@@ -1,11 +1,13 @@
 import {
   BRIDGE_SETS,
   BRIDGE_SLOTS,
+  DIFFICULTIES,
   GEYSER_STOCKS,
   HAND_SIZE,
   KILL_REWARDS,
   UNIT_RATES,
   type BridgeSet,
+  type Difficulty,
   type Theme,
 } from '@netstorm/sim';
 import { type Mission } from './game-data.js';
@@ -27,6 +29,8 @@ export interface MatchOptions {
   seed: number;
   /** Whether the opponent is played by the computer or stands idle. */
   opponent: Opponent;
+  /** How well the computer plays a skirmish; the campaign's missions set their own pace. */
+  difficulty: Difficulty;
   /** The "Bridges" battle option: which set of pieces the Temples hand out. */
   bridges: BridgeSet;
   /** The "Bridge Slots" battle option: pieces the Production Window holds. */
@@ -48,6 +52,11 @@ export const BRIDGE_LABELS: Record<BridgeSet, () => string> = {
   simplified: m.bridges_simplified,
   crazy: m.bridges_crazy,
 };
+export const DIFFICULTY_LABELS: Record<Difficulty, () => string> = {
+  easy: m.menu_easy,
+  normal: m.menu_normal,
+  hard: m.menu_hard,
+};
 export const UNIT_RATE_NAMES = ['Slow', 'Medium', 'Fast', 'Very Fast'];
 export const MAX_STORM = 100_000;
 export const MAX_SEED = 0x7fffffff;
@@ -67,6 +76,7 @@ export const DEFAULT_OPTIONS: MatchOptions = {
   storm: DEFAULT_STORM,
   seed: DEFAULT_SEED,
   opponent: 'ai',
+  difficulty: 'normal',
   bridges: 'standard',
   slots: HAND_SIZE,
   unitRate: DEFAULT_UNIT_RATE,
@@ -95,6 +105,7 @@ export function normalizeOptions(
     storm: clamp(given(raw.storm, d.storm), MAX_STORM, d.storm),
     seed: clamp(given(raw.seed, d.seed), MAX_SEED, d.seed),
     opponent: raw.opponent === 'idle' ? 'idle' : 'ai',
+    difficulty: DIFFICULTIES.find((id) => id === raw.difficulty) ?? d.difficulty,
     lang: raw.lang === 'en' ? 'en' : 'uk',
     bridges: BRIDGE_SETS.find((id) => id === raw.bridges) ?? d.bridges,
     slots: oneOf(BRIDGE_SLOTS, Number(raw.slots), d.slots),

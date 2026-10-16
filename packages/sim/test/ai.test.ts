@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   aiMove,
+  createAiMemory,
   createSkirmish,
   loadDefs,
+  MEMORY_MOVES,
   parseCommand,
   playReplay,
   ReplayRecorder,
@@ -35,9 +37,10 @@ test('the AI wins against an idle player, and its recorded commands replay exact
   const match = new ReplayRecorder(mk());
   const seen = new Set<string>();
   const refused: unknown[] = [];
+  const memory = createAiMemory();
 
   for (let i = 0; i < LIMIT && match.view().winner === null; i++) {
-    const commands = i % MOVE === 0 ? aiMove(match.view(), { player: 2 }) : [];
+    const commands = i % MOVE === 0 ? aiMove(match.view(), { player: 2 }, memory) : [];
 
     for (const command of commands) {
       assert.deepEqual(parseCommand(JSON.parse(JSON.stringify(command))), command);
@@ -56,6 +59,13 @@ test('the AI wins against an idle player, and its recorded commands replay exact
       0,
     );
     assert.ok(cost <= match.view().players.get(2)!.storm);
+
+    // The move wrote what it started with and what it spent into its memory.
+    if (i % MOVE === 0) {
+      assert.equal(memory.storm.at(-1), match.view().players.get(2)!.storm);
+      assert.equal(memory.spent.at(-1), cost);
+    }
+
     match.step(commands);
 
     for (const event of match.drainEvents()) {
@@ -71,6 +81,7 @@ test('the AI wins against an idle player, and its recorded commands replay exact
   const world = match.view();
   assert.equal(world.winner, 2);
   assert.equal(world.players.get(1)!.alive, false);
+  assert.equal(memory.storm.length, MEMORY_MOVES);
   // It collected, bridged, built, filled and Upgraded its Workshops, captured and warded the
   // runes on its own.
   assert.deepEqual([...seen].sort(), [

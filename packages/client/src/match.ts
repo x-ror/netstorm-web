@@ -2,9 +2,12 @@ import { Application, Assets, Container, Graphics, TilingSprite, type Texture } 
 import {
   FixedStepClock,
   aiMove,
+  createAiMemory,
+  DIFFICULTY,
   ReplayRecorder,
   TPS,
   playReplay,
+  type AiMemory,
   type Command,
   type DefTable,
   type Event as SimEvent,
@@ -114,12 +117,24 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const clock = new FixedStepClock(TPS);
   // Every other side is played by the computer, each at the pace and with the orders its mission
   // gives it. Its moves are commands like the player's, so the replay records them.
+  // A skirmish plays at the level chosen; a mission at the pace its file sets. Each side keeps
+  // its memory between moves here, outside the world: the replay records only the commands.
+  const memories = new Map<number, AiMemory>();
   const aiCommands = () =>
     options.opponent !== 'ai' ? [] : [...world.players.keys()].flatMap((player) => {
       const side = mission?.sides[player];
-      const delay = side?.delay ?? mission?.aiDelay ?? DEFAULT_AI_DELAY;
+      const delay = mission
+        ? side?.delay ?? mission.aiDelay ?? DEFAULT_AI_DELAY
+        : DIFFICULTY[options.difficulty].moveSeconds;
       const due = player !== ME && world.tick % Math.max(1, Math.round(delay * TPS)) === 0;
-      return due ? aiMove(view, { ...side?.ai, player }) : [];
+
+      if (!due) {
+        return [];
+      }
+
+      const memory = memories.get(player) ?? createAiMemory();
+      memories.set(player, memory);
+      return aiMove(view, { ...side?.ai, player, difficulty: options.difficulty }, memory);
     });
   const togglePause = () => {
     ui.paused = !ui.paused;

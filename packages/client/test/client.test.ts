@@ -720,6 +720,8 @@ test('an emptied number field starts with nothing; a missing one keeps the defau
   const missing = normalizeOptions({}, missions);
   assert.deepEqual([missing.storm, missing.seed], [DEFAULT_OPTIONS.storm, DEFAULT_OPTIONS.seed]);
   assert.equal(normalizeOptions({ storm: 9e9 }, missions).storm, MAX_STORM);
+  assert.equal(normalizeOptions({ difficulty: 'hard' }, missions).difficulty, 'hard');
+  assert.equal(normalizeOptions({ difficulty: 'cheat' }, missions).difficulty, 'normal');
 });
 
 test('a component missing a function its contract promises fails at mount', () => {

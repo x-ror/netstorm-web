@@ -87,6 +87,7 @@
 - [ ] Residence, Edge Farm, дерева, руїни
 - [ ] Нові гейзерні острівці протягом бою
 - [x] Простий AI (`ai.ts`): збір, мости до гейзерів, оборона, ланцюг генераторів до ворога, Disc Thrower і гармати біля його жерця, захоплення й ритуал; хід раз на `aiTimeBetweenMoves` — поведінка вигадана
+- [ ] AI: перебудова за `ai-design.md` (крок 1 з 7 зроблено: рівні складності як частота ходів, пам'ять між ходами)
 - [ ] AI: прапорці з `.english` (`COLLECT_STORM_POWER`, `ATTACH_TO_ENEMY_ISLAND`, `ENCIRCLE_ENEMY_ISLAND`, `CONCENTRATE_FIRE`, `REPEAT_SUCCESSFUL_DROPS`, …), `aiCollectors`, `aiGeyserAttachments`, `aiSalvageChance`, складність
 - [ ] Скрипти місій: секції-події (`[Succeeded]`, `[Failed]`, `[ai1templedead]`, тригери), ланцюжок `MissionBegin`
 - [x] Реплеї: запис команд і початкового стану, перевірка хешу

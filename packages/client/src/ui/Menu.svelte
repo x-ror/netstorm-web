@@ -3,6 +3,7 @@
   import {
     BRIDGE_SETS,
     BRIDGE_SLOTS,
+    DIFFICULTIES,
     GEYSER_STOCKS,
     KILL_REWARDS,
     UNIT_RATES,
@@ -10,6 +11,7 @@
   import type { Mission } from '../game-data.js';
   import {
     BRIDGE_LABELS,
+    DIFFICULTY_LABELS,
     MAX_SEED,
     MAX_STORM,
     PLAYABLE_THEMES,
@@ -244,6 +246,21 @@
                   <span>{m.menu_idle()}</span>
                 </label>
               </div>
+              {#if options.opponent === 'ai'}
+                <div class="segmented">
+                  {#each DIFFICULTIES as id (id)}
+                    <label>
+                      <input
+                        type="radio"
+                        name="difficulty"
+                        value={id}
+                        bind:group={options.difficulty}
+                      />
+                      <span>{DIFFICULTY_LABELS[id]()}</span>
+                    </label>
+                  {/each}
+                </div>
+              {/if}
             </div>
             <div class="column">
               <h3>{m.menu_battle_options()}</h3>
