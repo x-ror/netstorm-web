@@ -171,8 +171,119 @@ try {
   assert.equal(replay.actual, replay.replayed);
   assert.ok(replay.tick > result.tick);
 
+  // Opt-in, reproducible CPU measurements; no debug mutation is recorded as a replay.
+  if (process.env.NS_ANIMATION_BENCH) {
+    const session = await page.context().newCDPSession(page);
+    const environment = await page.evaluate(() => ({
+      browser: navigator.userAgent,
+      viewport: [innerWidth, innerHeight],
+      dpr: devicePixelRatio,
+      cores: navigator.hardwareConcurrency,
+    }));
+    console.log('Animation environment', JSON.stringify(environment));
+
+    for (const throttle of [1, 4]) {
+      await session.send('Emulation.setCPUThrottlingRate', { rate: throttle });
+      const measurements = await page.evaluate(() => {
+        const { app, world, animation, camera } = window.ns;
+        app.stop();
+        const initialTick = world.tick;
+        const results = [];
+        // Kept inside evaluate because Playwright serializes this entire function.
+        // oxlint-disable-next-line unicorn/consistent-function-scoping
+        const percentile = (values, fraction) =>
+          // oxlint-disable-line unicorn/consistent-function-scoping
+          [...values].sort((a, b) => a - b)[Math.floor(values.length * fraction)];
+        const temple = world.templeOf(1);
+        camera.position.set(640 - temple.x * 16 * camera.scale.x,
+          400 - temple.y * 11 * camera.scale.y);
+        const advance = (added, i) => {
+          if (i % 6 !== 0) {
+            return;
+          }
+
+          world.tick++;
+
+          for (const id of added) {
+            const unit = world.entities.get(id);
+
+            if (unit.kind === 'building') {
+              unit.cooldown = i % 12 === 0 ? 8 : 0;
+            }
+          }
+        };
+
+        for (const scene of ['idle', 'combat', 'construction']) {
+          const added = [];
+
+          if (scene !== 'idle') {
+            for (let i = 0; i < 48; i++) {
+              const x = temple.x + (i % 8) * 3 - 12;
+              const y = temple.y + Math.floor(i / 8) * 3 - 9;
+              const unit = world.spawnBuilding('windarcher', 1, x, y);
+              unit.hp /= 2;
+              unit.rising = scene === 'construction' ? 100 : 0;
+              const target = world.spawnTransport('sunwalker', 2, x + 2, y + 2);
+              target.hp /= 2;
+              unit.target = target.id;
+              added.push(unit.id, target.id);
+            }
+          }
+
+          // Alternate modes within the same warmed scene, not two cold page loads.
+          for (let round = 0; round < 4; round++) {
+            const improved = round % 2 === 1;
+            animation.setImproved(improved);
+            const sync = [];
+            const frame = [];
+
+            for (let i = 0; i < 90; i++) {
+              // Synthetic ticks exercise capture and transient creation without running AI.
+              advance(added, i);
+
+              const start = performance.now();
+              animation.sync((i % 6) / 6);
+              const drawn = performance.now();
+              app.render();
+              const end = performance.now();
+
+              if (i >= 30) {
+                sync.push(drawn - start);
+                frame.push(end - start);
+              }
+            }
+
+            results.push({
+              scene,
+              improved,
+              round,
+              entities: world.entities.size,
+              displayObjects: window.ns.entityLayer.children.length,
+              syncMedian: percentile(sync, 0.5),
+              syncP95: percentile(sync, 0.95),
+              frameMedian: percentile(frame, 0.5),
+              frameP95: percentile(frame, 0.95),
+              over60: frame.filter((ms) => ms > 1000 / 60).length,
+              over144: frame.filter((ms) => ms > 1000 / 144).length,
+            });
+          }
+
+          for (const id of added) {
+            world.entities.delete(id);
+          }
+        }
+
+        // This destructive benchmark is run only immediately before leaving the match.
+        return { results, initialTick };
+      });
+      console.log('Animation benchmark', JSON.stringify({ throttle, ...measurements }));
+    }
+
+    await session.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  }
+
   // Leaving the match returns to the menu and releases the scene.
-  await page.getByRole('button', { name: 'Меню' }).click();
+  await page.getByRole('button', { name: 'Меню' }).click({ force: !!process.env.NS_ANIMATION_BENCH });
   await page.getByRole('button', { name: /Сутичка/ }).waitFor();
   assert.equal(await page.evaluate(() => window.ns), undefined);
   assert.deepEqual(errors, []);
