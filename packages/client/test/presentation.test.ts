@@ -8,6 +8,7 @@ import { hotSpots } from '../src/assets.js';
 import { firstEmission, PresentationTime, progress, VisualStates } from '../src/presentation.js';
 import { slotOf } from '../src/animations.js';
 import { physicalPixel } from '../src/camera.js';
+import { StreamBatch } from '../src/stream-batch.js';
 import type { Sounds } from '../src/sound.js';
 
 const defs = loadDefs(
@@ -22,6 +23,33 @@ test('physical-pixel snapping is bounded at DPR 1, 1.5 and 2, including negative
       assert.ok(Math.abs(snapped * density - Math.round(snapped * density)) < 1e-10);
     }
   }
+});
+
+test('stream geometry grows, reuses storage, caps segments and cancels without stale streaks', () => {
+  const batch = new StreamBatch(new Container(), 0xffffff, 1);
+  batch.begin();
+  batch.segment(10, 20, 30, 20, 4);
+  batch.finish();
+  assert.equal(batch.mesh.visible, true);
+  assert.deepEqual(batch.mesh.geometry.positions.slice(0, 8),
+    new Float32Array([10, 18, 30, 18, 30, 22, 10, 22]));
+  const first = batch.mesh.geometry.positions;
+  batch.begin();
+  batch.segment(10, 20, 40, 20, 4);
+  batch.finish();
+  assert.equal(batch.mesh.geometry.positions, first);
+  batch.begin();
+
+  for (let i = 0; i < 9000; i++) {
+    batch.segment(i, 20, i + 1, 20, 4);
+  }
+
+  batch.finish();
+  assert.equal(batch.mesh.geometry.positions.length, 8192 * 8);
+  batch.begin();
+  batch.finish();
+  assert.equal(batch.mesh.visible, false);
+  batch.mesh.destroy();
 });
 
 function fixture() {
@@ -282,6 +310,29 @@ test('shots keep recorded target coordinates and survive removal in their launch
   const missile = renderer.inspect().missiles[0]!;
   assert.ok(missile);
   assert.deepEqual(missile.to, { x: 44.5 * 16, y: 40.5 * 11 });
+});
+
+test('removing a captive altar preserves its effect position before destroying the sprite', () => {
+  const { world, renderer, texture, textures } = fixture();
+
+  for (const type of ['altar', 'dais']) {
+    for (let i = 0; i < 100; i++) {
+      textures.set(`slot:${type}:${i}`, texture);
+    }
+  }
+
+  const altar = world.spawnBuilding('altar', 1, 40, 40);
+  altar.rising = 0;
+  const priest = world.addPriest(2, 40, 40);
+  priest.state = 'chained';
+  priest.chainedAt = altar.id;
+  renderer.sync(1);
+  world.entities.delete(altar.id);
+  world.entities.delete(priest.id);
+  world.tick++;
+  renderer.capture();
+  assert.equal(renderer.inspect().bursts[0]?.type, 'altar');
+  assert.equal(renderer.inspect().bursts[0]?.initialized, true);
 });
 
 test('construction feedback completes on the authoritative tick and placement accents are bounded', () => {

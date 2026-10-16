@@ -229,6 +229,7 @@ try {
       viewport: [innerWidth, innerHeight],
       dpr: devicePixelRatio,
       cores: navigator.hardwareConcurrency,
+      zoom: window.ns.camera.scale.x,
     }));
     console.log('Animation environment', JSON.stringify(environment));
 
@@ -246,6 +247,19 @@ try {
           // oxlint-disable-line unicorn/consistent-function-scoping
           [...values].sort((a, b) => a - b)[Math.floor(values.length * fraction)];
         const temple = world.templeOf(1);
+        // oxlint-disable-next-line unicorn/consistent-function-scoping
+        const countObjects = (root) => {
+          const pending = [root];
+          let count = 0;
+
+          while (pending.length) {
+            const node = pending.pop();
+            count++;
+            pending.push(...node.children);
+          }
+
+          return count;
+        };
         camera.position.set(640 - temple.x * 16 * camera.scale.x,
           400 - temple.y * 11 * camera.scale.y);
         const advance = (added, i, combat) => {
@@ -335,7 +349,8 @@ try {
               improved,
               round,
               entities: world.entities.size,
-              displayObjects: entityLayer.children.length,
+              displayObjects: countObjects(camera),
+              entityLayerChildren: entityLayer.children.length,
               effects: effects
                 ? {
                   missiles: effects.missiles.length,

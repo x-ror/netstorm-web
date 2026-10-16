@@ -1,4 +1,4 @@
-import { Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import {
   type WorldView,
   type DeepReadonly,
@@ -48,6 +48,7 @@ import {
   progress,
   VisualStates,
 } from './presentation.js';
+import { StreamBatch } from './stream-batch.js';
 
 const SPRITE_ANCHOR_X = 0.5;
 const UNIT_ANCHOR_Y = 0.85; // a unit's feet sit a little above the bottom of its frame
@@ -115,7 +116,7 @@ const CORNERS: typeof SIDES = [
 const LOW_HP = 0.35;
 const AIR_Z = 1e6; // above any screen row
 type Point = { x: number; y: number; };
-type Stream = { points: Point[]; cells: number[]; start: number; pieces: Sprite[]; };
+type Stream = { points: Point[]; cells: number[]; start: number; };
 const BOLT_SPEED = 18; // cells a second: `speed` of manabolt.type
 const STREAM_EVERY = 5; // ticks between the streaks of a Storm Power Stream (ours)
 const STREAK_CELLS = 4; // cells a streak of the stream is long (ours)
@@ -169,6 +170,9 @@ export function createWorldRenderer(
   const bars = barsLayer.addChild(new Graphics());
   const movingBars = barsLayer.addChild(new Container());
   const streamG = barsLayer.addChild(new Container());
+  const streamBatches = STREAK_STROKES.map(({ alpha }) =>
+    new StreamBatch(streamG, COLOR.stream, alpha)
+  );
   const polishG = barsLayer.addChild(new Container());
   const healthBars = new Map<number, Graphics>();
   const constructionBars = new Map<number, Graphics>();
@@ -667,6 +671,11 @@ export function createWorldRenderer(
 
     for (const [id, sprite] of sprites) {
       if (!world.entities.has(id)) {
+        if (holding.delete(id) && !rebasing) {
+          burst({ type: 'altar', ...SACRIFICE }, sprite.position,
+            groups.get(id)?.zIndex ?? sprite.zIndex);
+        }
+
         sprite.destroy();
         sprites.delete(id);
         widths.delete(id);
@@ -682,10 +691,6 @@ export function createWorldRenderer(
         healthBars.delete(id);
         constructionBars.get(id)?.destroy();
         constructionBars.delete(id);
-
-        if (holding.delete(id) && !rebasing) {
-          burst({ type: 'altar', ...SACRIFICE }, sprite.position, sprite.zIndex);
-        }
 
         for (const layer of [overlays, shadows]) {
           layer.get(id)?.destroy();
@@ -763,10 +768,6 @@ export function createWorldRenderer(
       const b = world.entities.get(id);
 
       if (b?.kind !== 'building' || b.rising === 0) {
-        for (const piece of stream.pieces) {
-          piece.destroy();
-        }
-
         streams.delete(id);
       } else if (!improved) {
         drawStream(stream, world.tick, bars);
@@ -840,7 +841,7 @@ export function createWorldRenderer(
     const end: [number, number] = [b.x + b.fx / 2, b.y + b.fy / 2];
 
     if (!maker) {
-      return { points: [], cells: [], start: world.tick, pieces: [] };
+      return { points: [], cells: [], start: world.tick };
     }
 
     const near = (x: number, y: number) =>
@@ -862,7 +863,7 @@ export function createWorldRenderer(
       cells.push((cells.at(-1) ?? 0) + Math.hypot(x - px, y - py));
     }
 
-    return { points, cells, start: world.tick, pieces: [] };
+    return { points, cells, start: world.tick };
   }
 
   /** Streaks of Storm Power running along the way of a stream, one sent every STREAM_EVERY ticks. */
@@ -873,7 +874,6 @@ export function createWorldRenderer(
   ): void {
     const { points, cells, start } = stream;
     const length = cells.at(-1) ?? 0;
-    let used = 0;
 
     if (points.length < 2) {
       return;
@@ -901,7 +901,7 @@ export function createWorldRenderer(
 
       line.push(pointAt(points, cells, Math.min(head, length)));
 
-      for (const { width, alpha } of STREAK_STROKES) {
+      for (const [stroke, { width, alpha }] of STREAK_STROKES.entries()) {
         if (graphics) {
           graphics.moveTo(line[0]!.x, line[0]!.y - STREAM_LIFT);
 
@@ -914,23 +914,11 @@ export function createWorldRenderer(
           for (let i = 1; i < line.length; i++) {
             const from = line[i - 1]!;
             const to = line[i]!;
-            const piece = stream.pieces[used] ?? streamG.addChild(new Sprite(Texture.WHITE));
-            stream.pieces[used++] = piece;
-            piece.visible = true;
-            piece.anchor.set(0, SPRITE_ANCHOR_X);
-            piece.position.set(from.x, from.y - STREAM_LIFT);
-            piece.width = Math.hypot(to.x - from.x, to.y - from.y);
-            piece.height = width;
-            piece.rotation = Math.atan2(to.y - from.y, to.x - from.x);
-            piece.alpha = alpha;
-            piece.tint = COLOR.stream;
+            streamBatches[stroke]!.segment(from.x, from.y - STREAM_LIFT, to.x, to.y - STREAM_LIFT,
+              width);
           }
         }
       }
-    }
-
-    for (let i = used; i < stream.pieces.length; i++) {
-      stream.pieces[i]!.visible = false;
     }
   }
 
@@ -1296,10 +1284,9 @@ export function createWorldRenderer(
       bursts.length = 0;
       shells.length = 0;
 
-      for (const stream of streams.values()) {
-        for (const piece of stream.pieces) {
-          piece.destroy();
-        }
+      for (const batch of streamBatches) {
+        batch.begin();
+        batch.finish();
       }
 
       streams.clear();
@@ -1409,8 +1396,16 @@ export function createWorldRenderer(
             effect.from.y + (effect.to.y - effect.from.y) * done);
         }
 
+        for (const batch of streamBatches) {
+          batch.begin();
+        }
+
         for (const stream of streams.values()) {
           drawStream(stream, presentationTick);
+        }
+
+        for (const batch of streamBatches) {
+          batch.finish();
         }
 
         for (let i = placementsAccent.length - 1; i >= 0; i--) {
