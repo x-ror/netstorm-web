@@ -23,7 +23,7 @@ import { LOSS_MOVES, random, remember, type AiMemory } from './ai/memory.js';
 import { hoarding, useful, wantedTransports, worth } from './ai/economy.js';
 import { DIFFICULTY, type AiParams, type Difficulty } from './ai/params.js';
 import { skyCosts, threatMap, type ThreatMap } from './ai/threat.js';
-import { flies, upgradeCost, type UnitDef } from './defs.js';
+import { flies, upgradeCost, type UnitDef, type UnitGroup } from './defs.js';
 import {
   DIRS,
   MAX_FACING,
@@ -134,12 +134,92 @@ export function aiMove(
   memory?: AiMemory,
   explain?: AiExplain,
 ): Command[] {
-  const me = options.player;
-  const player = world.players.get(me);
+  const player = world.players.get(options.player);
 
   if (!player?.alive || world.winner !== null) {
     return [];
   }
+
+  return planAiMove(cacheBuildingsForMove(world), options, memory, explain);
+}
+
+/** A player's strategic move is spread by player id without changing its update interval. */
+export function aiStrategicDue(tick: number, player: number, interval: number): boolean {
+  return tick % interval === (player - 1) % interval;
+}
+
+/** Cheap per-tick checks that can enqueue a full AI move. */
+export function aiReact(
+  world: WorldView,
+  player: number,
+  memory: AiMemory,
+  interval: number,
+): boolean {
+  if (!world.players.get(player)?.alive || world.winner !== null) {
+    return false;
+  }
+
+  const buildings = new Map<number, { x: number; y: number; }>();
+  const idle = new Set<number>();
+
+  for (const entity of world.entities.values()) {
+    if (entity.kind === 'building' && entity.owner === player) {
+      buildings.set(entity.id, { x: entity.x, y: entity.y });
+    } else if (
+      entity.kind === 'transport' && entity.owner === player && entity.goal === 'idle'
+      && entity.carrying === null
+    ) {
+      idle.add(entity.id);
+    }
+  }
+
+  let lost = false;
+
+  for (const [id, at] of memory.buildings) {
+    if (!buildings.has(id)) {
+      memory.losses.push({ ...at, tick: world.tick });
+      lost = true;
+    }
+  }
+
+  memory.buildings = buildings;
+  memory.losses = memory.losses.filter((loss) => world.tick - loss.tick <= LOSS_MOVES * interval);
+
+  let newlyIdle = false;
+
+  for (const id of idle) {
+    newlyIdle ||= !memory.reactiveIdle.has(id);
+  }
+
+  memory.reactiveIdle = idle;
+
+  const incoming = new Set<string>();
+  let underAttack = false;
+
+  for (const shot of world.shots) {
+    const target = world.entities.get(shot.target);
+
+    if (!target || !('owner' in target) || target.owner !== player) {
+      continue;
+    }
+
+    const key = `${shot.gun.id}:${shot.target}:${shot.land}:${shot.x}:${shot.y}`;
+    incoming.add(key);
+    underAttack ||= !memory.reactiveShots.has(key);
+  }
+
+  memory.reactiveShots = incoming;
+  return lost || newlyIdle || underAttack;
+}
+
+function planAiMove(
+  world: WorldView,
+  options: AiOptions,
+  memory?: AiMemory,
+  explain?: AiExplain,
+): Command[] {
+  const me = options.player;
+  const player = world.players.get(me)!;
 
   // The level's knobs, turned down where the mission denies an ability.
   const params: Readonly<AiParams> = {
@@ -164,10 +244,10 @@ export function aiMove(
     actions: 0,
   };
   const transports = owned<Transport>(world, me, 'transport');
-  const geysers = reachableGeysers(world, me);
   // Ground the transports can walk to now; joining anything else is what a bridge is for.
   const home = world.templeOf(me);
   const reached = home ? walkableFrom(world, me, home) : null;
+  const geysers = reachableGeysers(world, me, reached);
   const bounds = ownBounds(world, me);
   const pressure = sense(world, move, memory, bounds);
   const defend = defendScore(pressure);
@@ -268,7 +348,7 @@ export function aiMove(
   because('unowned ground in reach: the Priest raises an Outpost');
 
   if (options.capture !== false) {
-    capture(world, move, transports);
+    capture(world, move, transports, home ? walkableFrom(world, me, home) : null);
     because('an enemy Priest is down: the nearest transports carry him off');
   }
 
@@ -493,6 +573,32 @@ export function aiMove(
   }
 
   return move.commands;
+}
+
+/** Buildings cannot change while a move only reads its world and plans commands. */
+function cacheBuildingsForMove(world: WorldView): WorldView {
+  const cached = Object.create(world) as WorldView;
+  const byPlayer = new Map<
+    number,
+    Map<UnitGroup | undefined, ReturnType<WorldView['buildingsOf']>>
+  >();
+  Object.defineProperty(cached, 'buildingsOf', {
+    value: (player: number, group?: UnitGroup) => {
+      let byGroup = byPlayer.get(player);
+
+      if (!byGroup) {
+        byGroup = new Map();
+        byPlayer.set(player, byGroup);
+      }
+
+      if (!byGroup.has(group)) {
+        byGroup.set(group, world.buildingsOf(player, group));
+      }
+
+      return byGroup.get(group)!;
+    },
+  });
+  return cached;
 }
 
 /** A command as a line of the AI's reasons: its kind and its fields but the player. */
@@ -956,7 +1062,12 @@ function buildOutpost(world: WorldView, move: Move, reached: Uint8Array | null):
 }
 
 /** Send one transport for a downed enemy priest, unless one is already on its way to him. */
-function capture(world: WorldView, move: Move, transports: View<Transport>[]): void {
+function capture(
+  world: WorldView,
+  move: Move,
+  transports: View<Transport>[],
+  reached: Uint8Array | null,
+): void {
   const captive = enemyPriest(world, move.me, 'down');
 
   if (!captive) {
@@ -969,15 +1080,12 @@ function capture(world: WorldView, move: Move, transports: View<Transport>[]): v
     return;
   }
 
-  const home = world.templeOf(move.me);
-
   // He has to be within a step of ground the transports can walk to: a bridge that merely lies
   // beside his island does not lead onto it.
-  if (!home) {
+  if (!reached) {
     return;
   }
 
-  const reached = walkableFrom(world, move.me, home);
   const near = (x: number, y: number): boolean =>
     world.inside(x, y) && reached[world.at(x, y)] === 1;
 
@@ -1116,14 +1224,17 @@ function geysersFor(world: WorldView, me: number): View<Geyser>[] {
 
 /** Geysers with stock on the AI's own ground that a transport can walk to from the Temple,
  * nearest to the Temple first. */
-function reachableGeysers(world: WorldView, me: number): View<Geyser>[] {
+function reachableGeysers(
+  world: WorldView,
+  me: number,
+  reached: Uint8Array | null,
+): View<Geyser>[] {
   const home = world.templeOf(me);
 
-  if (!home) {
+  if (!home || !reached) {
     return [];
   }
 
-  const reached = walkableFrom(world, me, home);
   const { x, y } = centre(home);
   return [...world.entities.values()]
     .filter((e): e is View<Geyser> =>

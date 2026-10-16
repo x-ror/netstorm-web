@@ -162,7 +162,7 @@ export function skyCosts(
       const i: number = bucket[k]!;
 
       if (field[i] !== cost) {
-        continue; // a stale entry: the cell was reached cheaper
+        continue;
       }
 
       const x: number = i % W;
@@ -188,6 +188,6 @@ export function skyCosts(
       }
     }
 
-    buckets[cost] = []; // let the cells go
+    buckets[cost] = [];
   }
 }

@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  aiReact,
   aiMove,
+  aiStrategicDue,
   createAiMemory,
   createSkirmish,
   H,
@@ -40,6 +42,39 @@ const mk = () =>
     { id: 1, name: 'Idle', theme: 'wind', x: 70, y: 150 },
     { id: 2, name: 'AI', theme: 'rain', x: 150, y: 90 },
   ], geysers);
+
+test('strategic AI updates are staggered but retain each player interval', () => {
+  const interval = 30;
+  const players = 12;
+  const due = Array.from({ length: interval },
+    (_, tick) =>
+      Array.from({ length: players }, (_player, index) => index + 1)
+        .filter((player) => aiStrategicDue(tick, player, interval)));
+
+  assert.deepEqual(due.flat(), Array.from({ length: players }, (_, index) => index + 1));
+
+  for (let player = 1; player <= players; player++) {
+    assert.equal(
+      Array.from({ length: interval * 3 }, (_, tick) => aiStrategicDue(tick, player, interval))
+        .filter(Boolean).length,
+      3,
+    );
+  }
+});
+
+test('reactive AI checks notice new idle transports and lost buildings once', () => {
+  const world = mk();
+  const memory = createAiMemory();
+
+  assert.equal(aiReact(world.view(), 1, memory, MOVE), true);
+  assert.equal(aiReact(world.view(), 1, memory, MOVE), false);
+
+  const building = world.buildingsOf(1)[0]!;
+  world.entities.delete(building.id);
+  assert.equal(aiReact(world.view(), 1, memory, MOVE), true);
+  assert.equal(memory.losses.length, 1);
+  assert.equal(aiReact(world.view(), 1, memory, MOVE), false);
+});
 
 test('the AI wins against an idle player, and its recorded commands replay exactly', () => {
   const match = new ReplayRecorder(mk());

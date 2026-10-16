@@ -43,6 +43,8 @@ const harden = (w: World, cells: [number, number][]) => {
     w.terrain[w.at(x, y)] = Terrain.HardBridge;
     w.wear[w.at(x, y)] = 0;
   }
+
+  w.invalidateTerrain();
 };
 
 test('defs loaded with original numbers', () => {
@@ -235,6 +237,8 @@ const bridge = (w: ReturnType<typeof mk>, from: number, to: number) => {
     w.terrain[40 * 256 + x] = 2;
     w.owner[40 * 256 + x] = 1;
   }
+
+  w.invalidateTerrain();
 };
 
 test('units go off a bridge onto their own island, never on the bridge itself', () => {
@@ -411,6 +415,7 @@ test('bridge needs an unbroken attachment to the Temple; attaching to a geyser c
   p.hand.push({ piece: 1, age: PIECE_HARDEN }, { piece: 1, age: PIECE_HARDEN }); // dominoes, laid flat with rot 1
   w.terrain[40 * 256 + 55] = 0; // cut the bridge
   w.owner[40 * 256 + 55] = 0;
+  w.invalidateTerrain();
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 77, y: 40, rot: 1 }),
     'not connected');
   bridge(w, 55, 55);
