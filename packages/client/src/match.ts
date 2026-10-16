@@ -101,7 +101,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const terrainG = new Graphics();
   const ground = new Container();
   const entityLayer = new Container();
-  const bars = new Graphics();
+  const bars = new Container();
   const overlay = new Graphics();
   const ghost = new Container();
   camera.addChild(terrainG, ground, entityLayer, bars, ghost, overlay);
@@ -141,6 +141,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     });
   const togglePause = () => {
     ui.paused = !ui.paused;
+    renderer.resetTime();
     clock.reset();
     hud.render();
   };
@@ -270,6 +271,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     ground,
     entityLayer,
     ui,
+    animation: renderer,
   };
 
   let hudTick = -1;
@@ -302,6 +304,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     } else if (button?.action === 'DoNothing' && !ended) {
       hud.hidePage();
       ui.paused = false;
+      renderer.resetTime();
       clock.reset();
       hud.render();
     } else if (button?.action === 'MissionBegin') {
@@ -313,7 +316,10 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     }
   }
 
-  const resetClock = () => clock.reset();
+  const resetClock = () => {
+    renderer.resetTime();
+    clock.reset();
+  };
   document.addEventListener('visibilitychange', resetClock);
   hud.render();
   renderer.sync();
@@ -329,6 +335,11 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
     const steps = ui.paused ? 0 : clock.advance(t.deltaMS, () => {
       match.step([...commands.splice(0), ...aiCommands()]);
+
+      if (renderer.improved) {
+        takeEvents();
+        renderer.capture();
+      }
     });
     takeEvents();
     renderer.sync(clock.alpha);
@@ -358,6 +369,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
     if (told >= 0) {
       ui.paused = true;
+      resetClock();
       show('', unread.splice(told, 1)[0]!);
     }
 

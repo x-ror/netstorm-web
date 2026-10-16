@@ -40,6 +40,7 @@ import {
 } from './effects.js';
 import { hotSpots } from './assets.js';
 import { unitSound, type Sounds } from './sound.js';
+import { firstEmission, PresentationTime, progress } from './presentation.js';
 
 const SPRITE_ANCHOR_X = 0.5;
 const UNIT_ANCHOR_Y = 0.85; // a unit's feet sit a little above the bottom of its frame
@@ -143,11 +144,25 @@ export function createWorldRenderer(
   terrainG: Graphics,
   ground: Container,
   entityLayer: Container,
-  bars: Graphics,
+  barsLayer: Container,
   textures: Map<string, Texture>,
   sounds: Sounds,
   hotFeet: ReadonlyMap<string, readonly [number, number]> = new Map(),
 ) {
+  let improved = true;
+  let rebasing = false;
+  const timeline = new PresentationTime();
+  let presentationTick = world.tick;
+  const bars = barsLayer.addChild(new Graphics());
+  const movingBars = barsLayer.addChild(new Graphics());
+  const streamG = barsLayer.addChild(new Graphics());
+  /** Minimal previous-tick placements, including targets removed by an instant shot. */
+  const placements = new Map<number, {
+    at: Point;
+    type: string;
+    height: number;
+    entity: DeepReadonly<Entity>;
+  }>();
   // --- terrain: a tile per cell, a cliff face under each southern rim, colours where tiles are missing
   const tiles: Sprite[] = [];
 
@@ -361,7 +376,7 @@ export function createWorldRenderer(
 
     if (entity.rising > 0) {
       rising.add(entity.id);
-    } else if (rising.delete(entity.id)) {
+    } else if (rising.delete(entity.id) && !rebasing) {
       sounds.play(unitSound(sounds.index, entity.type, 'built') ?? 'builddone',
         centres.get(entity.id));
     }
@@ -493,7 +508,7 @@ export function createWorldRenderer(
         holding.delete(entity.id);
       }
 
-      if ('hp' in entity && entity.hp < entity.hpMax) {
+      if (!improved && 'hp' in entity && entity.hp < entity.hpMax) {
         const top = sprite instanceof Sprite ? sy - sprite.height * sprite.anchor.y : sy;
         drawBar(sx, top - BAR_GAP - BAR_HEIGHT, entity.hp / entity.hpMax);
       }
@@ -503,7 +518,6 @@ export function createWorldRenderer(
       if (!world.entities.has(id)) {
         sprite.destroy();
         sprites.delete(id);
-        cooldowns.delete(id);
         widths.delete(id);
         centres.delete(id);
         rising.delete(id);
@@ -522,10 +536,34 @@ export function createWorldRenderer(
       }
     }
 
-    playEffects();
+    if (!improved) {
+      playEffects();
+    }
+
     flyBolts();
     drawBarriers();
     drawTracers();
+
+    for (const id of cooldowns.keys()) {
+      if (!world.entities.has(id)) {
+        cooldowns.delete(id);
+      }
+    }
+
+    if (improved) {
+      playEffects();
+    }
+
+    placements.clear();
+
+    for (const entity of world.entities.values()) {
+      placements.set(entity.id, {
+        at: middle(entity),
+        type: kindOf(entity),
+        height: sprites.get(entity.id)?.height ?? 0,
+        entity,
+      });
+    }
   }
 
   /**
@@ -555,7 +593,7 @@ export function createWorldRenderer(
       streams.set(b.id, streamTo(b));
 
       // What the Priest builds takes no Energy.
-      if (source && (world.defs.get(b.type)?.level ?? 0) > 0) {
+      if (!rebasing && source && (world.defs.get(b.type)?.level ?? 0) > 0) {
         bolt(source, site, world.defs.get(source.type)?.theme ?? 'sun');
       }
     }
@@ -565,8 +603,8 @@ export function createWorldRenderer(
 
       if (b?.kind !== 'building' || b.rising === 0) {
         streams.delete(id);
-      } else {
-        drawStream(stream);
+      } else if (!improved) {
+        drawStream(stream, world.tick, bars);
       }
     }
 
@@ -663,7 +701,11 @@ export function createWorldRenderer(
   }
 
   /** Streaks of Storm Power running along the way of a stream, one sent every STREAM_EVERY ticks. */
-  function drawStream(stream: { points: Point[]; cells: number[]; start: number; }): void {
+  function drawStream(
+    stream: { points: Point[]; cells: number[]; start: number; },
+    now: number,
+    graphics: Graphics,
+  ): void {
     const { points, cells, start } = stream;
     const length = cells.at(-1) ?? 0;
 
@@ -671,8 +713,12 @@ export function createWorldRenderer(
       return;
     }
 
-    for (let sent = start; sent <= world.tick; sent += STREAM_EVERY) {
-      const head = ((world.tick - sent) * BOLT_SPEED) / TPS;
+    const first = improved
+      ? firstEmission(now, start, ((length + STREAK_CELLS) * TPS) / BOLT_SPEED, STREAM_EVERY)
+      : start;
+
+    for (let sent = first; sent <= now; sent += STREAM_EVERY) {
+      const head = ((now - sent) * BOLT_SPEED) / TPS;
       const tail = head - STREAK_CELLS;
 
       if (tail >= length) {
@@ -690,13 +736,13 @@ export function createWorldRenderer(
       line.push(pointAt(points, cells, Math.min(head, length)));
 
       for (const { width, alpha } of STREAK_STROKES) {
-        bars.moveTo(line[0]!.x, line[0]!.y - STREAM_LIFT);
+        graphics.moveTo(line[0]!.x, line[0]!.y - STREAM_LIFT);
 
         for (const p of line.slice(1)) {
-          bars.lineTo(p.x, p.y - STREAM_LIFT);
+          graphics.lineTo(p.x, p.y - STREAM_LIFT);
         }
 
-        bars.stroke({ color: COLOR.stream, width, alpha });
+        graphics.stroke({ color: COLOR.stream, width, alpha });
       }
     }
   }
@@ -731,7 +777,7 @@ export function createWorldRenderer(
 
   /** Show what a Spell does: its mark on every unit in its range, or a blast at the caster. */
   function cast(caster: number, spell: string): void {
-    const by = world.entities.get(caster);
+    const by = world.entities.get(caster) ?? placements.get(caster)?.entity;
     const show = SPELL_BURSTS[spell];
     const range = world.defs.get(spell)?.range ?? 0;
 
@@ -801,7 +847,19 @@ export function createWorldRenderer(
   /** Show the shot of everything that fired this tick. A gun's missile takes as long as the
    * simulation's, so it lands on the tick its damage is dealt. */
   function drawTracers(): void {
-    for (const entity of world.entities.values()) {
+    const shooters = new Map<number, DeepReadonly<Entity>>();
+
+    if (improved) {
+      for (const [id, previous] of placements) {
+        shooters.set(id, previous.entity);
+      }
+    }
+
+    for (const [id, entity] of world.entities) {
+      shooters.set(id, entity);
+    }
+
+    for (const entity of shooters.values()) {
       const bomber = entity.kind === 'flyer' && entity.type in MISSILES;
 
       if (entity.kind !== 'building' && !(entity.kind === 'flyer' && bomber)) {
@@ -810,19 +868,26 @@ export function createWorldRenderer(
 
       // A cooldown that merely stands still is not a shot: a building brought down by an explosion
       // waits a tick with its cooldown frozen.
-      const fired = entity.hp > 0 && entity.cooldown > (cooldowns.get(entity.id) ?? Infinity);
+      const fired = !rebasing && (improved || entity.hp > 0)
+        && entity.cooldown > (cooldowns.get(entity.id) ?? Infinity);
       cooldowns.set(entity.id, entity.cooldown);
       const from = sprites.get(entity.id);
+      const previous = placements.get(entity.id);
       const aim = entity.target === null ? undefined : world.entities.get(entity.target);
 
-      if (!fired || !from || !aim) {
+      const endpoint = aim ? middle(aim) : placements.get(entity.target ?? -1)?.at;
+
+      if (!fired || (!from && !previous) || !endpoint) {
         continue;
       }
 
       // A gun shoots from its top; a Whirligig drops its bomb from where it hangs.
       const start = bomber
-        ? { x: from.x, y: from.y - BOMB_DROP }
-        : { x: middle(entity).x, y: from.y - from.height * TRACER_LIFT };
+        ? { x: from?.x ?? previous!.at.x, y: (from?.y ?? previous!.at.y) - BOMB_DROP }
+        : {
+          x: middle(entity).x,
+          y: (from?.y ?? previous!.at.y) - (from?.height ?? previous!.height) * TRACER_LIFT,
+        };
       let flight: number | undefined;
 
       for (const shot of world.shots) {
@@ -831,7 +896,7 @@ export function createWorldRenderer(
         }
       }
 
-      shoot(entity.type, start, middle(aim), flight);
+      shoot(entity.type, start, endpoint, flight);
     }
 
     fly();
@@ -840,7 +905,10 @@ export function createWorldRenderer(
   /** Send off what a shooter throws: its missile, a bolt of lightning, or a plain streak. `flight`
    * is the ticks the simulation gives the missile; a bomb works its own out. */
   function shoot(shooter: string, from: Point, to: Point, flight?: number): void {
-    sounds.unit(shooter, 'fire', from);
+    if (!rebasing) {
+      sounds.unit(shooter, 'fire', from);
+    }
+
     const missile = MISSILES[shooter];
     const first = missile ? textures.get(`slot:${missile.type}:0`) : undefined;
 
@@ -948,18 +1016,70 @@ export function createWorldRenderer(
     }
   }
 
-  function drawBar(x: number, y: number, share: number): void {
+  function drawBar(x: number, y: number, share: number, graphics = bars): void {
     const left = x - BAR_WIDTH / 2;
-    bars.rect(left, y, BAR_WIDTH, BAR_HEIGHT).fill(COLOR.barBack);
-    bars.rect(left, y, BAR_WIDTH * Math.max(0, share), BAR_HEIGHT)
+    graphics.rect(left, y, BAR_WIDTH, BAR_HEIGHT).fill(COLOR.barBack);
+    graphics.rect(left, y, BAR_WIDTH * Math.max(0, share), BAR_HEIGHT)
       .fill(share < LOW_HP ? COLOR.barLow : COLOR.barGood);
   }
 
   let terrainRevision = -1;
   let entityTick = -1;
+
+  function capture(): void {
+    if (entityTick !== world.tick) {
+      syncEntities();
+      entityTick = world.tick;
+    }
+  }
+
   return {
     explode,
     cast,
+    get improved() {
+      return improved;
+    },
+    setImproved(enabled: boolean) {
+      if (improved === enabled) {
+        return;
+      }
+
+      improved = enabled;
+      rebasing = true;
+
+      // Discard transient presentation, not world events. Never replay old audio on a switch.
+      for (const effect of [...missiles, ...bolts, ...beams]) {
+        effect.sprite.destroy();
+      }
+
+      for (const effect of bursts) {
+        effect.sprite?.destroy();
+      }
+
+      missiles.length = 0;
+      bolts.length = 0;
+      beams.length = 0;
+      bursts.length = 0;
+      shells.length = 0;
+      streams.clear();
+      cooldowns.clear();
+      rising.clear();
+      syncEntities();
+      entityTick = world.tick;
+
+      for (const glide of glides.values()) {
+        glide.from = { ...glide.to };
+      }
+
+      movingBars.clear();
+      streamG.clear();
+      rebasing = false;
+      timeline.reset();
+    },
+    capture,
+    resetTime() {
+      timeline.reset();
+    },
     /** `alpha`: how far the time is between the last tick and the next (FixedStepClock.alpha). */
     sync(alpha = 1) {
       if (terrainRevision !== world.terrainRevision) {
@@ -967,10 +1087,9 @@ export function createWorldRenderer(
         terrainRevision = world.terrainRevision;
       }
 
-      if (entityTick !== world.tick) {
-        syncEntities();
-        entityTick = world.tick;
-      }
+      capture();
+      presentationTick = improved ? timeline.sample(world.tick, alpha) : world.tick;
+      const poseAlpha = improved ? Math.min(1, presentationTick - world.tick) : alpha;
 
       // ponytail: the health bar is drawn per tick and does not glide with its unit.
       for (const [id, { from, to }] of glides) {
@@ -980,9 +1099,42 @@ export function createWorldRenderer(
           continue;
         }
 
-        sprite.position.set(from.x + (to.x - from.x) * alpha, from.y + (to.y - from.y) * alpha);
+        sprite.position.set(from.x + (to.x - from.x) * poseAlpha,
+          from.y + (to.y - from.y) * poseAlpha);
         overlays.get(id)?.position.copyFrom(sprite.position);
         shadows.get(id)?.position.copyFrom(sprite.position);
+      }
+
+      if (improved) {
+        movingBars.clear();
+        streamG.clear();
+
+        for (const entity of world.entities.values()) {
+          const sprite = sprites.get(entity.id);
+
+          if (!sprite?.visible) {
+            continue;
+          }
+
+          if ('hp' in entity && entity.hp < entity.hpMax) {
+            const top = sprite instanceof Sprite
+              ? sprite.y - sprite.height * sprite.anchor.y
+              : sprite.y;
+            drawBar(sprite.x, top - BAR_GAP - BAR_HEIGHT, entity.hp / entity.hpMax, movingBars);
+          }
+        }
+
+        for (const effect of [...missiles, ...bolts]) {
+          // Current-tick projectile interpolation: endpoints are never extrapolated. Removal and
+          // impact remain tick-owned, unlike the adjacent-sample (one-tick-latent) entity pose.
+          const done = progress(presentationTick, effect.start, effect.ticks);
+          effect.sprite.position.set(effect.from.x + (effect.to.x - effect.from.x) * done,
+            effect.from.y + (effect.to.y - effect.from.y) * done);
+        }
+
+        for (const stream of streams.values()) {
+          drawStream(stream, presentationTick, streamG);
+        }
       }
     },
   };
