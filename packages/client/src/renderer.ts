@@ -1,4 +1,4 @@
-import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import {
   type WorldView,
   type DeepReadonly,
@@ -115,6 +115,7 @@ const CORNERS: typeof SIDES = [
 const LOW_HP = 0.35;
 const AIR_Z = 1e6; // above any screen row
 type Point = { x: number; y: number; };
+type Stream = { points: Point[]; cells: number[]; start: number; pieces: Sprite[]; };
 const BOLT_SPEED = 18; // cells a second: `speed` of manabolt.type
 const STREAM_EVERY = 5; // ticks between the streaks of a Storm Power Stream (ours)
 const STREAK_CELLS = 4; // cells a streak of the stream is long (ours)
@@ -166,12 +167,25 @@ export function createWorldRenderer(
   const timeline = new PresentationTime();
   let presentationTick = world.tick;
   const bars = barsLayer.addChild(new Graphics());
-  const movingBars = barsLayer.addChild(new Graphics());
-  const streamG = barsLayer.addChild(new Graphics());
-  const polishG = barsLayer.addChild(new Graphics());
+  const movingBars = barsLayer.addChild(new Container());
+  const streamG = barsLayer.addChild(new Container());
+  const polishG = barsLayer.addChild(new Container());
+  const healthBars = new Map<number, Graphics>();
+  const constructionBars = new Map<number, Graphics>();
   const previousHp = new Map<number, number>();
   const damaged = new Map<number, number>();
-  const placementsAccent: { x: number; y: number; w: number; h: number; start: number; }[] = [];
+  const placementsAccent: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    start: number;
+    graphic?: Graphics;
+  }[] = [];
+
+  function dropAccent(): void {
+    placementsAccent.shift()?.graphic?.destroy();
+  }
 
   function placed(cells: readonly (readonly [number, number])[]): void {
     if (!improved) {
@@ -180,7 +194,7 @@ export function createWorldRenderer(
 
     for (const [x, y] of cells) {
       if (placementsAccent.length >= MAX_PLACE_CELLS) {
-        placementsAccent.shift();
+        dropAccent();
       }
 
       placementsAccent.push({ x, y, w: 1, h: 1, start: world.tick });
@@ -515,7 +529,7 @@ export function createWorldRenderer(
 
       if (!sprite && entity.kind === 'building' && improved && !rebasing && entityTick >= 0) {
         if (placementsAccent.length >= MAX_PLACE_CELLS) {
-          placementsAccent.shift();
+          dropAccent();
         }
 
         placementsAccent.push({
@@ -569,6 +583,12 @@ export function createWorldRenderer(
 
       if (chained || (entity.kind === 'crystal' && entity.carriedBy !== null)) {
         sprite.visible = false;
+        const bar = healthBars.get(entity.id);
+
+        if (bar) {
+          bar.visible = false;
+        }
+
         glides.delete(entity.id);
         attach(shadows, entity.id, null, sprite, 0, 0);
         continue;
@@ -613,6 +633,36 @@ export function createWorldRenderer(
         const top = sprite instanceof Sprite ? sy - sprite.height * sprite.anchor.y : sy;
         drawBar(sx, top - BAR_GAP - BAR_HEIGHT, entity.hp / entity.hpMax);
       }
+
+      if (improved) {
+        const bar = healthBars.get(entity.id);
+        const needsBar = 'hp' in entity && entity.hp < entity.hpMax;
+
+        if (needsBar) {
+          const graphic = bar ?? movingBars.addChild(new Graphics());
+          healthBars.set(entity.id, graphic);
+          graphic.clear();
+          drawBar(0, 0, entity.hp / entity.hpMax, graphic);
+          graphic.visible = true;
+        } else if (bar) {
+          bar.visible = false;
+        }
+
+        const constructing = entity.kind === 'building' && entity.rising > 0 && entity.regrow === 0;
+        const line = constructionBars.get(entity.id);
+
+        if (constructing) {
+          const graphic = line ?? polishG.addChild(new Graphics());
+          constructionBars.set(entity.id, graphic);
+          graphic.clear();
+          const share = Math.max(0, 1 - entity.rising / (BUILD_SECONDS * TPS));
+          graphic.moveTo(-BAR_WIDTH / 2, 0).lineTo(-BAR_WIDTH / 2 + BAR_WIDTH * share, 0)
+            .stroke({ color: PROGRESS_COLOR, width: 1 });
+        } else if (line) {
+          line.destroy();
+          constructionBars.delete(entity.id);
+        }
+      }
     }
 
     for (const [id, sprite] of sprites) {
@@ -628,8 +678,12 @@ export function createWorldRenderer(
         states.delete(id);
         previousHp.delete(id);
         damaged.delete(id);
+        healthBars.get(id)?.destroy();
+        healthBars.delete(id);
+        constructionBars.get(id)?.destroy();
+        constructionBars.delete(id);
 
-        if (holding.delete(id)) {
+        if (holding.delete(id) && !rebasing) {
           burst({ type: 'altar', ...SACRIFICE }, sprite.position, sprite.zIndex);
         }
 
@@ -685,7 +739,7 @@ export function createWorldRenderer(
    */
   const bolts: { sprite: Sprite; from: Point; to: Point; start: number; ticks: number; }[] = [];
   /** The stream to each building site: its way in screen points with the cells walked to each. */
-  const streams = new Map<number, { points: Point[]; cells: number[]; start: number; }>();
+  const streams = new Map<number, Stream>();
 
   function flyBolts(): void {
     for (const b of world.entities.values()) {
@@ -709,6 +763,10 @@ export function createWorldRenderer(
       const b = world.entities.get(id);
 
       if (b?.kind !== 'building' || b.rising === 0) {
+        for (const piece of stream.pieces) {
+          piece.destroy();
+        }
+
         streams.delete(id);
       } else if (!improved) {
         drawStream(stream, world.tick, bars);
@@ -777,12 +835,12 @@ export function createWorldRenderer(
    * where none does (a Temple, a Workshop and an Altar are the Priest's work) or no way leads. */
   function streamTo(
     b: DeepReadonly<Building>,
-  ): { points: Point[]; cells: number[]; start: number; } {
+  ): Stream {
     const maker = makerOf(world, b.owner, b.type, b.x, b.y);
     const end: [number, number] = [b.x + b.fx / 2, b.y + b.fy / 2];
 
     if (!maker) {
-      return { points: [], cells: [], start: world.tick };
+      return { points: [], cells: [], start: world.tick, pieces: [] };
     }
 
     const near = (x: number, y: number) =>
@@ -804,17 +862,18 @@ export function createWorldRenderer(
       cells.push((cells.at(-1) ?? 0) + Math.hypot(x - px, y - py));
     }
 
-    return { points, cells, start: world.tick };
+    return { points, cells, start: world.tick, pieces: [] };
   }
 
   /** Streaks of Storm Power running along the way of a stream, one sent every STREAM_EVERY ticks. */
   function drawStream(
-    stream: { points: Point[]; cells: number[]; start: number; },
+    stream: Stream,
     now: number,
-    graphics: Graphics,
+    graphics?: Graphics,
   ): void {
     const { points, cells, start } = stream;
     const length = cells.at(-1) ?? 0;
+    let used = 0;
 
     if (points.length < 2) {
       return;
@@ -843,14 +902,35 @@ export function createWorldRenderer(
       line.push(pointAt(points, cells, Math.min(head, length)));
 
       for (const { width, alpha } of STREAK_STROKES) {
-        graphics.moveTo(line[0]!.x, line[0]!.y - STREAM_LIFT);
+        if (graphics) {
+          graphics.moveTo(line[0]!.x, line[0]!.y - STREAM_LIFT);
 
-        for (const p of line.slice(1)) {
-          graphics.lineTo(p.x, p.y - STREAM_LIFT);
+          for (const p of line.slice(1)) {
+            graphics.lineTo(p.x, p.y - STREAM_LIFT);
+          }
+
+          graphics.stroke({ color: COLOR.stream, width, alpha });
+        } else {
+          for (let i = 1; i < line.length; i++) {
+            const from = line[i - 1]!;
+            const to = line[i]!;
+            const piece = stream.pieces[used] ?? streamG.addChild(new Sprite(Texture.WHITE));
+            stream.pieces[used++] = piece;
+            piece.visible = true;
+            piece.anchor.set(0, SPRITE_ANCHOR_X);
+            piece.position.set(from.x, from.y - STREAM_LIFT);
+            piece.width = Math.hypot(to.x - from.x, to.y - from.y);
+            piece.height = width;
+            piece.rotation = Math.atan2(to.y - from.y, to.x - from.x);
+            piece.alpha = alpha;
+            piece.tint = COLOR.stream;
+          }
         }
-
-        graphics.stroke({ color: COLOR.stream, width, alpha });
       }
+    }
+
+    for (let i = used; i < stream.pieces.length; i++) {
+      stream.pieces[i]!.visible = false;
     }
   }
 
@@ -982,7 +1062,7 @@ export function createWorldRenderer(
       const previous = placements.get(entity.id);
       const aim = entity.target === null ? undefined : world.entities.get(entity.target);
 
-      const endpoint = aim ? middle(aim) : placements.get(entity.target ?? -1)?.at;
+      let endpoint = aim ? middle(aim) : placements.get(entity.target ?? -1)?.at;
 
       if (!fired || (!from && !previous) || !endpoint) {
         continue;
@@ -1000,6 +1080,13 @@ export function createWorldRenderer(
       for (const shot of world.shots) {
         if (shot.gun.id === entity.id) {
           flight = shot.land - world.tick; // the last one is the one just fired
+
+          if (improved) {
+            const target = aim ?? placements.get(shot.target)?.entity;
+            const foot = target ? footprintOf(target) : null;
+            const point = project(shot.x + (foot?.w ?? 1) / 2, shot.y + (foot?.h ?? 1) / 2);
+            endpoint = { x: point.sx, y: point.sy };
+          }
         }
       }
 
@@ -1156,8 +1243,21 @@ export function createWorldRenderer(
       scene.states = enabled ? states : undefined;
       states.clear();
       damaged.clear();
+
+      for (const accent of placementsAccent) {
+        accent.graphic?.destroy();
+      }
+
       placementsAccent.length = 0;
-      polishG.clear();
+
+      for (const layer of [healthBars, constructionBars]) {
+        for (const graphic of layer.values()) {
+          graphic.destroy();
+        }
+
+        layer.clear();
+      }
+
       rebasing = true;
 
       for (const [id, sprite] of sprites) {
@@ -1195,6 +1295,13 @@ export function createWorldRenderer(
       beams.length = 0;
       bursts.length = 0;
       shells.length = 0;
+
+      for (const stream of streams.values()) {
+        for (const piece of stream.pieces) {
+          piece.destroy();
+        }
+      }
+
       streams.clear();
       cooldowns.clear();
       rising.clear();
@@ -1205,8 +1312,6 @@ export function createWorldRenderer(
         glide.from = { ...glide.to };
       }
 
-      movingBars.clear();
-      streamG.clear();
       rebasing = false;
       timeline.reset();
     },
@@ -1265,10 +1370,6 @@ export function createWorldRenderer(
       }
 
       if (improved) {
-        movingBars.clear();
-        streamG.clear();
-        polishG.clear();
-
         for (const entity of world.entities.values()) {
           const sprite = sprites.get(entity.id);
 
@@ -1284,21 +1385,19 @@ export function createWorldRenderer(
             damaged.delete(entity.id);
           }
 
-          if ('hp' in entity && entity.hp < entity.hpMax) {
-            const top = sprite instanceof Sprite
-              ? sprite.y - sprite.height * sprite.anchor.y
-              : sprite.y;
-            drawBar(sprite.x, top - BAR_GAP - BAR_HEIGHT, entity.hp / entity.hpMax, movingBars);
+          const top = sprite instanceof Sprite
+            ? sprite.y - sprite.height * sprite.anchor.y
+            : sprite.y;
+          const health = healthBars.get(entity.id);
+
+          if (health) {
+            health.position.set(sprite.x, top - BAR_GAP - BAR_HEIGHT);
           }
 
-          if (entity.kind === 'building' && entity.rising > 0 && entity.regrow === 0) {
-            const top = sprite instanceof Sprite
-              ? sprite.y - sprite.height * sprite.anchor.y
-              : sprite.y;
-            const share = Math.max(0, 1 - entity.rising / (BUILD_SECONDS * TPS));
-            polishG.moveTo(sprite.x - BAR_WIDTH / 2, top - BAR_GAP)
-              .lineTo(sprite.x - BAR_WIDTH / 2 + BAR_WIDTH * share, top - BAR_GAP)
-              .stroke({ color: PROGRESS_COLOR, width: 1 });
+          const construction = constructionBars.get(entity.id);
+
+          if (construction) {
+            construction.position.set(sprite.x, top - BAR_GAP);
           }
         }
 
@@ -1311,7 +1410,7 @@ export function createWorldRenderer(
         }
 
         for (const stream of streams.values()) {
-          drawStream(stream, presentationTick, streamG);
+          drawStream(stream, presentationTick);
         }
 
         for (let i = placementsAccent.length - 1; i >= 0; i--) {
@@ -1319,13 +1418,19 @@ export function createWorldRenderer(
           const done = progress(presentationTick, accent.start, PLACE_TICKS);
 
           if (done >= 1) {
+            accent.graphic?.destroy();
             placementsAccent.splice(i, 1);
             continue;
           }
 
-          const { sx, sy } = project(accent.x, accent.y);
-          polishG.rect(sx, sy, accent.w * TW, accent.h * TH)
-            .stroke({ color: PROGRESS_COLOR, width: 1, alpha: 1 - easeOut(done) });
+          if (!accent.graphic) {
+            const { sx, sy } = project(accent.x, accent.y);
+            accent.graphic = polishG.addChild(new Graphics())
+              .rect(sx, sy, accent.w * TW, accent.h * TH)
+              .stroke({ color: PROGRESS_COLOR, width: 1 });
+          }
+
+          accent.graphic.alpha = 1 - easeOut(done);
         }
       }
     },

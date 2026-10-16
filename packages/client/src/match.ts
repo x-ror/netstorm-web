@@ -5,6 +5,7 @@ import {
   createAiMemory,
   DIFFICULTY,
   ReplayRecorder,
+  World,
   TPS,
   playReplay,
   type AiMemory,
@@ -277,6 +278,31 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     animation: renderer,
     cameraTools: { cellAt, zoomAt },
     advanceCamera: controls.updateCamera,
+    /** Isolated, silent renderer fixture from the replay's exact initial state. */
+    createAnimationFixture() {
+      const fixtureWorld = World.fromSnapshot(match.export().initial);
+      const fixtureCamera = app.stage.addChild(new Container());
+      fixtureCamera.scale.copyFrom(camera.scale);
+      const fixtureTerrain = fixtureCamera.addChild(new Graphics());
+      const fixtureGround = fixtureCamera.addChild(new Container());
+      const fixtureEntities = fixtureCamera.addChild(new Container());
+      const fixtureBars = fixtureCamera.addChild(new Container());
+      const silent = { ...data.sounds, play() {}, unit() {} };
+      const animation = createWorldRenderer(fixtureWorld.view(), ME, fixtureTerrain, fixtureGround,
+        fixtureEntities, fixtureBars, data.textures, silent, data.hotFeet);
+      camera.visible = false;
+      return {
+        world: fixtureWorld,
+        camera: fixtureCamera,
+        entityLayer: fixtureEntities,
+        animation,
+        app,
+        dispose() {
+          fixtureCamera.destroy({ children: true });
+          camera.visible = true;
+        },
+      };
+    },
   };
 
   let hudTick = -1;

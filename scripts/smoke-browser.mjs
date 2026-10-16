@@ -200,6 +200,27 @@ try {
   assert.deepEqual(cameraTiming.distances, [480, 480, 480]);
   assert.equal(cameraTiming.stoppedOnBlur, true);
 
+  const toggles = await page.evaluate(() => {
+    const { world, animation } = window.ns;
+    const before = world.hash();
+    animation.setImproved(false);
+    animation.setImproved(true);
+    return { before, after: world.hash() };
+  });
+  assert.equal(toggles.before, toggles.after);
+  const hiddenTick = await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    return window.ns.world.tick;
+  });
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => window.ns.world.tick), hiddenTick);
+  await page.evaluate(() => {
+    delete document.hidden;
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.waitForFunction((tick) => window.ns.world.tick > tick, hiddenTick);
+
   // Opt-in, reproducible CPU measurements; no debug mutation is recorded as a replay.
   if (process.env.NS_ANIMATION_BENCH) {
     const session = await page.context().newCDPSession(page);
@@ -213,8 +234,9 @@ try {
 
     for (const throttle of [1, 4]) {
       await session.send('Emulation.setCPUThrottlingRate', { rate: throttle });
-      const measurements = await page.evaluate(() => {
-        const { app, world, animation, camera } = window.ns;
+      const measurements = await page.evaluate(async () => {
+        const fixture = window.ns.createAnimationFixture();
+        const { app, world, animation, camera, entityLayer } = fixture;
         app.stop();
         const initialTick = world.tick;
         const results = [];
@@ -226,7 +248,7 @@ try {
         const temple = world.templeOf(1);
         camera.position.set(640 - temple.x * 16 * camera.scale.x,
           400 - temple.y * 11 * camera.scale.y);
-        const advance = (added, i) => {
+        const advance = (added, i, combat) => {
           if (i % 6 !== 0) {
             return;
           }
@@ -236,7 +258,7 @@ try {
           for (const id of added) {
             const unit = world.entities.get(id);
 
-            if (unit.kind === 'building') {
+            if (unit.kind === 'building' && combat) {
               unit.cooldown = i % 12 === 0 ? 8 : 0;
             }
           }
@@ -244,6 +266,13 @@ try {
 
         for (const scene of ['idle', 'combat', 'construction']) {
           const added = [];
+
+          if (scene === 'construction') {
+            const workshop = world.spawnBuilding('windfactory', 1, temple.x - 12, temple.y - 12);
+            workshop.rising = 0;
+            workshop.slots.push('windarcher');
+            added.push(workshop.id);
+          }
 
           if (scene !== 'idle') {
             for (let i = 0; i < 48; i++) {
@@ -254,7 +283,7 @@ try {
               unit.rising = scene === 'construction' ? 100 : 0;
               const target = world.spawnTransport('sunwalker', 2, x + 2, y + 2);
               target.hp /= 2;
-              unit.target = target.id;
+              unit.target = scene === 'combat' ? target.id : null;
               added.push(unit.id, target.id);
             }
           }
@@ -263,13 +292,30 @@ try {
           for (let round = 0; round < 4; round++) {
             const improved = round % 2 === 1;
             animation.setImproved(improved);
+
+            // Settle every finite burst before measuring a round. Warm CPU/state separately from
+            // the GPU queue, then discard the first 30 submitted frames as well.
+            for (let i = 0; i < 180; i++) {
+              advance(added, i, scene === 'combat');
+              animation.sync((i % 6) / 6);
+            }
+
             const sync = [];
             const frame = [];
+            const intervals = [];
+            let previousFrame;
             const heapBefore = performance.memory?.usedJSHeapSize;
 
-            for (let i = 0; i < 90; i++) {
+            for (let i = 0; i < 60; i++) {
+              const timestamp = await new Promise((resolve) => requestAnimationFrame(resolve));
+
+              if (i >= 30 && previousFrame !== undefined) {
+                intervals.push(timestamp - previousFrame);
+              }
+
+              previousFrame = timestamp;
               // Synthetic ticks exercise capture and transient creation without running AI.
-              advance(added, i);
+              advance(added, i, scene === 'combat');
 
               const start = performance.now();
               animation.sync((i % 6) / 6);
@@ -283,18 +329,28 @@ try {
               }
             }
 
+            const effects = animation.inspect?.();
             results.push({
               scene,
               improved,
               round,
               entities: world.entities.size,
-              displayObjects: window.ns.entityLayer.children.length,
-              effects: animation.inspect?.(),
+              displayObjects: entityLayer.children.length,
+              effects: effects
+                ? {
+                  missiles: effects.missiles.length,
+                  bursts: effects.bursts.length,
+                  streams: effects.streams,
+                  bolts: effects.bolts,
+                }
+                : null,
               heapDelta: performance.memory ? performance.memory.usedJSHeapSize - heapBefore : null,
               syncMedian: percentile(sync, 0.5),
               syncP95: percentile(sync, 0.95),
               frameMedian: percentile(frame, 0.5),
               frameP95: percentile(frame, 0.95),
+              intervalMedian: percentile(intervals, 0.5),
+              intervalP95: percentile(intervals, 0.95),
               over60: frame.filter((ms) => ms > 1000 / 60).length,
               over144: frame.filter((ms) => ms > 1000 / 144).length,
             });
@@ -305,7 +361,7 @@ try {
           }
         }
 
-        // This destructive benchmark is run only immediately before leaving the match.
+        fixture.dispose();
         return { results, initialTick };
       });
       console.log('Animation benchmark', JSON.stringify({ throttle, ...measurements }));
@@ -341,6 +397,7 @@ try {
       app.stop();
       const samples = [];
       camera.scale.set(0.5 / devicePixelRatio);
+      samples.push({ scale: camera.scale.x * devicePixelRatio, snapped: true, error: 0 });
 
       for (let level = 0; level < 5; level++) {
         const before = cameraTools.cellAt(camera, 640, 400);
@@ -354,10 +411,25 @@ try {
         });
       }
 
-      return samples;
+      camera.scale.set(1 / devicePixelRatio);
+      const touch = (type, id, x) =>
+        app.canvas.dispatchEvent(new PointerEvent(type, {
+          pointerId: id,
+          pointerType: 'touch',
+          clientX: x,
+          clientY: 400,
+          bubbles: true,
+        }));
+      touch('pointerdown', 101, 640);
+      touch('pointerdown', 102, 740);
+      touch('pointermove', 102, 820);
+      touch('pointerup', 101, 640);
+      touch('pointerup', 102, 820);
+      return { samples, pinchScale: camera.scale.x * devicePixelRatio };
     });
-    assert.deepEqual(pixels.map((sample) => sample.scale), [1, 2, 3, 4, 4]);
-    assert.ok(pixels.every((sample) => sample.snapped && sample.error <= 1));
+    assert.deepEqual(pixels.samples.map((sample) => sample.scale), [0.5, 1, 2, 3, 4, 4]);
+    assert.ok(pixels.samples.every((sample) => sample.snapped && sample.error <= 1));
+    assert.equal(pixels.pinchScale, 2);
     await pixelPage.close();
   }
 

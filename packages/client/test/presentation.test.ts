@@ -257,6 +257,104 @@ test('death/spell bursts initialize immediately and expired catch-up effects do 
   assert.equal(renderer.inspect().bursts.length, 0);
 });
 
+test('shots keep recorded target coordinates and survive removal in their launch tick', () => {
+  const { world, renderer } = fixture();
+  const gun = world.spawnBuilding('windarcher', 1, 40, 40);
+  const target = world.spawnTransport('sunwalker', 2, 44, 40);
+  gun.rising = 0;
+  gun.cooldown = 0;
+  gun.target = target.id;
+  renderer.sync(1);
+  gun.cooldown = 8;
+  world.tick++;
+  world.shots.push({
+    gun: { ...gun },
+    target: target.id,
+    x: 44,
+    y: 40,
+    land: world.tick + 2,
+    amount: 1,
+  });
+  target.x = 45;
+  world.entities.delete(gun.id);
+  renderer.capture();
+  renderer.sync(0);
+  const missile = renderer.inspect().missiles[0]!;
+  assert.ok(missile);
+  assert.deepEqual(missile.to, { x: 44.5 * 16, y: 40.5 * 11 });
+});
+
+test('construction feedback completes on the authoritative tick and placement accents are bounded', () => {
+  const { world, renderer, bars } = fixture();
+  const site = world.spawnBuilding('sunfactory', 1, 40, 40);
+  site.rising = 10;
+  renderer.sync(1);
+  assert.equal(bars.children[3]!.children.length, 1);
+  site.rising = 0;
+  world.tick++;
+  renderer.capture();
+  renderer.sync(0);
+  assert.equal(bars.children[3]!.children.length, 0);
+  renderer.placed(Array.from({ length: 100 }, (_, x) => [x, 40] as const));
+  assert.equal(renderer.inspect().accents, 64);
+  world.tick += 3;
+  renderer.capture();
+  renderer.sync(0);
+  assert.equal(renderer.inspect().accents, 0);
+});
+
+test('crossings use displayed depth, while temple overlays cannot interleave with another entity', () => {
+  const { world, renderer, layer, texture, textures } = fixture();
+
+  for (let i = 0; i < 14; i++) {
+    textures.set(`slot:windvortex:${i}`, texture);
+  }
+
+  const temple = world.spawnBuilding('windvortex', 1, 40, 40);
+  temple.rising = 0;
+  const first = world.spawnTransport('sunwalker', 1, 40, 45);
+  const second = world.spawnTransport('sunwalker', 1, 40, 46);
+  renderer.sync(1);
+  const firstGroup = layer.children[1]!;
+  const secondGroup = layer.children[2]!;
+  const templeGroup = layer.children[0]!;
+  assert.ok(templeGroup.children.length >= 2);
+  first.y += 2;
+  world.tick++;
+  renderer.capture();
+  renderer.sync(0.25);
+  assert.ok(firstGroup.zIndex < secondGroup.zIndex);
+  renderer.sync(0.75);
+  assert.ok(firstGroup.zIndex > secondGroup.zIndex);
+  assert.ok(templeGroup.children.every((child) => child.parent === templeGroup));
+  assert.equal(second.y, 46);
+});
+
+test('Energy bolts and bounded stream streaks advance between ticks without recapturing the world', () => {
+  const { world, renderer, bars } = fixture();
+  const source = world.spawnBuilding('windvortex', 1, 40, 40);
+  source.rising = 0;
+  const workshop = world.spawnBuilding('windfactory', 1, 47, 47);
+  workshop.rising = 0;
+  workshop.slots.push('windarcher');
+  const site = world.spawnBuilding('windarcher', 1, 55, 50);
+  site.rising = 100;
+  site.builder = null;
+  renderer.sync(0);
+  assert.equal(renderer.inspect().streams, 1);
+  assert.equal(renderer.inspect().bolts, 1);
+  renderer.sync(0.25);
+  const before = { ...bars.children[2]!.getLocalBounds() };
+  renderer.sync(0.75);
+  const after = { ...bars.children[2]!.getLocalBounds() };
+  assert.notDeepEqual(after, before);
+  site.rising = 0;
+  world.tick++;
+  renderer.capture();
+  renderer.sync(0);
+  assert.equal(renderer.inspect().streams, 0);
+});
+
 test('synthetic 30/60/144 Hz, irregular, catch-up and clock-cap schedules preserve gameplay', () => {
   const schedules = [
     [1000 / 30],
@@ -266,6 +364,7 @@ test('synthetic 30/60/144 Hz, irregular, catch-up and clock-cap schedules preser
     [450, 50],
     [60000, 10, 90],
   ];
+  let reference: number[] | undefined;
 
   for (const schedule of schedules) {
     const runs = [];
@@ -316,5 +415,14 @@ test('synthetic 30/60/144 Hz, irregular, catch-up and clock-cap schedules preser
     }
 
     assert.deepEqual(runs[1], runs[0], `schedule ${schedule}`);
+    const hashes = runs[0]!.hashes;
+
+    if (reference) {
+      const shared = Math.min(reference.length, hashes.length);
+      assert.deepEqual(hashes.slice(0, shared), reference.slice(0, shared),
+        `equal ticks ${schedule}`);
+    } else {
+      reference = hashes;
+    }
   }
 });
