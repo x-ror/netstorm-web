@@ -5,7 +5,8 @@ import { Container, Graphics, Texture, TextureSource } from 'pixi.js';
 import { FixedStepClock, World, loadDefs, TPS } from '@netstorm/sim';
 import { createWorldRenderer } from '../src/renderer.js';
 import { hotSpots } from '../src/assets.js';
-import { firstEmission, PresentationTime, progress } from '../src/presentation.js';
+import { firstEmission, PresentationTime, progress, VisualStates } from '../src/presentation.js';
+import { slotOf } from '../src/animations.js';
 import type { Sounds } from '../src/sound.js';
 
 const defs = loadDefs(
@@ -52,6 +53,31 @@ test('presentation reset freezes partial pose without rewinding or following dis
   assert.equal(progress(12, 10, 2), 1);
   assert.equal(progress(9, 10, 2), 0);
   assert.ok(firstEmission(100000, 0, 20, 5) >= 99980);
+});
+
+test('visual states restart walking only on entry and cleanly cancel on removal', () => {
+  const { world } = fixture();
+  const unit = world.spawnTransport('sunwalker', 1, 40, 40);
+  const states = new VisualStates();
+  const scene = {
+    world: world.view(),
+    headings: new Map<number, number>(),
+    aims: new Map<number, number>(),
+    states,
+  };
+  unit.path = [[41, 40]];
+  const first = slotOf(unit, 7, scene);
+  assert.deepEqual(slotOf(unit, 7, scene), first);
+  assert.notDeepEqual(slotOf(unit, 8, scene), first);
+  unit.path = [];
+  slotOf(unit, 9, scene);
+  unit.path = [[41, 40]];
+  assert.deepEqual(slotOf(unit, 10, scene), first);
+  states.delete(unit.id);
+  assert.equal(states.enter(unit.id, 'walking', 100), 0);
+  assert.equal(states.enter(unit.id, 'walking', 101), 1);
+  states.clear();
+  assert.equal(states.enter(unit.id, 'walking', 102), 0);
 });
 
 test('tick capture keeps adjacent movement samples through catch-up and pause resets', () => {

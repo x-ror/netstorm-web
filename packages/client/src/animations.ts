@@ -19,6 +19,7 @@ import {
 type Slot = readonly [type: string, slot: number];
 
 import { SHADOW_BASE } from './slots.js';
+import type { VisualState, VisualStates } from './presentation.js';
 
 export { SLOT_COUNTS } from './slots.js';
 
@@ -29,6 +30,7 @@ export interface Scene {
   headings: Map<number, number>;
   /** Where on its ring of turning frames each unit that turns has come to. */
   aims: Map<number, number>;
+  states?: VisualStates | undefined;
 }
 
 /* oxlint-disable no-magic-numbers -- slot counts and frame groups of the .type files */
@@ -260,7 +262,7 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Sl
       // It swings round to a new facing through the frames between; it fires once it is there.
       const quarter = SUN_CANNON_RING.length / SUN_CANNON.rest.length;
       const at = turnTo(scene.aims, b.id, b.facing * quarter, SUN_CANNON_RING.length);
-      const fired = at === b.facing * quarter && b.target !== null
+      const fired = (scene.states !== undefined || at === b.facing * quarter) && b.target !== null
         && b.cooldown >= SUN_CANNON_FIRE_FROM;
       return [b.type, fired ? SUN_CANNON.fire[b.facing] : SUN_CANNON_RING[at]!];
     }
@@ -312,8 +314,27 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Sl
  * The type and slot an entity shows, or null when it has no animation and keeps its one picture.
  * `headings` remembers which way each walker last went, so that it stands as it stopped.
  */
+function visualStateOf(entity: DeepReadonly<Entity>, ritual: boolean): VisualState {
+  if (entity.kind === 'building' && (entity.rising > 0 || entity.regrow > 0)) {
+    return 'constructing';
+  }
+
+  if (ritual) {
+    return 'ritual';
+  }
+
+  if ('target' in entity && entity.target !== null) {
+    return 'firing';
+  }
+
+  return 'path' in entity && entity.path.length > 0 ? 'walking' : 'idle';
+}
+
 export function slotOf(entity: DeepReadonly<Entity>, tick: number, scene: Scene): Slot | null {
   const { headings, world } = scene;
+  const ritual = entity.kind === 'priest' ? ritualOf(world, entity.owner) : undefined;
+  const state = visualStateOf(entity, ritual !== undefined);
+  const elapsed = scene.states?.enter(entity.id, state, tick) ?? tick;
 
   if (entity.kind === 'geyser') {
     return [
@@ -374,17 +395,16 @@ export function slotOf(entity: DeepReadonly<Entity>, tick: number, scene: Scene)
     const at = turnTo(scene.aims, entity.id, want, walker.turn.size);
 
     if (at !== want) {
+      scene.states?.enter(entity.id, 'turning', tick);
       return [type, walker.turn.first + at];
     }
   }
 
   if (going !== undefined) {
-    return [type, walker.groups[going]! * walker.frames + (tick % walker.frames)];
+    return [type, walker.groups[going]! * walker.frames + (elapsed % walker.frames)];
   }
 
   // Standing by his altar while a rune is warded, the Priest chants.
-  const ritual = entity.kind === 'priest' ? ritualOf(world, entity.owner) : undefined;
-
   if (ritual) {
     return [
       type,

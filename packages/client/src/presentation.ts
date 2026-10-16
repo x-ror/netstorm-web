@@ -28,3 +28,29 @@ export function easeOut(share: number): number {
 export function firstEmission(now: number, start: number, lifetime: number, every: number): number {
   return start + Math.max(0, Math.ceil((now - lifetime - start) / every)) * every;
 }
+
+export type VisualState = 'idle' | 'walking' | 'turning' | 'firing' | 'constructing' | 'ritual';
+
+/** State entry is tick-owned. Repeated render calls never advance a turn or restart a sequence. */
+export class VisualStates {
+  private readonly entries = new Map<number, { state: VisualState; entered: number; }>();
+
+  enter(id: number, state: VisualState, tick: number): number {
+    const previous = this.entries.get(id);
+
+    if (previous?.state !== state) {
+      this.entries.set(id, { state, entered: tick });
+      return 0;
+    }
+
+    return tick - previous.entered;
+  }
+
+  delete(id: number): void {
+    this.entries.delete(id);
+  }
+
+  clear(): void {
+    this.entries.clear();
+  }
+}

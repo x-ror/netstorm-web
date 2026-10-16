@@ -40,7 +40,7 @@ import {
 } from './effects.js';
 import { hotSpots } from './assets.js';
 import { unitSound, type Sounds } from './sound.js';
-import { firstEmission, PresentationTime, progress } from './presentation.js';
+import { firstEmission, PresentationTime, progress, VisualStates } from './presentation.js';
 
 const SPRITE_ANCHOR_X = 0.5;
 const UNIT_ANCHOR_Y = 0.85; // a unit's feet sit a little above the bottom of its frame
@@ -394,7 +394,13 @@ export function createWorldRenderer(
   const centres = new Map<number, Point>();
   /** Which way each walker last went (animations.ts). */
   const headings = new Map<number, number>();
-  const scene = { world, headings, aims: new Map<number, number>() };
+  const states = new VisualStates();
+  const scene = {
+    world,
+    headings,
+    aims: new Map<number, number>(),
+    states: states as VisualStates | undefined,
+  };
   const shadows = new Map<number, Sprite>();
   /** Where each unit was drawn on the previous tick and this one: between ticks it glides. */
   const glides = new Map<number, { from: Point; to: Point; }>();
@@ -563,6 +569,7 @@ export function createWorldRenderer(
         headings.delete(id);
         glides.delete(id);
         scene.aims.delete(id);
+        states.delete(id);
 
         if (holding.delete(id)) {
           burst({ type: 'altar', ...SACRIFICE }, sprite.position, sprite.zIndex);
@@ -1087,6 +1094,8 @@ export function createWorldRenderer(
       }
 
       improved = enabled;
+      scene.states = enabled ? states : undefined;
+      states.clear();
       rebasing = true;
 
       for (const [id, sprite] of sprites) {
