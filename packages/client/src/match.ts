@@ -318,6 +318,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
       if (event.what === 'destroyed') {
         renderer.explode(event.data.id);
+      } else if (event.what === 'ricochet') {
+        renderer.ricochet(event.data.hit, event.data.to);
       } else if (event.what === 'cast') {
         renderer.cast(event.data.transport, event.data.spell);
       } else if (event.what === 'bridge') {

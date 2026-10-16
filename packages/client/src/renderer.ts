@@ -1139,6 +1139,16 @@ export function createWorldRenderer(
   }
 
   /** Play the explosion of a unit where it stands; call before the next sync removes it. */
+  /** An Ice Cannon shot that splintered: its ricochet flies on from the unit hit to the next. */
+  function ricochet(hit: number, to: number): void {
+    const from = centres.get(hit);
+    const at = centres.get(to);
+
+    if (from && at) {
+      shoot('raincannon', from, at);
+    }
+  }
+
   function explode(id: number): void {
     const target = sprites.get(id);
     const at = centres.get(id);
@@ -1161,6 +1171,7 @@ export function createWorldRenderer(
 
   return {
     explode,
+    ricochet,
     cast,
     placed,
     capture,

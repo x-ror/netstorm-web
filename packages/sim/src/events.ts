@@ -17,6 +17,8 @@ type Payloads = {
   released: { priest: number; };
   saved: { priest: number; owner: number; };
   sacrifice: { victim: number; };
+  /** An Ice Cannon shot hit `hit` and threw a ricochet into `to`. */
+  ricochet: { hit: number; to: number; };
   rejected: { cmd: Command['t']; err: CommandError; };
   victory: undefined;
   'priest up': undefined;

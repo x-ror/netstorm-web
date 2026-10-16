@@ -230,6 +230,7 @@ function land(world: World, shot: Shot): void {
 
   if (other) {
     damage(world, world.hostile(gun.owner, other.owner) ? gun.owner : 0, other, amount / 2);
+    world.emit({ what: 'ricochet', who: gun.owner, data: { hit: target.id, to: other.id } });
   }
 }
 
