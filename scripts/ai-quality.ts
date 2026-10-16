@@ -11,7 +11,7 @@ import {
 
 const TICKS = Number(process.env.AI_QUALITY_TICKS ?? 3000);
 const INTERVAL = 30;
-const SEEDS = [31, 32, 33, 34, 35];
+const SEEDS = [31, 32, 33, 34, 35, 36, 37, 38, 39, 40];
 const defs = loadDefs(
   JSON.parse(readFileSync(new URL('../data/units.json', import.meta.url), 'utf8')),
 );
