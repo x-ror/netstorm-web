@@ -42,11 +42,13 @@ export function joins(world: WorldView, i: number, dir: number): boolean {
  * of the island containing the Outpost"), by an unbroken run of own island and bridge. */
 function connectedToTemple(world: WorldView, player: number): Uint8Array | null {
   const depots = world.depotsOf(player);
-  let byPlayer = connectedCache.get(world);
+  const parent = Object.getPrototypeOf(world) as WorldView | null;
+  const owner = parent && 'terrainRevision' in parent && 'entities' in parent ? parent : world;
+  let byPlayer = connectedCache.get(owner);
 
   if (!byPlayer) {
     byPlayer = new Map();
-    connectedCache.set(world, byPlayer);
+    connectedCache.set(owner, byPlayer);
   }
 
   const cached = byPlayer.get(player);
