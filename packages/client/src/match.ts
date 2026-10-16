@@ -34,6 +34,7 @@ import { m } from './paraglide/messages.js';
 import { cellAt, centerOn, snapZoom, zoomAt } from './camera.js';
 import { ZOOM } from './projection.js';
 import { createUiState } from './ui-state.js';
+import { PerformanceMonitor } from './perf.js';
 
 const HUD_REFRESH_TICKS = 5;
 /** Lines of the computer's reasons kept for copying; the oldest go first (about an hour of a
@@ -111,6 +112,10 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const overlay = new Graphics();
   const ghost = new Container();
   camera.addChild(terrainG, ground, entityLayer, bars, ghost, overlay);
+  // `?perf=1`: time the match; read the numbers with `ns.perf()` (docs/architecture.md).
+  const perf = new URLSearchParams(location.search).get('perf') === '1'
+    ? new PerformanceMonitor(world, app.renderer)
+    : undefined;
   const renderer = createWorldRenderer(view, () => ui.viewer, terrainG, ground, entityLayer, bars,
     data.textures, data.sounds, data.hotFeet);
 
@@ -151,7 +156,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
       const memory = memories.get(player) ?? createAiMemory(options.seed + player);
       memories.set(player, memory);
-      return aiMove(view, { ...side?.ai, player, difficulty: options.difficulty }, memory, explain);
+      const move = () =>
+        aiMove(view, { ...side?.ai, player, difficulty: options.difficulty }, memory, explain);
+      return perf ? perf.measure('ai', move) : move();
     });
   /** Time while paused or hidden does not pile up as ticks to catch up on. */
   const resetClock = () => {
@@ -338,6 +345,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     ui,
     animation: renderer,
     aiLog,
+    ...(perf ? { perf: () => perf.snapshot() } : {}),
     cameraTools: { cellAt, zoomAt },
     advanceCamera: controls.updateCamera,
   };
@@ -388,6 +396,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   renderer.sync();
   minimap.draw();
 
+  const stepWorld = () => match.step([...commands.splice(0), ...aiCommands()]);
+
   app.ticker.add((t) => {
     sky.setSize(app.screen.width, app.screen.height);
     sky.tileScale.set(camera.scale.x);
@@ -398,13 +408,24 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
     controls.updateCamera(t.deltaMS);
 
+    perf?.frame();
     const steps = ui.paused ? 0 : clock.advance(t.deltaMS, () => {
-      match.step([...commands.splice(0), ...aiCommands()]);
+      if (perf) {
+        perf.measure('simulationTick', stepWorld);
+      } else {
+        stepWorld();
+      }
+
       takeEvents();
       renderer.capture();
     });
     takeEvents();
-    renderer.sync(clock.alpha);
+
+    if (perf) {
+      perf.measure('renderSync', () => renderer.sync(clock.alpha));
+    } else {
+      renderer.sync(clock.alpha);
+    }
 
     if (ui.selected !== null && !world.entities.has(ui.selected)) {
       ui.selected = null;
@@ -455,6 +476,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   minimap.dispose();
   hud.dispose();
   document.removeEventListener('visibilitychange', resetClock);
+  perf?.dispose();
   app.destroy(true, { children: true });
   root.hidden = true;
   delete (window as unknown as { ns?: unknown; }).ns;

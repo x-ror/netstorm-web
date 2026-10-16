@@ -19,6 +19,8 @@
     "check:size": "node scripts/check-size.mjs",
     "test:browser": "node scripts/smoke-browser.mjs",
     "benchmark": "node --import tsx scripts/benchmark-sim.ts",
+    "perf:stress": "node --import tsx scripts/perf-stress.ts",
+    "perf:render": "node scripts/perf-render-browser.mjs",
     "prepare": "husky",
     "lint:commit": "commitlint",
     "lint:commits": "commitlint --verbose",
