@@ -1,4 +1,4 @@
-import { type Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import {
   type WorldView,
   type DeepReadonly,
@@ -347,6 +347,44 @@ export function createWorldRenderer(
 
   // --- entities
   const sprites = new Map<number, Sprite | Graphics>();
+  const groups = new Map<number, Container>();
+
+  function entityRoot(id: number): Container {
+    if (!improved) {
+      return entityLayer;
+    }
+
+    let group = groups.get(id);
+
+    if (!group) {
+      group = entityLayer.addChild(new Container({ sortableChildren: true }));
+      groups.set(id, group);
+    }
+
+    return group;
+  }
+
+  function displayedDepth(id: number, sprite: Sprite | Graphics, flying: boolean): void {
+    const group = groups.get(id);
+
+    if (improved && group) {
+      // Keep air below the existing effects plane; group attachments cannot interleave with
+      // another entity. Equal depths retain deterministic entity insertion order.
+      group.zIndex = flying ? AIR_Z - 1 + sprite.y / (H * TH + 1) : sprite.y;
+      sprite.zIndex = 0;
+      const over = overlays.get(id);
+      const shadow = shadows.get(id);
+
+      if (over) {
+        over.zIndex = OVERLAY_Z;
+      }
+
+      if (shadow) {
+        shadow.zIndex = -OVERLAY_Z;
+      }
+    }
+  }
+
   /** Cooldowns seen on the previous tick: a shooter whose cooldown went up has fired. */
   const cooldowns = new Map<number, number>();
   const widths = new Map<number, number>(); // footprint width in cells, kept for the explosion
@@ -408,7 +446,7 @@ export function createWorldRenderer(
 
     if (!sprite) {
       sprite = new Sprite(texture);
-      entityLayer.addChild(sprite);
+      entityRoot(id).addChild(sprite);
       layer.set(id, sprite);
     }
 
@@ -444,7 +482,7 @@ export function createWorldRenderer(
           sprite = marker;
         }
 
-        entityLayer.addChild(sprite);
+        entityRoot(entity.id).addChild(sprite);
         sprites.set(entity.id, sprite);
         widths.set(entity.id, entity.kind === 'building' ? entity.fx : 1);
       } else if (sprite instanceof Sprite && texture && sprite.texture !== texture) {
@@ -500,6 +538,7 @@ export function createWorldRenderer(
       const over = bySpot ? overlayOf(entity, world.tick, world) : null;
       attach(overlays, entity.id, over, sprite, OVERLAY_Z, 1);
       attach(shadows, entity.id, bySpot ? shadowOf(slot) : null, sprite, -OVERLAY_Z, SHADOW_ALPHA);
+      displayedDepth(entity.id, sprite, entity.kind === 'flyer');
 
       // An Altar that holds a captive when it goes plays the sacrifice where it stood.
       if (over?.[0] === 'altar' && over[1] > 0) {
@@ -533,6 +572,9 @@ export function createWorldRenderer(
           layer.get(id)?.destroy();
           layer.delete(id);
         }
+
+        groups.get(id)?.destroy();
+        groups.delete(id);
       }
     }
 
@@ -1011,7 +1053,7 @@ export function createWorldRenderer(
     const at = centres.get(id);
 
     if (target && at) {
-      burst(explosionFor(widths.get(id) ?? 1), at, target.zIndex + 1);
+      burst(explosionFor(widths.get(id) ?? 1), at, (groups.get(id)?.zIndex ?? target.zIndex) + 1);
       sounds.play('explosion', at);
     }
   }
@@ -1046,6 +1088,27 @@ export function createWorldRenderer(
 
       improved = enabled;
       rebasing = true;
+
+      for (const [id, sprite] of sprites) {
+        const root = entityRoot(id);
+        root.addChild(sprite);
+
+        for (const layer of [overlays, shadows]) {
+          const attached = layer.get(id);
+
+          if (attached) {
+            root.addChild(attached);
+          }
+        }
+      }
+
+      if (!enabled) {
+        for (const group of groups.values()) {
+          group.destroy();
+        }
+
+        groups.clear();
+      }
 
       // Discard transient presentation, not world events. Never replay old audio on a switch.
       for (const effect of [...missiles, ...bolts, ...beams]) {
@@ -1091,7 +1154,6 @@ export function createWorldRenderer(
       presentationTick = improved ? timeline.sample(world.tick, alpha) : world.tick;
       const poseAlpha = improved ? Math.min(1, presentationTick - world.tick) : alpha;
 
-      // ponytail: the health bar is drawn per tick and does not glide with its unit.
       for (const [id, { from, to }] of glides) {
         const sprite = sprites.get(id);
 
@@ -1103,6 +1165,7 @@ export function createWorldRenderer(
           from.y + (to.y - from.y) * poseAlpha);
         overlays.get(id)?.position.copyFrom(sprite.position);
         shadows.get(id)?.position.copyFrom(sprite.position);
+        displayedDepth(id, sprite, world.entities.get(id)?.kind === 'flyer');
       }
 
       if (improved) {

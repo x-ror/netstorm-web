@@ -58,7 +58,7 @@ test('tick capture keeps adjacent movement samples through catch-up and pause re
   const { world, renderer, layer } = fixture();
   const unit = world.spawnTransport('sunwalker', 1, 40, 40);
   renderer.sync(1);
-  const sprite = layer.children[0]!;
+  const sprite = layer.children[0]!.children[0]!;
   const start = sprite.x;
 
   for (let i = 0; i < 4; i++) {
@@ -72,6 +72,28 @@ test('tick capture keeps adjacent movement samples through catch-up and pause re
   renderer.resetTime();
   renderer.sync(0);
   assert.equal(sprite.x, start + 3.5 * 16);
+});
+
+test('depth follows displayed feet and attachments stay in an atomic entity group', () => {
+  const { world, renderer, layer, bars } = fixture();
+  const unit = world.spawnTransport('sunwalker', 1, 40, 40);
+  unit.hp /= 2;
+  renderer.sync(1);
+  const group = layer.children[0]!;
+  const sprite = group.children[0]!;
+  const y = sprite.y;
+  unit.y += 2;
+  world.tick++;
+  renderer.capture();
+  renderer.sync(0.25);
+  assert.equal(sprite.y, y + 0.5 * 11);
+  assert.equal(group.zIndex, sprite.y);
+  const health = bars.children[1]!.getLocalBounds();
+  assert.equal(health.minY, sprite.y - 4);
+  renderer.setImproved(false);
+  assert.ok(layer.children.includes(sprite));
+  renderer.setImproved(true);
+  assert.ok(layer.children[0]!.children.includes(sprite));
 });
 
 test('legacy/improved switches leave world unchanged and do not replay audio', () => {
