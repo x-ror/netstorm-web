@@ -132,7 +132,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
         return [];
       }
 
-      const memory = memories.get(player) ?? createAiMemory();
+      const memory = memories.get(player) ?? createAiMemory(options.seed + player);
       memories.set(player, memory);
       return aiMove(view, { ...side?.ai, player, difficulty: options.difficulty }, memory);
     });

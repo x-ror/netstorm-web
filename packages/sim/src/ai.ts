@@ -16,7 +16,8 @@
  * shooters first, and Upgrades a full Workshop once Storm Power is plenty.
  */
 import type { Command } from './commands.js';
-import { remember, type AiMemory } from './ai/memory.js';
+import { ALARM_DISTANCE, defendScore, pushing, type Pressure } from './ai/goals.js';
+import { LOSS_MOVES, random, remember, type AiMemory } from './ai/memory.js';
 import { hoarding, useful, wantedTransports, worth } from './ai/economy.js';
 import { DIFFICULTY, type AiParams, type Difficulty } from './ai/params.js';
 import { skyCosts, threatMap, type ThreatMap } from './ai/threat.js';
@@ -104,6 +105,8 @@ export interface AiOptions {
   enemy?: number;
   /** The level chosen for a skirmish; a campaign side plays at `normal`. */
   difficulty?: Difficulty;
+  /** `aiSalvageChance`, 0 to 1: how readily it salvages a gun that has nothing to shoot at. */
+  salvageChance?: number;
 }
 
 /**
@@ -119,6 +122,7 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
   }
 
   const params = DIFFICULTY[options.difficulty ?? 'normal'];
+  const seen = noticed(world, memory, params.reactionMoves * params.moveSeconds);
   // The commands of one move are checked against the same world, so this move's own spending and
   // cells are tracked here: later commands must not count on Storm Power or ground already used.
   const move: Move = {
@@ -127,18 +131,37 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     planned: new Set(),
     laid: new Set(),
     commands: [],
-    threat: threatMap(world, me, noticed(world, memory, params.reactionMoves * params.moveSeconds)),
+    threat: threatMap(world, me, seen),
     weight: params.threatWeight,
     fleeing: false,
     params,
+    guns: enemyGuns(world, me, seen),
+    actions: 0,
   };
   const transports = owned<Transport>(world, me, 'transport');
   const geysers = reachableGeysers(world, me);
   // Ground the transports can walk to now; joining anything else is what a bridge is for.
   const home = world.templeOf(me);
   const reached = home ? walkableFrom(world, me, home) : null;
+  const bounds = ownBounds(world, me);
+  const pressure = sense(world, move, memory, bounds);
+  const defend = defendScore(pressure);
+  const prices = knownShooters(world, me).map((def) => def.cost);
+  const cheapest = prices.length ? Math.min(...prices) : 0;
+
+  // Storm Power for a defence is held back from everything else, until a defence is called for.
+  const reserve = defend === 0 ? Math.min(move.budget, params.reserveShooters * cheapest) : 0;
+  move.budget -= reserve;
 
   shelter(world, move);
+
+  if (defend > 0) {
+    defendGround(world, move, pressure, bounds);
+  }
+
+  if (memory) {
+    salvageIdle(world, move, memory, options.salvageChance ?? params.salvageChance, defend);
+  }
 
   if (options.collect !== false) {
     collect(world, move, transports, geysers);
@@ -160,21 +183,31 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     move.commands.push({ t: 'movePriest', player: me, ...ward });
   }
 
-  const attack = geysers.length >= (options.geysers ?? ENOUGH_GEYSERS)
-    || player.storm >= ATTACK_STORM;
-  const bounds = ownBounds(world, me);
+  // Toward the enemy once the economy is up, and the AI's guns outweigh his for the level.
+  const ownDps = world.buildingsOf(me).reduce((sum, b) => sum + groundDps(world.def(b.type)), 0);
+  const enemyDps = move.guns.reduce((sum, b) => sum + groundDps(world.def(b.type)), 0);
+  const attack = (geysers.length >= (options.geysers ?? ENOUGH_GEYSERS)
+    || player.storm >= ATTACK_STORM)
+    && pushing(ownDps, enemyDps, params.pushRatio, memory?.pushing ?? false);
+
+  if (memory) {
+    memory.pushing = attack;
+  }
+
   let target: Target | undefined;
   let head: Head | null = null;
   let piece: Extract<Command, { t: 'dropPiece'; }> | null = null;
+  let first: { target: Target; head: Head | null; } | null = null;
 
-  // Grow toward the first target a piece can be laid toward. When none can, the last target, the
-  // enemy, still decides where units go.
+  // Grow toward the first target a piece can be laid toward. When none can, the first target,
+  // the one most wanted, still decides where units go.
   for (const candidate of bridgeTargets(world, me, attack, options.enemy)) {
     const field = skyField(world, move, candidate);
     target = candidate;
     const heads = bounds && reached ? bridgeHeads(world, me, field, bounds, reached) : [];
     head = heads[0] ?? null;
     piece = null;
+    first ??= { target: candidate, head };
 
     // The nearest head may sit in a pocket of the AI's own bridge, where every piece only leads
     // further from the target; then the bridge goes on from the next head that a piece improves.
@@ -182,7 +215,7 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
       // Told to keep off the enemy's island, it lays no bridge toward him; he still decides
       // where its units go.
       piece = reached && !(candidate.enemy && options.attack === false)
-        ? bestPiece(world, me, from, field, reached)
+        ? bestPiece(world, move, from, field, reached)
         : null;
 
       if (piece) {
@@ -193,6 +226,12 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     if (piece) {
       break;
     }
+  }
+
+  // With no piece to lay anywhere, units still go where the bridge is most wanted.
+  if (!piece && first) {
+    target = first.target;
+    head = first.head;
   }
 
   if (piece) {
@@ -217,14 +256,16 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
       if (site) {
         generator(world, move, site);
       }
-    } else if (
+    }
+
+    if (
       (target.enemy && distance(head.x, head.y, target.x, target.y) <= ATTACK_REACH)
       || shooters < DEFENCE_SHOOTERS || hoards
     ) {
       // As many as the level lays in a move, each of another type: the refresh after a unit
       // keeps the same type from coming twice, as it keeps a player.
-      for (let laid = 0; laid < params.actionsPerMove && bestUnit(world, move, head, target);) {
-        laid++;
+      while (move.actions < params.actionsPerMove && bestUnit(world, move, head, target)) {
+        // each pass lays one more
       }
     }
 
@@ -244,7 +285,7 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
   }
 
   if (memory) {
-    remember(memory, player.storm, player.storm - move.budget);
+    remember(memory, player.storm, player.storm - move.budget - reserve);
   }
 
   return move.commands;
@@ -266,6 +307,10 @@ interface Move {
   /** The Priest is sent out of the enemy's fire this move, and is free for nothing else. */
   fleeing: boolean;
   params: Readonly<AiParams>;
+  /** The enemy's guns this move takes into account. */
+  guns: View<Building>[];
+  /** Shooters laid this move, against the level's actions. */
+  actions: number;
 }
 
 /**
@@ -791,6 +836,7 @@ function walkableFrom(world: WorldView, me: number, from: View<Building>): Uint8
 const scratch = {
   field: new Int32Array(W * H),
   queue: new Int32Array(W * H),
+  order: new Int32Array(W * H),
   reached: new Uint8Array(W * H),
 };
 
@@ -917,12 +963,14 @@ function bridgeTargets(
   for (const [id, other] of world.players) {
     const foe = world.hostile(id, me) && other.alive && (chosen === undefined || chosen === id);
     const enemy = foe ? world.templeOf(id) : undefined;
-    const priest = world.priestOf(id);
+    const priest = foe ? world.priestOf(id) : undefined;
 
-    if (enemy) {
-      enemies.push(priest && priest.state !== 'carried'
-        ? { x: priest.x, y: priest.y, enemy: true }
-        : { ...centre(enemy), enemy: true });
+    // His Priest, or his Temple while the Priest is carried; a side whose Temple fell still has
+    // its Priest to be taken.
+    if (priest && priest.state !== 'carried') {
+      enemies.push({ x: priest.x, y: priest.y, enemy: true });
+    } else if (enemy) {
+      enemies.push({ ...centre(enemy), enemy: true });
     }
   }
 
@@ -1026,11 +1074,12 @@ function bridgeHeads(
 /** The piece placement near the head that shortens the bridge still needed the most. */
 function bestPiece(
   world: WorldView,
-  me: number,
+  move: Move,
   head: Head,
   field: Int32Array,
   reached: Uint8Array,
 ): Extract<Command, { t: 'dropPiece'; }> | null {
+  const me = move.me;
   const hand = world.players.get(me)!.hand;
   let best: Extract<Command, { t: 'dropPiece'; }> | null = null;
   let bestNeed = head.need;
@@ -1049,9 +1098,11 @@ function bestPiece(
       for (const [x, y] of nearby(head, SEARCH_RADIUS)) {
         const need = needAfter(world, me, field, reached, cells, ends, x, y);
 
+        // Not where a unit of this move is to stand, which canDropPiece does not see yet.
         if (
           need < bestNeed
           && touchesWalkable(world, me, cells, x, y)
+          && cells.every(([dx, dy]) => !move.planned.has(world.at(x + dx, y + dy)))
           && world.canDropPiece({ player: me, hand: index, x, y, rot }) === null
         ) {
           best = { t: 'dropPiece', player: me, hand: index, x, y, rot };
@@ -1168,12 +1219,15 @@ function bestUnit(
   );
   const lines = built.filter((def) => def.group === 'cannon').length;
   const preferLine = lines < built.length - lines;
+  const outranged = move.guns.reduce((most, b) => Math.max(most, world.def(b.type).range), 0);
   const shooters = known
     .filter((def) =>
       def.dps > 0 && def.range > 0 && def.group !== 'fence' && (air || def.group !== 'anti-air')
     )
     .sort((a, b) =>
       Number(air && b.group === 'anti-air') - Number(air && a.group === 'anti-air')
+      // One that reaches as far as the enemy's guns, where there is one: it fires first.
+      || Number(b.range >= outranged) - Number(a.range >= outranged)
       || Number((b.group === 'cannon') === preferLine)
         - Number((a.group === 'cannon') === preferLine)
       // The most damage for the Storm Power, not the dearest.
@@ -1183,9 +1237,17 @@ function bestUnit(
   let short = false;
 
   for (const def of shooters) {
-    const spot = place(world, move, def, head, facesWhenLaid(def) ? facing : undefined);
+    // Attacking, a gun goes only where it reaches the mark: a square gun within its range of it,
+    // a cannon on its row or column; otherwise the move keeps the Storm Power and the bridge goes
+    // on. A defence by the bridge head stands wherever there is room.
+    const fit = target.enemy && distance(head.x, head.y, target.x, target.y) <= ATTACK_REACH
+      ? (x: number, y: number) => reaches(def, x, y, target)
+      : undefined;
+    const spot = place(world, move, def, head, facesWhenLaid(def) ? facing : undefined, UNIT_RADIUS,
+      fit);
 
     if (spot.placed) {
+      move.actions++;
       return true;
     }
 
@@ -1197,6 +1259,314 @@ function bestUnit(
   }
 
   return false;
+}
+
+/**
+ * Whether a gun laid at (x, y) hits the mark, and facing which way: false if it does not, the
+ * facing to lay it with if it is aimed when laid, undefined if it needs none. A cannon's line runs
+ * from the middle of its footprint along its facing, a square gun covers `range` (Chebyshev)
+ * around its middle cell, as rules/combat.ts aims them.
+ */
+function reaches(
+  def: Readonly<UnitDef>,
+  x: number,
+  y: number,
+  mark: { x: number; y: number; },
+): Facing | undefined | false {
+  const cx = x + (def.footX >> 1);
+  const cy = y + (def.footY >> 1);
+
+  if (def.group !== 'cannon') {
+    const far = Math.max(Math.abs(mark.x - cx), Math.abs(mark.y - cy));
+
+    if (far > def.range) {
+      return false;
+    }
+
+    // The Crossbow fires into an arc ahead of it, so it faces the mark; the rest turn or cover all
+    // around them.
+    return facesWhenLaid(def) ? toward({ x: cx, y: cy }, mark) : undefined;
+  }
+
+  if (mark.x === cx && mark.y !== cy && Math.abs(mark.y - cy) <= def.range) {
+    return mark.y < cy ? 0 : 2; // oxlint-disable-line no-magic-numbers -- N, S
+  }
+
+  if (mark.y === cy && mark.x !== cx && Math.abs(mark.x - cx) <= def.range) {
+    return mark.x > cx ? 1 : 3; // oxlint-disable-line no-magic-numbers -- E, W
+  }
+
+  return false;
+}
+
+/** Damage per second a unit of this type brings onto the ground: none for barriers and guns that
+ * hit only the air. */
+function groundDps(def: Readonly<UnitDef>): number {
+  return def.range > 0 && def.group !== 'fence' && def.group !== 'anti-air' ? def.dps : 0;
+}
+
+/** The enemy's guns this move knows of, visible and noticed. */
+function enemyGuns(
+  world: WorldView,
+  me: number,
+  seen: (b: View<Building>) => boolean,
+): View<Building>[] {
+  const guns: View<Building>[] = [];
+
+  for (const e of world.entities.values()) {
+    if (
+      e.kind === 'building' && world.hostile(e.owner, me) && e.invisible === 0 && e.hp > 0
+      && groundDps(world.def(e.type)) > 0 && seen(e)
+    ) {
+      guns.push(e);
+    }
+  }
+
+  return guns;
+}
+
+/** Whether any cell of a building's footprint lies under the enemy's fire. */
+function underFire(move: Move, b: View<Building>, world: WorldView): boolean {
+  for (let y = b.y; y < b.y + b.fy; y++) {
+    for (let x = b.x; x < b.x + b.fx; x++) {
+      if (move.threat[world.at(x, y)]! > 0) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * How the enemy presses this move: fire on own buildings or the Priest, buildings lost since the
+ * last moves (the memory tells them from salvaged ones), and enemy ground coming within the
+ * alarm of own ground, found by stepping out from own ground over anything.
+ */
+/** The pressure, with where to meet it: the own cell to defend and the enemy to face. */
+type Press = Pressure & {
+  point: { x: number; y: number; } | null;
+  source: { x: number; y: number; } | null;
+};
+
+function sense(
+  world: WorldView,
+  move: Move,
+  memory: AiMemory | undefined,
+  bounds: Bounds | null,
+): Press {
+  const mine = world.buildingsOf(move.me);
+  const priest = world.priestOf(move.me);
+  const shot = mine.find((b) => underFire(move, b, world))
+    ?? (priest && move.threat[world.at(priest.x, priest.y)]! > 0 ? priest : undefined);
+  let losses = 0;
+
+  if (memory) {
+    const now = new Map(mine.map((b) => [b.id, { x: b.x, y: b.y }]));
+
+    for (const [id, at] of memory.buildings) {
+      if (!now.has(id)) {
+        memory.losses.push({ ...at, tick: world.tick });
+      }
+    }
+
+    memory.buildings = now;
+    const horizon = LOSS_MOVES * move.params.moveSeconds * TPS;
+    memory.losses = memory.losses.filter((loss) => world.tick - loss.tick <= horizon);
+    losses = memory.losses.length;
+  }
+
+  const approach = bounds ? nearestEnemyBridge(world, move.me, bounds) : null;
+  // What to face: the gun firing on us, else the bridge coming, else the gun nearest the latest
+  // loss; and where to stand against it.
+  const loss = memory?.losses.at(-1);
+  let source: { x: number; y: number; } | null = null;
+
+  if (shot) {
+    source = nearestGun(move, shot);
+  } else if (approach) {
+    source = approach.enemy;
+  } else if (loss) {
+    source = nearestGun(move, loss);
+  }
+
+  const point = shot ?? approach?.own ?? loss ?? null;
+
+  return {
+    fired: shot !== undefined,
+    losses,
+    approach: approach?.distance ?? null,
+    point: point ? { x: point.x, y: point.y } : null,
+    source,
+  };
+}
+
+function nearestGun(move: Move, to: { x: number; y: number; }): { x: number; y: number; } | null {
+  let best: View<Building> | null = null;
+  let least = Infinity;
+
+  for (const gun of move.guns) {
+    const d = Math.max(Math.abs(gun.x - to.x), Math.abs(gun.y - to.y));
+
+    if (d < least) {
+      best = gun;
+      least = d;
+    }
+  }
+
+  return best ? centre(best) : null;
+}
+
+/** The nearest hostile bridge within the alarm of own island ground, stepping out from every own
+ * island cell over sky and ground alike, with the own cell the way started from. A bridge is
+ * what comes at an island; ground that merely lies near, or the AI's own bridge reaching the
+ * enemy's shore, is no alarm. */
+function nearestEnemyBridge(
+  world: WorldView,
+  me: number,
+  bounds: Bounds,
+): { enemy: { x: number; y: number; }; own: { x: number; y: number; }; distance: number; } | null {
+  const steps = scratch.field.fill(-1);
+  const from = scratch.queue;
+  const queue = scratch.order;
+  let tail = 0;
+
+  for (let y = bounds.y0; y <= bounds.y1; y++) {
+    for (let x = bounds.x0; x <= bounds.x1; x++) {
+      if (world.owner[y * W + x] === me && world.terrain[y * W + x] === Terrain.Island) {
+        steps[y * W + x] = 0;
+        from[y * W + x] = y * W + x;
+        queue[tail++] = y * W + x;
+      }
+    }
+  }
+
+  for (let head = 0; head < tail; head++) {
+    const i = queue[head]!;
+    const x = i % W;
+    const y = (i / W) | 0;
+
+    if (steps[i]! >= ALARM_DISTANCE) {
+      break;
+    }
+
+    for (const [dx, dy] of DIRS) {
+      const nx = x + dx;
+      const ny = y + dy;
+
+      if (!world.inside(nx, ny) || steps[ny * W + nx] !== -1) {
+        continue;
+      }
+
+      const j = ny * W + nx;
+      steps[j] = steps[i]! + 1;
+      from[j] = from[i]!;
+
+      if (world.owner[j] && world.hostile(world.owner[j]!, me) && isBridge(world.terrain[j]!)) {
+        return {
+          enemy: { x: nx, y: ny },
+          own: { x: from[i]! % W, y: (from[i]! / W) | 0 },
+          distance: steps[j]!,
+        };
+      }
+
+      queue[tail++] = j;
+    }
+  }
+
+  return null;
+}
+
+/** Guns by the ground the enemy presses on, facing what presses: as many as the level lays. */
+function defendGround(world: WorldView, move: Move, pressure: Press, bounds: Bounds | null): void {
+  if (!pressure.source || !pressure.point || !bounds) {
+    return;
+  }
+
+  const target: Target = { ...pressure.source, enemy: true };
+
+  while (
+    move.actions < move.params.actionsPerMove && bestUnit(world, move, pressure.point, target)
+  ) {
+    // each pass lays one more
+  }
+}
+
+/** Whether a building stands wholly on island ground with no bridge beside it: taking it away
+ * leaves every bridge as it was. */
+function landlocked(world: WorldView, b: View<Building>): boolean {
+  for (let y = b.y - 1; y <= b.y + b.fy; y++) {
+    for (let x = b.x - 1; x <= b.x + b.fx; x++) {
+      if (!world.inside(x, y) || isBridge(world.terrain[world.at(x, y)]!)) {
+        return false;
+      }
+
+      const inside = x >= b.x && x < b.x + b.fx && y >= b.y && y < b.y + b.fy;
+
+      if (inside && world.terrain[world.at(x, y)] !== Terrain.Island) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/** Seconds a gun stands with nothing within twice its range before it is salvaged (invented). */
+const SALVAGE_IDLE_SECONDS = 90;
+const IDLE_REACH = 2;
+
+/** Salvage one gun that has had nothing to shoot at for long, when nothing presses and the level
+ * or mission is given to it: a quarter of its price back for a gun that only stands there. */
+function salvageIdle(
+  world: WorldView,
+  move: Move,
+  memory: AiMemory,
+  chance: number,
+  defend: number,
+): void {
+  const guns = world.buildingsOf(move.me).filter((b) => groundDps(world.def(b.type)) > 0);
+  const hostile = [...world.entities.values()].filter((e) =>
+    'owner' in e && world.hostile(e.owner, move.me)
+  );
+
+  for (const id of memory.idle.keys()) {
+    if (!guns.some((b) => b.id === id)) {
+      memory.idle.delete(id);
+    }
+  }
+
+  let chosen: View<Building> | null = null;
+
+  for (const gun of guns) {
+    const reach = IDLE_REACH * world.def(gun.type).range;
+
+    // Not one that props up a bridge: salvaged, it would crack it. Nor below the guns it keeps.
+    if (!landlocked(world, gun) || guns.length <= DEFENCE_SHOOTERS) {
+      continue;
+    }
+
+    const busy = hostile.some((e) =>
+      Math.max(Math.abs(e.x - gun.x), Math.abs(e.y - gun.y)) <= reach
+    );
+
+    if (busy || underFire(move, gun, world)) {
+      memory.idle.delete(gun.id);
+      continue;
+    }
+
+    const since = memory.idle.get(gun.id) ?? world.tick;
+    memory.idle.set(gun.id, since);
+
+    if (!chosen && world.tick - since >= SALVAGE_IDLE_SECONDS * TPS) {
+      chosen = gun;
+    }
+  }
+
+  if (chosen && defend === 0 && chance > 0 && random(memory) < chance) {
+    move.commands.push({ t: 'salvage', player: move.me, target: chosen.id });
+    memory.idle.delete(chosen.id);
+  }
 }
 
 /** The shooters that hit the ground which the AI knows: what its hoard is measured against. */
@@ -1376,6 +1746,7 @@ function place(
   head: { x: number; y: number; },
   facing?: Facing,
   radius = UNIT_RADIUS,
+  fit?: (x: number, y: number) => Facing | undefined | false,
 ): { placed: boolean; noEnergy: boolean; } {
   let noEnergy = false;
 
@@ -1384,13 +1755,25 @@ function place(
   }
 
   const byPriest = PRIEST_BUILT.has(def.cls);
+  // Out of the enemy's fire first, nearest first within that; under it only when nothing else.
+  const cells = nearby(head, radius);
+  const safe = (cell: [number, number]) =>
+    !world.inside(cell[0], cell[1]) || move.threat[world.at(cell[0], cell[1])] === 0;
+  const ordered = [...cells.filter(safe), ...cells.filter((cell) => !safe(cell))];
 
-  for (const [x, y] of nearby(head, radius)) {
+  for (const [x, y] of ordered) {
     // The Priest is not sent to raise anything under the enemy's guns.
     if (
       !clearOfBridges(world, def, x, y, move.planned)
       || (byPriest && world.inside(x, y) && move.threat[world.at(x, y)]! > 0)
     ) {
+      continue;
+    }
+
+    // Only a cell the unit is good for, facing the way it says: a gun from where it hits its mark.
+    const aimed = fit ? fit(x, y) : facing;
+
+    if (aimed === false) {
       continue;
     }
 
@@ -1400,7 +1783,7 @@ function place(
       type: def.id,
       x,
       y,
-      ...(facing === undefined ? {} : { facing }),
+      ...(aimed === undefined ? {} : { facing: aimed }),
     } as const;
     const error = world.canBuild(command);
 

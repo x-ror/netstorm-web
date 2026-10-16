@@ -12,14 +12,48 @@ export interface AiMemory {
   /** The tick each enemy building was first seen on, by id: a new gun is reacted to only after
    * the level's delay. */
   firstSeen: Map<number, number>;
+  /** Own buildings at the last move, by id, where they stood: what is gone was lost or salvaged. */
+  buildings: Map<number, { x: number; y: number; }>;
+  /** Where and when own buildings were lost, newest last. */
+  losses: { x: number; y: number; tick: number; }[];
+  /** Own guns with nothing in reach, by id, and the tick that began. */
+  idle: Map<number, number>;
+  /** Whether the last move was pushing for the enemy. */
+  pushing: boolean;
+  /** The state of the AI's own random numbers, for its mistakes and its salvage; never the
+   * world's. */
+  rng: number;
 }
 
 /** Moves the memory keeps a figure for: enough to average an income over (invented). */
 export const MEMORY_MOVES = 10;
 
-export function createAiMemory(): AiMemory {
-  return { storm: [], spent: [], firstSeen: new Map() };
+export function createAiMemory(seed = 1): AiMemory {
+  return {
+    storm: [],
+    spent: [],
+    firstSeen: new Map(),
+    buildings: new Map(),
+    losses: [],
+    idle: new Map(),
+    pushing: false,
+    rng: seed >>> 0 || 1,
+  };
 }
+
+/** Moves a loss is held against the enemy for (invented). */
+export const LOSS_MOVES = 3;
+
+/* oxlint-disable no-magic-numbers -- mulberry32, the same as World.rng's */
+/** The next number from 0 up to 1 of the AI's own stream. */
+export function random(memory: AiMemory): number {
+  memory.rng = (memory.rng + 0x6d2b79f5) >>> 0;
+  let t = memory.rng;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+/* oxlint-enable no-magic-numbers */
 
 /** Record one move: what it started with and what it spent, forgetting the oldest. */
 export function remember(memory: AiMemory, storm: number, spent: number): void {

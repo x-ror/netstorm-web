@@ -112,6 +112,8 @@ export function outcome(
   return world.hostile(world.winner, me) ? 'lost' : 'won';
 }
 
+const PER_CENT = 100;
+
 /** aiTimeBetweenMoves of the campaign missions that leave it out; most set 6. */
 export const DEFAULT_AI_DELAY = 6;
 
@@ -252,6 +254,10 @@ function sidesOf(header: Record<string, unknown>): Record<string, MissionSide> {
       ...(count('collectors') === undefined ? {} : { transports: count('collectors')! }),
       ...(count('geyserattachments') === undefined ? {} : { geysers: count('geyserattachments')! }),
       ...(count('enemy') === undefined ? {} : { enemy: count('enemy')! }),
+      // `aiSalvageChance` is a percentage: the missions set 1 or 100.
+      ...(count('salvagechance') === undefined
+        ? {}
+        : { salvageChance: count('salvagechance')! / PER_CENT }),
     };
     return {
       ...(typeof name === 'string' && name ? { name: name.split('\n')[0] } : {}),

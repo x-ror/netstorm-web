@@ -19,18 +19,45 @@ export interface AiParams {
   actionsPerMove: number;
   /** Transports it keeps at most, however many geysers it has. */
   maxTransports: number;
+  /** Storm Power held back for a defence: this many of its cheapest shooter. */
+  reserveShooters: number;
+  /** Its guns over the enemy's before it bridges to him. */
+  pushRatio: number;
+  /** Chance that a gun which has had nothing to shoot at for long is salvaged, 0 to 1. */
+  salvageChance: number;
 }
 
 /* oxlint-disable no-magic-numbers -- the tuning table of an invented opponent */
 export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
-  easy: { moveSeconds: 8, reactionMoves: 3, threatWeight: 0, actionsPerMove: 2, maxTransports: 2 },
+  easy: {
+    moveSeconds: 8,
+    reactionMoves: 3,
+    threatWeight: 0,
+    actionsPerMove: 2,
+    maxTransports: 2,
+    reserveShooters: 0,
+    pushRatio: 1.6,
+    salvageChance: 0,
+  },
   normal: {
     moveSeconds: 5,
     reactionMoves: 1,
     threatWeight: 1,
     actionsPerMove: 3,
     maxTransports: 3,
+    reserveShooters: 1,
+    pushRatio: 1.2,
+    salvageChance: 0.5,
   },
-  hard: { moveSeconds: 3, reactionMoves: 0, threatWeight: 2, actionsPerMove: 5, maxTransports: 4 },
+  hard: {
+    moveSeconds: 3,
+    reactionMoves: 0,
+    threatWeight: 2,
+    actionsPerMove: 5,
+    maxTransports: 4,
+    reserveShooters: 2,
+    pushRatio: 1,
+    salvageChance: 1,
+  },
 };
 /* oxlint-enable no-magic-numbers */

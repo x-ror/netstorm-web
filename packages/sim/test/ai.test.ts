@@ -11,6 +11,7 @@ import {
   parseCommand,
   playReplay,
   ReplayRecorder,
+  Terrain,
   threatMap,
   TPS,
   upgradeCost,
@@ -19,6 +20,7 @@ import {
 } from '../src/index.js';
 import { skyCosts } from '../src/ai/threat.js';
 import { wantedTransports } from '../src/ai/economy.js';
+import { defendScore, pushing } from '../src/ai/goals.js';
 import { equipWorkshops } from './workshops.js';
 
 const read = (name: string): unknown =>
@@ -455,4 +457,115 @@ test('an idle transport fetches a crystal lying on the ground before it goes min
   world.step([order]);
   const sent = world.entities.get(order.transport);
   assert.equal(sent?.kind === 'transport' && sent.goal, 'pickup');
+});
+
+test('an enemy bridge coming within the alarm of its island gets a gun on that shore', () => {
+  const world = equipWorkshops(mk());
+  world.players.get(2)!.storm = 1500;
+  // Guns enough that it would otherwise build none this far from the enemy.
+  world.spawnBuilding('suncannon', 2, 141, 83);
+  world.spawnBuilding('suncannon', 2, 145, 83);
+  world.spawnBuilding('suncannon', 2, 149, 83);
+  const quiet = aiMove(world.view(), { player: 2 }).filter((c) =>
+    c.t === 'build' && defs.get(c.type)!.dps > 0
+  );
+  assert.equal(quiet.length, 0);
+
+  // A bridge of the idle side a few cells east of the AI's island.
+  for (let x = 162; x < 170; x++) {
+    world.terrain[world.at(x, 88)] = Terrain.Bridge;
+    world.owner[world.at(x, 88)] = 1;
+  }
+
+  world.invalidateTerrain();
+  const guns = aiMove(world.view(), { player: 2 }).filter((c) =>
+    c.t === 'build' && defs.get(c.type)!.dps > 0
+  );
+  assert.ok(guns.length >= 1);
+  assert.ok(guns.every((c) => c.t === 'build' && c.x >= 150), JSON.stringify(guns));
+  assert.equal(defendScore({ fired: false, losses: 0, approach: null }), 0);
+  assert.ok(defendScore({ fired: false, losses: 0, approach: 6 }) > 0.5);
+  assert.equal(defendScore({ fired: true, losses: 0, approach: null }), 1);
+});
+
+test('a building under fire gets a gun beside it that reaches the gun firing', () => {
+  const world = equipWorkshops(mk());
+  world.players.get(2)!.storm = 1500;
+  world.spawnBuilding('rainbattery', 2, 141, 83);
+  // An Ice Cannon of the idle side, out in the sky, firing west along the battery's row.
+  world.spawnBuilding('raincannon', 1, 170, 83, 3);
+  const guns = aiMove(world.view(), { player: 2 }).filter((c) =>
+    c.t === 'build' && defs.get(c.type)!.dps > 0
+  );
+  assert.ok(guns.length >= 1, 'a gun is laid');
+  // Its guns reach 8, 22 and 32 cells; the first laid is of the kind that reaches the cannon, by
+  // the battery.
+  const first = guns[0]!;
+  assert.ok(first.t === 'build' && defs.get(first.type)!.range >= 32, JSON.stringify(guns));
+  assert.ok(first.t === 'build' && Math.abs(first.x - 141) <= 9 && Math.abs(first.y - 83) <= 9);
+});
+
+const buyer = () => {
+  const world = mk();
+  world.spawnBuilding('rainfactory', 2, 141, 86);
+  world.spawnBuilding('rainbattery', 2, 155, 84); // Rain Energy for a Rain Walker
+  equipWorkshops(world);
+  world.spawnBuilding('altar', 2, 150, 94);
+  world.spawnBuilding('suncannon', 2, 141, 83);
+  world.spawnBuilding('suncannon', 2, 145, 83);
+  world.spawnBuilding('suncannon', 2, 149, 83);
+  // A Rain Walker costs 600, the savings kept with it 600; the reserve is one Disc Thrower, 250.
+  world.players.get(2)!.storm = 1449;
+  return world;
+};
+
+/** Storm Power a move spends on transports. */
+const spent = (difficulty: 'easy' | 'normal') =>
+  aiMove(buyer().view(), { player: 2, difficulty, transports: 2 }).reduce(
+    (sum, c) => sum + (c.t === 'build' ? defs.get(c.type)!.cost : 0),
+    0,
+  );
+
+test('a reserve for a defence is kept from a transport on Normal, not on Easy', () => {
+  // Easy buys a transport for 600 with the 600 of savings; Normal, keeping 250 more for a Disc
+  // Thrower, is short of that and makes do with a Golem for 400.
+  assert.equal(spent('easy'), 600);
+  assert.ok(spent('normal') <= 1449 - 250 - 600);
+});
+
+const idle = () => {
+  const world = equipWorkshops(mk());
+  world.players.get(2)!.storm = 100;
+
+  // Five Disc Throwers on the island, far from anything of the enemy.
+  for (let i = 0; i < 5; i++) {
+    world.spawnBuilding('sunarcher', 2, 141 + i * 3, 83);
+  }
+
+  return world;
+};
+
+const salvaged = (difficulty: 'easy' | 'hard') => {
+  const world = idle();
+  const memory = createAiMemory(7);
+  aiMove(world.view(), { player: 2, difficulty }, memory);
+
+  for (let i = 0; i < 91 * TPS; i++) {
+    world.step();
+  }
+
+  return aiMove(world.view(), { player: 2, difficulty }, memory).filter((c) => c.t === 'salvage');
+};
+
+test('Hard salvages a gun that has stood idle for long, Easy keeps it', () => {
+  assert.equal(salvaged('hard').length, 1);
+  assert.equal(salvaged('easy').length, 0);
+});
+
+test("a push waits for the guns to outweigh the enemy's, and holds on once begun", () => {
+  assert.ok(pushing(0, 0, 1.2, false));
+  assert.ok(!pushing(100, 100, 1.2, false));
+  assert.ok(pushing(120, 100, 1.2, false));
+  assert.ok(pushing(90, 100, 1.2, true));
+  assert.ok(!pushing(80, 100, 1.2, true));
 });
