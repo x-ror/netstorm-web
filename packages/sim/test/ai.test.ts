@@ -211,14 +211,15 @@ test('with no geyser to walk to, the AI buys a transport that flies and sends it
 
 test('the AI sets a second fence post in line with one that stands alone', () => {
   const world = equipWorkshops(mk());
-  world.players.get(2)!.storm = 5000;
+  world.players.get(2)!.storm = 1500; // short of hoarding, which would crowd the island
   const temple = world.templeOf(2)!;
   // Enough shooters for it to think of a barrier, and one post on its island.
   world.spawnBuilding('suncannon', 2, 141, 83);
   world.spawnBuilding('suncannon', 2, 145, 83);
   world.spawnBuilding('suncannon', 2, 149, 83);
   const post = world.spawnBuilding('rainfence', 2, temple.x - 5, temple.y + 8);
-  const orders = aiMove(world, { player: 2 }).filter((c) =>
+  // Told it has geysers enough, it turns to the enemy, and closes its bridge head.
+  const orders = aiMove(world, { player: 2, geysers: 0 }).filter((c) =>
     c.t === 'build' && c.type === 'rainfence'
   );
   assert.equal(orders.length, 1);

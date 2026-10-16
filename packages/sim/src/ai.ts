@@ -15,7 +15,7 @@
  * Its Priest raises a Workshop for each Fury it knows units of, it fills their Production Slots,
  * shooters first, and Upgrades a full Workshop once Storm Power is plenty.
  */
-import type { Command } from './commands.js';
+import type { Command, CommandError } from './commands.js';
 import { ALARM_DISTANCE, defendScore, pushing, type Pressure } from './ai/goals.js';
 import { LOSS_MOVES, random, remember, type AiMemory } from './ai/memory.js';
 import { hoarding, useful, wantedTransports, worth } from './ai/economy.js';
@@ -209,7 +209,8 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
 
   let target: Target | undefined;
   let head: Head | null = null;
-  let first: { target: Target; head: Head | null; } | null = null;
+  let first: { target: Target; head: Head | null; heads: Head[]; } | null = null;
+  let unitHeads: Head[] = [];
   const usedHands = new Set<number>();
   let laidPieces = 0;
   const reach = bounds && reached ? reachField(world, move, reached, bounds) : null;
@@ -217,29 +218,43 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
   // Grow toward each target a piece can be laid toward, as many bridges as the level grows in a
   // move, each from another piece in hand. The first target a piece goes toward decides where
   // units go; when none can be laid, the first target, the one most wanted, does.
-  for (const candidate of bridgeTargets(world, move, memory, attack, options.enemy, reach)) {
+  const candidates = bridgeTargets(world, move, memory, attack, options.enemy, reach)
+    .slice(0, params.bridgeHeads + SPARE_TARGETS);
+
+  for (const candidate of candidates) {
     if (laidPieces >= params.bridgeHeads) {
       break;
     }
 
     const field = skyField(world, move, candidate);
     const heads = bounds && reached ? bridgeHeads(world, me, field, bounds, reached) : [];
-    first ??= { target: candidate, head: heads[0] ?? null };
+    first ??= { target: candidate, head: heads[0] ?? null, heads };
     let piece: Extract<Command, { t: 'dropPiece'; }> | null = null;
 
-    // The nearest head may sit in a pocket of the AI's own bridge, where every piece only leads
-    // further from the target; then the bridge goes on from the next head whose piece comes
-    // nearer than the nearest head already is. A bridge that has arrived grows no further, and
-    // leaves the sky about the target for the guns.
-    for (const from of heads) {
-      // Told to keep off the enemy's island, it lays no bridge toward him; he still decides
-      // where its units go.
-      piece = reached && !(candidate.enemy && options.attack === false)
-        ? bestPiece(world, move, from, field, reached, usedHands, heads[0]!.need)
-        : null;
+    // A bridge that has come up to the enemy grows no further toward him: a piece into the sky
+    // about him would only take the room the guns need. But a gun stands only off an open end of
+    // the bridge; when no end faces room from which a gun reaches him or his Temple, one piece
+    // turns an end that way. A geyser is still joined from a cell away.
+    if (candidate.enemy && heads[0] && heads[0].need <= ARRIVED) {
+      const marks: Mark[] = [candidate, ...enemyTemples(world, me, candidate)];
 
-      if (piece) {
-        break;
+      if (reached && !anyFit(world, move, heads[0], marks)) {
+        piece = slotPiece(world, move, memory, heads, usedHands, marks);
+      }
+    } else {
+      // The nearest head may sit in a pocket of the AI's own bridge, where every piece only leads
+      // further from the target; then the bridge goes on from the next head whose piece comes
+      // nearer than the nearest head already is.
+      for (const from of heads) {
+        // Told to keep off the enemy's island, it lays no bridge toward him; he still decides
+        // where its units go.
+        piece = reached && !(candidate.enemy && options.attack === false)
+          ? bestPiece(world, move, from, field, reached, usedHands, Infinity)
+          : null;
+
+        if (piece) {
+          break;
+        }
       }
     }
 
@@ -263,6 +278,7 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     if (!target) {
       target = candidate;
       head = heads[0] ?? null;
+      unitHeads = heads;
     }
   }
 
@@ -271,6 +287,7 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
   if (first && (!target || (attack && first.target.enemy))) {
     target = first.target;
     head = first.head;
+    unitHeads = first.heads;
   }
 
   if (target && head && bounds) {
@@ -287,22 +304,40 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
       }
     }
 
-    // Guns at the enemy until the level's number have his Priest in reach; then the Storm Power
-    // waits for the capture.
-    const covering = target.enemy
-      ? world.buildingsOf(me).filter((b) => reaches(world.def(b.type), b.x, b.y, target) !== false)
-        .length
-      : 0;
+    // Guns at the enemy until the level's number have his Priest in reach, or his Temple: a Priest
+    // who keeps out of the fire is still brought down once his Temple, which heals him past half,
+    // is gone. Then the Storm Power waits for the capture.
+    const marks: Mark[] = target.enemy ? [target, ...enemyTemples(world, me, target)] : [];
+    const covering = world.buildingsOf(me).filter((b) =>
+      reachesAny(world.def(b.type), b.x, b.y, marks) !== false
+    ).length;
+    const atPriest = target.enemy && distance(head.x, head.y, target.x, target.y) <= ATTACK_REACH;
 
-    if (
-      (target.enemy && distance(head.x, head.y, target.x, target.y) <= ATTACK_REACH
-        && covering < params.concentrate)
-      || shooters < DEFENCE_SHOOTERS || hoards
-    ) {
+    if ((atPriest && covering < params.concentrate) || shooters < DEFENCE_SHOOTERS || hoards) {
       // As many as the level lays in a move, each of another type: the refresh after a unit
-      // keeps the same type from coming twice, as it keeps a player.
-      while (move.actions < params.actionsPerMove && bestUnit(world, move, head, target)) {
+      // keeps the same type from coming twice, as it keeps a player. Guns aimed at the Priest go
+      // where they reach him; a hoard buys guns by the head wherever they stand.
+      const aims = atPriest && !hoards ? marks : undefined;
+
+      while (move.actions < params.actionsPerMove && bestUnit(world, move, head, target, aims)) {
         // each pass lays one more
+      }
+
+      // The sky about the nearest head may be full; the farther heads along the bridge take the
+      // guns then, and a hoard buys guns about the Temple when the whole bridge is full.
+      for (const other of unitHeads.slice(1)) {
+        while (move.actions < params.actionsPerMove && bestUnit(world, move, other, target, aims)) {
+          // each pass lays one more
+        }
+      }
+
+      if (hoards && home && move.actions < params.actionsPerMove) {
+        while (
+          move.actions < params.actionsPerMove
+          && bestUnit(world, move, centre(home), target, undefined, ALTAR_RADIUS)
+        ) {
+          // each pass lays one more
+        }
       }
     }
 
@@ -926,6 +961,10 @@ function walkableFrom(world: WorldView, me: number, from: View<Building>): Uint8
 
 /** Work grids reused between moves so a move allocates no 256×256 arrays. They carry nothing
  * from one move to the next: each use overwrites them first. */
+/** Targets tried beyond the bridges a move grows, in case the first are boxed in (invented). Each
+ * costs a walk of the whole sky. */
+const SPARE_TARGETS = 2;
+
 const scratch = {
   field: new Int32Array(W * H),
   reach: new Int32Array(W * H),
@@ -1213,6 +1252,10 @@ function skyField(world: WorldView, move: Move, target: Target): Int32Array {
  * transport can walk to that borders the sky on a side it joins on. */
 /** How many heads a move tries, the nearest to the target first (invented). */
 const HEADS = 8;
+/** Bridge still needed at which a bridge counts as arrived: then no other head grows toward the
+ * same target, so the sky about it stays free for the guns. Farther off, a boxed-in nearest head
+ * lets the bridge go on from another. */
+const ARRIVED = 1;
 
 function bridgeHeads(
   world: WorldView,
@@ -1387,6 +1430,8 @@ function bestUnit(
   move: Move,
   head: { x: number; y: number; },
   target: Target,
+  aims?: readonly Mark[],
+  radius = UNIT_RADIUS,
 ): boolean {
   const player = world.players.get(move.me)!;
   const known = [...player.tech]
@@ -1435,13 +1480,11 @@ function bestUnit(
   let short = false;
 
   for (const def of shooters) {
-    // Attacking, a gun goes only where it reaches the mark: a square gun within its range of it,
-    // a cannon on its row or column; otherwise the move keeps the Storm Power and the bridge goes
-    // on. A defence by the bridge head stands wherever there is room.
-    const fit = target.enemy && distance(head.x, head.y, target.x, target.y) <= ATTACK_REACH
-      ? (x: number, y: number) => reaches(def, x, y, target)
-      : undefined;
-    const spot = place(world, move, def, head, facesWhenLaid(def) ? facing : undefined, UNIT_RADIUS,
+    // Aimed at the enemy's Priest, a gun goes only where it reaches him: a square gun within its
+    // range of him, a cannon on his row or column; otherwise the move keeps the Storm Power and
+    // the bridge goes on. A defence, or a gun bought with a hoard, stands wherever there is room.
+    const fit = aims ? (x: number, y: number) => reachesAny(def, x, y, aims) : undefined;
+    const spot = place(world, move, def, head, facesWhenLaid(def) ? facing : undefined, radius,
       fit);
 
     if (spot.placed) {
@@ -1469,32 +1512,242 @@ function reaches(
   def: Readonly<UnitDef>,
   x: number,
   y: number,
-  mark: { x: number; y: number; },
+  mark: Mark,
 ): Facing | undefined | false {
   const cx = x + (def.footX >> 1);
   const cy = y + (def.footY >> 1);
+  // The mark's footprint: a cell, or a building's rectangle.
+  const x0 = mark.x;
+  const y0 = mark.y;
+  const x1 = mark.x + (mark.fx ?? 1) - 1;
+  const y1 = mark.y + (mark.fy ?? 1) - 1;
+  const dx = Math.max(x0 - cx, 0, cx - x1);
+  const dy = Math.max(y0 - cy, 0, cy - y1);
 
   if (def.group !== 'cannon') {
-    const far = Math.max(Math.abs(mark.x - cx), Math.abs(mark.y - cy));
-
-    if (far > def.range) {
+    if (Math.max(dx, dy) > def.range) {
       return false;
     }
 
     // The Crossbow fires into an arc ahead of it, so it faces the mark; the rest turn or cover all
     // around them.
-    return facesWhenLaid(def) ? toward({ x: cx, y: cy }, mark) : undefined;
+    return facesWhenLaid(def)
+      ? toward({ x: cx, y: cy }, { x: (x0 + x1) >> 1, y: (y0 + y1) >> 1 })
+      : undefined;
   }
 
-  if (mark.x === cx && mark.y !== cy && Math.abs(mark.y - cy) <= def.range) {
-    return mark.y < cy ? 0 : 2; // oxlint-disable-line no-magic-numbers -- N, S
+  // A cannon's line runs along its column or row and must cross the footprint within range.
+  if (dx === 0 && dy > 0 && dy <= def.range) {
+    return y0 < cy ? 0 : 2; // oxlint-disable-line no-magic-numbers -- N, S
   }
 
-  if (mark.y === cy && mark.x !== cx && Math.abs(mark.x - cx) <= def.range) {
-    return mark.x > cx ? 1 : 3; // oxlint-disable-line no-magic-numbers -- E, W
+  if (dy === 0 && dx > 0 && dx <= def.range) {
+    return x0 > cx ? 1 : 3; // oxlint-disable-line no-magic-numbers -- E, W
   }
 
   return false;
+}
+
+/** What a gun is aimed at: a cell, or a building by its top-left cell and footprint. */
+type Mark = { x: number; y: number; fx?: number; fy?: number; };
+
+/** The first of the marks a gun laid here reaches, with the facing for it; false if none. */
+function reachesAny(
+  def: Readonly<UnitDef>,
+  x: number,
+  y: number,
+  marks: readonly Mark[],
+): Facing | undefined | false {
+  for (const mark of marks) {
+    const aim = reaches(def, x, y, mark);
+
+    if (aim !== false) {
+      return aim;
+    }
+  }
+
+  return false;
+}
+
+/** Whether some shooter the AI knows could be laid about the head now, or once it has the Storm
+ * Power and Energy, where it reaches one of the marks. */
+function anyFit(
+  world: WorldView,
+  move: Move,
+  head: { x: number; y: number; },
+  marks: Mark[],
+): boolean {
+  const room = new Set<CommandError | null>([null, 'no storm power', 'not ready', 'no energy']);
+
+  for (const def of knownShooters(world, move.me)) {
+    for (const [x, y] of nearby(head, UNIT_RADIUS)) {
+      if (
+        reachesAny(def, x, y, marks) !== false && clearOfBridges(world, def, x, y, move.planned)
+        && room.has(world.canBuild({ player: move.me, type: def.id, x, y }))
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/** Heads a slot is looked for from, and moves between two looks that found none (invented): the
+ * look is dear, a walk of every piece in every turn about every head. */
+const SLOT_HEADS = 3;
+const SLOT_RETRY_MOVES = 3;
+
+/**
+ * A piece, laid about one of the nearest heads, with an open end that faces free sky where a
+ * shooter the AI knows would stand and reach one of the marks: the first such piece. Looked for
+ * only every few moves once a look found none.
+ */
+function slotPiece(
+  world: WorldView,
+  move: Move,
+  memory: AiMemory | undefined,
+  heads: Head[],
+  used: ReadonlySet<number>,
+  marks: Mark[],
+): Extract<Command, { t: 'dropPiece'; }> | null {
+  const retry = SLOT_RETRY_MOVES * move.params.moveSeconds * TPS;
+
+  if (memory && world.tick - memory.slotLook < retry) {
+    return null;
+  }
+
+  const me = move.me;
+  const hand = world.players.get(me)!.hand;
+  // One shooter for each footprint there is: the room is the same for the rest.
+  const shapes = [...new Map(knownShooters(world, me).map((d) => [`${d.footX}x${d.footY}`, d]))
+    .values()];
+
+  for (const head of heads.slice(0, SLOT_HEADS)) {
+    for (let index = 0; index < hand.length; index++) {
+      if (hand[index]!.age >= PIECE_HARDEN && !used.has(index)) {
+        const found = slotPieceFrom(world, move, head, index, shapes, marks);
+
+        if (found) {
+          return found;
+        }
+      }
+    }
+  }
+
+  if (memory) {
+    memory.slotLook = world.tick;
+  }
+
+  return null;
+}
+
+/** The slot piece from one hand piece about one head, in any turn, or null. */
+function slotPieceFrom(
+  world: WorldView,
+  move: Move,
+  head: Head,
+  index: number,
+  shapes: readonly Readonly<UnitDef>[],
+  marks: Mark[],
+): Extract<Command, { t: 'dropPiece'; }> | null {
+  const me = move.me;
+  const piece = world.players.get(me)!.hand[index]!.piece;
+
+  for (let rot = 0; rot < ROTATIONS; rot++) {
+    const cells = rotatePiece(PIECES[piece]!, rot);
+    const ends = pieceEnds(piece, rot);
+
+    for (const [x, y] of nearby(head, SEARCH_RADIUS)) {
+      if (
+        touchesWalkable(world, me, cells, x, y)
+        && cells.every(([dx, dy]) => !move.planned.has(world.at(x + dx, y + dy)))
+        && world.canDropPiece({ player: me, hand: index, x, y, rot }) === null
+        && slotBeyond(world, move, cells, ends, x, y, shapes, marks)
+      ) {
+        return { t: 'dropPiece', player: me, hand: index, x, y, rot };
+      }
+    }
+  }
+
+  return null;
+}
+
+/** Whether beyond one of the piece's open ends there is free sky for a shooter's whole footprint,
+ * from where it reaches one of the marks. */
+function slotBeyond(
+  world: WorldView,
+  move: Move,
+  cells: [number, number][],
+  ends: [number, number, number][],
+  x: number,
+  y: number,
+  shapes: readonly Readonly<UnitDef>[],
+  marks: Mark[],
+): boolean {
+  const taken = new Set(cells.map(([dx, dy]) => world.at(x + dx, y + dy)));
+  const free = (cx: number, cy: number): boolean =>
+    world.inside(cx, cy) && world.terrain[world.at(cx, cy)] === Terrain.Sky
+    && !world.occupant[world.at(cx, cy)] && !move.planned.has(world.at(cx, cy))
+    && !taken.has(world.at(cx, cy));
+
+  return ends.some(([ex, ey, dir]) => {
+    const bx = x + ex + DIRS[dir]![0];
+    const by = y + ey + DIRS[dir]![1];
+    return shapes.some((def) => slotAt(def, bx, by, free, marks));
+  });
+}
+
+/** Whether a shooter of this footprint, placed to cover the cell beyond the end, has free sky
+ * under all of it and reaches one of the marks. */
+function slotAt(
+  def: Readonly<UnitDef>,
+  bx: number,
+  by: number,
+  free: (x: number, y: number) => boolean,
+  marks: Mark[],
+): boolean {
+  for (let ay = by - def.footY + 1; ay <= by; ay++) {
+    for (let ax = bx - def.footX + 1; ax <= bx; ax++) {
+      if (footprintFree(def, ax, ay, free) && reachesAny(def, ax, ay, marks) !== false) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function footprintFree(
+  def: Readonly<UnitDef>,
+  ax: number,
+  ay: number,
+  free: (x: number, y: number) => boolean,
+): boolean {
+  for (let fy = ay; fy < ay + def.footY; fy++) {
+    for (let fx = ax; fx < ax + def.footX; fx++) {
+      if (!free(fx, fy)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/** Temples of the enemies near a mark (invented: within the attack's reach of it). */
+function enemyTemples(world: WorldView, me: number, mark: { x: number; y: number; }): Mark[] {
+  const temples: Mark[] = [];
+
+  for (const [id, other] of world.players) {
+    const temple = other.alive && world.hostile(id, me) ? world.templeOf(id) : undefined;
+
+    if (temple && distance(centre(temple).x, centre(temple).y, mark.x, mark.y) <= ATTACK_REACH) {
+      temples.push({ x: temple.x, y: temple.y, fx: temple.fx, fy: temple.fy });
+    }
+  }
+
+  return temples;
 }
 
 /** Damage per second a unit of this type brings onto the ground: none for barriers and guns that
@@ -1682,13 +1935,23 @@ function defendGround(world: WorldView, move: Move, pressure: Press, bounds: Bou
   }
 
   const target: Target = { ...pressure.source, enemy: true };
+  const point = pressure.point;
+  // Guns already reaching the pressed ground.
+  let covering =
+    world.buildingsOf(move.me).filter((b) =>
+      groundDps(world.def(b.type)) > 0 && reaches(world.def(b.type), b.x, b.y, point) !== false
+    ).length;
 
   while (
-    move.actions < move.params.actionsPerMove && bestUnit(world, move, pressure.point, target)
+    covering < GUARD && move.actions < move.params.actionsPerMove
+    && bestUnit(world, move, point, target)
   ) {
-    // each pass lays one more
+    covering++;
   }
 }
+
+/** Guns that cover a pressed place before the defence rests (invented). */
+const GUARD = 3;
 
 /** Whether a building stands wholly on island ground with no bridge beside it: taking it away
  * leaves every bridge as it was. */

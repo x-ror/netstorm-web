@@ -23,6 +23,8 @@ export interface AiMemory {
   /** Where the bridge to the enemy was last headed: his Priest's cell then, kept while he stays
    * near it, so the bridge does not wander after his every step. */
   mark: { x: number; y: number; } | null;
+  /** The tick of the last look for a piece that makes room for a gun, which found none. */
+  slotLook: number;
   /** The state of the AI's own random numbers, for its mistakes and its salvage; never the
    * world's. */
   rng: number;
@@ -41,6 +43,7 @@ export function createAiMemory(seed = 1): AiMemory {
     idle: new Map(),
     pushing: false,
     mark: null,
+    slotLook: -Infinity,
     rng: seed >>> 0 || 1,
   };
 }

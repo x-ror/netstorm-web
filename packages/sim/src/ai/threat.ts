@@ -143,89 +143,51 @@ export function skyCosts(
   threat: ThreatMap,
   weight: number,
 ): void {
-  // A binary heap of cost·2^18 + cell: cheaper first, then the lower cell, so the order is fixed.
-  const heap: number[] = [];
-  const push = (key: number) => {
-    heap.push(key);
-    let i = heap.length - 1;
-
-    while (i > 0) {
-      const parent = (i - 1) >> 1;
-
-      if (heap[parent]! <= heap[i]!) {
-        break;
-      }
-
-      [heap[parent], heap[i]] = [heap[i]!, heap[parent]!];
-      i = parent;
-    }
-  };
-  const pop = (): number => {
-    const top = heap[0]!;
-    const last = heap.pop()!;
-
-    if (heap.length) {
-      heap[0] = last;
-      let i = 0;
-
-      for (;;) {
-        const l = 2 * i + 1;
-        const r = l + 1;
-        let m = i;
-
-        if (l < heap.length && heap[l]! < heap[m]!) {
-          m = l;
-        }
-
-        if (r < heap.length && heap[r]! < heap[m]!) {
-          m = r;
-        }
-
-        if (m === i) {
-          break;
-        }
-
-        [heap[m], heap[i]] = [heap[i]!, heap[m]!];
-        i = m;
-      }
-    }
-
-    return top;
-  };
+  // Every step costs one or more whole cells, so the cells come out in order of cost from buckets,
+  // one per cost: no heap. With no weight it is a breadth-first search in one bucket after another.
+  const buckets: number[][] = [[]];
 
   for (let k = 0; k < tail; k++) {
-    push(queue[k]!); // cost 0
+    buckets[0]!.push(queue[k]!);
   }
 
-  while (heap.length) {
-    const key = pop();
-    const cost = Math.floor(key / CELLS);
-    const i = key - cost * CELLS;
+  for (let cost = 0; cost < buckets.length; cost++) {
+    const bucket: number[] | undefined = buckets[cost];
 
-    if (field[i] !== cost) {
-      continue; // a stale entry: the cell was reached cheaper
+    if (!bucket) {
+      continue;
     }
 
-    const x = i % W;
-    const y = (i / W) | 0;
+    for (let k = 0; k < bucket.length; k++) {
+      const i: number = bucket[k]!;
 
-    for (const [dx, dy] of DIRS) {
-      const nx = x + dx;
-      const ny = y + dy;
-
-      if (!world.inside(nx, ny) || world.terrain[ny * W + nx] !== Terrain.Sky) {
-        continue;
+      if (field[i] !== cost) {
+        continue; // a stale entry: the cell was reached cheaper
       }
 
-      const j = ny * W + nx;
-      const next = cost + 1 + crossingCost(threat, weight, j);
+      const x: number = i % W;
+      const y: number = (i / W) | 0;
 
-      if (field[j] === -1 || next < field[j]!) {
-        field[j] = next;
-        push(next * CELLS + j);
+      for (const [dx, dy] of DIRS) {
+        const nx: number = x + dx;
+        const ny: number = y + dy;
+
+        if (!world.inside(nx, ny) || world.terrain[ny * W + nx] !== Terrain.Sky) {
+          continue;
+        }
+
+        const j: number = ny * W + nx;
+        const next: number = cost + 1 + crossingCost(threat, weight, j);
+
+        if (field[j] === -1 || next < field[j]!) {
+          field[j] = next;
+          const later: number[] = buckets[next] ?? [];
+          later.push(j);
+          buckets[next] = later;
+        }
       }
     }
+
+    buckets[cost] = []; // let the cells go
   }
 }
-
-const CELLS = W * H;
