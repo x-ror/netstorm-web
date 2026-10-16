@@ -12,10 +12,11 @@ export type { HudActions } from './hud-model.js';
 export function createHud(
   root: HTMLElement,
   world: WorldView,
-  me: number,
   ui: UiState,
   actions: HudActions,
   atlas: Atlas,
+  /** The computer plays a side: its reasons can be copied. */
+  aiLog: boolean,
 ) {
   const hud = contract('Hud',
     mount(typed<HudProps, HudExports>(Hud), { target: root, props: { atlas, actions } }), [
@@ -28,7 +29,7 @@ export function createHud(
 
   return {
     render(): void {
-      hud.update(hudModel(world, me, ui, atlas));
+      hud.update(hudModel(world, ui.viewer, ui, atlas, aiLog));
     },
     /** Put lines of the battle log on top, the newest last in `lines`. */
     log(lines: LogLine[]): void {

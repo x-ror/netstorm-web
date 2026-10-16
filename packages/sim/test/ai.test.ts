@@ -122,6 +122,34 @@ test('an AI move reads the world without changing it', () => {
   assert.ok(first.length > 0);
 });
 
+test('an AI that explains its moves makes the same ones, and gives a reason for each command', () => {
+  const quiet = new ReplayRecorder(mk());
+  const told = new ReplayRecorder(mk());
+  const quietMemory = createAiMemory(7);
+  const toldMemory = createAiMemory(7);
+  const lines: string[] = [];
+
+  for (let i = 0; i < 4 * 60 * TPS; i++) {
+    const due = i % MOVE === 0;
+    const plain = due ? aiMove(quiet.view(), { player: 2 }, quietMemory) : [];
+    const before = lines.length;
+    const explained = due
+      ? aiMove(told.view(), { player: 2 }, toldMemory, (line) => lines.push(line))
+      : [];
+    assert.deepEqual(explained, plain);
+
+    // Every command of the move is written down with a reason before it.
+    const reasons = lines.slice(before).filter((line) => line.includes(' → '));
+    assert.equal(reasons.length, explained.length);
+    quiet.step(plain);
+    told.step(explained);
+  }
+
+  assert.deepEqual(told.export(), quiet.export());
+  assert.ok(lines.some((line) => line.startsWith('[0.0s] side 2')));
+  assert.ok(lines.some((line) => line.includes('a bridge toward')));
+});
+
 test('one transport goes for a downed priest, and the others keep working', () => {
   const world = mk();
   world.spawnTransport('rainwalker', 2, 151, 97);
@@ -165,11 +193,27 @@ test('a beaten player is no target', () => {
   );
 });
 
-test('without an Altar the AI has its Priest build one', () => {
+test('the AI builds its Altar once it pushes for the enemy or his Priest is down', () => {
   const world = equipWorkshops(mk());
   const altar = world.buildingsOf(2).find((b) => b.type === 'altar')!;
   world.apply({ t: 'salvage', player: 2, target: altar.id });
-  const order = aiMove(world, { player: 2 }).find((c) => c.t === 'build' && c.type === 'altar');
+  const ordered = (options: object = {}) =>
+    aiMove(world, { player: 2, ...options }).find((c) => c.t === 'build' && c.type === 'altar');
+
+  // Early on, with no geysers and no push, the Storm Power goes elsewhere.
+  world.players.get(2)!.storm = 2000;
+  assert.equal(ordered(), undefined);
+
+  // His Priest down, it is wanted at once; told not to capture, never.
+  const priest = world.priestOf(1)!;
+  priest.state = 'down';
+  assert.ok(ordered());
+  assert.equal(ordered({ capture: false }), undefined);
+  priest.state = 'normal';
+
+  // Rich enough to push for an enemy without guns: the Altar comes with the push.
+  world.players.get(2)!.storm = 5000;
+  const order = ordered();
   assert.ok(order);
   world.step([order]);
 
@@ -716,4 +760,73 @@ test("Easy lays one gun on the enemy's Priest and waits; Hard keeps laying until
     );
   assert.equal(laid('easy').length, 0);
   assert.ok(laid('hard').length >= 1);
+});
+
+test('with nothing to build the Priest carries crystals from a safe geyser, unless denied', () => {
+  const world = equipWorkshops(mk());
+  world.players.get(2)!.storm = 0; // nothing to pay for a build with
+  const temple = world.templeOf(2)!;
+  const priest = world.priestOf(2)!;
+  // Two geysers on the AI's island; a Disc Thrower of the idle side covers the nearer one, out
+  // of reach of the Priest.
+  const hot = world.addGeyser(temple.x - 4, temple.y + 9, 2000, false);
+  const calm = world.addGeyser(temple.x + 12, temple.y + 2, 2000, false);
+  world.spawnBuilding('sunarcher', 1, hot.x - 2, hot.y + 1);
+  assert.equal(threatMap(world.view(), 2)[world.at(priest.x, priest.y)], 0);
+  assert.ok(threatMap(world.view(), 2)[world.at(hot.x, hot.y)]! > 0);
+  const sent = (options: object) =>
+    aiMove(world.view(), { player: 2, ...options }).find((c) =>
+      c.t === 'collect' && c.transport === priest.id
+    );
+  const order = sent({});
+  assert.ok(order?.t === 'collect' && order.geyser === calm.id);
+  assert.equal(sent({ priestCollects: false }), undefined);
+  assert.equal(sent({ collect: false }), undefined);
+
+  // Sent, he is left to his work.
+  world.step([order]);
+  assert.equal(sent({}), undefined);
+});
+
+test('guns go to the side facing the enemy, not by the geysers the bridge grows toward', () => {
+  const world = mk();
+  world.players.get(2)!.storm = 2000;
+  const temple = world.templeOf(2)!;
+  const enemy = world.templeOf(1)!;
+  const far = (x: number, y: number) => Math.hypot(x - enemy.x, y - enemy.y);
+  // A geyser in the sky on the far side of the AI from the enemy: the bridge goes for it first.
+  world.addGeyser(temple.x + 20, temple.y - 14, 2000);
+  const memory = createAiMemory();
+  const guns: { x: number; y: number; }[] = [];
+
+  for (let i = 0; i < 2 * 60 * TPS; i++) {
+    const commands = i % MOVE === 0 ? aiMove(world.view(), { player: 2 }, memory) : [];
+    guns.push(...commands.filter((c) => c.t === 'build' && defs.get(c.type)!.dps > 0)
+      .map((c) => c as { x: number; y: number; }));
+    world.step(commands);
+  }
+
+  assert.ok(guns.length > 0);
+
+  for (const gun of guns) {
+    assert.ok(far(gun.x, gun.y) < far(temple.x, temple.y), JSON.stringify(gun));
+  }
+});
+
+test('a side with no transport buys its first before its guns, without savings, or saves for it', () => {
+  const world = equipWorkshops(mk());
+  const fare = Math.min(defs.get('sunwalker')!.cost, defs.get('rainwalker')!.cost);
+  const isTransport = (c: { t: string; type?: string; }) =>
+    c.t === 'build' && defs.get(c.type!)!.cls.endsWith('Transport');
+  // The skirmish gives each side a transport: this one has lost it.
+  const given = [...world.entities.values()].find((e) => e.kind === 'transport' && e.owner === 2)!;
+  world.apply({ t: 'salvage', player: 2, target: given.id });
+  world.step();
+  world.players.get(2)!.storm = fare + 100; // short of the savings a second transport waits for
+  assert.ok(aiMove(world.view(), { player: 2 }).some(isTransport));
+
+  // Too poor for one: nothing that would eat its price is bought.
+  world.players.get(2)!.storm = fare - 50;
+  const poor = aiMove(world.view(), { player: 2, difficulty: 'easy' });
+  assert.ok(!poor.some((c) => c.t === 'build' && defs.get(c.type)!.cost > 50));
 });

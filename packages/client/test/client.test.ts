@@ -473,8 +473,14 @@ test('a mission gives its computer sides their orders, income and pace, and its 
   });
   assert.equal(side('enemyterritory', 3).delay, 4);
   assert.equal(side('guardmyback', 3).ai?.enemy, 2);
-  // The first mission: one collector, one geyser, and the keys this AI has no use for dropped.
-  assert.deepEqual(side('thewarbegins', 2).ai, { encircle: false, transports: 1, geysers: 1 });
+  // The first mission: one collector, one geyser, a Priest who carries no crystals, and the keys
+  // this AI has no use for dropped.
+  assert.deepEqual(side('thewarbegins', 2).ai, {
+    encircle: false,
+    priestCollects: false,
+    transports: 1,
+    geysers: 1,
+  });
 
   const rescue = missions.find((m) => m.id === 'totherescue')!;
   assert.deepEqual(rescue.messages.map((m) => m.on), [['@120']]);

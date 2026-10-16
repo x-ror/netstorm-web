@@ -50,6 +50,12 @@ export interface HudModel {
   selected: Selected | null;
   /** What the tool in hand does, shown when nothing is selected. */
   hint: string;
+  /** The computer plays every side; the panels show the side looked through and give no orders. */
+  watching: boolean;
+  /** The sides that can be looked through when watching, the one looked through marked. */
+  sides: { id: number; name: string; on: boolean; }[];
+  /** The computer plays a side, and the reasons for its moves can be copied. */
+  aiLog: boolean;
 }
 
 /** What the panels ask of the match. */
@@ -66,6 +72,10 @@ export interface HudActions {
   /** A button of the page shown over the map was pressed: its place among the page's buttons. */
   page(button: number): void;
   dropSelected(): void;
+  /** Look through another side's eyes, when watching the computer play. */
+  view(player: number): void;
+  /** Copy the reasons the computer gave for its moves, for reading them elsewhere. */
+  copyAiLog(): void;
   exit(): void;
 }
 
@@ -156,6 +166,12 @@ const GOALS: Record<string, () => string> = {
   altar: m.goal_altar,
   obelisk: m.goal_obelisk,
 };
+/** The Furies by name, for the sides of a match the computer plays alone. */
+const FURIES: Record<string, () => string> = {
+  wind: m.fury_wind,
+  rain: m.fury_rain,
+  thunder: m.fury_thunder,
+};
 const PRIEST_STATES: Record<string, () => string> = {
   normal: m.priest_normal,
   down: m.priest_down,
@@ -168,6 +184,7 @@ export function hudModel(
   me: number,
   ui: UiState,
   atlas: Atlas,
+  aiLog = false,
 ): HudModel {
   const player = world.players.get(me)!;
   const seconds = Math.floor(world.tick / TPS);
@@ -201,7 +218,17 @@ export function hudModel(
     units: unitCards(world, me, ui),
     tool: ui.tool.kind,
     selected: selected(world, me, ui),
-    hint: hint(world, ui),
+    hint: ui.watching ? m.hud_watching_hint() : hint(world, ui),
+    watching: ui.watching,
+    aiLog,
+    sides: ui.watching
+      ? [...world.players.values()].map((side) => ({
+        id: side.id,
+        // Neither side is the player's: each is named by its number and Fury.
+        name: m.hud_side({ id: side.id, fury: FURIES[side.theme]?.() ?? side.theme }),
+        on: side.id === me,
+      }))
+      : [],
   };
 }
 
@@ -570,7 +597,7 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
       ? { value: Math.ceil(entity.hp), max: entity.hpMax, share, band: healthBand(share) }
       : null,
     facts,
-    actions,
+    actions: ui.watching ? [] : actions,
   };
 }
 

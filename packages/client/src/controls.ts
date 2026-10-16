@@ -85,7 +85,6 @@ function lineStart(d: number, origin: number, foot: number, centre: number, rang
 /** Browser input becomes commands; only the fixed-step loop submits them to the world. */
 export function createControls(options: {
   world: WorldView;
-  me: number;
   ui: UiState;
   app: Application;
   camera: Container;
@@ -96,34 +95,44 @@ export function createControls(options: {
   textures: ReadonlyMap<string, Texture>;
   submit: (command: Command) => void;
   sounds: Sounds;
+  /** Look through the next side's eyes, when watching the computer play. */
+  nextViewer: () => void;
   /** Called after the interface state changed and the panels should be redrawn. */
   changed: () => void;
   togglePause: () => void;
   /** Open the menu of the selected unit at a point on the screen. */
   context: (x: number, y: number) => void;
 }) {
-  const { world, me, ui, app, camera, overlay, ghost, textures, submit, changed, sounds } = options;
+  const { world, ui, app, camera, overlay, ghost, textures, changed, sounds } = options;
+  // Watching, the screen gives no orders: everything stays as a look only.
+  const submit = (command: Command) => {
+    if (!ui.watching) {
+      options.submit(command);
+    }
+  };
   const abort = new AbortController();
   const signal = abort.signal;
 
   function setTool(tool: Tool): void {
-    ui.tool = tool;
+    ui.tool = ui.watching ? { kind: 'select' } : tool;
     changed();
     drawOverlay();
   }
 
   function own(entity: View | undefined): boolean {
-    return !!entity && 'owner' in entity && entity.owner === me;
+    return !!entity && 'owner' in entity && entity.owner === ui.viewer;
   }
 
   function salvage(entity: View | undefined): void {
-    if ((entity?.kind === 'building' || entity?.kind === 'transport') && entity.owner === me) {
-      submit({ t: 'salvage', player: me, target: entity.id });
+    if (
+      (entity?.kind === 'building' || entity?.kind === 'transport') && entity.owner === ui.viewer
+    ) {
+      submit({ t: 'salvage', player: ui.viewer, target: entity.id });
     }
   }
 
   function handIndex(tool: Extract<Tool, { kind: 'piece'; }>): number {
-    return Math.min(tool.hand, world.players.get(me)!.hand.length - 1);
+    return Math.min(tool.hand, world.players.get(ui.viewer)!.hand.length - 1);
   }
 
   /** A left click or tap on map cell (x, y). */
@@ -134,7 +143,7 @@ export function createControls(options: {
       const hand = handIndex(tool);
 
       if (hand >= 0) {
-        submit({ t: 'dropPiece', player: me, hand, x, y, rot: ui.rot });
+        submit({ t: 'dropPiece', player: ui.viewer, hand, x, y, rot: ui.rot });
       }
 
       return;
@@ -144,7 +153,7 @@ export function createControls(options: {
       const def = world.def(tool.type);
       submit({
         t: 'build',
-        player: me,
+        player: ui.viewer,
         type: def.id,
         ...anchorFor(def, x, y),
         ...(hasFacing(def) ? { facing: ui.facing } : {}),
@@ -189,7 +198,7 @@ export function createControls(options: {
   function order(x: number, y: number, target: View | undefined): boolean {
     const selected = ui.selected === null ? undefined : world.entities.get(ui.selected);
 
-    if (!selected || !own(selected) || own(target)) {
+    if (ui.watching || !selected || !own(selected) || own(target)) {
       return false;
     }
 
@@ -198,35 +207,35 @@ export function createControls(options: {
       const transport = selected.id;
 
       if (target.kind === 'geyser') {
-        submit({ t: 'collect', player: me, transport, geyser: target.id });
+        submit({ t: 'collect', player: ui.viewer, transport, geyser: target.id });
         return true;
       }
 
       if (target.kind === 'crystal') {
-        submit({ t: 'pickupCrystal', player: me, transport, crystal: target.id });
+        submit({ t: 'pickupCrystal', player: ui.viewer, transport, crystal: target.id });
         return true;
       }
 
       if (selected.kind === 'transport' && target.kind === 'obelisk') {
-        submit({ t: 'takeSpell', player: me, transport, obelisk: target.id });
+        submit({ t: 'takeSpell', player: ui.viewer, transport, obelisk: target.id });
         return true;
       }
 
       // A fallen enemy Priest is carried off to the Altar; where the mission allows it, a friendly
       // one is carried home to safety.
-      const friend = target.kind === 'priest' && !world.hostile(me, target.owner);
+      const friend = target.kind === 'priest' && !world.hostile(ui.viewer, target.owner);
 
       if (
         selected.kind === 'transport' && target.kind === 'priest'
         && (friend ? world.anyCapture : target.state === 'down')
       ) {
-        submit({ t: 'capturePriest', player: me, transport, target: target.id });
+        submit({ t: 'capturePriest', player: ui.viewer, transport, target: target.id });
         return true;
       }
     }
 
     if (selected.kind === 'priest' && target?.kind !== 'building') {
-      submit({ t: 'movePriest', player: me, x, y });
+      submit({ t: 'movePriest', player: ui.viewer, x, y });
       return true;
     }
 
@@ -488,6 +497,12 @@ export function createControls(options: {
       options.togglePause();
     } else if (key === 'delete') {
       salvage(ui.selected === null ? undefined : world.entities.get(ui.selected));
+    } else if (key === 'tab' && ui.watching) {
+      ev.preventDefault();
+      options.nextViewer();
+      return;
+    } else if (ui.watching) {
+      return;
     } else if (Number.isInteger(slot) && slot >= 1 && slot <= world.bridgeSlots) {
       ui.tool = { kind: 'piece', hand: slot - 1 };
     } else {
@@ -508,12 +523,13 @@ export function createControls(options: {
     ghost.removeChildren().forEach((plank) => plank.destroy());
 
     if (tool.kind === 'piece') {
-      const piece = world.players.get(me)!.hand[handIndex(tool)];
+      const piece = world.players.get(ui.viewer)!.hand[handIndex(tool)];
       cells = piece
         ? rotatePiece(PIECES[piece.piece]!, ui.rot).map(([dx, dy]) => [x + dx, y + dy])
         : [];
       error = piece !== undefined
-        && world.canDropPiece({ player: me, hand: handIndex(tool), x, y, rot: ui.rot }) !== null;
+        && world.canDropPiece({ player: ui.viewer, hand: handIndex(tool), x, y, rot: ui.rot })
+          !== null;
 
       // The piece is shown as the bridge it will be, red where it cannot lie.
       if (piece && drawPlanks(cells, rotateLinks(piece.piece, ui.rot), error)) {
@@ -523,7 +539,7 @@ export function createControls(options: {
       const def = world.def(tool.type);
       const anchor = anchorFor(def, x, y);
       error = world.canBuild({
-        player: me,
+        player: ui.viewer,
         type: def.id,
         ...anchor,
         ...(hasFacing(def) ? { facing: ui.facing } : {}),
@@ -581,7 +597,7 @@ export function createControls(options: {
 
   /** Mark the open ends of the piece under the cursor: it attaches by these and nowhere else. */
   function drawEnds(x: number, y: number, hand: number): void {
-    const piece = world.players.get(me)!.hand[hand];
+    const piece = world.players.get(ui.viewer)!.hand[hand];
 
     if (!piece) {
       return;
@@ -655,7 +671,7 @@ export function createControls(options: {
     const rx = ENERGY_RANGE * TW;
     const ry = ENERGY_RANGE * TH;
 
-    for (const building of world.buildingsOf(me)) {
+    for (const building of world.buildingsOf(ui.viewer)) {
       const def = world.def(building.type);
 
       if (def.cls !== 'Energy' && def.group !== 'battery') {
@@ -711,18 +727,18 @@ export function createControls(options: {
     updateCamera,
     dropSelected() {
       if (ui.selected !== null) {
-        submit({ t: 'dropCargo', player: me, transport: ui.selected });
+        submit({ t: 'dropCargo', player: ui.viewer, transport: ui.selected });
         voice(world.entities.get(ui.selected), 'drop');
       }
     },
     castSelected() {
       if (ui.selected !== null) {
-        submit({ t: 'castSpell', player: me, transport: ui.selected });
+        submit({ t: 'castSpell', player: ui.viewer, transport: ui.selected });
       }
     },
     meltdownSelected() {
       if (ui.selected !== null) {
-        submit({ t: 'meltdown', player: me, target: ui.selected });
+        submit({ t: 'meltdown', player: ui.viewer, target: ui.selected });
       }
     },
     salvageSelected() {
@@ -730,12 +746,12 @@ export function createControls(options: {
     },
     produceSelected(type: string) {
       if (ui.selected !== null) {
-        submit({ t: 'produce', player: me, workshop: ui.selected, type });
+        submit({ t: 'produce', player: ui.viewer, workshop: ui.selected, type });
       }
     },
     upgradeSelected() {
       if (ui.selected !== null) {
-        submit({ t: 'upgradeWorkshop', player: me, workshop: ui.selected });
+        submit({ t: 'upgradeWorkshop', player: ui.viewer, workshop: ui.selected });
       }
     },
     dispose() {

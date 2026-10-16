@@ -86,8 +86,8 @@ function fixture() {
     }
   }
 
-  const renderer = createWorldRenderer(world.view(), 1, new Graphics(), new Container(), layer,
-    bars, textures, sounds);
+  const renderer = createWorldRenderer(world.view(), () => 1, new Graphics(), new Container(),
+    layer, bars, textures, sounds);
   return { world, renderer, layer, bars, heard, texture, textures };
 }
 

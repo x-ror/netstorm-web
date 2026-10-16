@@ -840,6 +840,26 @@ pre {
 .sep {
   flex: 1;
 }
+/* Watching the computer: whose eyes the screen looks through. */
+.sides {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.sides .label {
+  margin-right: 4px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+}
+.sides button,
+.ai-log {
+  height: 30px;
+  padding: 0 10px;
+}
+.ai-log {
+  margin-left: 8px;
+}
 .icon-button {
   display: inline-grid;
   place-items: center;

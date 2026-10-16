@@ -13,7 +13,9 @@
  * One of its transports fetches a Spell from an Obelisk it can reach and casts it when enough
  * stands in range, and its Priest raises an Outpost on unowned ground its transports can walk to.
  * Its Priest raises a Workshop for each Fury it knows units of, it fills their Production Slots,
- * shooters first, and Upgrades a full Workshop once Storm Power is plenty.
+ * shooters first, and Upgrades a full Workshop once Storm Power is plenty. Between builds the
+ * Priest carries crystals from a geyser out of the enemy's fire. Its guns face the
+ * enemy: they stand at its bridge heads nearest him, never by a geyser he is not at.
  */
 import type { Command, CommandError } from './commands.js';
 import { ALARM_DISTANCE, defendScore, pushing, type Pressure } from './ai/goals.js';
@@ -113,13 +115,25 @@ export interface AiOptions {
   encircle?: boolean;
   /** `!STOP_COLLECTING_FROM_DANGEROUS_GEYSERS`: false sends transports to geysers under fire. */
   avoidDanger?: boolean;
+  /** `!USE_PRIEST_TO_COLLECT`: false keeps its Priest from carrying crystals between builds. */
+  priestCollects?: boolean;
 }
+
+/** Takes the AI's reasons, a line at a time, for a person who reads why it did what it did. */
+export type AiExplain = (line: string) => void;
 
 /**
  * Commands for one move of an AI player. Call it every `DIFFICULTY[level].moveSeconds` of game
  * time, with the same `memory` each time: the move reads it and writes this move into it.
+ * `explain`, when given, is told what the move saw, what it weighed and why each command was
+ * chosen; the commands are the same with it or without.
  */
-export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory): Command[] {
+export function aiMove(
+  world: WorldView,
+  options: AiOptions,
+  memory?: AiMemory,
+  explain?: AiExplain,
+): Command[] {
   const me = options.player;
   const player = world.players.get(me);
 
@@ -161,41 +175,72 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
   const cheapest = prices.length ? Math.min(...prices) : 0;
 
   // Storm Power for a defence is held back from everything else, until a defence is called for.
-  const reserve = defend === 0 ? Math.min(move.budget, params.reserveShooters * cheapest) : 0;
+  let reserve = defend === 0 ? Math.min(move.budget, params.reserveShooters * cheapest) : 0;
   move.budget -= reserve;
+  let told = 0;
+  /** Tell the commands chosen since the last call, each with why it was chosen. */
+  const because = (why: string) => {
+    for (const command of explain ? move.commands.slice(told) : []) {
+      explain!(`  ${why} → ${describeCommand(command)}`);
+    }
+
+    told = move.commands.length;
+  };
+  explain?.(`[${(world.tick / TPS).toFixed(1)}s] side ${me} (${params.moveSeconds}s moves): `
+    + `Storm Power ${player.storm}, ${reserve} held back for a defence; `
+    + `defence wanted ${defend.toFixed(2)} (under fire: ${pressure.fired}, `
+    + `losses: ${pressure.losses}, enemy ground ${pressure.approach ?? 'none'} cells near of `
+    + `${ALARM_DISTANCE}); geysers reached: ${geysers.length}; transports: ${transports.length}`);
 
   shelter(world, move);
+  because('the Priest stands under enemy guns: he walks out of their reach');
 
   if (defend > 0) {
     defendGround(world, move, pressure, bounds);
+    because(`defence (wanted ${defend.toFixed(2)}): a gun where the enemy presses`);
+  }
+
+  // Without a transport the side earns only by its Priest's walks: the first one comes before
+  // everything but a defence, with nothing kept back, not even the reserve for a defence, and its
+  // price is saved until it can be paid.
+  let saving = 0;
+  const firstTransport = options.collect !== false && transports.length === 0;
+
+  if (firstTransport) {
+    const before = move.commands.length;
+    move.budget += reserve;
+    newTransport(world, move, geysers.length === 0, 0);
+    because('no transport yet: the first is bought before anything but a defence');
+    reserve = Math.min(move.budget, reserve);
+    move.budget -= reserve;
+
+    if (move.commands.length === before) {
+      const fares = transportKinds(world, me).map((def) => def.cost);
+      saving = fares.length ? Math.min(move.budget, Math.min(...fares)) : 0;
+      move.budget -= saving;
+      explain?.(`  no transport yet: ${saving} kept toward the first`);
+    }
   }
 
   if (memory) {
     salvageIdle(world, move, memory, options.salvageChance ?? params.salvageChance, defend);
+    because('a gun has had nothing to shoot at for long: salvaged');
   }
 
   if (options.collect !== false) {
     collect(world, move, transports, geysers, options.avoidDanger !== false);
+    because('an idle transport: to a loose crystal, or the geyser fewest transports work');
   }
 
   guardAltar(world, move);
+  because('a captive on the Altar: guns kept about it');
 
   fetchSpell(world, move, transports, reached);
+  because('a Spell on an Obelisk in reach: a transport fetches it');
   castSpells(world, move, transports);
+  because('enough enemies in range of a carried Spell: cast');
   equip(world, move, geysers.length === 0);
-  buildAltar(world, move);
-  buildOutpost(world, move, reached);
-
-  if (options.capture !== false) {
-    capture(world, move, transports);
-  }
-
-  const ward = move.fleeing ? null : wardSpot(world, me, move.threat);
-
-  if (ward) {
-    move.commands.push({ t: 'movePriest', player: me, ...ward });
-  }
-
+  because('Workshops: a Workshop for a Fury it knows, filled slots, an Upgrade');
   // Toward the enemy once the economy is up, and the AI's guns outweigh his for the level.
   const ownDps = world.buildingsOf(me).reduce((sum, b) => sum + groundDps(world.def(b.type)), 0);
   const enemyDps = move.guns.reduce((sum, b) => sum + groundDps(world.def(b.type)), 0);
@@ -205,6 +250,55 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
 
   if (memory) {
     memory.pushing = attack;
+  }
+
+  explain?.(`  push for the enemy: ${attack} (geysers ${geysers.length} of `
+    + `${options.geysers ?? ENOUGH_GEYSERS} or Storm Power ${ATTACK_STORM}; ground guns `
+    + `${ownDps.toFixed(1)} against his ${enemyDps.toFixed(1)}, ${params.pushRatio}× wanted)`);
+
+  // The Altar is for a captive alone: it is raised once the push for the enemy begins, or his
+  // Priest is already down, which leaves its ten seconds to rise before a carrier comes with him.
+  // Raised at once, it would take the Storm Power the first transports and guns are wanted for.
+  if (options.capture !== false && (attack || enemyPriest(world, me, 'down'))) {
+    buildAltar(world, move);
+    because('no Altar yet and a captive in sight: the Priest builds one near the Temple');
+  }
+
+  buildOutpost(world, move, reached);
+  because('unowned ground in reach: the Priest raises an Outpost');
+
+  if (options.capture !== false) {
+    capture(world, move, transports);
+    because('an enemy Priest is down: the nearest transports carry him off');
+  }
+
+  const ward = move.fleeing ? null : wardSpot(world, me, move.threat);
+
+  if (ward) {
+    move.commands.push({ t: 'movePriest', player: me, ...ward });
+    because('a captive is chained to the Altar: the Priest goes beside it for the ritual');
+  }
+
+  const priest = world.priestOf(me);
+
+  // "Like the Golem, your Priest also serves as a Transport": between his builds he carries
+  // crystals, from the geyser nearest home that no enemy gun reaches, unless the mission denies it.
+  if (priest?.state === 'normal' && !ward && !priestBusy(world, move)) {
+    const allowed = options.collect !== false && options.priestCollects !== false;
+    const sent = allowed && priestCollect(world, move, priest, geysers, home);
+    because('the Priest has nothing to build: he carries crystals from a geyser out of fire');
+
+    if (explain && !sent) {
+      let why = 'the mission keeps him from collecting';
+
+      if (allowed) {
+        why = priest.goal === 'idle'
+          ? 'no geyser he can walk to is out of enemy fire'
+          : `he goes on with his ${priest.goal}`;
+      }
+
+      explain(`  the Priest (at ${priest.x},${priest.y}) has no order this move: ${why}`);
+    }
   }
 
   let target: Target | undefined;
@@ -218,8 +312,9 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
   // Grow toward each target a piece can be laid toward, as many bridges as the level grows in a
   // move, each from another piece in hand. The first target a piece goes toward decides where
   // units go; when none can be laid, the first target, the one most wanted, does.
-  const candidates = bridgeTargets(world, move, memory, attack, options.enemy, reach)
-    .slice(0, params.bridgeHeads + SPARE_TARGETS);
+  const targets = bridgeTargets(world, move, memory, attack, options.enemy, reach);
+  const candidates = targets.slice(0, params.bridgeHeads + SPARE_TARGETS);
+  explain?.(`  bridge targets, best first: ${candidates.map(describeTarget).join('; ') || 'none'}`);
 
   for (const candidate of candidates) {
     if (laidPieces >= params.bridgeHeads) {
@@ -272,6 +367,7 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     // move names its piece by where it will be once the earlier ones are gone.
     const shift = [...usedHands].filter((h) => h < piece.hand).length;
     move.commands.push({ ...piece, hand: piece.hand - shift });
+    because(`a bridge toward ${describeTarget(candidate)}`);
     usedHands.add(piece.hand);
     laidPieces++;
 
@@ -290,6 +386,19 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     unitHeads = first.heads;
   }
 
+  // Guns face the enemy. When the bridge of this move went toward a geyser, they go to the own
+  // bridge head nearest him, where he would come from: a gun by a geyser far from him has
+  // nothing to shoot at. A geyser takes guns only in a defence, once the enemy is at it.
+  if (target && !target.enemy) {
+    const foe = targets.find((t) => t.enemy);
+    const heads = foe && bounds && reached
+      ? bridgeHeads(world, me, skyField(world, move, foe), bounds, reached)
+      : [];
+    target = foe;
+    head = heads[0] ?? null;
+    unitHeads = heads;
+  }
+
   if (target && head && bounds) {
     const shooters = world.buildingsOf(me).filter((b) => world.def(b.type).dps > 0).length;
     const hoards = hoarding(move.budget, knownShooters(world, me));
@@ -301,6 +410,7 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
 
       if (site) {
         generator(world, move, site);
+        because('the bridge head toward the enemy has no Energy: a Generator nearer it');
       }
     }
 
@@ -313,7 +423,21 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     ).length;
     const atPriest = target.enemy && distance(head.x, head.y, target.x, target.y) <= ATTACK_REACH;
 
-    if ((atPriest && covering < params.concentrate) || shooters < DEFENCE_SHOOTERS || hoards) {
+    const reasons = [
+      ...(atPriest && covering < params.concentrate
+        ? [`the enemy Priest is in reach and ${covering} of ${params.concentrate} guns cover him`]
+        : []),
+      ...(shooters < DEFENCE_SHOOTERS
+        ? [`it has ${shooters} shooters, fewer than the ${DEFENCE_SHOOTERS} it keeps facing him`]
+        : []),
+      ...(hoards ? [`Storm Power ${move.budget} is more than it can use otherwise`] : []),
+    ];
+    const at = `the head at ${head.x},${head.y} toward ${describeTarget(target)}`;
+    explain?.(reasons.length
+      ? `  wants guns at ${at}: ${reasons.join('; ')}`
+      : `  no guns at ${at}: ${shooters} shooters, no hoard, the enemy Priest not in reach`);
+
+    if (reasons.length) {
       // As many as the level lays in a move, each of another type: the refresh after a unit
       // keeps the same type from coming twice, as it keeps a player. Guns aimed at the Priest go
       // where they reach him; a hoard buys guns by the head wherever they stand.
@@ -341,8 +465,11 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
       }
     }
 
+    because(`guns at ${at}`);
+
     if (target.enemy && shooters >= DEFENCE_SHOOTERS) {
       barrier(world, move, head);
+      because('the bridge comes up to the enemy: a barrier or anti-air at its head');
     }
   }
 
@@ -352,15 +479,31 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     : geysers.length;
   const wanted = options.transports ?? wantedTransports(mined, params.maxTransports);
 
-  if (options.collect !== false && transports.length < wanted) {
+  if (options.collect !== false && !firstTransport && transports.length < wanted) {
     newTransport(world, move, geysers.length === 0);
+    because(`${transports.length} transports, ${wanted} wanted for ${mined} geysers`);
+  }
+
+  if (explain && !move.commands.length) {
+    explain('  nothing to do this move');
   }
 
   if (memory) {
-    remember(memory, player.storm, player.storm - move.budget - reserve);
+    remember(memory, player.storm, player.storm - move.budget - reserve - saving);
   }
 
   return move.commands;
+}
+
+/** A command as a line of the AI's reasons: its kind and its fields but the player. */
+function describeCommand(command: Command): string {
+  const fields = Object.entries(command).filter(([key]) => key !== 't' && key !== 'player')
+    .map(([key, value]) => `${key} ${String(value)}`);
+  return `${command.t} ${fields.join(', ')}`;
+}
+
+function describeTarget(target: Target): string {
+  return `${target.enemy ? 'the enemy' : 'a geyser'} at ${target.x},${target.y}`;
 }
 
 interface Move {
@@ -524,6 +667,64 @@ function buildAltar(world: WorldView, move: Move): void {
   }
 
   place(world, move, def, home ? centre(home) : priest, undefined, ALTAR_RADIUS);
+}
+
+/**
+ * Send the Priest to mine the geyser nearest home that he can walk to and the enemy's guns do not
+ * reach; false when there is none. Far from home is no bar: a side that has spent its Storm Power
+ * before buying a transport has only him to earn more, and he walks out of fire as he comes under
+ * it.
+ */
+function priestCollect(
+  world: WorldView,
+  move: Move,
+  priest: View<Priest>,
+  reachable: View<Geyser>[],
+  home: View<Building> | undefined,
+): boolean {
+  if (!home) {
+    return false;
+  }
+
+  // A crystal in his hands goes to the Temple first: he hands it in where his walk ends beside it.
+  if (priest.carrying !== null) {
+    if (priest.goal === 'home') {
+      return true;
+    }
+
+    const beside = (x: number, y: number) =>
+      x >= home.x - 1 && x <= home.x + home.fx && y >= home.y - 1 && y <= home.y + home.fy;
+    const end = world.findPath(move.me, priest.x, priest.y, ([x, y]) => beside(x, y))?.at(-1);
+
+    if (end) {
+      move.commands.push({ t: 'movePriest', player: move.me, x: end[0], y: end[1] });
+    }
+
+    return end !== undefined;
+  }
+
+  const calm = reachable.filter((g) => move.threat[world.at(g.x, g.y)] === 0);
+
+  // Already mining one of them, or bringing its crystal home: left to it.
+  if (
+    (priest.goal === 'collect' || priest.goal === 'home')
+    && calm.some((g) => g.id === priest.target)
+  ) {
+    return true;
+  }
+
+  // Stable: the geysers are ordered nearest the Temple first.
+  const geyser = calm.find((g) =>
+    world.findPath(move.me, priest.x, priest.y, ([x, y]) => distance(x, y, g.x, g.y) === 1)
+      !== null
+  );
+
+  if (!geyser) {
+    return false;
+  }
+
+  move.commands.push({ t: 'collect', player: move.me, transport: priest.id, geyser: geyser.id });
+  return true;
 }
 
 /** Whether the Priest is on his way to a site, or is sent to one this move. */
@@ -843,20 +1044,20 @@ function guardAltar(world: WorldView, move: Move): void {
 
 /** A transport of the AI's Fury, or a Golem, laid by its Temple when it can spare the cost. */
 // An Aerial Transport is bought first when no geyser can be walked to.
-function newTransport(world: WorldView, move: Move, stranded: boolean): void {
-  const player = world.players.get(move.me)!;
+function newTransport(
+  world: WorldView,
+  move: Move,
+  stranded: boolean,
+  savings = TRANSPORT_SAVINGS,
+): void {
   const home = world.templeOf(move.me);
 
   if (!home) {
     return;
   }
 
-  const kinds = [...player.tech]
-    .map((id) => world.defs.get(id))
-    .filter((def): def is Readonly<UnitDef> =>
-      (def?.cls === 'Ground Transport' || def?.cls === 'Aerial Transport')
-      && move.budget >= def.cost + TRANSPORT_SAVINGS
-    )
+  const kinds = transportKinds(world, move.me)
+    .filter((def) => move.budget >= def.cost + savings)
     // With no geyser to walk to, one that flies comes first; otherwise the fastest on foot.
     .sort((a, b) =>
       Number(flies(b) === stranded) - Number(flies(a) === stranded)
@@ -869,6 +1070,15 @@ function newTransport(world: WorldView, move: Move, stranded: boolean): void {
       return;
     }
   }
+}
+
+/** The transports a side knows how to make. */
+function transportKinds(world: WorldView, me: number): Readonly<UnitDef>[] {
+  return [...world.players.get(me)!.tech]
+    .map((id) => world.defs.get(id))
+    .filter((def): def is Readonly<UnitDef> =>
+      def?.cls === 'Ground Transport' || def?.cls === 'Aerial Transport'
+    );
 }
 
 function owned<T extends Entity>(world: WorldView, me: number, kind: T['kind']): View<T>[] {

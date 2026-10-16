@@ -40,7 +40,8 @@ const DOT_COLOR = {
 export function createMinimap(
   canvas: HTMLCanvasElement,
   world: WorldView,
-  me: number,
+  /** The side looked through. */
+  viewer: () => number,
   camera: Container,
 ) {
   // The map's isometric extent: x - y spans ±W cells, x + y spans 0..W + H cells.
@@ -74,7 +75,7 @@ export function createMinimap(
       } else if (terrain === Terrain.CrackedBridge) {
         color = PIXELS.crackedBridge;
       } else if (terrain === Terrain.Island) {
-        if (owner === me) {
+        if (owner === viewer()) {
           color = PIXELS.own;
         } else {
           color = owner ? PIXELS.enemy : PIXELS.neutral;
@@ -108,7 +109,7 @@ export function createMinimap(
       let color: string = DOT_COLOR.geyser;
 
       if ('owner' in entity) {
-        color = entity.owner === me ? DOT_COLOR.own : DOT_COLOR.enemy;
+        color = entity.owner === viewer() ? DOT_COLOR.own : DOT_COLOR.enemy;
       }
 
       const { sx, sy } = project(entity.x, entity.y);
@@ -153,6 +154,11 @@ export function createMinimap(
 
   return {
     draw,
+    /** Paint the map anew, as for another side's eyes. */
+    repaint() {
+      terrainRevision = -1;
+      draw();
+    },
     dispose() {
       abort.abort();
     },
