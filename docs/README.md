@@ -6,6 +6,8 @@
 | [architecture.md](architecture.md) | Будова коду: модулі, порядок тіку, детермінізм, snapshot і replay | Перед зміною структури коду |
 | [client-decisions.md](client-decisions.md) | Рішення веб-клієнта, ухвалені без даних оригіналу: проєкція, тайли, керування, меню | Перед зміною клієнта; щоб перевірити й підтвердити |
 | [TODO.md](TODO.md) | Черга робіт за пріоритетом | Щоб обрати наступну задачу |
+| [ai-analysis.md](ai-analysis.md) | Розбір теперішнього комп'ютерного суперника: будова, поведінка, слабкі місця з посиланнями на код | Перед зміною `ai.ts` |
+| [ai-design.md](ai-design.md) | Дизайн нового суперника: цілі, економіка, планувальник, розширення, військо, перемога, складність | Перед реалізацією нового ШІ; крок за кроком за його §10 |
 | [project.md](project.md) | Задум: мета, юридичні рамки, дані оригіналу, кампанія, асети, вибір стеку | Для контексту; правила тут лише оглядово |
 | [reference/](reference/) | Тексти оригінальної гри 10.82: `help.english.txt` (довідка), `tell.english.txt` (підказки й повідомлення) | Як першоджерело; не редагувати |
 | `original/` (поза git) | Сама гра 10.82 і розпаковані дані: `extracted/d/*.type`, `extracted/setup.cfg.txt`, `game/Netstorm/DevLog.txt` | Щоб перевірити число чи правило у файлах гри. Розпакування: `python3 scripts/untarc.py original/game/Netstorm/netstorm.tarc original/extracted`; усі спрайти з `_shapes.shp`: `python3 scripts/unshp.py original/game/Netstorm original/extracted original/all-assets/sprites` |
