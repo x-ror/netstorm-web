@@ -9,6 +9,7 @@
 | [ai-analysis.md](ai-analysis.md) | Розбір теперішнього комп'ютерного суперника: будова, поведінка, слабкі місця з посиланнями на код | Перед зміною `ai.ts` |
 | [ai-design.md](ai-design.md) | Дизайн нового суперника: цілі, економіка, планувальник, розширення, військо, перемога, складність | Перед реалізацією нового ШІ; крок за кроком за його §10 |
 | [perf-review.md](perf-review.md) | Огляд perf-гілки PR #5: що взяти, що викинути, план вимірювань | Перед роботою над продуктивністю |
+| [animation-review.md](animation-review.md) | Огляд гілки анімації PR #6: що тримається, що прибрати перед мерджем | Перед мерджем або зміною анімації клієнта |
 | [project.md](project.md) | Задум: мета, юридичні рамки, дані оригіналу, кампанія, асети, вибір стеку | Для контексту; правила тут лише оглядово |
 | [reference/](reference/) | Тексти оригінальної гри 10.82: `help.english.txt` (довідка), `tell.english.txt` (підказки й повідомлення) | Як першоджерело; не редагувати |
 | `original/` (поза git) | Сама гра 10.82 і розпаковані дані: `extracted/d/*.type`, `extracted/setup.cfg.txt`, `game/Netstorm/DevLog.txt` | Щоб перевірити число чи правило у файлах гри. Розпакування: `python3 scripts/untarc.py original/game/Netstorm/netstorm.tarc original/extracted`; усі спрайти з `_shapes.shp`: `python3 scripts/unshp.py original/game/Netstorm original/extracted original/all-assets/sprites` |
