@@ -15,12 +15,22 @@ export interface AiParams {
   reactionMoves: number;
   /** How much a cell under fire lengthens a bridge: 0 ignores the enemy's guns altogether. */
   threatWeight: number;
+  /** Units a move lays at most; each must be of another type, as a player's refresh allows. */
+  actionsPerMove: number;
+  /** Transports it keeps at most, however many geysers it has. */
+  maxTransports: number;
 }
 
 /* oxlint-disable no-magic-numbers -- the tuning table of an invented opponent */
 export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
-  easy: { moveSeconds: 8, reactionMoves: 3, threatWeight: 0 },
-  normal: { moveSeconds: 5, reactionMoves: 1, threatWeight: 1 },
-  hard: { moveSeconds: 3, reactionMoves: 0, threatWeight: 2 },
+  easy: { moveSeconds: 8, reactionMoves: 3, threatWeight: 0, actionsPerMove: 2, maxTransports: 2 },
+  normal: {
+    moveSeconds: 5,
+    reactionMoves: 1,
+    threatWeight: 1,
+    actionsPerMove: 3,
+    maxTransports: 3,
+  },
+  hard: { moveSeconds: 3, reactionMoves: 0, threatWeight: 2, actionsPerMove: 5, maxTransports: 4 },
 };
 /* oxlint-enable no-magic-numbers */

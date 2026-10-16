@@ -18,6 +18,7 @@ import {
   World,
 } from '../src/index.js';
 import { skyCosts } from '../src/ai/threat.js';
+import { wantedTransports } from '../src/ai/economy.js';
 import { equipWorkshops } from './workshops.js';
 
 const read = (name: string): unknown =>
@@ -401,4 +402,57 @@ test("a bridge goes around the enemy's fire when the detour is cheaper than cros
   assert.equal(cost(0), 10); // the breadth-first length
   assert.equal(cost(1), 20); // crossing costs 10 more: as cheap as the way around, which wins
   assert.equal(cost(2), 20); // crossing would cost 20 more: the way around
+});
+
+test('a Production Slot never goes to a blocker, and an Aerial Transport only when stranded', () => {
+  const world = mk();
+  world.players.get(2)!.storm = 5000;
+  world.players.get(2)!.tech.add('rainblocker');
+  world.spawnBuilding('rainfactory', 2, 141, 83);
+  const made = aiMove(world.view(), { player: 2 }).flatMap((
+    c,
+  ) => (c.t === 'produce' ? [c.type] : []));
+  assert.ok(made.length > 0);
+  assert.ok(!made.includes('rainblocker'));
+  assert.ok(!made.includes('rainballoon'));
+});
+
+test('hoarded Storm Power buys several shooters a move, each of another type', () => {
+  const world = equipWorkshops(mk());
+  world.players.get(2)!.storm = 50_000;
+  // Open ground west of the Temple, toward the enemy, with room for a row of guns.
+  world.addIsland(126, 84, 14, 20, 2);
+  world.spawnBuilding('rainbattery', 2, 127, 86);
+  world.spawnBuilding('rainbattery', 2, 127, 98);
+  const guns = (difficulty: 'easy' | 'hard') =>
+    aiMove(world.view(), { player: 2, difficulty }).flatMap((c) =>
+      c.t === 'build' && defs.get(c.type)!.dps > 0 ? [c.type] : []
+    );
+  const hard = guns('hard');
+  assert.ok(hard.length >= 2,
+    `hard laid ${JSON.stringify(aiMove(world.view(), { player: 2, difficulty: 'hard' }))}`);
+  assert.equal(new Set(hard).size, hard.length);
+  assert.ok(guns('easy').length <= 2);
+});
+
+test("transports follow the geysers in reach: one each and a spare, within the level's most", () => {
+  assert.equal(wantedTransports(0, 3), 1);
+  assert.equal(wantedTransports(1, 3), 2);
+  assert.equal(wantedTransports(5, 3), 3);
+  assert.equal(wantedTransports(5, 4), 4);
+});
+
+test('an idle transport fetches a crystal lying on the ground before it goes mining', () => {
+  const world = mk();
+  const temple = world.templeOf(2)!;
+  const t = world.spawnTransport('rainwalker', 2, temple.x - 2, temple.y + 2);
+  const crystal = world.spawnCrystal(t, 200);
+  crystal.carriedBy = null;
+  crystal.x = temple.x - 4;
+  crystal.y = temple.y + 2;
+  const order = aiMove(world.view(), { player: 2 }).find((c) => c.t === 'pickupCrystal');
+  assert.ok(order && order.t === 'pickupCrystal' && order.crystal === crystal.id);
+  world.step([order]);
+  const sent = world.entities.get(order.transport);
+  assert.equal(sent?.kind === 'transport' && sent.goal, 'pickup');
 });

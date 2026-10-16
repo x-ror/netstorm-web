@@ -17,7 +17,8 @@
  */
 import type { Command } from './commands.js';
 import { remember, type AiMemory } from './ai/memory.js';
-import { DIFFICULTY, type Difficulty } from './ai/params.js';
+import { hoarding, useful, wantedTransports, worth } from './ai/economy.js';
+import { DIFFICULTY, type AiParams, type Difficulty } from './ai/params.js';
 import { skyCosts, threatMap, type ThreatMap } from './ai/threat.js';
 import { flies, upgradeCost, type UnitDef } from './defs.js';
 import {
@@ -42,7 +43,7 @@ import { joins } from './rules/bridges.js';
 import { takesSlot } from './rules/building.js';
 import { facesWhenLaid } from './rules/combat.js';
 import type { DeepReadonly, WorldView } from './view.js';
-import type { Building, Entity, Geyser, Living, Priest, Transport } from './state.js';
+import type { Building, Crystal, Entity, Geyser, Living, Priest, Transport } from './state.js';
 
 type View<T> = DeepReadonly<T>;
 
@@ -57,8 +58,7 @@ const ROTATIONS = 4;
 const DEFENCE_SHOOTERS = 3;
 /** Cells from the enemy Temple within which the bridge head grows a shooter every move (invented). */
 const ATTACK_REACH = 30;
-/** Transports the AI keeps collecting, and the Storm Power it keeps back when buying one (invented). */
-const TRANSPORTS = 3;
+/** Storm Power the AI keeps back when buying a transport (invented). */
 const TRANSPORT_SAVINGS = 600;
 /** Geysers with stock on own ground after which the AI bridges toward the enemy (invented). */
 const ENOUGH_GEYSERS = 3;
@@ -125,10 +125,12 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     me,
     budget: player.storm,
     planned: new Set(),
+    laid: new Set(),
     commands: [],
     threat: threatMap(world, me, noticed(world, memory, params.reactionMoves * params.moveSeconds)),
     weight: params.threatWeight,
     fleeing: false,
+    params,
   };
   const transports = owned<Transport>(world, me, 'transport');
   const geysers = reachableGeysers(world, me);
@@ -144,7 +146,7 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
 
   fetchSpell(world, move, transports, reached);
   castSpells(world, move, transports);
-  equip(world, move);
+  equip(world, move, geysers.length === 0);
   buildAltar(world, move);
   buildOutpost(world, move, reached);
 
@@ -205,6 +207,7 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
 
   if (target && head && bounds) {
     const shooters = world.buildingsOf(me).filter((b) => world.def(b.type).dps > 0).length;
+    const hoards = hoarding(move.budget, knownShooters(world, me));
 
     if (target.enemy && !powered(world, me, head, GENERATOR_SPACING)) {
       // Carry Energy along the bridge: a Generator at the own ground nearest the target that is
@@ -216,9 +219,13 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
       }
     } else if (
       (target.enemy && distance(head.x, head.y, target.x, target.y) <= ATTACK_REACH)
-      || shooters < DEFENCE_SHOOTERS
+      || shooters < DEFENCE_SHOOTERS || hoards
     ) {
-      bestUnit(world, move, head, target);
+      // As many as the level lays in a move, each of another type: the refresh after a unit
+      // keeps the same type from coming twice, as it keeps a player.
+      for (let laid = 0; laid < params.actionsPerMove && bestUnit(world, move, head, target);) {
+        laid++;
+      }
     }
 
     if (target.enemy && shooters >= DEFENCE_SHOOTERS) {
@@ -226,7 +233,13 @@ export function aiMove(world: WorldView, options: AiOptions, memory?: AiMemory):
     }
   }
 
-  if (options.collect !== false && transports.length < (options.transports ?? TRANSPORTS)) {
+  // Transports for the geysers in reach, on foot or in the air, unless the mission says how many.
+  const mined = transports.some((t) => flies(world.def(t.type)))
+    ? geysersFor(world, me).length
+    : geysers.length;
+  const wanted = options.transports ?? wantedTransports(mined, params.maxTransports);
+
+  if (options.collect !== false && transports.length < wanted) {
     newTransport(world, move, geysers.length === 0);
   }
 
@@ -243,6 +256,8 @@ interface Move {
   budget: number;
   /** Cells taken by the piece and units already chosen this move. */
   planned: Set<number>;
+  /** Types laid this move: a second of the same would find the type refreshing. */
+  laid: Set<string>;
   commands: Command[];
   /** Enemy damage per second on each cell, as far as this move has noticed the enemy's guns. */
   threat: ThreatMap;
@@ -250,6 +265,7 @@ interface Move {
   weight: number;
   /** The Priest is sent out of the enemy's fire this move, and is free for nothing else. */
   fleeing: boolean;
+  params: Readonly<AiParams>;
 }
 
 /**
@@ -321,8 +337,29 @@ function collect(
     }
   }
 
+  // A crystal lying on the ground is Storm Power for the taking: the nearest idle transport that
+  // can walk to it fetches it before it goes mining.
+  const loose = [...world.entities.values()].filter((e): e is View<Crystal> =>
+    e.kind === 'crystal' && e.carriedBy === null
+  );
+
   for (const t of transports) {
     if (t.goal !== 'idle' || t.carrying !== null) {
+      continue;
+    }
+
+    const crystal = loose.find((c) =>
+      world.findPath(move.me, t.x, t.y, ([x, y]) => distance(x, y, c.x, c.y) <= 1) !== null
+    );
+
+    if (crystal) {
+      loose.splice(loose.indexOf(crystal), 1);
+      move.commands.push({
+        t: 'pickupCrystal',
+        player: move.me,
+        transport: t.id,
+        crystal: crystal.id,
+      });
       continue;
     }
 
@@ -394,12 +431,15 @@ function slotRank(def: Readonly<UnitDef>): number {
  * Workshop for, the free slots are filled with what no Workshop makes yet, and a Workshop whose
  * slots are all taken is Upgraded once Storm Power is plenty.
  */
-function equip(world: WorldView, move: Move): void {
+function equip(world: WorldView, move: Move, stranded: boolean): void {
   const player = world.players.get(move.me)!;
   const mine = world.buildingsOf(move.me);
+  // Only what it lays goes into a slot: a slot given to a blocker is a slot lost.
   const known = [...player.tech]
     .map((id) => world.defs.get(id))
-    .filter((def): def is Readonly<UnitDef> => def !== undefined && takesSlot(def));
+    .filter((def): def is Readonly<UnitDef> =>
+      def !== undefined && takesSlot(def) && useful(def, stranded)
+    );
   const workshops = mine.filter((b) => world.def(b.type).cls === 'Production');
   const missing = [...new Set(known.map((def) => def.theme ?? 'sun'))]
     .sort()
@@ -408,7 +448,15 @@ function equip(world: WorldView, move: Move): void {
   const priest = world.priestOf(move.me);
   const home = world.templeOf(move.me);
 
-  if (missing && priest && !priestBusy(world, move)) {
+  // A Workshop is worth raising when there is Storm Power left for the cheapest unit it is for:
+  // a Workshop with nothing to make from it would only stand there.
+  const cheapest = known
+    .filter((def) => (def.theme ?? 'sun') === (missing?.theme ?? 'sun'))
+    .reduce((least, def) => Math.min(least, def.cost), Infinity);
+
+  if (
+    missing && priest && !priestBusy(world, move) && move.budget >= missing.cost + cheapest
+  ) {
     place(world, move, missing, home ? centre(home) : priest, undefined, ALTAR_RADIUS);
   }
 
@@ -513,13 +561,13 @@ function inRange(world: WorldView, t: View<Transport>, range: number): Reach {
 function castSpells(world: WorldView, move: Move, transports: View<Transport>[]): void {
   for (const t of transports) {
     const def = t.spell === null ? undefined : world.defs.get(t.spell);
-    const worth = t.spell === null ? undefined : SPELL_USE[t.spell];
+    const wanted = t.spell === null ? undefined : SPELL_USE[t.spell];
 
-    if (!def || !worth || t.casting > 0 || t.paralyzed > 0 || def.cost > move.budget) {
+    if (!def || !wanted || t.casting > 0 || t.paralyzed > 0 || def.cost > move.budget) {
       continue;
     }
 
-    if (worth(inRange(world, t, def.range))) {
+    if (wanted(inRange(world, t, def.range))) {
       move.budget -= def.cost;
       move.commands.push({ t: 'castSpell', player: move.me, transport: t.id });
     }
@@ -1090,7 +1138,7 @@ function bestUnit(
   move: Move,
   head: { x: number; y: number; },
   target: Target,
-): void {
+): boolean {
   const player = world.players.get(move.me)!;
   const known = [...player.tech]
     .map((id) => world.defs.get(id))
@@ -1107,7 +1155,7 @@ function bestUnit(
     if (
       target.enemy && have < AIR_BASES && near <= def.range && place(world, move, def, head).placed
     ) {
-      return;
+      return true;
     }
   }
 
@@ -1128,7 +1176,8 @@ function bestUnit(
       Number(air && b.group === 'anti-air') - Number(air && a.group === 'anti-air')
       || Number((b.group === 'cannon') === preferLine)
         - Number((a.group === 'cannon') === preferLine)
-      || b.cost - a.cost || a.id.localeCompare(b.id)
+      // The most damage for the Storm Power, not the dearest.
+      || worth(b) - worth(a) || a.id.localeCompare(b.id)
     );
   const facing = toward(head, target);
   let short = false;
@@ -1137,15 +1186,27 @@ function bestUnit(
     const spot = place(world, move, def, head, facesWhenLaid(def) ? facing : undefined);
 
     if (spot.placed) {
-      return;
+      return true;
     }
 
     short ||= spot.noEnergy;
   }
 
   if (short) {
-    generator(world, move, head);
+    return generator(world, move, head);
   }
+
+  return false;
+}
+
+/** The shooters that hit the ground which the AI knows: what its hoard is measured against. */
+function knownShooters(world: WorldView, me: number): Readonly<UnitDef>[] {
+  return [...world.players.get(me)!.tech]
+    .map((id) => world.defs.get(id))
+    .filter((def): def is Readonly<UnitDef> =>
+      def !== undefined && def.dps > 0 && def.range > 0 && def.group !== 'fence'
+      && def.group !== 'anti-air'
+    );
 }
 
 /** Whether some other side has an air base, a flyer or an Aerial Transport. */
@@ -1212,7 +1273,7 @@ function lay(world: WorldView, move: Move, def: Readonly<UnitDef>, x: number, y:
 
   // Nor on the cells of the piece laid this move, which canBuild does not see yet.
   if (
-    def.cost > move.budget || world.canBuild(command) !== null
+    def.cost > move.budget || move.laid.has(def.id) || world.canBuild(command) !== null
     || !clearOfBridges(world, def, x, y, move.planned)
   ) {
     return false;
@@ -1220,6 +1281,7 @@ function lay(world: WorldView, move: Move, def: Readonly<UnitDef>, x: number, y:
 
   move.commands.push(command);
   move.budget -= def.cost;
+  move.laid.add(def.id);
 
   for (let fy = y; fy < y + def.footY; fy++) {
     for (let fx = x; fx < x + def.footX; fx++) {
@@ -1231,7 +1293,7 @@ function lay(world: WorldView, move: Move, def: Readonly<UnitDef>, x: number, y:
 }
 
 /** A Generator by the head, of the AI's own Fury first. */
-function generator(world: WorldView, move: Move, head: { x: number; y: number; }): void {
+function generator(world: WorldView, move: Move, head: { x: number; y: number; }): boolean {
   const player = world.players.get(move.me)!;
   const generators = [...player.tech]
     .map((id) => world.defs.get(id))
@@ -1243,9 +1305,11 @@ function generator(world: WorldView, move: Move, head: { x: number; y: number; }
 
   for (const def of generators) {
     if (place(world, move, def, head).placed) {
-      return;
+      return true;
     }
   }
+
+  return false;
 }
 
 /** The own walkable ground nearest the target that lies within GENERATOR_SPACING of Energy. */
@@ -1315,7 +1379,7 @@ function place(
 ): { placed: boolean; noEnergy: boolean; } {
   let noEnergy = false;
 
-  if (def.cost > move.budget) {
+  if (def.cost > move.budget || move.laid.has(def.id)) {
     return { placed: false, noEnergy };
   }
 
@@ -1343,6 +1407,7 @@ function place(
     if (error === null) {
       move.commands.push(command);
       move.budget -= def.cost;
+      move.laid.add(def.id);
 
       for (let fy = y; fy < y + def.footY; fy++) {
         for (let fx = x; fx < x + def.footX; fx++) {
