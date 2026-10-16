@@ -139,7 +139,8 @@ const FIELD_COLOR: Readonly<Record<string, number>> = {
 
 export function createWorldRenderer(
   world: WorldView,
-  me: number,
+  /** The side looked through: its own are blue, its enemies red. */
+  viewer: () => number,
   terrainG: Graphics,
   ground: Container,
   entityLayer: Container,
@@ -207,7 +208,7 @@ export function createWorldRenderer(
         }
 
         if (!texture) {
-          terrainG.rect(sx, sy, TW, TH).fill(terrainColor(terrain, owner, me));
+          terrainG.rect(sx, sy, TW, TH).fill(terrainColor(terrain, owner, viewer()));
           continue;
         }
 
@@ -285,7 +286,8 @@ export function createWorldRenderer(
       return textures.get(key);
     }
 
-    return textures.get(`${key}:${world.hostile(me, owner) ? 'red' : 'blue'}`) ?? textures.get(key);
+    return textures.get(`${key}:${world.hostile(viewer(), owner) ? 'red' : 'blue'}`)
+      ?? textures.get(key);
   }
 
   /** Where the island ends around a cell: SKY bits of the neighbours, given as [bit, dx, dy]. */
@@ -480,7 +482,7 @@ export function createWorldRenderer(
 
       // A flyer is drawn over everything on the ground.
       sprite.zIndex = entity.kind === 'flyer' ? AIR_Z : sy;
-      sprite.tint = entityTint(entity, me);
+      sprite.tint = entityTint(entity, viewer());
       sprite.alpha = entityAlpha(entity);
       const over = bySpot ? overlayOf(entity, world.tick, world) : null;
       attach(overlays, entity.id, over, sprite, OVERLAY_Z, 1);
@@ -960,6 +962,10 @@ export function createWorldRenderer(
   return {
     explode,
     cast,
+    /** Paint the ground anew, as for another side's eyes. */
+    repaint() {
+      terrainRevision = -1;
+    },
     /** `alpha`: how far the time is between the last tick and the next (FixedStepClock.alpha). */
     sync(alpha = 1) {
       if (terrainRevision !== world.terrainRevision) {

@@ -26,9 +26,13 @@ export interface UiState {
   paused: boolean;
   /** Sound is off. */
   muted: boolean;
+  /** The side whose eyes the screen looks through: its colours, panels and log. */
+  viewer: number;
+  /** The computer plays every side: the screen only looks on and gives no orders. */
+  watching: boolean;
 }
 
-export function createUiState(): UiState {
+export function createUiState(viewer = 1): UiState {
   return {
     tool: { kind: 'select' },
     rot: 0,
@@ -37,6 +41,8 @@ export function createUiState(): UiState {
     hover: { x: 0, y: 0 },
     paused: false,
     muted: false,
+    viewer,
+    watching: false,
   };
 }
 
