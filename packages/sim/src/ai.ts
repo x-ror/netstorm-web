@@ -72,8 +72,9 @@ const ATTACK_STORM = 4000;
 const GEYSER_REACH = 2;
 const ENEMY_REACH = 6;
 const MAX_REACH = 32;
-/** Cells from the nearest own Energy source past which the AI puts a Generator by the bridge head,
- * well inside ENERGY_RANGE so the Generator itself can still be built (invented). */
+/** Cells between the Generators that carry Energy along a bridge: a Generator is laid within
+ * UNIT_RADIUS of the head and must itself stand within ENERGY_RANGE of the last Energy; 20 would
+ * do by that count, but 18 is what carries the chain to the end on the test map (invented). */
 const GENERATOR_SPACING = 18;
 /** Air bases the AI keeps, and fence posts: two barriers' worth (invented). */
 const AIR_BASES = 2;
@@ -359,7 +360,7 @@ function aiMoveOn(
   // Grow toward each target a piece can be laid toward, as many bridges as the level grows in a
   // move, each from another piece in hand. The first target a piece goes toward decides where
   // units go; when none can be laid, the first target, the one most wanted, does.
-  const targets = bridgeTargets(world, move, memory, attack, options.enemy, reach);
+  const targets = bridgeTargets(world, move, memory, attack, options.enemy, reach, reached);
   const candidates = targets.slice(0, params.bridgeHeads + SPARE_TARGETS);
   explain?.(`  bridge targets, best first: ${candidates.map(describeTarget).join('; ') || 'none'}`);
 
@@ -380,7 +381,7 @@ function aiMoveOn(
     if (candidate.enemy && heads[0] && heads[0].need <= ARRIVED) {
       const marks: Mark[] = [candidate, ...enemyTemples(world, me, candidate)];
 
-      if (reached && !anyFit(world, move, heads[0], marks)) {
+      if (reached && options.attack !== false && !anyFit(world, move, heads[0], marks)) {
         piece = slotPiece(world, move, memory, heads, usedHands, marks);
       }
     } else {
@@ -460,6 +461,17 @@ function aiMoveOn(
     unitHeads = heads;
   }
 
+  // Guns at the enemy go from whatever own ground is nearest his Temple and his Priest, which is
+  // not always the head the bridge grows from.
+  if (target?.enemy && bounds && reached) {
+    const gunHeads = headsNear(world, me, bounds, reached, enemyMarks(world, me, target));
+
+    if (gunHeads.length) {
+      head = gunHeads[0]!;
+      unitHeads = gunHeads;
+    }
+  }
+
   if (target && head && bounds) {
     const shooters = world.buildingsOf(me).filter((b) => world.def(b.type).dps > 0).length;
     const hoards = hoarding(move.budget, knownShooters(world, me));
@@ -467,11 +479,15 @@ function aiMoveOn(
     // Guns at the enemy until the level's number have his Priest in reach, or his Temple: a Priest
     // who keeps out of the fire is still brought down once his Temple, which heals him past half,
     // is gone. Then the Storm Power waits for the capture.
-    const marks: Mark[] = target.enemy ? [target, ...enemyTemples(world, me, target)] : [];
+    const marks: Mark[] = target.enemy ? enemyMarks(world, me, target) : [];
     const covering = world.buildingsOf(me).filter((b) =>
       reachesAny(world.def(b.type), b.x, b.y, marks) !== false
     ).length;
-    const atPriest = target.enemy && distance(head.x, head.y, target.x, target.y) <= ATTACK_REACH;
+    // The bridge has come up to the enemy once a gun by its head would reach his Temple or his
+    // Priest: the longest-ranged gun it knows, laid within the radius guns go from a head.
+    const longest = knownShooters(world, me).reduce((most, def) => Math.max(most, def.range), 0);
+    const atPriest = target.enemy
+      && marks.some((mark) => nearRect(head, mark) <= longest + UNIT_RADIUS);
 
     const reasons = [
       ...(atPriest && covering < params.concentrate
@@ -1222,6 +1238,9 @@ const scratch = {
   queue: new Int32Array(W * H),
   order: new Int32Array(W * H),
   reached: new Uint8Array(W * H),
+  /** The open sky (openSky), and the terrain revision it was found for. */
+  open: new Uint8Array(W * H),
+  openRevision: -1,
 };
 
 /** The rectangle around the AI's own ground, which bounds where its bridge can grow from. */
@@ -1307,7 +1326,8 @@ function wardSpot(
   return null;
 }
 
-type Target = { x: number; y: number; enemy: boolean; };
+/** `exact`: the bridge is to end beside this very cell, for a gun to stand there. */
+type Target = { x: number; y: number; enemy: boolean; temple?: boolean; exact?: boolean; };
 
 /** Cells of the Temple's distance that weigh as much as one cell of bridge in a geyser's worth: a
  * transport walks there and back for every crystal (invented). */
@@ -1315,6 +1335,90 @@ const WALK_PER_BRIDGE = 4;
 /** Cells the enemy's Priest may stray from where the bridge is headed before it is headed anew
  * (invented). */
 const MARK_DRIFT = 8;
+
+/**
+ * Where to bring the bridge to for the guns to reach the enemy's Temple: a cell of open sky on one
+ * of the Temple's rows or columns, within the range of the longest cannon the side knows, so a
+ * cannon laid there fires down the line into it; without a cannon, a cell within a square gun's
+ * range of it. The nearest such cell to the side's own Temple, so the bridge is shortest. A gun
+ * stands only beside an open end of the bridge, which is why the end must come to this very cell.
+ */
+function siegePoint(
+  world: WorldView,
+  me: number,
+  home: View<Building>,
+  temple: View<Building>,
+  reached: Uint8Array | null,
+): Target | null {
+  const guns = knownShooters(world, me).filter((def) => def.group !== 'anti-air');
+  const cannons = guns.filter((def) => def.group === 'cannon');
+  const range = (cannons.length ? cannons : guns).reduce((most, def) => Math.max(most, def.range),
+    0);
+
+  if (range === 0) {
+    return null;
+  }
+
+  const open = openSky(world);
+  const own = centre(home);
+  const x1 = temple.x + temple.fx - 1;
+  const y1 = temple.y + temple.fy - 1;
+  // A cell short of the full range, for the gun's own cell and the line's end to lie within.
+  const reach = range - 1;
+  let best: Target | null = null;
+  let bestFar = Infinity;
+  // A cell beside own ground that joins toward it takes a gun at once, whatever sky it lies in:
+  // the own bridge may have walled the shore off from the open sky. Such a cell comes first.
+  const besideOwn = (x: number, y: number): boolean =>
+    reached !== null && DIRS.some(([dx, dy], dir) => {
+      const nx = x + dx;
+      const ny = y + dy;
+      return world.inside(nx, ny) && world.owner[world.at(nx, ny)] === me
+        && reached[world.at(nx, ny)] === 1 && joins(world, world.at(nx, ny), oppositeDir(dir));
+    });
+  const consider = (x: number, y: number) => {
+    if (!world.inside(x, y) || world.terrain[world.at(x, y)] !== Terrain.Sky) {
+      return;
+    }
+
+    const beside = besideOwn(x, y);
+
+    if (!beside && open[world.at(x, y)] !== 1) {
+      return;
+    }
+
+    const far = (beside ? 0 : W + H) + Math.max(Math.abs(x - own.x), Math.abs(y - own.y));
+
+    if (far < bestFar) {
+      best = { x, y, enemy: true, temple: true, exact: true };
+      bestFar = far;
+    }
+  };
+
+  if (cannons.length) {
+    for (let x = temple.x; x <= x1; x++) {
+      for (let d = 1; d <= reach; d++) {
+        consider(x, temple.y - d);
+        consider(x, y1 + d);
+      }
+    }
+
+    for (let y = temple.y; y <= y1; y++) {
+      for (let d = 1; d <= reach; d++) {
+        consider(temple.x - d, y);
+        consider(x1 + d, y);
+      }
+    }
+  } else {
+    for (let y = temple.y - reach; y <= y1 + reach; y++) {
+      for (let x = temple.x - reach; x <= x1 + reach; x++) {
+        consider(x, y);
+      }
+    }
+  }
+
+  return best;
+}
 
 /**
  * Where the bridge may grow, best first. Free geysers by their worth, the stock over the bridge
@@ -1330,6 +1434,7 @@ function bridgeTargets(
   attack: boolean,
   prefer: number | undefined,
   reach: Int32Array | null,
+  reached: Uint8Array | null,
 ): Target[] {
   const me = move.me;
   // The side a mission names as this one's enemy comes first while it stands.
@@ -1379,12 +1484,14 @@ function bridgeTargets(
     const enemy = foe ? world.templeOf(id) : undefined;
     const priest = foe ? world.priestOf(id) : undefined;
 
-    // His Priest, or his Temple while the Priest is carried; a side whose Temple fell still has
-    // its Priest to be taken.
-    if (priest && priest.state !== 'carried') {
+    // His Temple: it stands still, heals his Priest past half and is where the Priest keeps to, so
+    // the bridge goes for the shore nearest it and the guns reach both. A side whose Temple fell
+    // still has its Priest to be taken.
+    if (enemy) {
+      enemies.push(siegePoint(world, me, home, enemy, reached)
+        ?? { ...centre(enemy), enemy: true, temple: true });
+    } else if (priest && priest.state !== 'carried') {
       enemies.push({ x: priest.x, y: priest.y, enemy: true });
-    } else if (enemy) {
-      enemies.push({ ...centre(enemy), enemy: true });
     }
   }
 
@@ -1392,7 +1499,7 @@ function bridgeTargets(
 
   // A Priest who paces about his island would have the bridge turn after him every move: it is
   // headed for where he was, until he strays.
-  if (memory && nearest[0]) {
+  if (memory && nearest[0] && !nearest[0].temple) {
     const mark = memory.mark;
     const near = mark && Math.max(Math.abs(mark.x - nearest[0].x), Math.abs(mark.y - nearest[0].y))
         <= MARK_DRIFT;
@@ -1463,6 +1570,73 @@ function reachField(
 }
 
 /**
+ * The cells of the largest stretch of sky, which is the sky a bridge can cross: 1 where a cell is
+ * in it. Found once per state of the terrain and kept.
+ */
+function openSky(world: WorldView): Uint8Array {
+  if (scratch.openRevision === world.terrainRevision) {
+    return scratch.open;
+  }
+
+  const seen = scratch.open.fill(0);
+  const queue = scratch.queue;
+  let largest = 0;
+  let largestStart = -1;
+  /** Flood the stretch of sky from `start`, marking its cells `mark` where they are `was`. */
+  const flood = (start: number, was: number, mark: number): number => {
+    let tail = 0;
+    queue[tail++] = start;
+    seen[start] = mark;
+
+    for (let head = 0; head < tail; head++) {
+      const i = queue[head]!;
+      const x = i % W;
+      const y = (i / W) | 0;
+
+      for (const [dx, dy] of DIRS) {
+        const nx = x + dx;
+        const ny = y + dy;
+        const j = ny * W + nx;
+
+        if (
+          nx >= 0 && ny >= 0 && nx < W && ny < H && world.terrain[j] === Terrain.Sky
+          && seen[j] === was
+        ) {
+          seen[j] = mark;
+          queue[tail++] = j;
+        }
+      }
+    }
+
+    return tail;
+  };
+
+  for (let start = 0; start < W * H; start++) {
+    if (world.terrain[start] === Terrain.Sky && seen[start] === 0) {
+      const size = flood(start, 0, 2);
+
+      if (size > largest) {
+        largest = size;
+        largestStart = start;
+      }
+    }
+  }
+
+  if (largestStart >= 0) {
+    flood(largestStart, 2, 1);
+  }
+
+  for (let i = 0; i < W * H; i++) {
+    if (seen[i] === 2) {
+      seen[i] = 0;
+    }
+  }
+
+  scratch.openRevision = world.terrainRevision;
+  return seen;
+}
+
+/**
  * The cost of bridging through open sky from each cell to the target's surroundings: the cells
  * within `radius` of the target (Chebyshev). Bridge can only be laid in the sky, so this is the
  * bridge still needed from there, going around islands rather than straight at the target, and
@@ -1477,8 +1651,12 @@ function skyField(world: WorldView, move: Move, target: Target): Int32Array {
 
   // A target deep inside an island (a Temple's centre) has no sky that close: widen the ring until
   // there is some, so the bridge still heads for the island's nearest shore.
+  // Only the open sky counts: an island may hold a pond of sky within it, nearer the target than
+  // its shore, and a bridge from that pond leads nowhere.
+  const open = openSky(world);
+
   for (
-    let radius = target.enemy ? ENEMY_REACH : GEYSER_REACH;
+    let radius = target.exact ? 0 : (target.enemy ? ENEMY_REACH : GEYSER_REACH);
     tail === 0 && radius <= MAX_REACH;
     radius++
   ) {
@@ -1486,7 +1664,7 @@ function skyField(world: WorldView, move: Move, target: Target): Int32Array {
       for (let x = target.x - radius; x <= target.x + radius; x++) {
         if (
           world.inside(x, y) && field[world.at(x, y)] === -1
-          && world.terrain[world.at(x, y)] === Terrain.Sky
+          && open[world.at(x, y)] === 1
         ) {
           field[world.at(x, y)] = 0;
           queue[tail++] = world.at(x, y);
@@ -2110,6 +2288,87 @@ function enemyTemples(world: WorldView, me: number, mark: { x: number; y: number
   }
 
   return temples;
+}
+
+/**
+ * Own ground to lay guns from, nearest the marks first: cells a transport can reach with sky on a
+ * side they join on, the nearest to any mark, no two within reach of the same search for a site.
+ * Like bridgeHeads, but by distance to the marks rather than by the way to the target.
+ */
+function headsNear(
+  world: WorldView,
+  me: number,
+  bounds: Bounds,
+  reached: Uint8Array,
+  marks: readonly Mark[],
+): Head[] {
+  const all: Head[] = [];
+
+  for (let y = bounds.y0; y <= bounds.y1; y++) {
+    for (let x = bounds.x0; x <= bounds.x1; x++) {
+      const i = y * W + x;
+
+      if (world.owner[i] !== me || reached[i] !== 1) {
+        continue;
+      }
+
+      const shore = DIRS.some(([dx, dy], dir) =>
+        world.inside(x + dx, y + dy) && world.terrain[world.at(x + dx, y + dy)] === Terrain.Sky
+        && joins(world, i, dir)
+      );
+
+      if (shore) {
+        const need = marks.reduce((least, mark) => Math.min(least, nearRect({ x, y }, mark)),
+          Infinity);
+        all.push({ x, y, need });
+      }
+    }
+  }
+
+  all.sort((a, b) => a.need - b.need || a.y - b.y || a.x - b.x);
+  const heads: Head[] = [];
+
+  for (const head of all) {
+    if (heads.length === HEADS) {
+      break;
+    }
+
+    if (
+      heads.every((kept) =>
+        Math.max(Math.abs(kept.x - head.x), Math.abs(kept.y - head.y)) > SEARCH_RADIUS
+      )
+    ) {
+      heads.push(head);
+    }
+  }
+
+  return heads;
+}
+
+/** What the guns at the enemy are for: his Temple about the target, and his Priest where he stands
+ * (on his feet or down; not carried off already). */
+function enemyMarks(world: WorldView, me: number, target: Target): Mark[] {
+  const marks = enemyTemples(world, me, target);
+
+  for (const [id, other] of world.players) {
+    const priest = other.alive && world.hostile(id, me) ? world.priestOf(id) : undefined;
+
+    // His Priest wherever he stands: he is what the guns are for.
+    if (priest && priest.state !== 'carried' && priest.invisible === 0) {
+      marks.push({ x: priest.x, y: priest.y });
+    }
+  }
+
+  return marks.length ? marks : [target];
+}
+
+/** Cells from a point to the nearest cell of a mark's footprint, as a square gun measures. */
+function nearRect(from: { x: number; y: number; }, mark: Mark): number {
+  const x1 = mark.x + (mark.fx ?? 1) - 1;
+  const y1 = mark.y + (mark.fy ?? 1) - 1;
+  const dx = Math.max(mark.x - from.x, 0, from.x - x1);
+  const dy = Math.max(mark.y - from.y, 0, from.y - y1);
+  return Math.max(dx, dy);
 }
 
 /** Damage per second a unit of this type brings onto the ground: none for barriers and guns that

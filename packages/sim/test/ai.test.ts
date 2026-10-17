@@ -655,10 +655,22 @@ test('Hard grows two bridges a move, from two pieces of its hand, and the drops 
     'both drops land');
 });
 
-test("the bridge keeps heading for where the enemy's Priest was until he strays", () => {
+test("the bridge heads for the enemy's Temple; without one, for where his Priest was until he strays", () => {
   const world = mk();
   world.players.get(2)!.storm = 9000; // attacking from the start
   const memory = createAiMemory();
+  const lines: string[] = [];
+  aiMove(world.view(), { player: 2 }, memory, (line) => lines.push(line));
+  const temple = world.templeOf(1)!;
+  // The siege point: a cell on one of the Temple's rows or columns, for a cannon's line.
+  const at = lines.map((line) => /the enemy at (\d+),(\d+)/.exec(line)).find((m) => m)!;
+  const [x, y] = [Number(at[1]), Number(at[2])];
+  const onLine = (x >= temple.x && x < temple.x + temple.fx)
+    || (y >= temple.y && y < temple.y + temple.fy);
+  assert.ok(onLine, lines.join('\n'));
+  assert.equal(memory.mark, null);
+  // His Temple gone, his Priest is the target, where he was until he strays.
+  world.entities.delete(temple.id);
   aiMove(world.view(), { player: 2 }, memory);
   const mark = { ...memory.mark! };
   const priest = world.priestOf(1)!;
@@ -840,9 +852,10 @@ test('a full hand that comes nearer to nothing is rid of its worst piece, at the
   ], []));
   world.players.get(2)!.storm = 0; // nothing to build, so the move is about the hand alone
   const priest = world.priestOf(1)!;
-  // The AI's ground has come up to the enemy's island: no piece brings the bridge nearer.
+  // The AI's ground has come up to the siege point beside the enemy's island, on his Temple's
+  // row: no piece brings the bridge nearer.
   world.addIsland(85, 99, 70, 1, 2);
-  world.addIsland(85, 99, 5, 69, 2);
+  world.addIsland(85, 99, 9, 69, 2);
   world.addIsland(60, 160, 26, 8, 2);
   world.invalidateTerrain();
   world.spawnBuilding('sunarcher', 2, priest.x - 1, 161);
