@@ -23,6 +23,11 @@ export interface AiMemory {
   /** Where the bridge to the enemy was last headed: his Priest's cell then, kept while he stays
    * near it, so the bridge does not wander after his every step. */
   mark: { x: number; y: number; } | null;
+  /** The siege point the bridge to the enemy is headed for, kept while it still serves: a new one
+   * every move would have the bridge, and the Generators behind it, start over. */
+  siege: { x: number; y: number; } | null;
+  /** Siege points the bridge came up to without room for a gun, by cell: not tried again. */
+  badSieges: Set<number>;
   /** The tick of the last look for a piece that makes room for a gun, which found none. */
   slotLook: number;
   /** The state of the AI's own random numbers, for its mistakes and its salvage; never the
@@ -43,6 +48,8 @@ export function createAiMemory(seed = 1): AiMemory {
     idle: new Map(),
     pushing: false,
     mark: null,
+    siege: null,
+    badSieges: new Set(),
     slotLook: -Infinity,
     rng: seed >>> 0 || 1,
   };

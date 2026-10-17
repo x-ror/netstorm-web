@@ -33,6 +33,9 @@ export interface AiParams {
   concentrate: number;
   /** Guns it keeps within reach of its Altar while it holds a captive. */
   altarGuards: number;
+  /** Seconds its guns on the enemy's Temple should take to bring it down; more guns are laid while
+   * it would take longer. Infinity leaves the Temple alone and goes for the Priest only. */
+  siegeSeconds: number;
 }
 
 /* oxlint-disable no-magic-numbers -- the tuning table of an invented opponent */
@@ -50,6 +53,7 @@ export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
     bridgeHeads: 1,
     concentrate: 1,
     altarGuards: 0,
+    siegeSeconds: Infinity,
   },
   normal: {
     moveSeconds: 5,
@@ -64,6 +68,7 @@ export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
     bridgeHeads: 2,
     concentrate: 2,
     altarGuards: 1,
+    siegeSeconds: 240,
   },
   hard: {
     moveSeconds: 3,
@@ -78,6 +83,7 @@ export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
     bridgeHeads: 3,
     concentrate: 3,
     altarGuards: 2,
+    siegeSeconds: 120,
   },
 };
 /* oxlint-enable no-magic-numbers */

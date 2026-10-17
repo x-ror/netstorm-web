@@ -197,6 +197,8 @@ function aiMoveOn(
     params,
     guns: enemyGuns(world, me, seen),
     actions: 0,
+    energized: false,
+    usedHands: new Set(),
   };
   const transports = owned<Transport>(world, me, 'transport');
   // Ground the transports can walk to now; joining anything else is what a bridge is for.
@@ -353,7 +355,6 @@ function aiMoveOn(
   let head: Head | null = null;
   let first: { target: Target; head: Head | null; heads: Head[]; } | null = null;
   let unitHeads: Head[] = [];
-  const usedHands = new Set<number>();
   let laidPieces = 0;
   const reach = bounds && reached ? reachField(world, move, reached, bounds) : null;
 
@@ -382,17 +383,38 @@ function aiMoveOn(
       const marks: Mark[] = [candidate, ...enemyTemples(world, me, candidate)];
 
       if (reached && options.attack !== false && !anyFit(world, move, heads[0], marks)) {
-        piece = slotPiece(world, move, memory, heads, usedHands, marks);
+        piece = slotPiece(world, move, memory, heads, move.usedHands, marks);
+
+        // Come up to the point and no piece makes room for a gun there: another point next move.
+        if (!piece && memory && memory.slotLook === world.tick && candidate.exact) {
+          memory.badSieges.add(world.at(candidate.x, candidate.y));
+          memory.siege = null;
+        }
       }
     } else {
+      // Near enough to the enemy's Temple that a piece could end where a gun reaches it: such a
+      // piece before any that merely comes nearer: the shore by his Temple may lie in a notch
+      // that no bridge end can face straight on.
+      const temples = candidate.enemy && options.attack !== false
+        ? enemyTemples(world, me, candidate)
+        : [];
+      const longest = knownShooters(world, me).reduce((most, def) => Math.max(most, def.range), 0);
+      const near = heads.slice(0, SLOT_HEADS).filter((from) =>
+        temples.some((temple) => nearRect(from, temple) <= longest + SEARCH_RADIUS)
+      );
+
+      if (near.length && !anyFit(world, move, near[0]!, temples)) {
+        piece = slotPiece(world, move, memory, near, move.usedHands, temples);
+      }
+
       // The nearest head may sit in a pocket of the AI's own bridge, where every piece only leads
       // further from the target; then the bridge goes on from the next head whose piece comes
       // nearer than the nearest head already is.
-      for (const from of heads) {
+      for (const from of piece ? [] : heads) {
         // Told to keep off the enemy's island, it lays no bridge toward him; he still decides
         // where its units go.
         piece = reached && !(candidate.enemy && options.attack === false)
-          ? bestPiece(world, move, from, field, reached, usedHands, Infinity)
+          ? bestPiece(world, move, from, field, reached, move.usedHands, Infinity)
           : null;
 
         if (piece) {
@@ -405,18 +427,8 @@ function aiMoveOn(
       continue;
     }
 
-    const shape = rotatePiece(PIECES[player.hand[piece.hand]!.piece]!, piece.rot);
-
-    for (const [dx, dy] of shape) {
-      move.planned.add(world.at(piece.x + dx, piece.y + dy));
-    }
-
-    // A dropped piece leaves the hand and the pieces after it close up, so a later drop of this
-    // move names its piece by where it will be once the earlier ones are gone.
-    const shift = [...usedHands].filter((h) => h < piece.hand).length;
-    move.commands.push({ ...piece, hand: piece.hand - shift });
+    drop(world, move, piece);
     because(`a bridge toward ${describeTarget(candidate)}`);
-    usedHands.add(piece.hand);
     laidPieces++;
 
     if (!target) {
@@ -435,7 +447,7 @@ function aiMoveOn(
     const dump = dumpPiece(world, move, skyField(world, move, grows), grows, bounds, reached);
 
     if (dump) {
-      move.commands.push(dump);
+      drop(world, move, dump);
       because('a full hand and no piece comes nearer: the worst goes to the back of the island');
     }
   }
@@ -463,8 +475,12 @@ function aiMoveOn(
 
   // Guns at the enemy go from whatever own ground is nearest his Temple and his Priest, which is
   // not always the head the bridge grows from.
-  if (target?.enemy && bounds && reached) {
-    const gunHeads = headsNear(world, me, bounds, reached, enemyMarks(world, me, target));
+  if (target?.enemy && bounds && reached && home) {
+    const marks = enemyMarks(world, me, target);
+    // Only ground on the enemy's side of the Temple: a gun behind it faces nothing.
+    const ownFar = marks.reduce((least, mark) => Math.min(least, farRect(centre(home), mark)),
+      Infinity);
+    const gunHeads = headsNear(world, me, bounds, reached, marks).filter((h) => h.need < ownFar);
 
     if (gunHeads.length) {
       head = gunHeads[0]!;
@@ -489,9 +505,23 @@ function aiMoveOn(
     const atPriest = target.enemy
       && marks.some((mark) => nearRect(head, mark) <= longest + UNIT_RADIUS);
 
+    // His Temple heals him and has thousands of hit points: once the guns reach it, more come
+    // until they bring it down within the level's siegeSeconds, whatever its number on the
+    // Priest. Not while his Priest is already taken: then the Temple is beside the point.
+    const taken = enemyPriest(world, me, 'carried') ?? enemyPriest(world, me, 'chained');
+    const temple = target.enemy && !taken ? enemyTempleAt(world, me, target) : undefined;
+    const templeMark = temple ? [{ x: temple.x, y: temple.y, fx: temple.fx, fy: temple.fy }] : [];
+    const templeDps = world.buildingsOf(me).reduce((sum, b) => {
+      const def = world.def(b.type);
+      return sum + (reachesAny(def, b.x, b.y, templeMark) !== false ? groundDps(def) : 0);
+    }, 0);
+    const siege = atPriest && temple !== undefined && temple.hp > templeDps * params.siegeSeconds;
     const reasons = [
       ...(atPriest && covering < params.concentrate
         ? [`the enemy Priest is in reach and ${covering} of ${params.concentrate} guns cover him`]
+        : []),
+      ...(siege
+        ? [`his Temple has ${temple.hp} hit points against ${templeDps.toFixed(1)} a second`]
         : []),
       ...(shooters < DEFENCE_SHOOTERS
         ? [`it has ${shooters} shooters, fewer than the ${DEFENCE_SHOOTERS} it keeps facing him`]
@@ -507,7 +537,13 @@ function aiMoveOn(
       // As many as the level lays in a move, each of another type: the refresh after a unit
       // keeps the same type from coming twice, as it keeps a player. Guns aimed at the Priest go
       // where they reach him; a hoard buys guns by the head wherever they stand.
-      const aims = atPriest && !hoards ? marks : undefined;
+      // Guns for the siege go where they reach the Temple; the first of them may reach the Priest
+      // instead, since either is a start.
+      let aims: readonly Mark[] | undefined;
+
+      if (atPriest && !hoards) {
+        aims = siege && templeDps > 0 ? templeMark : marks;
+      }
 
       while (move.actions < params.actionsPerMove && bestUnit(world, move, head, target, aims)) {
         // each pass lays one more
@@ -581,6 +617,11 @@ interface Move {
   guns: View<Building>[];
   /** Shooters laid this move, against the level's actions. */
   actions: number;
+  /** A Generator laid this move: one a move, since its Energy comes only once it stands. */
+  energized: boolean;
+  /** Pieces of the hand dropped this move, by their index before any left: a later drop names
+   * its piece by where it will be once the earlier ones are gone. */
+  usedHands: Set<number>;
 }
 
 /**
@@ -1349,6 +1390,7 @@ function siegePoint(
   home: View<Building>,
   temple: View<Building>,
   reached: Uint8Array | null,
+  memory: AiMemory | undefined,
 ): Target | null {
   const guns = knownShooters(world, me).filter((def) => def.group !== 'anti-air');
   const cannons = guns.filter((def) => def.group === 'cannon');
@@ -1365,8 +1407,9 @@ function siegePoint(
   const y1 = temple.y + temple.fy - 1;
   // A cell short of the full range, for the gun's own cell and the line's end to lie within.
   const reach = range - 1;
-  let best: Target | null = null;
-  let bestFar = Infinity;
+  // The point of the last move still serves while it is sky on the Temple's line within reach.
+  const kept = memory?.siege;
+
   // A cell beside own ground that joins toward it takes a gun at once, whatever sky it lies in:
   // the own bridge may have walled the shore off from the open sky. Such a cell comes first.
   const besideOwn = (x: number, y: number): boolean =>
@@ -1376,16 +1419,27 @@ function siegePoint(
       return world.inside(nx, ny) && world.owner[world.at(nx, ny)] === me
         && reached[world.at(nx, ny)] === 1 && joins(world, world.at(nx, ny), oppositeDir(dir));
     });
+  /** Sky a bridge can still come to: in the open, or beside own ground already. */
+  const reachable = (x: number, y: number): boolean =>
+    world.terrain[world.at(x, y)] === Terrain.Sky
+    && (open[world.at(x, y)] === 1 || besideOwn(x, y));
+
+  if (
+    kept && reachable(kept.x, kept.y) && !memory.badSieges.has(world.at(kept.x, kept.y))
+    && ((kept.x >= temple.x && kept.x <= x1) || (kept.y >= temple.y && kept.y <= y1))
+    && nearRect(kept, { x: temple.x, y: temple.y, fx: temple.fx, fy: temple.fy }) <= reach
+  ) {
+    return { ...kept, enemy: true, temple: true, exact: true };
+  }
+
+  let best: Target | null = null;
+  let bestFar = Infinity;
   const consider = (x: number, y: number) => {
-    if (!world.inside(x, y) || world.terrain[world.at(x, y)] !== Terrain.Sky) {
+    if (!world.inside(x, y) || !reachable(x, y) || memory?.badSieges.has(world.at(x, y))) {
       return;
     }
 
     const beside = besideOwn(x, y);
-
-    if (!beside && open[world.at(x, y)] !== 1) {
-      return;
-    }
 
     const far = (beside ? 0 : W + H) + Math.max(Math.abs(x - own.x), Math.abs(y - own.y));
 
@@ -1415,6 +1469,10 @@ function siegePoint(
         consider(x, y);
       }
     }
+  }
+
+  if (memory) {
+    memory.siege = best ? { x: (best as Target).x, y: (best as Target).y } : null;
   }
 
   return best;
@@ -1488,7 +1546,7 @@ function bridgeTargets(
     // the bridge goes for the shore nearest it and the guns reach both. A side whose Temple fell
     // still has its Priest to be taken.
     if (enemy) {
-      enemies.push(siegePoint(world, me, home, enemy, reached)
+      enemies.push(siegePoint(world, me, home, enemy, reached, memory)
         ?? { ...centre(enemy), enemy: true, temple: true });
     } else if (priest && priest.state !== 'carried') {
       enemies.push({ x: priest.x, y: priest.y, enemy: true });
@@ -1993,12 +2051,22 @@ function bestUnit(
   const lines = built.filter((def) => def.group === 'cannon').length;
   const preferLine = lines < built.length - lines;
   const outranged = move.guns.reduce((most, b) => Math.max(most, world.def(b.type).range), 0);
+  // A gun of the side's own Fury needs a Generator of that Fury, which the Sun's guns do not: where
+  // none stands within reach of the head, the Sun's guns come first, so no Generator is raised for
+  // a gun that the Energy already there would not feed anyway.
+  const themed = mine.some((b) => {
+    const def = world.def(b.type);
+    return def.group === 'battery' && def.theme === player.theme
+      && Math.max(Math.abs(b.x - head.x), Math.abs(b.y - head.y)) <= GENERATOR_SPACING;
+  });
+  const unfed = (def: Readonly<UnitDef>) => (def.theme ?? 'sun') !== 'sun' && !themed;
   const shooters = known
     .filter((def) =>
       def.dps > 0 && def.range > 0 && def.group !== 'fence' && (air || def.group !== 'anti-air')
     )
     .sort((a, b) =>
       Number(air && b.group === 'anti-air') - Number(air && a.group === 'anti-air')
+      || Number(unfed(a)) - Number(unfed(b))
       // One that reaches as far as the enemy's guns, where there is one: it fires first.
       || Number(b.range >= outranged) - Number(a.range >= outranged)
       || Number((b.group === 'cannon') === preferLine)
@@ -2032,14 +2100,34 @@ function bestUnit(
 
   // No Energy at the head: a Generator there, or, where the head is too far from any Energy for
   // a Generator to be built, at the own ground nearest the target that is still within reach of
-  // Energy, so the next one comes nearer. Only ever for a gun that is wanted, never ahead of it.
-  if (short && !generator(world, move, head)) {
-    const bounds = ownBounds(world, move.me);
-    const site = bounds && poweredHead(world, move.me, target, bounds);
-    return site ? generator(world, move, site) : false;
+  // Energy, so the next one comes nearer. Only ever for a gun that is wanted, never ahead of it,
+  // and never beside Energy that is already there: then the want was for a gun of another Fury.
+  // One Generator a move at most, and no guns after it: its Energy comes once it stands.
+  if (short && !move.energized && !powered(world, move.me, head, GENERATOR_SPACING)) {
+    let laid = generator(world, move, head);
+
+    if (!laid) {
+      const bounds = ownBounds(world, move.me);
+      const site = bounds && poweredHead(world, move.me, target, bounds);
+      laid = site ? generator(world, move, site) : false;
+
+      // No room for a Generator where the Energy ends: a stub off the bridge there makes some.
+      const battery = batteryFor(world, move.me);
+
+      if (!laid && site && battery) {
+        const stub = stubFor(world, move, site, battery);
+
+        if (stub) {
+          drop(world, move, stub);
+        }
+      }
+    }
+
+    move.energized = laid;
+    move.actions += laid ? 1 : 0;
   }
 
-  return short;
+  return false;
 }
 
 /**
@@ -2137,6 +2225,47 @@ function anyFit(
  * look is dear, a walk of every piece in every turn about every head. */
 const SLOT_HEADS = 3;
 const SLOT_RETRY_MOVES = 3;
+
+/** Add a drop of a piece to the move, naming it by where it will be in the hand by then, and
+ * keep its cells from anything else the move lays. */
+function drop(world: WorldView, move: Move, piece: Extract<Command, { t: 'dropPiece'; }>): void {
+  const shape = rotatePiece(PIECES[world.players.get(move.me)!.hand[piece.hand]!.piece]!,
+    piece.rot);
+
+  for (const [dx, dy] of shape) {
+    move.planned.add(world.at(piece.x + dx, piece.y + dy));
+  }
+
+  const shift = [...move.usedHands].filter((h) => h < piece.hand).length;
+  move.commands.push({ ...piece, hand: piece.hand - shift });
+  move.usedHands.add(piece.hand);
+}
+
+/**
+ * A piece laid off the own ground about `site` that leaves an open end with room for `def` beyond
+ * it: a Generator stands only off an end of the bridge, and a bridge that runs on without one
+ * carries no Energy. Null when no piece in hand does.
+ */
+function stubFor(
+  world: WorldView,
+  move: Move,
+  site: { x: number; y: number; },
+  def: Readonly<UnitDef>,
+): Extract<Command, { t: 'dropPiece'; }> | null {
+  const hand = world.players.get(move.me)!.hand;
+
+  for (let index = 0; index < hand.length; index++) {
+    if (hand[index]!.age >= PIECE_HARDEN && !move.usedHands.has(index)) {
+      const found = slotPieceFrom(world, move, { ...site, need: 0 }, index, [def], []);
+
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return null;
+}
 
 /**
  * A piece, laid about one of the nearest heads, with an open end that faces free sky where a
@@ -2249,7 +2378,10 @@ function slotAt(
 ): boolean {
   for (let ay = by - def.footY + 1; ay <= by; ay++) {
     for (let ax = bx - def.footX + 1; ax <= bx; ax++) {
-      if (footprintFree(def, ax, ay, free) && reachesAny(def, ax, ay, marks) !== false) {
+      if (
+        footprintFree(def, ax, ay, free)
+        && (marks.length === 0 || reachesAny(def, ax, ay, marks) !== false)
+      ) {
         return true;
       }
     }
@@ -2276,6 +2408,19 @@ function footprintFree(
 }
 
 /** Temples of the enemies near a mark (invented: within the attack's reach of it). */
+/** The enemy Temple the target is about, with its hit points. */
+function enemyTempleAt(world: WorldView, me: number, mark: { x: number; y: number; }) {
+  for (const [id, other] of world.players) {
+    const temple = other.alive && world.hostile(id, me) ? world.templeOf(id) : undefined;
+
+    if (temple && distance(centre(temple).x, centre(temple).y, mark.x, mark.y) <= ATTACK_REACH) {
+      return temple;
+    }
+  }
+
+  return undefined;
+}
+
 function enemyTemples(world: WorldView, me: number, mark: { x: number; y: number; }): Mark[] {
   const temples: Mark[] = [];
 
@@ -2318,7 +2463,7 @@ function headsNear(
       );
 
       if (shore) {
-        const need = marks.reduce((least, mark) => Math.min(least, nearRect({ x, y }, mark)),
+        const need = marks.reduce((least, mark) => Math.min(least, farRect({ x, y }, mark)),
           Infinity);
         all.push({ x, y, need });
       }
@@ -2360,6 +2505,17 @@ function enemyMarks(world: WorldView, me: number, target: Target): Mark[] {
   }
 
   return marks.length ? marks : [target];
+}
+
+/** The square of the straight distance from a point to the nearest cell of a mark's footprint:
+ * for ordering ground by how near it is, where a square gun's measure would call a whole side of an
+ * island equally near. */
+function farRect(from: { x: number; y: number; }, mark: Mark): number {
+  const x1 = mark.x + (mark.fx ?? 1) - 1;
+  const y1 = mark.y + (mark.fy ?? 1) - 1;
+  const dx = Math.max(mark.x - from.x, 0, from.x - x1);
+  const dy = Math.max(mark.y - from.y, 0, from.y - y1);
+  return dx * dx + dy * dy;
 }
 
 /** Cells from a point to the nearest cell of a mark's footprint, as a square gun measures. */
@@ -2745,17 +2901,24 @@ function lay(world: WorldView, move: Move, def: Readonly<UnitDef>, x: number, y:
 }
 
 /** A Generator by the head, of the AI's own Fury first. */
-function generator(world: WorldView, move: Move, head: { x: number; y: number; }): boolean {
-  const player = world.players.get(move.me)!;
-  const generators = [...player.tech]
+/** The Generators the side can build, its own Fury's first. */
+function batteries(world: WorldView, me: number): Readonly<UnitDef>[] {
+  const player = world.players.get(me)!;
+  return [...player.tech]
     .map((id) => world.defs.get(id))
     .filter((def): def is Readonly<UnitDef> => def?.group === 'battery')
     .sort((a, b) =>
       Number(b.theme === player.theme) - Number(a.theme === player.theme)
       || a.id.localeCompare(b.id)
     );
+}
 
-  for (const def of generators) {
+function batteryFor(world: WorldView, me: number): Readonly<UnitDef> | undefined {
+  return batteries(world, me)[0];
+}
+
+function generator(world: WorldView, move: Move, head: { x: number; y: number; }): boolean {
+  for (const def of batteries(world, move.me)) {
     if (place(world, move, def, head).placed) {
       return true;
     }

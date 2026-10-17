@@ -6,7 +6,9 @@
  *   SEEDS=7 IDLE=1 MINUTES=30 npm run ai:arena     # hard against a side that does nothing
  *   LEVELS=easy,hard npm run ai:arena              # side 1 easy, side 2 hard
  */
+import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
   aiMove,
   createAiMemory,
@@ -31,6 +33,24 @@ const seeds = (process.env.SEEDS ?? '1,2,3').split(',').map(Number);
 const minutes = Number(process.env.MINUTES ?? 20);
 const levels = (process.env.LEVELS ?? 'hard,hard').split(',') as Difficulty[];
 const idle = process.env.IDLE === '1';
+
+// Several seeds run as one process each, on their own cores; each prints its match whole.
+if (seeds.length > 1) {
+  const runs = seeds.map((seed) =>
+    new Promise<string>((resolve) => {
+      execFile(process.execPath, ['--import', 'tsx', fileURLToPath(import.meta.url)], {
+        env: { ...process.env, SEEDS: String(seed) },
+        maxBuffer: 1 << 24, // oxlint-disable-line no-magic-numbers -- 16 MiB of output
+      }, (error, stdout, stderr) => resolve(stdout + stderr + (error ? `\n${error.message}` : '')));
+    })
+  );
+
+  for (const run of runs) {
+    process.stdout.write(await run);
+  }
+
+  process.exit(0);
+}
 
 for (const seed of seeds) {
   const map = generateMap(seed, {
