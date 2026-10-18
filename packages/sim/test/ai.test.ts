@@ -916,3 +916,52 @@ test('an enemy bridge within the alarm is broken: a cheap unit beside it, salvag
   assert.ok(!aiMove(world.view(), { player: 2, difficulty: 'easy' }, createAiMemory())
     .some((c) => c.t === 'salvage'));
 });
+
+test('with an enemy Priest down and no transport, an idle Generator on the island is salvaged for the fare', () => {
+  const world = equipWorkshops(mk());
+  world.players.get(2)!.storm = 100;
+  const priest = world.priestOf(1)!;
+  priest.state = 'down';
+  priest.hp = 10;
+  priest.y = 159; // a step from the own ground below
+  // Own ground up to him, so he can be walked to.
+  world.addIsland(85, 99, 70, 1, 2);
+  world.addIsland(85, 99, 5, 69, 2);
+  world.addIsland(60, 160, 26, 8, 2);
+  world.invalidateTerrain();
+  const spare = world.spawnBuilding('sunbattery', 2, 155, 92); // deep on the island, powering nothing
+  const transports = [...world.entities.values()].filter((e) =>
+    e.kind === 'transport' && e.owner === 2
+  );
+
+  for (const t of transports) {
+    world.entities.delete(t.id);
+  }
+
+  const salvage = aiMove(world.view(), { player: 2, difficulty: 'hard' }).filter((c) =>
+    c.t === 'salvage'
+  );
+  assert.deepEqual(salvage.map((c) => c.target), [spare.id]);
+});
+
+test('a transport on its way to a geyser turns for another when guns on the way would kill it', () => {
+  const world = mk();
+  // On the AI's island (140-160 x 82-98): the transport in the north-west corner, a geyser in
+  // the south-east and one in the south-west.
+  const t = world.spawnTransport('sunwalker', 2, 142, 84);
+  const near = world.addGeyser(158, 96, 2000, false);
+  const far = world.addGeyser(142, 96, 2000, false);
+  world.step([{ t: 'collect', player: 2, transport: t.id, geyser: near.id }]);
+  assert.equal(t.goal, 'collect');
+
+  // Enemy guns over the eastern half of the island: more damage over the walk than it has hit
+  // points, while the way south-west stays out of their reach.
+  for (let i = 0; i < 6; i++) {
+    world.spawnBuilding('sunarcher', 1, 156, 84 + i * 2);
+  }
+
+  const orders = aiMove(world.view(), { player: 2, difficulty: 'hard' })
+    .filter((c) => c.t === 'collect' && c.transport === t.id);
+  assert.equal(orders.length, 1, JSON.stringify(orders));
+  assert.ok(orders[0]!.t === 'collect' && orders[0].geyser === far.id);
+});

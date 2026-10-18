@@ -26,6 +26,7 @@ import { skyCosts, threatMap, type ThreatMap } from './ai/threat.js';
 import { flies, upgradeCost, type UnitDef, type UnitGroup } from './defs.js';
 import {
   DIRS,
+  ENERGY_RANGE,
   MAX_FACING,
   MAX_UPGRADES,
   OUTPOST,
@@ -292,6 +293,24 @@ function aiMoveOn(
   if (options.collect !== false && !firstTransport && transports.length < wanted) {
     newTransport(world, move, geysers.length === 0, 0);
     because(`${transports.length} transports, ${wanted} wanted for ${mined} geysers`);
+  }
+
+  // A captive to be had and no transport to carry him, nor the Storm Power for one: what stands
+  // out of the fight is salvaged for it, since the capture is the game.
+  if (options.capture !== false && options.collect !== false && transports.length === 0) {
+    const fares = transportKinds(world, me).map((def) => def.cost);
+    const fare = fares.length ? Math.min(...fares) : 0;
+    const captive = enemyPriest(world, me, 'down');
+    const within = captive && reached && (reached[world.at(captive.x, captive.y)] === 1
+      || DIRS.some(([dx, dy]) =>
+        world.inside(captive.x + dx, captive.y + dy)
+        && reached[world.at(captive.x + dx, captive.y + dy)] === 1
+      ));
+
+    if (within && fare > move.budget) {
+      fundCapture(world, move);
+      because('an enemy Priest is down and no transport to fetch him: salvaged for the fare');
+    }
   }
 
   guardAltar(world, move);
@@ -743,6 +762,38 @@ function collect(
   const loose = [...world.entities.values()].filter((e): e is View<Crystal> =>
     e.kind === 'crystal' && e.carriedBy === null
   );
+
+  // One on its way to a geyser, with guns now on the way that would kill it before it is there:
+  // it turns for another geyser it can survive the way to, or does without. A fast or tough one
+  // takes a little fire; the sum of the damage per second along its way, at its pace, is the
+  // measure, against its hit points.
+  const fire = (t: View<Transport>, path: readonly (readonly [number, number])[]): number =>
+    path.reduce((sum, [x, y]) => sum + move.threat[world.at(x, y)]!, 0)
+    / world.def(t.type).speed;
+
+  for (const t of transports) {
+    if (
+      !avoidDanger || t.goal !== 'collect' || t.carrying !== null || flies(world.def(t.type))
+      || fire(t, t.path) < t.hp
+    ) {
+      continue;
+    }
+
+    for (const g of walked) {
+      if (g.id === t.target) {
+        continue;
+      }
+
+      const way = world.findPath(move.me, t.x, t.y, ([x, y]) => distance(x, y, g.x, g.y) === 1);
+
+      if (way && fire(t, way) < t.hp) {
+        crews.set(t.target!, Math.max(0, (crews.get(t.target!) ?? 1) - 1));
+        crews.set(g.id, (crews.get(g.id) ?? 0) + 1);
+        move.commands.push({ t: 'collect', player: move.me, transport: t.id, geyser: g.id });
+        break;
+      }
+    }
+  }
 
   for (const t of transports) {
     if (t.goal !== 'idle' || t.carrying !== null) {
@@ -1364,6 +1415,44 @@ function enemyPriest(
 }
 
 /** A free cell beside the altar a captive is chained on, if the AI's priest is not there yet. */
+/**
+ * Salvage one own building that takes no part in the fight, the dearest first, for the Storm
+ * Power it gives back: a Generator with nothing of level above the Sun's within its circle, or a
+ * gun with no enemy within twice its range; only one standing on the island clear of any bridge,
+ * since salvaged off a bridge it would bring the bridge down. Never the Temple, an Altar or a
+ * Workshop, which the capture and what follows still need.
+ */
+function fundCapture(world: WorldView, move: Move): void {
+  const mine = world.buildingsOf(move.me);
+  const hostile = [...world.entities.values()].filter((e) =>
+    'owner' in e && world.hostile(e.owner, move.me)
+  );
+  const idle = (b: View<Building>): boolean => {
+    const def = world.def(b.type);
+
+    if (def.group === 'battery') {
+      return !mine.some((other) => {
+        const kind = world.def(other.type);
+        return other.id !== b.id && kind.group !== 'battery' && kind.level > 0
+          && Math.hypot(other.x + other.fx / 2 - b.x - b.fx / 2,
+              other.y + other.fy / 2 - b.y - b.fy / 2)
+            <= ENERGY_RANGE;
+      });
+    }
+
+    const reach = IDLE_REACH * def.range;
+    return groundDps(def) > 0
+      && !hostile.some((e) => Math.max(Math.abs(e.x - b.x), Math.abs(e.y - b.y)) <= reach);
+  };
+  const spare = mine
+    .filter((b) => b.rising === 0 && landlocked(world, b) && idle(b))
+    .sort((a, b) => world.def(b.type).cost - world.def(a.type).cost || a.id - b.id);
+
+  if (spare[0]) {
+    move.commands.push({ t: 'salvage', player: move.me, target: spare[0].id });
+  }
+}
+
 /** Whether an enemy Priest is chained on an own Altar, or carried toward one by an own transport. */
 function captiveComing(world: WorldView, me: number): boolean {
   const chained = enemyPriest(world, me, 'chained');
