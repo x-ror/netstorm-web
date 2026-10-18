@@ -356,6 +356,8 @@ function aiMoveOn(
   let first: { target: Target; head: Head | null; heads: Head[]; } | null = null;
   let unitHeads: Head[] = [];
   let laidPieces = 0;
+  /** A geyser the bridge has come up to with no piece in hand to join it: the hand is cycled. */
+  let joinWanted: Target | undefined;
   const reach = bounds && reached ? reachField(world, move, reached, bounds) : null;
 
   // Grow toward each target a piece can be laid toward, as many bridges as the level grows in a
@@ -410,7 +412,13 @@ function aiMoveOn(
       // The nearest head may sit in a pocket of the AI's own bridge, where every piece only leads
       // further from the target; then the bridge goes on from the next head whose piece comes
       // nearer than the nearest head already is.
-      for (const from of piece ? [] : heads) {
+      // Come up to a geyser's islet, the bridge joins it from there and nowhere else: growing on
+      // from farther heads would only wind around it. A hand without a piece whose end meets the
+      // islet is cycled, so that one comes.
+      const arrived = !candidate.enemy && heads[0] && heads[0].need <= ARRIVED;
+      const froms = arrived ? heads.filter((h) => h.need <= ARRIVED) : heads;
+
+      for (const from of piece ? [] : froms) {
         // Told to keep off the enemy's island, it lays no bridge toward him; he still decides
         // where its units go.
         piece = reached && !(candidate.enemy && options.attack === false)
@@ -420,6 +428,10 @@ function aiMoveOn(
         if (piece) {
           break;
         }
+      }
+
+      if (!piece && arrived) {
+        joinWanted ??= candidate;
       }
     }
 
@@ -441,9 +453,13 @@ function aiMoveOn(
   // The Temple draws a piece only into a free slot: a full hand of pieces that come nearer to no
   // target would stop the bridge for good. The one that fits worst goes to the back of the island,
   // where it is in nobody's way, and the next second a new one comes.
-  const grows = first && !(first.target.enemy && options.attack === false) ? first.target : null;
+  const grows = joinWanted
+    ?? (first && !(first.target.enemy && options.attack === false) ? first.target : null);
 
-  if (laidPieces === 0 && grows && bounds && reached && player.hand.length >= world.bridgeSlots) {
+  if (
+    (laidPieces === 0 || joinWanted) && grows && bounds && reached
+    && player.hand.length - move.usedHands.size >= world.bridgeSlots - 1
+  ) {
     const dump = dumpPiece(world, move, skyField(world, move, grows), grows, bounds, reached);
 
     if (dump) {
