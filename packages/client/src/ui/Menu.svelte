@@ -130,7 +130,15 @@
         <button type="button" class="category" onclick={() => (screen = 'missions')}>
           {m.menu_missions()}<small>{m.menu_missions_note()}</small>
         </button>
-        <button type="button" class="category" onclick={() => (screen = 'skirmish')}>
+        <button
+          type="button"
+          class="category"
+          onclick={() => {
+            screen = 'skirmish';
+            // A fresh map each visit; the seed stays in the field to be kept or shared.
+            options.seed = Math.floor(Math.random() * MAX_SEED) + 1;
+          }}
+        >
           {m.menu_skirmish()}<small>{m.menu_skirmish_note()}</small>
         </button>
         <button type="button" class="category" onclick={() => (screen = 'settings')}>
