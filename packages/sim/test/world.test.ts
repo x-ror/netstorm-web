@@ -687,10 +687,22 @@ test('a piece hardens in the window; explosions and salvage crack solid bridge a
   const rider = w.spawnTransport('sunwalker', 1, 53, 40);
   const stander = w.spawnTransport('sunwalker', 1, 52, 40);
   const revision = w.terrainRevision;
+  w.drainEvents();
   assert.equal(w.apply({ t: 'salvage', player: 1, target: cannon.id }), null);
   // Solid cracks, the cell at the cannon's corner too; cracked falls, and so does whatever stood
   // on it.
   assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [3, 3, 0, 0]);
+  // Each cell that cracked or fell is told, for its sound, with its owner and where it was.
+  const shaken = w.drainEvents()
+    .filter((e) => e.what === 'bridge cracked' || e.what === 'bridge fell')
+    .map((e) => `${e.what} ${e.who} ${e.data.x},${e.data.y}`)
+    .sort();
+  assert.deepEqual(shaken, [
+    'bridge cracked 1 51,40',
+    'bridge cracked 1 52,40',
+    'bridge fell 1 53,40',
+    'bridge fell 1 54,40',
+  ]);
   assert.equal(w.owner[40 * 256 + 53], 0);
   assert.ok(w.terrainRevision > revision);
   w.step();

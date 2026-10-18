@@ -199,7 +199,9 @@ export function describeEvent(
     case 'priest down':
       return mine ? { text: m.event_priest_down(), tone: 'bad' } : null;
     case 'ricochet':
-      return null; // shown by the renderer, not worth a line
+    case 'bridge cracked':
+    case 'bridge fell':
+      return null; // shown on the map and heard, not worth a line
     case 'priest up':
       return mine ? { text: m.event_priest_up(), tone: 'good' } : null;
   }

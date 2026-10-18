@@ -38,7 +38,7 @@ import {
   missileSlot,
   missileSpeed,
 } from '../src/effects.js';
-import { loudness, unitSound, type SoundIndex } from '../src/sound.js';
+import { loudness, sideOf, unitSound, type SoundIndex } from '../src/sound.js';
 import { anchorFor, createUiState, entityAt, placeable } from '../src/ui-state.js';
 import { describeEvent } from '../src/messages.js';
 import { setLocale } from '../src/paraglide/runtime.js';
@@ -592,6 +592,15 @@ test('units sound as their .type files say, and every sound named is shipped', (
   assert.deepEqual(index.files.thundercannon, ['sounds/thundercannon.mp3', 0.316]);
   // A sound is heard in full near the middle of the screen and fades, never quite to nothing.
   assert.deepEqual([0, 320, 800, 5000].map(loudness), [1, 1, 0.5, 0.08]);
+  // A sound comes from its side of the screen, never wholly from one ear.
+  assert.deepEqual([-1000, -320, 0, 320, 1000].map((dx) => sideOf(dx, 640)), [
+    -0.7,
+    -0.35,
+    0,
+    0.35,
+    0.7,
+  ]);
+  assert.equal(sideOf(100, 0), 0);
   const named = Object.values(index.units).flatMap((sounds) => Object.values(sounds));
 
   for (

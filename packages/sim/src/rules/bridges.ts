@@ -269,7 +269,7 @@ export function shakeBridges(world: World, b: Building): void {
       if (side !== undefined) {
         jag(world, x, y, side);
       } else if (world.terrain[i] === Terrain.Bridge) {
-        world.terrain[i] = Terrain.CrackedBridge;
+        crack(world, i);
         world.wear[i] = WEAR_CRACKED;
       } else if (world.terrain[i] === Terrain.CrackedBridge) {
         collapse(world, x, y);
@@ -304,7 +304,7 @@ function jag(world: World, x: number, y: number, side: number): void {
   const links = world.links[i] || LINK_ALL;
 
   if (!hard) {
-    world.terrain[i] = Terrain.CrackedBridge;
+    crack(world, i);
   }
 
   world.wear[i] = WEAR_CRACKED;
@@ -321,12 +321,23 @@ function jag(world: World, x: number, y: number, side: number): void {
   }
 }
 
+/** A cell of normal bridge cracks. */
+function crack(world: World, i: number): void {
+  if (world.terrain[i] === Terrain.CrackedBridge) {
+    return;
+  }
+
+  world.terrain[i] = Terrain.CrackedBridge;
+  world.emit({ what: 'bridge cracked', who: world.owner[i]!, data: { x: i % W, y: (i / W) | 0 } });
+}
+
 /** A bridge cell falls away. Transports on it are lost with it; a priest cannot be killed, so he is
  * left hanging in place and cannot move until bridge is laid under him again. Every walker on the
  * cell loses its footing (virtual 0xcc in netstorm.game, from `FUN_004237a0`): a transport carrying
  * a captive sets him down where it stood, still paralysed, and falls alone (`FUN_0042a980`). */
 export function collapse(world: World, x: number, y: number): void {
   const i = world.at(x, y);
+  world.emit({ what: 'bridge fell', who: world.owner[i]!, data: { x, y } });
   world.terrain[i] = Terrain.Sky;
   world.owner[i] = 0;
   world.links[i] = 0;
@@ -500,7 +511,7 @@ function wearTo(world: World, i: number, left: number): void {
   world.wear[i] = left;
 
   if (left <= WEAR_CRACKED && world.terrain[i] === Terrain.Bridge) {
-    world.terrain[i] = Terrain.CrackedBridge;
+    crack(world, i);
   }
 
   if (left <= FLEE_AT) {

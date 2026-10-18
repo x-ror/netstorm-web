@@ -25,18 +25,27 @@ import { createWorldRenderer } from './renderer.js';
 import { createControls } from './controls.js';
 import { createHud } from './hud.js';
 import type { Atlas } from './assets.js';
-import { loudness, type Sounds } from './sound.js';
+import { loudness, sideOf, type Sounds } from './sound.js';
 import { createMinimap } from './minimap.js';
 import { describeEvent } from './messages.js';
 import { m } from './paraglide/messages.js';
 import { cellAt, centerOn, snapZoom, zoomAt } from './camera.js';
-import { ZOOM } from './projection.js';
+import { project, ZOOM } from './projection.js';
 import { createUiState } from './ui-state.js';
 import { PerformanceMonitor } from './perf.js';
 import { AiSchedule } from './ai-schedule.js';
 import type { AiReply, AiRequest } from './ai-worker.js';
 
 const HUD_REFRESH_TICKS = 5;
+const ALTAR = 'altar';
+const HALF_CELL = 0.5;
+
+/** The middle of a map cell, in the pixels the map is drawn in: where its sound is made. */
+function cellMiddle(cell: { x: number; y: number; }): { x: number; y: number; } {
+  const { sx, sy } = project(cell.x + HALF_CELL, cell.y + HALF_CELL);
+  return { x: sx, y: sy };
+}
+
 /** Ticks between asking the computer for a move and applying it: a second, so that the move is
  * worked out off the main thread meanwhile and no frame waits for it. */
 const AI_LEAD = TPS;
@@ -77,6 +86,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       Math.hypot(at.x - (window.innerWidth / 2 - camera.x) / camera.scale.x,
         at.y - (window.innerHeight / 2 - camera.y) / camera.scale.y),
     );
+  // And it comes from the side of the screen it is on.
+  data.sounds.side = (at) =>
+    sideOf(at.x * camera.scale.x + camera.x - window.innerWidth / 2, window.innerWidth / 2);
 
   const app = new Application();
   await app.init({
@@ -307,6 +319,12 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
         return sounds.play('priestfree');
       case 'sacrifice':
         return sounds.play('priestsacrifice2');
+      case 'bridge cracked':
+        return sounds.play('bridgecrack', cellMiddle(event.data));
+      case 'bridge fell':
+        return sounds.play('bridgefall', cellMiddle(event.data));
+      case 'destroyed':
+        return sounds.play(event.data.type === ALTAR ? 'altarburncollapse' : undefined);
       default:
         return undefined;
     }

@@ -2,6 +2,10 @@ import type { Command, CommandError } from './commands.js';
 
 type Payloads = {
   bridge: [number, number][];
+  /** A cell of bridge cracked: worn down, or shaken by a blast beside it. */
+  'bridge cracked': { x: number; y: number; };
+  /** A cell of bridge fell away. */
+  'bridge fell': { x: number; y: number; };
   build: { id: number; type: string; };
   produce: { workshop: number; type: string; };
   upgrade: { workshop: number; level: number; };
