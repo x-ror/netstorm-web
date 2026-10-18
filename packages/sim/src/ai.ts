@@ -61,6 +61,9 @@ const ROTATIONS = 4;
 const DEFENCE_SHOOTERS = 3;
 /** Cells from the enemy Temple within which the bridge head grows a shooter every move (invented). */
 const ATTACK_REACH = 30;
+/** Cells of sky a new siege point may save for each cell it lies from the last one: the arm
+ * already built toward the last one is worth that much (invented). */
+const SIEGE_DRIFT = 2;
 /** Storm Power the AI keeps back when buying a transport (invented). */
 const TRANSPORT_SAVINGS = 600;
 /** Geysers with stock on own ground after which the AI bridges toward the enemy (invented). */
@@ -1505,7 +1508,10 @@ function siegePoint(
     }
 
     const notch = !(world.inside(x + dx, y + dy) && reachable(x + dx, y + dy));
-    const far = (beside ? 0 : way) + (notch ? W + H : 0);
+    // The arm already built counts: a point near the last one keeps the arm and its Generators,
+    // where one across the island would start both over.
+    const drift = kept ? SIEGE_DRIFT * Math.max(Math.abs(x - kept.x), Math.abs(y - kept.y)) : 0;
+    const far = (beside ? 0 : way) + drift + (notch ? W + H : 0);
 
     if (far < bestFar) {
       best = { x, y, enemy: true, temple: true, exact: true };
