@@ -194,6 +194,7 @@ function aiMoveOn(
     threat: threatMap(world, me, seen),
     weight: params.threatWeight,
     fleeing: false,
+    ritual: false,
     params,
     guns: enemyGuns(world, me, seen),
     actions: 0,
@@ -231,6 +232,9 @@ function aiMoveOn(
 
   shelter(world, move);
   because('the Priest stands under enemy guns: he walks out of their reach');
+  // With a captive chained on the own Altar, or carried toward it, the Priest is for the ritual
+  // alone: nothing is raised by him meanwhile, nor does he go collecting.
+  move.ritual = captiveComing(world, me);
 
   if (defend > 0) {
     defendGround(world, move, pressure, bounds);
@@ -635,6 +639,8 @@ interface Move {
   weight: number;
   /** The Priest is sent out of the enemy's fire this move, and is free for nothing else. */
   fleeing: boolean;
+  /** A captive is on the way to the Altar or chained on it: the Priest is for the ritual alone. */
+  ritual: boolean;
   params: Readonly<AiParams>;
   /** The enemy's guns this move takes into account. */
   guns: View<Building>[];
@@ -900,7 +906,8 @@ function equip(world: WorldView, move: Move, stranded: boolean): void {
     .reduce((least, def) => Math.min(least, def.cost), Infinity);
 
   if (
-    missing && priest && !priestBusy(world, move) && move.budget >= missing.cost + cheapest
+    missing && priest && !priestBusy(world, move) && !move.ritual
+    && move.budget >= missing.cost + cheapest
   ) {
     place(world, move, missing, home ? centre(home) : priest, undefined, ALTAR_RADIUS);
   }
@@ -1058,7 +1065,7 @@ function buildOutpost(world: WorldView, move: Move, reached: Uint8Array | null):
   const mine = world.buildingsOf(move.me);
 
   if (
-    !def || !reached || !world.players.get(move.me)!.tech.has(OUTPOST)
+    !def || !reached || !world.players.get(move.me)!.tech.has(OUTPOST) || move.ritual
     || move.budget < def.cost + TRANSPORT_SAVINGS
     || mine.some((b) => b.type === OUTPOST && b.rising > 0)
   ) {
@@ -1349,15 +1356,42 @@ function enemyPriest(
 }
 
 /** A free cell beside the altar a captive is chained on, if the AI's priest is not there yet. */
+/** Whether an enemy Priest is chained on an own Altar, or carried toward one by an own transport. */
+function captiveComing(world: WorldView, me: number): boolean {
+  const chained = enemyPriest(world, me, 'chained');
+  const onOwn = chained?.chainedAt !== null && chained !== undefined
+    ? world.entities.get(chained.chainedAt)
+    : undefined;
+
+  if (onOwn?.kind === 'building' && onOwn.owner === me) {
+    return true;
+  }
+
+  const carried = enemyPriest(world, me, 'carried');
+  const carrier = carried?.carriedBy !== null && carried !== undefined
+    ? world.entities.get(carried.carriedBy)
+    : undefined;
+  return carrier?.kind === 'transport' && carrier.owner === me
+    && world.buildingsOf(me).some((b) => b.type === ALTAR && b.rising === 0);
+}
+
 function wardSpot(
   world: WorldView,
   me: number,
   threat: ThreatMap,
 ): { x: number; y: number; } | null {
   const chained = enemyPriest(world, me, 'chained');
+  const carried = enemyPriest(world, me, 'carried');
+  const carrier = carried?.carriedBy === null || carried === undefined
+    ? undefined
+    : world.entities.get(carried.carriedBy);
+  // The Altar he is chained on, or the own Altar a carrier of his is bound for: the Priest is
+  // there before the captive, so no second of the ritual is lost to his walk.
   const altar = chained && chained.chainedAt !== null
     ? world.entities.get(chained.chainedAt)
-    : undefined;
+    : (carrier?.kind === 'transport' && carrier.owner === me
+      ? world.buildingsOf(me).find((b) => b.type === ALTAR && b.rising === 0)
+      : undefined);
   const priest = world.priestOf(me);
 
   // Nor while the Altar is under fire: the ritual waits until the ground around it is held.
