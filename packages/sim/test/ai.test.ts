@@ -874,3 +874,45 @@ test('a full hand that comes nearer to nothing is rid of its worst piece, at the
   assert.equal(aiMove(world.view(), { player: 2, difficulty: 'hard', geysers: 0, attack: false })
     .filter((c) => c.t === 'dropPiece').length, 0);
 });
+
+test('an enemy bridge within the alarm is broken: a cheap unit beside it, salvaged once it stands', () => {
+  const world = equipWorkshops(mk());
+  world.players.get(2)!.storm = 3000;
+  world.spawnBuilding('suncannon', 2, 141, 83);
+  world.spawnBuilding('suncannon', 2, 145, 83);
+  world.spawnBuilding('suncannon', 2, 149, 83);
+
+  for (let x = 162; x < 170; x++) {
+    world.terrain[world.at(x, 88)] = Terrain.Bridge;
+    world.owner[world.at(x, 88)] = 1;
+  }
+
+  world.invalidateTerrain();
+
+  for (let i = 0; i < 20 * TPS; i++) {
+    world.step(); // the hand hardens
+  }
+
+  const memory = createAiMemory();
+  let built = false;
+  let blasted = false;
+
+  // A piece toward the bridge, the unit at its end, the salvage once it stands: within a minute.
+  for (let i = 0; i < 90 * TPS && !blasted; i++) {
+    const commands = i % (3 * TPS) === 0
+      ? aiMove(world.view(), { player: 2, difficulty: 'hard' }, memory)
+      : [];
+    built ||= commands.some((c) =>
+      c.t === 'build' && Math.abs(c.x + 1 - 162) <= 2 && Math.abs(c.y + 1 - 88) <= 2
+    );
+    blasted ||= commands.some((c) => c.t === 'salvage');
+    world.step(commands);
+    assert.ok(world.drainEvents().every((e) => !(e.what === 'rejected' && e.who === 2)));
+  }
+
+  assert.ok(built, 'a unit within the blast of the bridge');
+  assert.ok(blasted, 'salvaged once it stood');
+  assert.equal(memory.breach, null);
+  assert.ok(!aiMove(world.view(), { player: 2, difficulty: 'easy' }, createAiMemory())
+    .some((c) => c.t === 'salvage'));
+});

@@ -28,6 +28,9 @@ export interface AiMemory {
   siege: { x: number; y: number; } | null;
   /** Siege points the bridge came up to without room for a gun, by cell: not tried again. */
   badSieges: Set<number>;
+  /** The cell of a cheap unit raised beside an enemy bridge, to be salvaged once it stands so
+   * that its blast breaks the bridge; and the tick it was ordered. */
+  breach: { cell: number; since: number; } | null;
   /** The tick of the last look for a piece that makes room for a gun, which found none. */
   slotLook: number;
   /** The state of the AI's own random numbers, for its mistakes and its salvage; never the
@@ -50,6 +53,7 @@ export function createAiMemory(seed = 1): AiMemory {
     mark: null,
     siege: null,
     badSieges: new Set(),
+    breach: null,
     slotLook: -Infinity,
     rng: seed >>> 0 || 1,
   };

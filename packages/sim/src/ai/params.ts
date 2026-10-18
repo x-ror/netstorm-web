@@ -25,6 +25,9 @@ export interface AiParams {
   pushRatio: number;
   /** Chance that a gun which has had nothing to shoot at for long is salvaged, 0 to 1. */
   salvageChance: number;
+  /** Whether it breaks an enemy bridge that comes near by raising a cheap unit beside it and
+   * salvaging it: the blast cracks normal bridge and crumbles cracked bridge. */
+  breaches: boolean;
   /** Free geysers it weighs as the next to bridge to, the best first. */
   planningGeysers: number;
   /** Bridges it grows in one move, each toward another target. */
@@ -49,6 +52,7 @@ export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
     reserveShooters: 0,
     pushRatio: 1.6,
     salvageChance: 0,
+    breaches: false,
     planningGeysers: 1,
     bridgeHeads: 1,
     concentrate: 1,
@@ -64,6 +68,7 @@ export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
     reserveShooters: 1,
     pushRatio: 1.2,
     salvageChance: 0.5,
+    breaches: true,
     planningGeysers: 3,
     bridgeHeads: 2,
     concentrate: 2,
@@ -79,6 +84,7 @@ export const DIFFICULTY: Readonly<Record<Difficulty, Readonly<AiParams>>> = {
     reserveShooters: 2,
     pushRatio: 1,
     salvageChance: 1,
+    breaches: true,
     planningGeysers: 99,
     bridgeHeads: 3,
     concentrate: 3,

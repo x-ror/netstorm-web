@@ -244,6 +244,11 @@ function aiMoveOn(
     because(`defence (wanted ${defend.toFixed(2)}): a gun where the enemy presses`);
   }
 
+  if (memory && params.breaches) {
+    breach(world, move, memory, pressure, bounds, reached);
+    because('an enemy bridge comes near: a cheap unit beside it, salvaged for its blast');
+  }
+
   // Without a transport the side earns only by its Priest's walks: the first one comes before
   // everything but a defence, with nothing kept back, not even the reserve for a defence, and its
   // price is saved until it can be paid.
@@ -2378,7 +2383,7 @@ function stubFor(
 
   for (let index = 0; index < hand.length; index++) {
     if (hand[index]!.age >= PIECE_HARDEN && !move.usedHands.has(index)) {
-      const found = slotPieceFrom(world, move, { ...site, need: 0 }, index, [def], []);
+      const found = slotPieceFrom(world, move, { ...site, need: 0 }, index, [def], () => true);
 
       if (found) {
         return found;
@@ -2413,11 +2418,12 @@ function slotPiece(
   // One shooter for each footprint there is: the room is the same for the rest.
   const shapes = [...new Map(knownShooters(world, me).map((d) => [`${d.footX}x${d.footY}`, d]))
     .values()];
+  const reachesMarks: SiteOk = (def, ax, ay) => reachesAny(def, ax, ay, marks) !== false;
 
   for (const head of heads.slice(0, SLOT_HEADS)) {
     for (let index = 0; index < hand.length; index++) {
       if (hand[index]!.age >= PIECE_HARDEN && !used.has(index)) {
-        const found = slotPieceFrom(world, move, head, index, shapes, marks);
+        const found = slotPieceFrom(world, move, head, index, shapes, reachesMarks);
 
         if (found) {
           return found;
@@ -2434,13 +2440,17 @@ function slotPiece(
 }
 
 /** The slot piece from one hand piece about one head, in any turn, or null. */
+/** A site for a unit of `def` at (ax, ay) that serves: a gun that reaches its marks, a Generator
+ * anywhere, a breach unit within the blast's reach of the bridge. */
+type SiteOk = (def: Readonly<UnitDef>, ax: number, ay: number) => boolean;
+
 function slotPieceFrom(
   world: WorldView,
   move: Move,
   head: Head,
   index: number,
   shapes: readonly Readonly<UnitDef>[],
-  marks: Mark[],
+  ok: SiteOk,
 ): Extract<Command, { t: 'dropPiece'; }> | null {
   const me = move.me;
   const piece = world.players.get(me)!.hand[index]!.piece;
@@ -2454,7 +2464,7 @@ function slotPieceFrom(
         touchesWalkable(world, me, cells, x, y)
         && cells.every(([dx, dy]) => !move.planned.has(world.at(x + dx, y + dy)))
         && world.canDropPiece({ player: me, hand: index, x, y, rot }) === null
-        && slotBeyond(world, move, cells, ends, x, y, shapes, marks)
+        && slotBeyond(world, move, cells, ends, x, y, shapes, ok)
       ) {
         return { t: 'dropPiece', player: me, hand: index, x, y, rot };
       }
@@ -2474,7 +2484,7 @@ function slotBeyond(
   x: number,
   y: number,
   shapes: readonly Readonly<UnitDef>[],
-  marks: Mark[],
+  ok: SiteOk,
 ): boolean {
   const taken = new Set(cells.map(([dx, dy]) => world.at(x + dx, y + dy)));
   const free = (cx: number, cy: number): boolean =>
@@ -2485,7 +2495,7 @@ function slotBeyond(
   return ends.some(([ex, ey, dir]) => {
     const bx = x + ex + DIRS[dir]![0];
     const by = y + ey + DIRS[dir]![1];
-    return shapes.some((def) => slotAt(def, bx, by, free, marks));
+    return shapes.some((def) => slotAt(def, bx, by, free, ok));
   });
 }
 
@@ -2496,14 +2506,11 @@ function slotAt(
   bx: number,
   by: number,
   free: (x: number, y: number) => boolean,
-  marks: Mark[],
+  ok: SiteOk,
 ): boolean {
   for (let ay = by - def.footY + 1; ay <= by; ay++) {
     for (let ax = bx - def.footX + 1; ax <= bx; ax++) {
-      if (
-        footprintFree(def, ax, ay, free)
-        && (marks.length === 0 || reachesAny(def, ax, ay, marks) !== false)
-      ) {
+      if (footprintFree(def, ax, ay, free) && ok(def, ax, ay)) {
         return true;
       }
     }
@@ -2828,6 +2835,115 @@ function nearestEnemyBridge(
 }
 
 /** Guns by the ground the enemy presses on, facing what presses: as many as the level lays. */
+/** Cells from the blast of a salvaged unit within which bridge cracks or crumbles. */
+const BLAST_REACH = 2;
+/** Moves a breach unit is waited for before the plan is given up (invented). */
+const BREACH_MOVES = 10;
+
+/**
+ * "You can break through enemy bridge by building an inexpensive unit right next to it, and then
+ * Salvaging your unit": with an enemy bridge within the alarm of own ground, the cheapest unit
+ * that makes an islet goes up within the blast's reach of the bridge, and is salvaged once it
+ * stands. Normal bridge cracks at the first blast and crumbles at the next.
+ */
+function breach(
+  world: WorldView,
+  move: Move,
+  memory: AiMemory,
+  pressure: Press,
+  bounds: Bounds | null,
+  reached: Uint8Array | null,
+): void {
+  const me = move.me;
+
+  if (pressure.approach === null || !pressure.source || !pressure.point) {
+    memory.breach = null;
+    return;
+  }
+
+  const bridge = pressure.source;
+  const blastReaches = (b: View<Building>) =>
+    Math.max(Math.abs(b.x + (b.fx >> 1) - bridge.x), Math.abs(b.y + (b.fy >> 1) - bridge.y))
+      <= BLAST_REACH;
+  // Whatever own building already stands within the blast's reach, the cheapest, is the charge:
+  // a gun the defence laid there serves as well as a unit raised for it.
+  const standing = world.buildingsOf(me)
+    .filter((b) => b.rising === 0 && blastReaches(b) && world.def(b.type).createsIsland)
+    .sort((a, b) => world.def(a.type).cost - world.def(b.type).cost || a.id - b.id);
+
+  if (standing[0]) {
+    move.commands.push({ t: 'salvage', player: me, target: standing[0].id });
+    memory.breach = null;
+    return;
+  }
+
+  if (memory.breach) {
+    const { cell, since } = memory.breach;
+    const unit = world.buildingsOf(me).find((b) => world.at(b.x, b.y) === cell);
+
+    if (unit || world.tick - since <= BREACH_MOVES * move.params.moveSeconds * TPS) {
+      return; // still rising, or on its way
+    }
+
+    memory.breach = null;
+  }
+
+  const cheapest = [...world.players.get(me)!.tech]
+    .map((id) => world.defs.get(id))
+    .filter((def): def is Readonly<UnitDef> =>
+      def !== undefined && def.createsIsland && def.level > 0 && def.group !== 'aviary'
+    )
+    .sort((a, b) => a.cost - b.cost || a.id.localeCompare(b.id));
+  // Within reach of the blast: the unit's centre no farther than the blast reaches from the bridge.
+  const near = (x: number, y: number, def: Readonly<UnitDef>) =>
+    Math.max(Math.abs(x + (def.footX >> 1) - bridge.x), Math.abs(y + (def.footY >> 1) - bridge.y))
+        <= BLAST_REACH
+      ? undefined
+      : false;
+
+  for (const def of cheapest) {
+    const before = move.commands.length;
+
+    if (
+      place(world, move, def, pressure.point, undefined, UNIT_RADIUS, (x, y) => near(x, y, def))
+        .placed
+    ) {
+      const laid = move.commands[before];
+
+      if (laid?.t === 'build') {
+        memory.breach = { cell: world.at(laid.x, laid.y), since: world.tick };
+      }
+
+      return;
+    }
+  }
+
+  // No site within the blast's reach: a piece whose end leaves room for the unit there.
+  const def = cheapest[0];
+
+  if (!def || !bounds || !reached || def.cost > move.budget) {
+    return;
+  }
+
+  const within: SiteOk = (unit, ax, ay) => near(ax, ay, unit) === undefined;
+  const hand = world.players.get(me)!.hand;
+
+  for (const head of headsNear(world, me, bounds, reached, [bridge]).slice(0, SLOT_HEADS)) {
+    for (let index = 0; index < hand.length; index++) {
+      if (hand[index]!.age < PIECE_HARDEN || move.usedHands.has(index)) {
+        continue;
+      }
+
+      const piece = slotPieceFrom(world, move, head, index, [def], within);
+
+      if (piece) {
+        drop(world, move, piece);
+        return;
+      }
+    }
+  }
+}
+
 function defendGround(world: WorldView, move: Move, pressure: Press, bounds: Bounds | null): void {
   if (!pressure.source || !pressure.point || !bounds) {
     return;
