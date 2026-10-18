@@ -489,6 +489,13 @@ function aiMoveOn(
     unitHeads = heads;
   }
 
+  // The arm toward the enemy carries its Energy as it grows, ahead of the guns that will want it:
+  // a Generator for every stretch of bridge, laid while the pieces are still going down.
+  if (attack && first?.target.enemy && first.head && options.attack !== false) {
+    carryEnergy(world, move, first.head, first.target);
+    because('the arm toward the enemy carries Energy with it: a Generator along the way');
+  }
+
   // Guns at the enemy go from whatever own ground is nearest his Temple and his Priest, which is
   // not always the head the bridge grows from.
   if (target?.enemy && bounds && reached && home) {
@@ -1406,6 +1413,7 @@ function siegePoint(
   home: View<Building>,
   temple: View<Building>,
   reached: Uint8Array | null,
+  reach: Int32Array | null,
   memory: AiMemory | undefined,
 ): Target | null {
   const guns = knownShooters(world, me).filter((def) => def.group !== 'anti-air');
@@ -1418,11 +1426,8 @@ function siegePoint(
   }
 
   const open = openSky(world);
-  const own = centre(home);
   const x1 = temple.x + temple.fx - 1;
   const y1 = temple.y + temple.fy - 1;
-  // A cell short of the full range, for the gun's own cell and the line's end to lie within.
-  const reach = range - 1;
   // The point of the last move still serves while it is sky on the Temple's line within reach.
   const kept = memory?.siege;
 
@@ -1443,21 +1448,30 @@ function siegePoint(
   if (
     kept && reachable(kept.x, kept.y) && !memory.badSieges.has(world.at(kept.x, kept.y))
     && ((kept.x >= temple.x && kept.x <= x1) || (kept.y >= temple.y && kept.y <= y1))
-    && nearRect(kept, { x: temple.x, y: temple.y, fx: temple.fx, fy: temple.fy }) <= reach
+    && nearRect(kept, { x: temple.x, y: temple.y, fx: temple.fx, fy: temple.fy }) <= range - 1
   ) {
     return { ...kept, enemy: true, temple: true, exact: true };
   }
 
   let best: Target | null = null;
   let bestFar = Infinity;
-  const consider = (x: number, y: number) => {
+  // The point with the shortest way through the sky from own ground (`reach`), one beside own
+  // ground before all; a point with sky beyond it (`dx`, `dy`: away from the Temple) before one
+  // wedged in a notch of the shore, which no bridge end can come onto straight.
+  const consider = (x: number, y: number, dx: number, dy: number) => {
     if (!world.inside(x, y) || !reachable(x, y) || memory?.badSieges.has(world.at(x, y))) {
       return;
     }
 
     const beside = besideOwn(x, y);
+    const way = reach?.[world.at(x, y)] ?? -1;
 
-    const far = (beside ? 0 : W + H) + Math.max(Math.abs(x - own.x), Math.abs(y - own.y));
+    if (!beside && way < 0) {
+      return;
+    }
+
+    const notch = !(world.inside(x + dx, y + dy) && reachable(x + dx, y + dy));
+    const far = (beside ? 0 : way) + (notch ? W + H : 0);
 
     if (far < bestFar) {
       best = { x, y, enemy: true, temple: true, exact: true };
@@ -1467,22 +1481,24 @@ function siegePoint(
 
   if (cannons.length) {
     for (let x = temple.x; x <= x1; x++) {
-      for (let d = 1; d <= reach; d++) {
-        consider(x, temple.y - d);
-        consider(x, y1 + d);
+      for (let d = 1; d <= range - 1; d++) {
+        consider(x, temple.y - d, 0, -1);
+        consider(x, y1 + d, 0, 1);
       }
     }
 
     for (let y = temple.y; y <= y1; y++) {
-      for (let d = 1; d <= reach; d++) {
-        consider(temple.x - d, y);
-        consider(x1 + d, y);
+      for (let d = 1; d <= range - 1; d++) {
+        consider(temple.x - d, y, -1, 0);
+        consider(x1 + d, y, 1, 0);
       }
     }
   } else {
-    for (let y = temple.y - reach; y <= y1 + reach; y++) {
-      for (let x = temple.x - reach; x <= x1 + reach; x++) {
-        consider(x, y);
+    const mid = centre(temple);
+
+    for (let y = temple.y - (range - 1); y <= y1 + range - 1; y++) {
+      for (let x = temple.x - (range - 1); x <= x1 + range - 1; x++) {
+        consider(x, y, Math.sign(x - mid.x), Math.sign(y - mid.y));
       }
     }
   }
@@ -1562,7 +1578,7 @@ function bridgeTargets(
     // the bridge goes for the shore nearest it and the guns reach both. A side whose Temple fell
     // still has its Priest to be taken.
     if (enemy) {
-      enemies.push(siegePoint(world, me, home, enemy, reached, memory)
+      enemies.push(siegePoint(world, me, home, enemy, reached, reach, memory)
         ?? { ...centre(enemy), enemy: true, temple: true });
     } else if (priest && priest.state !== 'carried') {
       enemies.push({ x: priest.x, y: priest.y, enemy: true });
@@ -2119,31 +2135,52 @@ function bestUnit(
   // Energy, so the next one comes nearer. Only ever for a gun that is wanted, never ahead of it,
   // and never beside Energy that is already there: then the want was for a gun of another Fury.
   // One Generator a move at most, and no guns after it: its Energy comes once it stands.
-  if (short && !move.energized && !powered(world, move.me, head, GENERATOR_SPACING)) {
-    let laid = generator(world, move, head);
-
-    if (!laid) {
-      const bounds = ownBounds(world, move.me);
-      const site = bounds && poweredHead(world, move.me, target, bounds);
-      laid = site ? generator(world, move, site) : false;
-
-      // No room for a Generator where the Energy ends: a stub off the bridge there makes some.
-      const battery = batteryFor(world, move.me);
-
-      if (!laid && site && battery) {
-        const stub = stubFor(world, move, site, battery);
-
-        if (stub) {
-          drop(world, move, stub);
-        }
-      }
-    }
-
-    move.energized = laid;
-    move.actions += laid ? 1 : 0;
+  if (short) {
+    carryEnergy(world, move, head, target);
   }
 
   return false;
+}
+
+/**
+ * Bring Energy toward `head` for a unit to stand there: a Generator at the head, or, where the
+ * head is too far from any Energy for a Generator to be built, at the own ground nearest the
+ * target that is still within reach of Energy, so the next one comes nearer; and a stub piece off
+ * the bridge where the Energy ends and no site is to be had. One Generator a move, never beside
+ * Energy that is already there.
+ */
+function carryEnergy(
+  world: WorldView,
+  move: Move,
+  head: { x: number; y: number; },
+  target: { x: number; y: number; },
+): boolean {
+  if (move.energized || powered(world, move.me, head, GENERATOR_SPACING)) {
+    return false;
+  }
+
+  let laid = generator(world, move, head);
+
+  if (!laid) {
+    const bounds = ownBounds(world, move.me);
+    const site = bounds && poweredHead(world, move.me, target, bounds);
+    laid = site ? generator(world, move, site) : false;
+    const battery = batteryFor(world, move.me);
+
+    // A stub costs no Storm Power: it is laid even before the Generator can be paid for, so the
+    // site is ready when the Storm Power comes.
+    if (!laid && site && battery) {
+      const stub = stubFor(world, move, site, battery);
+
+      if (stub) {
+        drop(world, move, stub);
+      }
+    }
+  }
+
+  move.energized = laid;
+  move.actions += laid ? 1 : 0;
+  return laid;
 }
 
 /**

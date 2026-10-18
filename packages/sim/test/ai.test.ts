@@ -864,11 +864,12 @@ test('a full hand that comes nearer to nothing is rid of its worst piece, at the
     (_, i) => ({ piece: i + 2, age: PIECE_HARDEN }));
   const drops = aiMove(world.view(), { player: 2, difficulty: 'hard', geysers: 0 })
     .filter((c) => c.t === 'dropPiece');
-  assert.equal(drops.length, 1);
-  assert.ok(drops[0]!.y < 140, `far from the enemy at ${priest.y}: ${JSON.stringify(drops[0])}`);
+  // The dump, far from the enemy; a stub for a Generator along the arm may come with it.
+  assert.ok(drops.some((drop) => drop.y < 140),
+    `far from the enemy at ${priest.y}: ${JSON.stringify(drops)}`);
   world.step(drops);
   assert.ok(world.drainEvents().every((e) => !(e.what === 'rejected' && e.who === 2)),
-    'the drop lands');
+    'the drops land');
   // Told to keep off the enemy, with him the only target, the hand is left alone.
   assert.equal(aiMove(world.view(), { player: 2, difficulty: 'hard', geysers: 0, attack: false })
     .filter((c) => c.t === 'dropPiece').length, 0);
