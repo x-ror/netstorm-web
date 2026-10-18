@@ -1455,8 +1455,33 @@ function siegePoint(
 ): Target | null {
   const guns = knownShooters(world, me).filter((def) => def.group !== 'anti-air');
   const cannons = guns.filter((def) => def.group === 'cannon');
-  const range = (cannons.length ? cannons : guns).reduce((most, def) => Math.max(most, def.range),
-    0);
+  const chosen = cannons.length ? cannons : guns;
+  const range = chosen.reduce((most, def) => Math.max(most, def.range), 0);
+  // The gun's footprint must fit somewhere over the point: a point in a channel of the shore too
+  // narrow for it is no point at all.
+  const foot = chosen.reduce((most, def) => Math.max(most, def.footX, def.footY), 1);
+  const skyBlock = (ax: number, ay: number): boolean => {
+    for (let fy = ay; fy < ay + foot; fy++) {
+      for (let fx = ax; fx < ax + foot; fx++) {
+        if (!world.inside(fx, fy) || world.terrain[world.at(fx, fy)] !== Terrain.Sky) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+  const roomFor = (x: number, y: number): boolean => {
+    for (let ay = y - foot + 1; ay <= y; ay++) {
+      for (let ax = x - foot + 1; ax <= x; ax++) {
+        if (skyBlock(ax, ay)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
 
   if (range === 0) {
     return null;
@@ -1504,6 +1529,10 @@ function siegePoint(
     const way = reach?.[world.at(x, y)] ?? -1;
 
     if (!beside && way < 0) {
+      return;
+    }
+
+    if (!roomFor(x, y)) {
       return;
     }
 
