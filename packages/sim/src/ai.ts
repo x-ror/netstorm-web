@@ -215,6 +215,29 @@ function aiMoveOn(
   const defend = defendScore(pressure);
   const prices = knownShooters(world, me).map((def) => def.cost);
   const cheapest = prices.length ? Math.min(...prices) : 0;
+  // An enemy Priest down within a step of walkable ground and no Altar to take him to: its price
+  // is held from everything but a defence under fire, the defence reserve too, until the Altar
+  // takes it.
+  const captive = options.capture === false ? undefined : enemyPriest(world, me, 'down');
+  const within = captive !== undefined && reached !== null
+    && [[0, 0] as const, ...DIRS].some(([dx, dy]) =>
+      world.inside(captive.x + dx, captive.y + dy)
+      && reached[world.at(captive.x + dx, captive.y + dy)] === 1
+    );
+  const altar = world.defs.get(ALTAR);
+  const altarCost = within && altar && !world.buildingsOf(me).some((b) => b.type === ALTAR)
+    ? altar.cost
+    : 0;
+  let altarHeld = 0;
+  const holdAltar = () => {
+    const more = Math.min(move.budget, altarCost - altarHeld);
+    altarHeld += more;
+    move.budget -= more;
+  };
+
+  if (!pressure.fired) {
+    holdAltar();
+  }
 
   // Storm Power for a defence is held back from everything else, until a defence is called for.
   let reserve = defend === 0 ? Math.min(move.budget, params.reserveShooters * cheapest) : 0;
@@ -295,22 +318,20 @@ function aiMoveOn(
     because(`${transports.length} transports, ${wanted} wanted for ${mined} geysers`);
   }
 
-  // A captive to be had and no transport to carry him, nor the Storm Power for one: what stands
-  // out of the fight is salvaged for it, since the capture is the game.
-  if (options.capture !== false && options.collect !== false && transports.length === 0) {
-    const fares = transportKinds(world, me).map((def) => def.cost);
-    const fare = fares.length ? Math.min(...fares) : 0;
-    const captive = enemyPriest(world, me, 'down');
-    const within = captive && reached && (reached[world.at(captive.x, captive.y)] === 1
-      || DIRS.some(([dx, dy]) =>
-        world.inside(captive.x + dx, captive.y + dy)
-        && reached[world.at(captive.x + dx, captive.y + dy)] === 1
-      ));
+  // A captive to be had and no transport to carry him or no Altar to take him to, nor the Storm
+  // Power for them: what stands out of the fight is salvaged for it, since the capture is the game.
+  if (within) {
+    const fares = options.collect !== false && transports.length === 0
+      ? transportKinds(world, me).map((def) => def.cost)
+      : [];
+    const fare = (fares.length ? Math.min(...fares) : 0) + altarCost;
 
-    if (within && fare > move.budget) {
+    if (fare > move.budget + altarHeld) {
       fundCapture(world, move);
-      because('an enemy Priest is down and no transport to fetch him: salvaged for the fare');
+      because('an enemy Priest is down and no transport or Altar for him: salvaged for the fare');
     }
+
+    holdAltar();
   }
 
   guardAltar(world, move);
@@ -340,9 +361,17 @@ function aiMoveOn(
   // The Altar is for a captive alone: it is raised once the push for the enemy begins, or his
   // Priest is already down, which leaves its ten seconds to rise before a carrier comes with him.
   // Raised at once, it would take the Storm Power the first transports and guns are wanted for.
+  move.budget += altarHeld;
+
   if (options.capture !== false && (attack || enemyPriest(world, me, 'down'))) {
+    const before = move.commands.length;
     buildAltar(world, move);
     because('no Altar yet and a captive in sight: the Priest builds one near the Temple');
+
+    if (move.commands.length === before) {
+      move.budget -= altarHeld;
+      saving += altarHeld;
+    }
   }
 
   buildOutpost(world, move, reached);

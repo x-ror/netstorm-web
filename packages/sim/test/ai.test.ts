@@ -968,6 +968,25 @@ test('with an enemy Priest down and no transport, an idle Generator on the islan
   assert.deepEqual(salvage.map((c) => c.target), [spare.id]);
 });
 
+test("with an enemy Priest down in reach and no Altar, the Altar's price goes to nothing else", () => {
+  const world = equipWorkshops(mk());
+  const own = world.buildingsOf(2).find((b) => b.type === 'altar')!;
+  world.apply({ t: 'salvage', player: 2, target: own.id });
+  world.players.get(2)!.storm = 500;
+  const priest = world.priestOf(1)!;
+  priest.state = 'down';
+  priest.y = 159; // a step from the own ground below
+  world.addIsland(85, 99, 70, 1, 2);
+  world.addIsland(85, 99, 5, 69, 2);
+  world.addIsland(60, 160, 26, 8, 2);
+  world.invalidateTerrain();
+  // Not even the reserve for a defence nobody calls for keeps it.
+  const builds = aiMove(world.view(), { player: 2, difficulty: 'hard' }).filter((c) =>
+    c.t === 'build'
+  );
+  assert.deepEqual(builds.map((c) => c.t === 'build' && c.type), ['altar']);
+});
+
 test('a transport on its way to a geyser turns for another when guns on the way would kill it', () => {
   const world = mk();
   // On the AI's island (140-160 x 82-98): the transport in the north-west corner, a geyser in
