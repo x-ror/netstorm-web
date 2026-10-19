@@ -801,6 +801,30 @@ test('with nothing to build the Priest carries crystals from a safe geyser, unle
   assert.equal(sent({}), undefined);
 });
 
+test('the Priest beside the Altar of a chained captive stays there and does not go collecting', () => {
+  const world = equipWorkshops(mk());
+  world.players.get(2)!.storm = 0; // nothing to pay for a build with
+  const temple = world.templeOf(2)!;
+  const priest = world.priestOf(2)!;
+  world.addGeyser(temple.x + 12, temple.y + 2, 2000, false);
+  const altar = world.spawnBuilding('altar', 2, 150, 94);
+  priest.x = altar.x - 1;
+  priest.y = altar.y;
+  const orders = () =>
+    aiMove(world.view(), { player: 2 }).filter((c) =>
+      (c.t === 'collect' && c.transport === priest.id) || c.t === 'movePriest'
+    );
+  // With no captive he goes mining, so the refusal below is the ritual's.
+  assert.ok(orders().some((c) => c.t === 'collect'));
+
+  const captive = world.priestOf(1)!;
+  captive.state = 'chained';
+  captive.chainedAt = altar.id;
+  captive.x = altar.x + 1;
+  captive.y = altar.y + 1;
+  assert.deepEqual(orders(), []);
+});
+
 test('guns go to the side facing the enemy, not by the geysers the bridge grows toward', () => {
   const world = mk();
   world.players.get(2)!.storm = 2000;

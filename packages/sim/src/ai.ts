@@ -364,7 +364,8 @@ function aiMoveOn(
 
   // "Like the Golem, your Priest also serves as a Transport": between his builds he carries
   // crystals, from the geyser nearest home that no enemy gun reaches, unless the mission denies it.
-  if (priest?.state === 'normal' && !ward && !priestBusy(world, move)) {
+  // Not during a ritual, even once he stands by the Altar: a rune waits while he is away.
+  if (priest?.state === 'normal' && !ward && !move.ritual && !priestBusy(world, move)) {
     const allowed = options.collect !== false && options.priestCollects !== false;
     const sent = allowed && priestCollect(world, move, priest, geysers, home);
     because('the Priest has nothing to build: he carries crystals from a geyser out of fire');

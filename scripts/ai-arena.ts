@@ -72,6 +72,10 @@ for (const seed of seeds) {
     rejected: 0,
     lost: 0,
     spent: 0,
+    /** Ticks a captive lay chained on this side's Altar, and of them the ticks its own Priest
+     * stood away from it, which pause the ritual. */
+    ritual: 0,
+    away: 0,
     built: {} as Record<string, number>,
   }]));
   const spent = { 1: 0, 2: 0 };
@@ -113,6 +117,19 @@ for (const seed of seeds) {
         stats[event.who]!.rejected++;
       } else if (event.what === 'destroyed' && event.who in stats) {
         stats[event.who]!.lost++;
+      }
+    }
+
+    for (const p of SIDES) {
+      const captive = world.priestOf(SIDES.length + 1 - p);
+      const altar = captive?.state === 'chained' && captive.chainedAt !== null
+        ? world.entities.get(captive.chainedAt)
+        : undefined;
+      const sacrificer = world.priestOf(p);
+
+      if (altar?.kind === 'building' && altar.owner === p && sacrificer) {
+        stats[p]!.ritual++;
+        stats[p]!.away += world.adjacentTo(sacrificer.x, sacrificer.y, altar) ? 0 : 1;
       }
     }
 
