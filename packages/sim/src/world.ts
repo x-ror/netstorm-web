@@ -348,6 +348,7 @@ export class World {
       facing,
       target: null,
       cooldown: 0,
+      barrel: -1,
       killer: 0,
       islet: false,
       regrow: 0,
@@ -357,6 +358,7 @@ export class World {
       invisible: 0,
       slots: [],
       upgrades: 0,
+      upgrading: 0,
     };
     this.entities.set(b.id, b);
     this.forFoot(b, (i) => {

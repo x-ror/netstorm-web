@@ -14,6 +14,7 @@ import {
   oppositeDir,
   OUTPOST,
   MAX_UPGRADES,
+  UPGRADE_SECONDS,
   WORKSHOP_SLOTS,
   type Building,
 } from '../state.js';
@@ -317,12 +318,18 @@ export function canUpgrade(
     return 'fully upgraded';
   }
 
+  // "alreadyUpgrading": one at a time.
+  if (b.upgrading > 0) {
+    return 'not ready';
+  }
+
   return (world.players.get(command.player)?.storm ?? 0) < upgradeCost(world.def(b.type))
     ? 'no storm power'
     : null;
 }
 
-/** "To get more Production Slots in a Workshop you may Upgrade it by paying Storm Power." */
+/** "To get more Production Slots in a Workshop you may Upgrade it by paying Storm Power." It is paid
+ * at once and done UPGRADE_SECONDS later. */
 export function upgradeWorkshop(
   world: World,
   c: Extract<Command, { t: 'upgradeWorkshop'; }>,
@@ -334,10 +341,21 @@ export function upgradeWorkshop(
   }
 
   const b = world.building(c.workshop)!;
-  b.upgrades++;
   world.players.get(c.player)!.storm -= upgradeCost(world.def(b.type));
-  world.emit({ what: 'upgrade', who: c.player, data: { workshop: b.id, level: b.upgrades + 1 } });
+  b.upgrading = UPGRADE_SECONDS * TPS;
   return null;
+}
+
+/** The Upgrade is done: a slot more, and the Workshop is whole again ("Upgrading!" in Factory.cpp
+ * sets its hit points to full). */
+export function tickUpgrade(world: World, b: Building): void {
+  if (b.upgrading === 0 || --b.upgrading > 0) {
+    return;
+  }
+
+  b.upgrades++;
+  b.hp = b.hpMax;
+  world.emit({ what: 'upgrade', who: b.owner, data: { workshop: b.id, level: b.upgrades + 1 } });
 }
 
 const GOLEM = 'sunwalker';

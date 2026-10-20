@@ -1,12 +1,24 @@
 import type { World } from '../world.js';
 import { flies, type UnitDef } from '../defs.js';
 import { shakeBridges } from './bridges.js';
+import { tickUpgrade } from './building.js';
+import {
+  ARM_BUILT,
+  ARM_REST,
+  SUN_CANNON_FLAT,
+  SUN_CANNON_RAISED,
+  SUN_CANNON_STEP,
+  THUNDER_CANNON,
+  bearingTo,
+  discSpin,
+  sunCannonTurn,
+} from './guns.js';
 import {
   ACID_BARRICADE,
   ARC_SPIRE,
   band,
   barriersOf,
-  fieldStops,
+  fieldStop,
   line,
   overlaps,
 } from './fences.js';
@@ -39,14 +51,16 @@ const DEFAULT_SHOT_SECONDS = 1;
  * Cannon and the Vander Tower fire on the first frame, which leaves their delay alone.
  */
 const FIRE_SECONDS: Readonly<Record<string, number>> = {
-  thundercannon: 4, // 9 frames at 0.5 s; the shot leaves 3.5 s in ("3.5 charge" in its data)
+  // Eight frames at 0.5 s and the shot on the last, 3.5 s in ("3.5 charge" in its data); it is
+  // back at rest 0.125 s later and starts again.
+  thundercannon: THUNDER_CANNON.cycle,
   windarcher: 0.8, // 5 frames at 0.2 s
   // 3 frames at 0.08 s. The original fires like this for 4 s and then rests 6 s; the rest is not
   // modelled, and the average is the same because a hit carries the time since the previous one.
   raincannon: 0.24,
-  // Approximate (`?`): the arm is a spring that spins up to the bearing of the target, throws
-  // after 3.1 to 3.6 s and needs 2.6 to 5.6 s more to wind down. Not measured in the game.
-  sunarcher: 7,
+  // On average: the spring of its arm takes 5.2 to 8.2 s a spin by the bearing of the target, which
+  // its shots follow (guns.ts `discSpin`). This is for what needs one figure for the gun.
+  sunarcher: 6.5,
 };
 /** Share of its damage rate an anti-air gun deals with one hit, whatever the time between hits. */
 const FLAT_SHOT_SHARE = 0.6;
@@ -96,6 +110,7 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
     return;
   }
 
+  tickUpgrade(world, b);
   const def = world.def(b.type);
 
   if (def.group === 'fence') {
@@ -123,23 +138,41 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
     return;
   }
 
+  // The Sun Cannon turns before it fires: its barrel goes down, round and up again, 0.2 s a frame.
+  if (b.type === SUN_CANNON) {
+    const from = b.barrel < 0 ? SUN_CANNON_FLAT : b.barrel;
+
+    if (from !== SUN_CANNON_RAISED[b.facing]) {
+      b.barrel = SUN_CANNON_RAISED[b.facing]!;
+      b.cooldown = Math.round((sunCannonTurn(from, b.facing).length - 1) * SUN_CANNON_STEP * TPS);
+      return;
+    }
+  }
+
   // "Damage" in the unit data is the average per second. In the original a hit from an archer or a
   // cannon deals that rate times the time since the gun's previous hit, so one shot carries a whole
   // interval of it. Other groups deal a fixed share of the rate with every hit.
-  const interval = shotInterval(def);
+  const { interval, release } = cycleOf(b, def, target);
   const usual = def.group === 'anti-air'
     ? def.dps * FLAT_SHOT_SHARE
     : (def.dps * interval) / TPS;
   // "Crucial for defense against air attack": the Disc Thrower's data sets its hit on air units.
   const amount = airborne(world, target) && def.airDamage ? def.airDamage : usual;
   b.cooldown = interval;
-  const shot = {
+  // A shot into a hostile force field flies to the field and is spent there.
+  const field = fieldStop(world, b, target);
+  const [x, y] = field ?? [target.x, target.y];
+  const leave = world.tick + release;
+  const shot: Shot = {
     gun: { ...b },
     target: target.id,
-    x: target.x,
-    y: target.y,
+    x,
+    y,
     amount,
-    land: world.tick + missileTicks(b, target),
+    leave,
+    land: leave + missileTicks(b, field ? { kind: 'cell', x, y } : target),
+    blocked: field !== null,
+    ricochet: false,
   };
 
   if (shot.land === world.tick) {
@@ -148,6 +181,30 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
   }
 
   world.shots.push(shot);
+}
+
+/** Ticks a gun takes over one shot, and how far into them its missile leaves. The Thunder Cannon
+ * charges first; the Disc Thrower's arm spins round about four times before it throws. */
+function cycleOf(
+  b: Building,
+  def: UnitDef,
+  target: Entity,
+): { interval: number; release: number; } {
+  if (b.type === DISC_THROWER) {
+    const [gx, gy] = centre2(b);
+    const [tx, ty] = centre2(target);
+    const spin = discSpin(b.barrel < 0 ? ARM_BUILT : ARM_REST, bearingTo(gx, gy, tx, ty));
+    // ponytail: every spin is taken to start from the south, where the last one ended within 30°;
+    // keep the arm's angle if the timing must match the original to the frame.
+    b.barrel = ARM_REST;
+    return {
+      interval: Math.max(1, Math.round(spin.end * TPS)),
+      release: Math.round(spin.throw * TPS),
+    };
+  }
+
+  const release = b.type === THUNDER_CANNON_TYPE ? Math.round(THUNDER_CANNON.release * TPS) : 0;
+  return { interval: shotInterval(def), release };
 }
 
 /* oxlint-disable no-magic-numbers -- speeds of Missile.cpp in netstorm.game 10.82 */
@@ -201,14 +258,18 @@ function land(world: World, shot: Shot): void {
   const { gun, amount } = shot;
   const target = world.entities.get(shot.target);
 
-  // What is gone, fallen or hidden meanwhile is not hit.
-  if (!target || !('hp' in target) || target.hp <= 0 || !targetable(world, gun, target)) {
+  // A shot into a hostile force field is spent on it.
+  if (shot.blocked) {
     return;
   }
 
-  // The missile flies to where the target stood when the gun fired: what has moved off that cell
-  // is missed (the player's account of the original; not in the help).
-  if (target.kind !== 'building' && (target.x !== shot.x || target.y !== shot.y)) {
+  // What is gone, fallen or hidden meanwhile is not hit. What has merely moved is: the hit goes to
+  // the target wherever it stands now (Missile.cpp), so a unit cannot step out of the way. A
+  // ricochet strikes whoever it falls on.
+  if (
+    !target || !('hp' in target) || target.hp <= 0
+    || (!shot.ricochet && !targetable(world, gun, target))
+  ) {
     return;
   }
 
@@ -217,27 +278,38 @@ function land(world: World, shot: Shot): void {
     return;
   }
 
-  // A shot into a hostile force field is spent on it.
-  if (fieldStops(world, gun, target)) {
-    return;
-  }
-
-  // The gun's damage runs at one rate whatever its shots hit, so what a ricochet strikes is taken
-  // out of the same stream. Here the shot is split in two; in the original the split follows the
-  // moments the two land (`?`).
+  // A ricochet pays only for an enemy, and comes from the side, past the Wind Tower's back.
+  const by = shot.ricochet && !world.hostile(gun.owner, target.owner) ? 0 : gun.owner;
+  damage(world, by, target, amount, shot.ricochet ? undefined : gun);
   const other = gun.type === ICE_CANNON ? ricochet(world, gun, target) : null;
-  damage(world, gun.owner, target, other ? amount / 2 : amount, gun);
 
+  // "Its artillery fire splinters into shrapnel": the ricochet is a missile of its own, flying five
+  // cells at 20 a second, that deals 0.6 of the Ice Cannon's rate and may throw one more.
   if (other) {
-    damage(world, world.hostile(gun.owner, other.owner) ? gun.owner : 0, other, amount / 2);
+    world.shots.push({
+      gun,
+      target: other.id,
+      x: other.x,
+      y: other.y,
+      amount: world.def(ICE_CANNON).dps * FLAT_SHOT_SHARE,
+      leave: world.tick,
+      land: world.tick + RICOCHET_TICKS,
+      blocked: false,
+      ricochet: true,
+    });
     world.emit({ what: 'ricochet', who: gun.owner, data: { hit: target.id, to: other.id } });
   }
 }
 
 const ICE_CANNON = 'raincannon';
+const SUN_CANNON = 'suncannon';
+const THUNDER_CANNON_TYPE = 'thundercannon';
+const DISC_THROWER = 'sunarcher';
 /* oxlint-disable no-magic-numbers -- the odds and angles of Missile.cpp in netstorm.game 10.82 */
 /** Out of a hundred hits of an Ice Cannon, those that throw a ricochet. */
 const RICOCHET_CHANCE = 80;
+/** Five cells (`range` of rainCannonMissile.type) at 20 cells a second. */
+const RICOCHET_TICKS = Math.round((5 / 20) * TPS);
 /**
  * Where a ricochet lands when the shot flew north and it glances off to the east: five cells
  * (`range` of rainCannonMissile.type) from the hit, 30 to 150 degrees off the line of fire. The
@@ -308,7 +380,7 @@ const LARGE: ReadonlySet<string> = new Set(['Energy', 'Production', 'Altar']);
  * A fence post does nothing alone. Joined to another, an Arc Spire sends a pulse once a second
  * that deals its damage rate to every enemy unit in the band between the two, and an Acid
  * Barricade dissolves every enemy unit on the line between them. The Sun Barricade's force field
- * only stops shots, see `fieldStops`.
+ * only stops shots, see `fieldStop`.
  */
 function tickFence(world: World, b: Building, def: UnitDef): void {
   const seconds = FENCE_SECONDS[b.type];

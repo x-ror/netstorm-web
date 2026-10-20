@@ -65,6 +65,8 @@ export function missileSpeed(shooter: string): number {
 }
 /** What a Sun Cannon's shot leaves where it lands: its shell has no picture, its impact has. */
 export const SHELL_BURST = EXPLOSIONS.small;
+/** What a shot spent on a Sun Barricade's field leaves: "Puff of dust (used when fence gets hit)". */
+export const FIELD_PUFF = EXPLOSIONS.middling;
 
 /** The slot of a missile on its way along (dx, dy) in screen pixels, at a tick. */
 export function missileSlot(shooter: string, dx: number, dy: number, tick: number): number {

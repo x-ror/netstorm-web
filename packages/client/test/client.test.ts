@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { loadDefs } from '@netstorm/sim';
+import { ARM_BUILT, ARM_REST, discSpin, loadDefs } from '@netstorm/sim';
 import {
   happened,
   hotFeet,
@@ -15,6 +15,7 @@ import {
   translateMissions,
 } from '../src/game-data.js';
 import { knowledgeOf } from '../src/knowledge.js';
+import { burn, burners, rise, streaksOf, type Spark } from '../src/burning.js';
 import { paint, paintOf } from '../src/owner-colours.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS, MAX_STORM, normalizeOptions } from '../src/options.js';
@@ -345,6 +346,7 @@ test('animated entities show a slot of their type for the tick', () => {
     headings: new Map<number, number>(),
     aims: new Map<number, number>(),
     states: new VisualStates(),
+    guns: new Map(),
   };
   const golem = world.spawnTransport('sunwalker', ME, 40, 40);
   // Standing, the Golem shows the default frame of its file; walking east, the frames of group C.
@@ -392,36 +394,50 @@ test('animated entities show a slot of their type for the tick', () => {
   bulf.path = [[42, 40]];
   assert.deepEqual(slotOf(bulf, 2, headings), ['bulf', 8]);
   assert.deepEqual(slotOf(bulf, 4, headings), ['bulf', 8 + 2]);
-  // A Thunder Cannon fires, rests on its gun and charges up to the next shot, 4 s later.
+  // A Thunder Cannon charges through frames 1 to 7, 0.5 s each, fires on 8 at 3.5 s and is back
+  // at rest 0.125 s later (GunAnim.cpp).
   const cannon = world.spawnBuilding('thundercannon', ME, 60, 60, 1);
-  assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0, world.view())], [
-    ['thundercannon', 9],
-    null,
-  ]);
+  assert.deepEqual(slotOf(cannon, 0, headings), ['thundercannon', 9]);
   cannon.target = golem.id;
-  cannon.cooldown = 39;
-  assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0, world.view())], [
-    ['thundercannon', 16],
-    null,
+  cannon.cooldown = 36;
+  assert.deepEqual([1, 6, 31, 36, 37].map((tick) => slotOf(cannon, tick, headings)![1]), [
+    10,
+    11,
+    16,
+    17,
+    9,
   ]);
-  cannon.cooldown = 1;
-  assert.deepEqual([slotOf(cannon, 0, headings), overlayOf(cannon, 0, world.view())], [
-    ['thundercannon', 9],
-    ['thundercannon', 15],
-  ]);
+  assert.equal(overlayOf(cannon, 37, world.view()), null);
   assert.equal(slotOf(world.spawnBuilding('sunblocker', ME, 70, 60), 1, headings), null);
-  // A Sun Cannon swings through the frames between two facings, a step a tick, then rests.
+  // A Sun Cannon is built with its barrel flat. To turn, it lowers it, swings it round and raises
+  // it again, 0.2 s a frame; it fires on its raised frame plus 24.
   const gun = world.spawnBuilding('suncannon', ME, 80, 80, 0);
-  assert.deepEqual(slotOf(gun, 0, headings), ['suncannon', 1]);
-  gun.facing = 1;
-  assert.deepEqual([1, 2, 3, 4].map((tick) => slotOf(gun, tick, headings)![1]), [22, 23, 3, 3]);
-  // A Crossbow facing east leans toward a target to the north-east, two of its twenty bearings at
-  // most, a bearing a tick; five frames to a bearing.
+  assert.deepEqual(slotOf(gun, 0, headings), ['suncannon', 16]);
+  gun.barrel = 1;
+  gun.cooldown = 14;
+  assert.deepEqual([1, 2, 3, 5, 13, 14].map((tick) => slotOf(gun, tick, headings)![1]), [
+    20,
+    20,
+    21,
+    8,
+    1,
+    1,
+  ]);
+  gun.cooldown = 50;
+  assert.deepEqual([15, 16].map((tick) => slotOf(gun, tick, headings)![1]), [25, 1]);
+  // A Crossbow facing east turns, a bearing a tick, to the one of its uneven twenty nearest a target
+  // to the north-east (52°); five frames to a bearing, +4 as it fires and back to +0 as it loads.
   const crossbow = world.spawnBuilding('windarcher', ME, 90, 80, 1);
   assert.deepEqual(slotOf(crossbow, 0, headings), ['windarcher', 25]);
   crossbow.target = world.spawnTransport('sunwalker', ENEMY, 101, 72).id;
-  crossbow.cooldown = 0;
   assert.deepEqual([1, 2, 3].map((tick) => slotOf(crossbow, tick, headings)![1]), [20, 15, 15]);
+  crossbow.cooldown = 8;
+  assert.deepEqual([4, 5, 7, 11].map((tick) => slotOf(crossbow, tick, headings)![1]), [
+    19,
+    18,
+    17,
+    15,
+  ]);
   // A Bulf turns the shorter way round its 24 frames: from east to north, anticlockwise.
   bulf.path = [[bulf.x, bulf.y - 1]];
   assert.deepEqual([1, 2].map((tick) => slotOf(bulf, tick, headings)), [['bulf', 32 + 5], [
@@ -436,17 +452,23 @@ test('animated entities show a slot of their type for the tick', () => {
   // A shadow is the slot of the same frame past the frame lines of the file.
   assert.deepEqual(shadowOf(['sunwalker', 5]), ['sunwalker', 66 + 5]);
   assert.equal(shadowOf(['thundercannon', 0]), null);
-  // A Disc Thrower lays its arm over its base, turned to its target; flung out just after a shot.
+  // A Disc Thrower lays its arm over its base. A spring spins it round from where it stands; for
+  // the half turn before the throw and after it, the arm is flung out (slots 16 to 31).
   const thrower = world.spawnBuilding('sunarcher', ME, 50, 70);
-  assert.deepEqual([slotOf(thrower, 0, headings), overlayOf(thrower, 0, world.view())], [
+  const guns = new Map();
+  assert.deepEqual([slotOf(thrower, 0, headings), overlayOf(thrower, 0, world.view(), guns)], [
     ['sunarcher', 32],
-    ['sunarcher', 0],
+    ['sunarcher', ARM_REST],
   ]);
   thrower.target = world.spawnBuilding('sunblocker', ENEMY, 60, 70).id; // due east
-  thrower.cooldown = 69;
-  assert.deepEqual(overlayOf(thrower, 0, world.view()), ['sunarcher', 16 + 4]);
-  thrower.cooldown = 10;
-  assert.deepEqual(overlayOf(thrower, 0, world.view()), ['sunarcher', 4]);
+  thrower.cooldown = 74;
+  thrower.barrel = ARM_REST;
+  const spin = discSpin(ARM_BUILT, 0);
+  const at = (seconds: number) =>
+    overlayOf(thrower, 1 + Math.round(seconds * 10), world.view(), guns)![1];
+  assert.equal(at(0), 0);
+  assert.ok(at(spin.throw) >= 16);
+  assert.equal(at(spin.end + 1), ARM_REST);
   // An Altar shows the runes warded on its ring and the captive between its horns.
   const altar = world.buildingsOf(ME).find((b) => b.type === 'altar')!;
   assert.deepEqual([slotOf(altar, 0, headings), overlayOf(altar, 0, world.view())], [
@@ -805,4 +827,33 @@ test('the Knowledge of a mission is what its header gives the player, lowest lev
     'Транспорт');
   // Without a mission the Fury's skirmish units are known.
   assert.ok(knowledgeOf(defs, undefined, 'thunder').some((k) => k.def.id === 'thundercannon'));
+});
+
+test('a unit burns below half its hit points, with a streak more for each tenth lost', () => {
+  assert.deepEqual([100, 50, 49, 40, 39, 10, 9, 1, 0].map((hp) => streaksOf(hp, 100)), [
+    0,
+    0,
+    2,
+    2,
+    3,
+    5,
+    6,
+    6,
+    0,
+  ]);
+  // slimUnits keeps the field the client reads it from.
+  const raw = JSON.parse(
+    readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8'),
+  );
+  const fire = burners(slimUnits(raw));
+  assert.ok(fire.has('suncannon') && fire.has('bulf') && !fire.has('sunwalker'));
+
+  // An anchor throws a spark when the dice allow; a spark rises and dies within 0.9 s.
+  const sparks: Spark[] = [];
+  burn(sparks, [[3, 4]], 10, 20, 1, () => 0);
+  assert.deepEqual(sparks, [{ x: 13, y: 24, life: 4 }]);
+  rise(sparks, 1);
+  assert.deepEqual(sparks, [{ x: 13, y: 22, life: 3 }]);
+  rise(sparks, 3);
+  assert.deepEqual(sparks, []);
 });

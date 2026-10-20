@@ -38,6 +38,10 @@ EVENTS = [
     "priestSacrifice2", "altarBurnCollapse", "somethingCreated", "geyserMined1",
     # The air of the Pyrosphere: a wind that never stops, and now and then something far off.
     "distantWindQuiet", "thunderQuietDistant", "eagleScream", "whale",
+    # From the code of netstorm.game: the Vander Tower's lightning, a Sun Cannon's barrel going up or
+    # down, an Upgrade under way and done, a Bulf catching fire, a Salvage, an island under attack.
+    "shortZap", *[f"sunCannonRaiseLower{n}" for n in range(1, 10)], "jimbuild", "upgradeDone",
+    "upgradeComplete", "bulfHurt", "collapse", "islandUnderAttack",
 ]
 BITRATE = "48k"
 HUNDREDTHS_PER_BEL = 2000  # of amplitude: 20 dB is a factor of ten

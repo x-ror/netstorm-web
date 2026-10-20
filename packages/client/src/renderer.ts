@@ -19,6 +19,7 @@ import {
   stepShare,
   BUILD_SECONDS,
   RESIDENCE_FOOT,
+  UPGRADE_SECONDS,
 } from '@netstorm/sim';
 import {
   FACING_FRAMES,
@@ -29,10 +30,11 @@ import {
   shoreFrame,
 } from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
-import { MANA_BOLTS, SACRIFICE, overlayOf, shadowOf, slotOf } from './animations.js';
+import { MANA_BOLTS, SACRIFICE, overlayOf, shadowOf, slotOf, type Gun } from './animations.js';
 import {
   MISSILES,
   SPELL_BURSTS,
+  FIELD_PUFF,
   SHELL_BURST,
   explosionFor,
   impactOf,
@@ -50,6 +52,7 @@ import {
   VisualStates,
 } from './presentation.js';
 import { StreamBatch } from './stream-batch.js';
+import { anchorsOf, burn, rise, sparkColour, streaksOf, type Spark } from './burning.js';
 
 const SPRITE_ANCHOR_X = 0.5;
 /** The frame groups of residence.type: six frames for each of Sun, Thunder, Wind and Rain. */
@@ -73,7 +76,9 @@ const BAR_GAP = 2; // pixels between a sprite's top and its health bar
 const BEAM_LENGTH = 154; // pixels of the Lightning picture
 const BEAM_TICKS = 2;
 const ICE_IMPACTS = 4;
-const BOMB_DROP = 60; // pixels a Whirligig hangs over the ground it bombs
+/** A Whirligig's bomb falls four rows of the board (flyer.cpp: `y + 9t² + 10t` to `y + 4`). */
+const BOMB_ROWS = 4;
+const BOMB_DROP = BOMB_ROWS * TH;
 const SKY_BOLT = 150; // pixels up from which a Thunder Strike falls
 const TRACER_LIFT = 0.6; // share of a shooter's sprite height its shots leave from
 const MARKER_RADIUS = 4;
@@ -145,8 +150,16 @@ const OVERLAY_Z = 0.5; // an overlay lies just over its own entity, a shadow jus
 const SHADOW_ALPHA = 0.45; // the original draws shadows translucent; how much is not read (`?`)
 const FIELD_WIDTH = 2;
 const FIELD_ALPHA = 0.7;
-const HIT_TICKS = 2; // presentation approximation, not original sprite timing
-const HIT_TINT = 0xff8888;
+/** At most this many tenths of a second of sparks at once, after a stall or a hidden tab. */
+const MAX_SPARK_STEP = 5;
+/** Guns that strike at once, with no missile in the air. */
+const LIGHTNING_GUNS: ReadonlySet<string> = new Set(['thunderarcher']);
+/** A Sun Cannon's tail: ten sparks as it leaves, then about two a game frame within three pixels
+ * of the shell (FUN_004672d0); how long its sparks live is not read (`?`). */
+const SHELL_SPARKS_AT_START = 10;
+const TAIL_PER_TENTH = 6;
+const TAIL_SPREAD = 3;
+const TAIL_LIFE = 4;
 const PLACE_TICKS = 3;
 const MAX_PLACE_CELLS = 64;
 const PROGRESS_COLOR = 0xbfe9ff;
@@ -155,6 +168,16 @@ const FIELD_COLOR: Readonly<Record<string, number>> = {
   rainfence: COLOR.acidField,
   thunderfence: COLOR.arcField,
 };
+
+/** What a building has left of its construction, or of an Upgrade: a Workshop being Upgraded is
+ * built anew over itself, so it shows the same progress. */
+function workOf(b: DeepReadonly<Building>): { left: number; whole: number; } | null {
+  if (b.rising > 0) {
+    return { left: b.rising, whole: BUILD_SECONDS };
+  }
+
+  return b.upgrading > 0 ? { left: b.upgrading, whole: UPGRADE_SECONDS } : null;
+}
 
 export function createWorldRenderer(
   world: WorldView,
@@ -167,6 +190,8 @@ export function createWorldRenderer(
   textures: Map<string, Texture>,
   sounds: Sounds,
   hotFeet: ReadonlyMap<string, readonly [number, number]> = new Map(),
+  /** Types that burn below half their hit points (burning.ts `burners`). */
+  burning: ReadonlySet<string> = new Set(),
 ) {
   const timeline = new PresentationTime();
   let presentationTick = world.tick;
@@ -179,8 +204,12 @@ export function createWorldRenderer(
   const polishG = barsLayer.addChild(new Container());
   const healthBars = new Map<number, Graphics>();
   const constructionBars = new Map<number, Graphics>();
-  const previousHp = new Map<number, number>();
-  const damaged = new Map<number, number>();
+  // Fire on what is below half its hit points (burning.ts); a hit itself shows nothing on the unit,
+  // as in the original.
+  const fireG = barsLayer.addChild(new Graphics());
+  const sparks: Spark[] = [];
+  const anchors = new Map<number, number[][][]>();
+  let sparkTick = world.tick;
   const placementsAccent: {
     x: number;
     y: number;
@@ -463,7 +492,13 @@ export function createWorldRenderer(
   /** Which way each walker last went (animations.ts). */
   const headings = new Map<number, number>();
   const states = new VisualStates();
-  const scene = { world, headings, aims: new Map<number, number>(), states };
+  const scene = {
+    world,
+    headings,
+    aims: new Map<number, number>(),
+    states,
+    guns: new Map<number, Gun>(),
+  };
   const shadows = new Map<number, Sprite>();
   /** Where each unit was drawn on the previous tick and this one: between ticks it glides. */
   const glides = new Map<number, { from: Point; to: Point; }>();
@@ -529,21 +564,49 @@ export function createWorldRenderer(
     sprite.tint = layer === shadows ? COLOR.shadow : COLOR.noTint;
   }
 
+  /** Sparks of a unit on fire, from the streaks laid on its picture the first time it burns. */
+  function throwSparks(entity: DeepReadonly<Entity>, sprite: Sprite | Graphics, dt: number): void {
+    const streaks = 'type' in entity && 'hp' in entity && burning.has(entity.type)
+        && !(entity.kind === 'building' && (entity.rising > 0 || entity.regrow > 0))
+      ? streaksOf(entity.hp, entity.hpMax)
+      : 0;
+
+    if (streaks === 0 || !(sprite instanceof Sprite)) {
+      return;
+    }
+
+    let laid = anchors.get(entity.id);
+
+    if (!laid) {
+      laid = anchorsOf(sprite.texture);
+      anchors.set(entity.id, laid);
+
+      // A Bulf catching fire cries out (Damageable.cpp).
+      if (entity.kind === 'transport' && entity.type === 'bulf') {
+        sounds.play('bulfhurt', { x: sprite.x, y: sprite.y });
+      }
+    }
+
+    burn(sparks, laid.slice(0, streaks).flat(), sprite.x - sprite.anchor.x * sprite.width,
+      sprite.y - sprite.anchor.y * sprite.height, dt);
+  }
+
+  function drawSparks(): void {
+    fireG.clear();
+
+    for (const { x, y, life } of sparks) {
+      // Five pixels of one colour: a square of two by two and one over it.
+      fireG.rect(Math.round(x), Math.round(y) - 1, 2, 2).rect(Math.round(x), Math.round(y) - 2, 1,
+        1)
+        .fill(sparkColour(life));
+    }
+  }
+
   function syncEntities() {
     bars.clear();
 
     for (const entity of world.entities.values()) {
       let sprite = sprites.get(entity.id);
-      const hp = 'hp' in entity ? entity.hp : undefined;
-      const was = previousHp.get(entity.id);
-
-      if (hp !== undefined) {
-        if (was !== undefined && hp < was) {
-          damaged.set(entity.id, world.tick);
-        }
-
-        previousHp.set(entity.id, hp);
-      }
 
       if (!sprite && entity.kind === 'building' && entityTick >= 0) {
         if (placementsAccent.length >= MAX_PLACE_CELLS) {
@@ -636,7 +699,7 @@ export function createWorldRenderer(
       sprite.zIndex = entity.kind === 'flyer' ? AIR_Z : sy;
       sprite.tint = entityTint(entity, viewer());
       sprite.alpha = entityAlpha(entity);
-      const over = bySpot ? overlayOf(entity, world.tick, world) : null;
+      const over = bySpot ? overlayOf(entity, world.tick, world, scene.guns) : null;
       attach(overlays, entity.id, over, sprite, OVERLAY_Z, 1);
       attach(shadows, entity.id, bySpot ? shadowOf(slot) : null, sprite, -OVERLAY_Z, SHADOW_ALPHA);
       displayedDepth(entity.id, sprite, entity.kind === 'flyer');
@@ -661,14 +724,14 @@ export function createWorldRenderer(
         bar.visible = false;
       }
 
-      const constructing = entity.kind === 'building' && entity.rising > 0 && entity.regrow === 0;
+      const work = entity.kind === 'building' && entity.regrow === 0 ? workOf(entity) : null;
       const line = constructionBars.get(entity.id);
 
-      if (constructing) {
+      if (work) {
         const graphic = line ?? polishG.addChild(new Graphics());
         constructionBars.set(entity.id, graphic);
         graphic.clear();
-        const share = Math.max(0, 1 - entity.rising / (BUILD_SECONDS * TPS));
+        const share = Math.max(0, 1 - work.left / (work.whole * TPS));
         graphic.moveTo(-BAR_WIDTH / 2, 0).lineTo(-BAR_WIDTH / 2 + BAR_WIDTH * share, 0)
           .stroke({ color: PROGRESS_COLOR, width: 1 });
       } else if (line) {
@@ -692,9 +755,9 @@ export function createWorldRenderer(
         headings.delete(id);
         glides.delete(id);
         scene.aims.delete(id);
+        scene.guns.delete(id);
         states.delete(id);
-        previousHp.delete(id);
-        damaged.delete(id);
+        anchors.delete(id);
         healthBars.get(id)?.destroy();
         healthBars.delete(id);
         constructionBars.get(id)?.destroy();
@@ -998,10 +1061,23 @@ export function createWorldRenderer(
     to: Point;
     start: number;
     ticks: number;
+    blocked: boolean;
   }[] = [];
   const beams: { sprite: Sprite; until: number; }[] = [];
-  /** Where a Sun Cannon's shells land, and on which tick: its missile is not drawn. */
-  const shells: { to: Point; land: number; }[] = [];
+  /**
+   * A Sun Cannon's shells: no picture, but a fiery tail of sparks (FieryTail of netstorm.game)
+   * along their way, and the small explosion where they land.
+   */
+  const shells: { from: Point; to: Point; start: number; land: number; blocked: boolean; }[] = [];
+  /** Shots fired whose missile has yet to leave the gun. */
+  const launches: {
+    shooter: string;
+    from: Point;
+    to: Point;
+    flight: number | undefined;
+    leave: number;
+    blocked: boolean;
+  }[] = [];
 
   /** Show the shot of everything that fired this tick. A gun's missile takes as long as the
    * simulation's, so it lands on the tick its damage is dealt. */
@@ -1044,20 +1120,51 @@ export function createWorldRenderer(
           x: middle(entity).x,
           y: (from?.y ?? previous!.at.y) - (from?.height ?? previous!.height) * TRACER_LIFT,
         };
-      let flight: number | undefined;
+      // The shot this gun fired this tick: its copy of the gun has the cooldown it has now. A Sun
+      // Cannon's cooldown also goes up as it starts to turn, with no shot.
+      let shot: (typeof world.shots)[number] | undefined;
 
-      for (const shot of world.shots) {
-        if (shot.gun.id === entity.id) {
-          flight = shot.land - world.tick; // the last one is the one just fired
-
-          const target = aim ?? placements.get(shot.target)?.entity;
-          const foot = target ? footprintOf(target) : null;
-          const point = project(shot.x + (foot?.w ?? 1) / 2, shot.y + (foot?.h ?? 1) / 2);
-          endpoint = { x: point.sx, y: point.sy };
+      for (const sent of world.shots) {
+        if (
+          sent.gun.id === entity.id && !sent.ricochet && sent.gun.cooldown === entity.cooldown
+        ) {
+          shot = sent;
         }
       }
 
-      shoot(entity.type, start, endpoint, flight);
+      if (!shot && !bomber && !LIGHTNING_GUNS.has(entity.type)) {
+        continue;
+      }
+
+      if (shot) {
+        const target = aim ?? placements.get(shot.target)?.entity;
+        // A shot into a hostile force field flies to the cell where it meets the field.
+        const foot = !shot.blocked && target ? footprintOf(target) : null;
+        const point = project(shot.x + (foot?.w ?? 1) / 2, shot.y + (foot?.h ?? 1) / 2);
+        endpoint = { x: point.sx, y: point.sy };
+      }
+
+      // A Thunder Cannon charges, and a Disc Thrower spins, before its missile leaves.
+      launches.push({
+        shooter: entity.type,
+        from: start,
+        to: endpoint,
+        flight: shot ? shot.land - shot.leave : undefined,
+        leave: shot?.leave ?? world.tick,
+        blocked: shot?.blocked ?? false,
+      });
+    }
+
+    for (let i = 0; i < launches.length;) {
+      const launch = launches[i]!;
+
+      if (launch.leave > world.tick) {
+        i++;
+        continue;
+      }
+
+      launches.splice(i, 1);
+      shoot(launch.shooter, launch.from, launch.to, launch.flight, launch.blocked);
     }
 
     fly();
@@ -1065,7 +1172,7 @@ export function createWorldRenderer(
 
   /** Send off what a shooter throws: its missile, a bolt of lightning, or a plain streak. `flight`
    * is the ticks the simulation gives the missile; a bomb works its own out. */
-  function shoot(shooter: string, from: Point, to: Point, flight?: number): void {
+  function shoot(shooter: string, from: Point, to: Point, flight?: number, blocked = false): void {
     sounds.unit(shooter, 'fire', from);
 
     const missile = MISSILES[shooter];
@@ -1081,25 +1188,38 @@ export function createWorldRenderer(
       const ticks = flight
         || Math.max(missile.blast ? missile.frames : 1,
           Math.round((far / TW / missileSpeed(shooter)) * TPS));
-      missiles.push({ sprite, shooter, from, to, start: world.tick, ticks });
+      missiles.push({ sprite, shooter, from, to, start: world.tick, ticks, blocked });
       return;
     }
 
     if (shooter === 'thunderarcher') {
-      beam(from, to);
+      beam(from, to, 'shortzap');
       return;
     }
 
     if (shooter === 'suncannon') {
-      shells.push({ to, land: world.tick + (flight ?? 0) });
+      const far = Math.hypot(to.x - from.x, to.y - from.y);
+      const ticks = flight || Math.max(1, Math.round((far / TW / missileSpeed(shooter)) * TPS));
+      shells.push({ from, to, start: world.tick, land: world.tick + ticks, blocked });
+      // Ten sparks where it leaves, then two at each step of the way (FUN_004672d0).
+      throwTail(from, SHELL_SPARKS_AT_START);
     }
+  }
 
-    bars.moveTo(from.x, from.y).lineTo(to.x, to.y).stroke({ color: COLOR.tracer, width: 1 });
+  /** Sparks of a Sun Cannon's tail, thrown within three pixels of a point. */
+  function throwTail(at: Point, count: number): void {
+    for (let n = 0; n < count; n++) {
+      sparks.push({
+        x: at.x + (Math.random() * 2 - 1) * TAIL_SPREAD,
+        y: at.y + (Math.random() * 2 - 1) * TAIL_SPREAD,
+        life: TAIL_LIFE,
+      });
+    }
   }
 
   /** A bolt of lightning between two points: the Lightning type is one picture of a bolt, which
    * is turned and stretched to fit and shown for a moment. */
-  function beam(from: Point, to: Point): void {
+  function beam(from: Point, to: Point, sound = 'thundercrack'): void {
     const lightning = textures.get('slot:lightning:0');
     const far = Math.hypot(to.x - from.x, to.y - from.y);
 
@@ -1107,7 +1227,7 @@ export function createWorldRenderer(
       return;
     }
 
-    sounds.play('thundercrack', to);
+    sounds.play(sound, to);
     const sprite = entityLayer.addChild(new Sprite(lightning));
     sprite.anchor.set(0, SPRITE_ANCHOR_X);
     sprite.position.set(from.x, from.y);
@@ -1119,11 +1239,21 @@ export function createWorldRenderer(
 
   function fly(): void {
     for (let i = missiles.length - 1; i >= 0; i--) {
-      const { sprite, shooter, from, to, start, ticks } = missiles[i]!;
+      const { sprite, shooter, from, to, start, ticks, blocked } = missiles[i]!;
       const done = (world.tick - start) / ticks;
-      const slot = missileSlot(shooter, to.x - from.x, to.y - from.y, world.tick);
+      // Its bearing is taken on the board, whose cells are not square on the screen.
+      const slot = missileSlot(shooter, (to.x - from.x) / TW, (to.y - from.y) / TH, world.tick);
       const texture = textures.get(`slot:${MISSILES[shooter]!.type}:${slot}`);
       const spot = texture && hotSpots.get(texture);
+
+      if (done >= 1 && blocked) {
+        // A shot spent on a Sun Barricade's field ends in a puff of dust (anim.type, group C).
+        burst(FIELD_PUFF, to, AIR_Z);
+        sounds.play('sunfenceimpact', to);
+        sprite.destroy();
+        missiles.splice(i, 1);
+        continue;
+      }
 
       if (done >= 1 || !texture || !spot) {
         const blast = MISSILES[shooter]!.blast;
@@ -1150,8 +1280,11 @@ export function createWorldRenderer(
     }
 
     for (let i = shells.length - 1; i >= 0; i--) {
-      if (world.tick >= shells[i]!.land) {
-        burst(SHELL_BURST, shells[i]!.to, AIR_Z);
+      const shell = shells[i]!;
+
+      if (world.tick >= shell.land) {
+        burst(shell.blocked ? FIELD_PUFF : SHELL_BURST, shell.to, AIR_Z);
+        sounds.play(shell.blocked ? 'sunfenceimpact' : 'impact', shell.to);
         shells.splice(i, 1);
       }
     }
@@ -1242,6 +1375,17 @@ export function createWorldRenderer(
 
       capture();
       presentationTick = timeline.sample(world.tick, alpha);
+      // Tenths of a second since the last frame, which is what a tick is.
+      const dt = Math.max(0, Math.min(MAX_SPARK_STEP, presentationTick - sparkTick));
+      sparkTick = presentationTick;
+      rise(sparks, dt);
+
+      for (const { from, to, start, land } of shells) {
+        const done = Math.min(1, Math.max(0, (presentationTick - start) / (land - start)));
+        throwTail({ x: from.x + (to.x - from.x) * done, y: from.y + (to.y - from.y) * done },
+          Math.round(dt * TAIL_PER_TENTH));
+      }
+
       const poseAlpha = Math.min(1, presentationTick - world.tick);
 
       for (const [id, { from, to }] of glides) {
@@ -1265,13 +1409,8 @@ export function createWorldRenderer(
           continue;
         }
 
-        const hit = damaged.get(entity.id);
-        const flashing = hit !== undefined && progress(presentationTick, hit, HIT_TICKS) < 1;
-        sprite.tint = flashing ? HIT_TINT : entityTint(entity, viewer());
-
-        if (hit !== undefined && !flashing) {
-          damaged.delete(entity.id);
-        }
+        sprite.tint = entityTint(entity, viewer());
+        throwSparks(entity, sprite, dt);
 
         const top = sprite instanceof Sprite
           ? sprite.y - sprite.height * sprite.anchor.y
@@ -1288,6 +1427,8 @@ export function createWorldRenderer(
           construction.position.set(sprite.x, top - BAR_GAP);
         }
       }
+
+      drawSparks();
 
       for (const effect of [...missiles, ...bolts]) {
         // Current-tick projectile interpolation: endpoints are never extrapolated. Removal and

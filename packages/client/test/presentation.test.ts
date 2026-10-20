@@ -113,6 +113,7 @@ test('visual states restart walking only on entry and cleanly cancel on removal'
     world: world.view(),
     headings: new Map<number, number>(),
     aims: new Map<number, number>(),
+    guns: new Map(),
     states,
   };
   unit.path = [[41, 40]];
@@ -168,7 +169,7 @@ test('depth follows displayed feet and attachments stay in an atomic entity grou
   assert.equal(health.minY, sprite.y - 4);
 });
 
-test('damage feedback restores ownership tint, ignores healing and preserves HP alpha', () => {
+test('a hit leaves the unit its ownership tint, as the original flashes nothing, and its HP alpha', () => {
   const { world, renderer, layer } = fixture();
   const unit = world.spawnTransport('sunwalker', 2, 40, 40);
   renderer.sync(1);
@@ -178,15 +179,8 @@ test('damage feedback restores ownership tint, ignores healing and preserves HP 
   world.tick++;
   renderer.capture();
   renderer.sync(0);
-  assert.notEqual(sprite.tint, ownership);
+  assert.equal(sprite.tint, ownership);
   assert.equal(sprite.alpha, 0.75);
-  world.tick += 2;
-  renderer.sync(0);
-  assert.equal(sprite.tint, ownership);
-  unit.hp++;
-  world.tick++;
-  renderer.sync(0);
-  assert.equal(sprite.tint, ownership);
 });
 
 test('missiles sample fractional positions, land once, initialize frame zero and keep expiry', () => {
@@ -208,8 +202,11 @@ test('missiles sample fractional positions, land once, initialize frame zero and
         target: target.id,
         x: target.x,
         y: target.y,
+        leave: world.tick,
         land: world.tick + 2,
         amount: 1,
+        blocked: false,
+        ricochet: false,
       });
     }
 
@@ -282,8 +279,11 @@ test('shots keep recorded target coordinates and survive removal in their launch
     target: target.id,
     x: 44,
     y: 40,
+    leave: world.tick,
     land: world.tick + 2,
     amount: 1,
+    blocked: false,
+    ricochet: false,
   });
   target.x = 45;
   world.entities.delete(gun.id);

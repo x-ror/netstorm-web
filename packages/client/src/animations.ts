@@ -4,7 +4,20 @@
  * slots listed here. One frame is shown per tick; the original's frame rates are not read (`?`).
  */
 import {
+  ARM_BUILT,
+  ARM_REST,
   BUILD_SECONDS,
+  SUN_CANNON_FIRE,
+  SUN_CANNON_FLAT,
+  SUN_CANNON_RAISED,
+  SUN_CANNON_STEP,
+  THUNDER_CANNON,
+  armSlot,
+  barriers,
+  bearingTo,
+  compassTo,
+  discSpin,
+  sunCannonTurn,
   RUNE_INTERVAL,
   RUNES,
   TPS,
@@ -32,6 +45,22 @@ export interface Scene {
   aims: Map<number, number>;
   /** When each entity entered its visual state, for a walk that starts on the step. */
   states: VisualStates;
+  /** What each gun did last: see `gunOf`. */
+  guns: Map<number, Gun>;
+}
+
+/** What a gun was seen to do, so that its turns and shots play over the ticks after them. */
+export interface Gun {
+  /** The tick it was last looked at, so that it is read once a tick. */
+  tick: number;
+  cooldown: number;
+  barrel: number;
+  /** The tick it last fired, or started a cycle that ends in a shot. */
+  fired: number;
+  /** A Sun Cannon's turn: the slots its barrel passes, from the tick it began. */
+  turn: { path: number[]; start: number; } | null;
+  /** A Disc Thrower's spin: where its arm started, the bearing it throws at, and the length. */
+  spin: { from: number; bearing: number; start: number; end: number; } | null;
 }
 
 /* oxlint-disable no-magic-numbers -- slot counts and frame groups of the .type files */
@@ -98,27 +127,51 @@ interface Turn {
 }
 
 /**
- * The Sun Cannon's barrel looks the same from either end, so its file has six frames between the
- * four facings and each serves two bearings: clockwise from north, north (slot 1), NNE (22), ENE
- * (23), east (3), ESE (20), SSE (21), south (0), SSW (22), WSW (23), west (2), WNW (20), NNW (21).
+ * The Crossbow turns through twenty bearings, `orientations = 20` in its type, five frames of a
+ * shot to each; a facing is every fifth. The bearings are not evenly spaced: degrees clockwise from
+ * north, the table at 0x0060b178 of GunAnim.cpp. It turns one a tenth of a second toward the one
+ * nearest its target, and stays where it is when it has none.
  */
-const SUN_CANNON_RING = [1, 22, 23, 3, 20, 21, 0, 22, 23, 2, 20, 21] as const;
-/** The Crossbow turns through twenty bearings, `orientations = 20` in its type, five frames of a
- * shot to each; a facing is every fifth. It leans at most `reach` bearings (36°) off its facing,
- * the nearest to the 30° of its arc. */
-const CROSSBOW = { bearings: 20, shot: 5, perFacing: 5, reach: 2 } as const;
+const CROSSBOW = {
+  bearings: [
+    0,
+    21,
+    35,
+    52,
+    71,
+    86,
+    97,
+    115,
+    121,
+    148,
+    180,
+    205,
+    237,
+    256,
+    272,
+    282,
+    291,
+    314,
+    328,
+    345,
+  ],
+  shot: 5,
+  perFacing: 5,
+  /** The frame of a bearing by ticks since a shot. */
+  reload: [4, 3, 2, 2, 1, 1],
+} as const;
+const FULL_TURN = 360;
 /** The frames of a sacrifice in the Altar type, after the horns and the struggling captive. */
 export const SACRIFICE = { first: 15, frames: 74 } as const;
 
-/** Slots of the Sun Cannon by facing (north, east, south, west): at rest, and firing. */
-const SUN_CANNON = { rest: [1, 3, 0, 2], fire: [25, 27, 24, 26] } as const;
-/** Its shots are 5 s apart (rules/combat.ts); the frame of fire is held for the first of them. */
-const SUN_CANNON_FIRE_FROM = 47;
-const CROSSBOW_COOLDOWN = 8;
-/** The Ice Cannon has three frames to a facing, the Thunder Cannon nine: the gun at rest, six
- * frames of charge that are laid over it, and two of fire. */
+/** The Ice Cannon has three frames to a facing, the Thunder Cannon nine: at rest, then eight it
+ * charges through, 0.5 s each, the last the one it fires on (GunAnim.cpp). */
 const ICE_CANNON_FRAMES = 3;
-const THUNDER_CANNON = { frames: 9, charge: 6, fire: 7, cooldown: 40, fired: 36 } as const;
+const THUNDER_CANNON_FRAMES = 9;
+/** The frames of a Sun Barricade's post, and of an Acid Barricade's with the ticks of each. */
+const SUN_POST = 9;
+const ACID_POST = 3;
+const ACID_STEP = 3;
 /** Temples that are a still picture with a moving one laid over it: the slot of the building and
  * the first slot and length of what moves. */
 const TEMPLES: Readonly<Record<string, { base: number; first: number; cycle: number; }>> = {
@@ -126,11 +179,10 @@ const TEMPLES: Readonly<Record<string, { base: number; first: number; cycle: num
   rainvortex: { base: 0, first: 1, cycle: 14 },
 };
 /**
- * The Disc Thrower is a base (slot 32) with an arm laid over it: sixteen bearings of the arm wound
- * up (slots 0 to 15), then sixteen of it flung out (16 to 31), clockwise from north. Its shots
- * are 7 s apart; the flung arm is held for the first half second.
+ * The Disc Thrower is a base (slot 32) with an arm laid over it, which a spring spins round about
+ * four times before each throw (guns.ts `armSlot`).
  */
-const DISC_THROWER = { base: 32, bearings: 16, flungFrom: 65 } as const;
+const DISC_THROWER = { base: 32 } as const;
 /**
  * Air bases play their frames once over the time they take to send a flyer up (rules/flyers.ts),
  * counted by their cooldown. The Whirlibase opens its dome (slots 0 to 10), then the Whirligig
@@ -142,6 +194,17 @@ const AIR_BASES: Readonly<Record<string, { ticks: number; frames: number; }>> = 
 };
 const WHIRLIGIG_RISE = { first: 11, frames: 16 } as const;
 const DEVIL_MAKER_FRAMES = 6;
+/**
+ * A Workshop's frame groups A to D are its Levels I to IV, the building growing with each
+ * (Factory.cpp of netstorm.game 10.82 shows the group of its level). The first frame of a group is
+ * the whole building; how the rest of a group plays is not read (`?`), so it stands still.
+ */
+const WORKSHOP_GROUP: Readonly<Record<string, number>> = {
+  sunfactory: 4,
+  windfactory: 1,
+  rainfactory: 3,
+  thunderfactory: 1,
+};
 /**
  * An Altar is two pictures: the ring (type Dais) and the horns over it (type Altar). The ring
  * shows how many of the five runes are warded: a still for each count (slots 3, 14, 25, ...) and
@@ -193,10 +256,110 @@ export function heading(dx: number, dy: number): number | undefined {
   return HEADINGS[Math.sign(dy) + 1]![Math.sign(dx) + 1];
 }
 
-/** Ticks since a Thunder Cannon fired, or -1 when it is not at work. Its cooldown runs down from
- * the 4 s between its shots; spreading the charge over that time is our reading (`?`). */
-function sinceShot(b: DeepReadonly<Building>): number {
-  return b.target === null ? -1 : THUNDER_CANNON.cooldown - b.cooldown;
+/**
+ * What a gun has done since it was last looked at: a Sun Cannon whose barrel moved has begun to
+ * turn; any other gun whose cooldown went up has fired, or begun the cycle that ends in a shot.
+ */
+export function gunOf(
+  guns: Map<number, Gun>,
+  b: DeepReadonly<Building>,
+  tick: number,
+  world: WorldView,
+): Gun {
+  const known = guns.get(b.id);
+
+  if (!known) {
+    const gun = {
+      tick,
+      cooldown: b.cooldown,
+      barrel: b.barrel,
+      fired: -Infinity,
+      turn: null,
+      spin: null,
+    };
+    guns.set(b.id, gun);
+    return gun;
+  }
+
+  if (known.tick === tick) {
+    return known;
+  }
+
+  const turned = b.type === 'suncannon' && b.barrel !== known.barrel;
+
+  if (turned) {
+    const from = known.barrel < 0 ? SUN_CANNON_FLAT : known.barrel;
+    known.turn = { path: sunCannonTurn(from, b.facing), start: tick };
+  } else if (b.cooldown > known.cooldown) {
+    known.fired = tick;
+    const target = b.target === null ? undefined : world.entities.get(b.target);
+
+    if (b.type === 'sunarcher' && target) {
+      const from = known.barrel < 0 ? ARM_BUILT : ARM_REST;
+      const bearing = bearingTo(b.x + b.fx / 2, b.y + b.fy / 2, target.x + 1 / 2, target.y + 1 / 2);
+      known.spin = { from, bearing, start: tick, end: discSpin(from, bearing).end * TPS };
+    }
+  }
+
+  known.tick = tick;
+  known.barrel = b.barrel;
+  known.cooldown = b.cooldown;
+  return known;
+}
+
+/** The slot of a Sun Cannon: flat as built, then each frame of its turn for 0.2 s, raised when it
+ * is done, and its fire frame on the tick it fires (0.07 s in the original). */
+function sunCannonSlot(b: DeepReadonly<Building>, gun: Gun, tick: number): number {
+  const raised = SUN_CANNON_RAISED[b.facing]!;
+
+  if (gun.fired === tick) {
+    return raised + SUN_CANNON_FIRE;
+  }
+
+  if (gun.turn) {
+    const { path, start } = gun.turn;
+    // The first frame of a turn comes at once, as every anim of GunAnim.cpp starts.
+    const step = 1 + Math.floor((tick - start) / (SUN_CANNON_STEP * TPS));
+    return path[Math.min(step, path.length - 1)]!;
+  }
+
+  return b.barrel < 0 ? SUN_CANNON_FLAT : b.barrel;
+}
+
+/** The Thunder Cannon from the start of its cycle: frames 1 to 7, 0.5 s each, then 8, the one it
+ * fires on, and back at rest 0.125 s later. */
+function thunderCannonFrame(since: number): number {
+  const release = THUNDER_CANNON.release * TPS;
+
+  if (since < 0 || since > release) {
+    return 0;
+  }
+
+  return since === release
+    ? THUNDER_CANNON_FRAMES - 1
+    : 1 + Math.floor(since / (THUNDER_CANNON.frame * TPS));
+}
+
+/** The Crossbow's bearing nearest the compass way to a target. */
+function crossbowBearing(b: DeepReadonly<Building>, target: DeepReadonly<Entity>): number {
+  const compass = compassTo(b.x + b.fx / 2, b.y + b.fy / 2, target.x + 1 / 2, target.y + 1 / 2);
+  let best = 0;
+
+  for (const [i, degrees] of CROSSBOW.bearings.entries()) {
+    const off = (a: number) => Math.min(Math.abs(compass - a), FULL_TURN - Math.abs(compass - a));
+
+    if (off(degrees) < off(CROSSBOW.bearings[best]!)) {
+      best = i;
+    }
+  }
+
+  return best;
+}
+
+/** Of the Crossbow's five frames to a bearing: +4 as it fires, then +3, +2, +1 and +0, loaded,
+ * 0.2 s each, firing again at the end of the 0.8 s (GunAnim.cpp, FUN_0047c820). */
+function crossbowFrame(since: number): number {
+  return since >= 0 && since < CROSSBOW.reload.length ? CROSSBOW.reload[since]! : 0;
 }
 
 /** The Priest chained on an altar, if any. */
@@ -227,19 +390,6 @@ function daisSlot(b: DeepReadonly<Building>, world: WorldView): Slot {
   return ['dais', warded * DAIS.stage + (going < 0 ? DAIS.still : DAIS.going + going)];
 }
 
-/** Which of `count` bearings, clockwise from north, a gun's target lies on. Only the picture
- * depends on it, so the arithmetic need not match between machines. */
-function bearing(b: DeepReadonly<Building>, world: WorldView, count: number): number {
-  const target = b.target === null ? undefined : world.entities.get(b.target);
-
-  if (!target) {
-    return 0;
-  }
-
-  const turn = Math.atan2(target.x - (b.x + b.fx / 2), b.y + b.fy / 2 - target.y) / (2 * Math.PI);
-  return (Math.round(turn * count) + count) % count;
-}
-
 function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Slot | null {
   const { world } = scene;
   const working = b.rising === 0 && b.regrow === 0;
@@ -252,6 +402,12 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Sl
     return [b.type, working ? Math.min(base.frames - 1, frame) : 0];
   }
 
+  const group = WORKSHOP_GROUP[b.type];
+
+  if (group) {
+    return [b.type, b.upgrades * group];
+  }
+
   switch (b.type) {
     case 'raincannon':
       // It cycles the three frames of its facing while it has a target.
@@ -259,38 +415,42 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Sl
         b.type,
         b.facing * ICE_CANNON_FRAMES + (b.target === null ? 0 : tick % ICE_CANNON_FRAMES),
       ];
-    case 'suncannon': {
-      // The ring follows the facing, but the shot is the simulation's: it is never held for a turn.
-      const quarter = SUN_CANNON_RING.length / SUN_CANNON.rest.length;
-      const at = turnTo(scene.aims, b.id, b.facing * quarter, SUN_CANNON_RING.length);
-      const fired = b.target !== null && b.cooldown >= SUN_CANNON_FIRE_FROM;
-      return [b.type, fired ? SUN_CANNON.fire[b.facing] : SUN_CANNON_RING[at]!];
-    }
+    case 'suncannon':
+      return [b.type, sunCannonSlot(b, gunOf(scene.guns, b, tick, world), tick)];
     case 'windarcher': {
-      // It leans a bearing a tick toward its target, and back to its facing when it has none.
-      const { bearings, shot, perFacing, reach } = CROSSBOW;
-      const rest = b.facing * perFacing;
-      const off = b.target === null
-        ? 0
-        : ((bearing(b, world, bearings) - rest + bearings + bearings / 2) % bearings)
-          - bearings / 2;
-      const want = (rest + Math.max(-reach, Math.min(reach, off)) + bearings) % bearings;
+      const gun = gunOf(scene.guns, b, tick, world);
+      const target = b.target === null ? undefined : world.entities.get(b.target);
+      const bearings = CROSSBOW.bearings.length;
+      const rest = b.facing * CROSSBOW.perFacing;
+
+      if (!scene.aims.has(b.id)) {
+        scene.aims.set(b.id, rest);
+      }
+
+      const want = target ? crossbowBearing(b, target) : scene.aims.get(b.id)!;
       const at = turnTo(scene.aims, b.id, want, bearings);
-      // Its shots are 0.8 s apart: the frames of a shot follow each one.
-      const since = b.target === null ? shot : CROSSBOW_COOLDOWN - b.cooldown;
-      return [b.type, at * shot + (since < shot - 1 ? since + 1 : 0)];
+      return [b.type, at * CROSSBOW.shot + crossbowFrame(tick - gun.fired)];
     }
-    case 'thundercannon': {
-      const since = sinceShot(b);
-      const firing = since >= 0 && since < THUNDER_CANNON.cooldown - THUNDER_CANNON.fired;
+    case 'thundercannon':
       return [
         b.type,
-        b.facing * THUNDER_CANNON.frames + (firing ? THUNDER_CANNON.fire + (since >> 1) : 0),
+        b.facing * THUNDER_CANNON_FRAMES
+        + thunderCannonFrame(tick - gunOf(scene.guns, b, tick, world).fired),
       ];
-    }
     case 'thunderarcher':
-      return [b.type, b.target === null ? 0 : tick % 2];
+      // It fires lightning without a frame of its own (GunAnim.cpp, FUN_0047e150).
+      return [b.type, 0];
+    case 'sunfence':
+      // The post turns its nine frames, 0.1 s each, field or none (FUN_00466b70).
+      return [b.type, working ? tick % SUN_POST : 0];
+    case 'rainfence': {
+      // A joined post plays A02, A01, A00, 0.3 s each, over and over; one alone stands still.
+      const joined = working
+        && barriers(world).some(({ from, to }) => from.id === b.id || to.id === b.id);
+      return [b.type, joined ? ACID_POST - 1 - (Math.floor(tick / ACID_STEP) % ACID_POST) : 0];
+    }
     case 'sunarcher':
+      gunOf(scene.guns, b, tick, world);
       return [b.type, DISC_THROWER.base];
     case 'windaviary':
       return [b.type, working && b.cooldown > 0 ? tick % DEVIL_MAKER_FRAMES : 0];
@@ -437,6 +597,7 @@ export function overlayOf(
   entity: DeepReadonly<Entity>,
   tick: number,
   world: WorldView,
+  guns: Map<number, Gun> = new Map(),
 ): Slot | null {
   // "A thin force field will form around him, keeping him alive": the game sets a ForceField on
   // a Priest the moment he is struck down (Priest.cpp of netstorm.game 10.82).
@@ -453,16 +614,25 @@ export function overlayOf(
     return null;
   }
 
+  // An Upgrade under way: the Workshop of the next Level is built over the old one (Factory.cpp).
+  const group = WORKSHOP_GROUP[entity.type];
+
+  if (group) {
+    return entity.upgrading > 0 ? [entity.type, (entity.upgrades + 1) * group] : null;
+  }
+
   if (entity.type === 'altar') {
     const held = captiveOf(world, entity.id);
     return ['altar', held ? HORNS.struggle + (tick % HORNS.frames) : HORNS.empty];
   }
 
+  // The arm: through the spin of its spring, then at rest where the spin left it, to the south.
   if (entity.type === 'sunarcher') {
-    const flung = entity.target !== null && entity.cooldown >= DISC_THROWER.flungFrom;
+    const spin = gunOf(guns, entity, tick, world).spin;
+    const seconds = spin ? (tick - spin.start) / TPS : Infinity;
     return [
       entity.type,
-      bearing(entity, world, DISC_THROWER.bearings) + (flung ? DISC_THROWER.bearings : 0),
+      spin && tick - spin.start < spin.end ? armSlot(spin.from, spin.bearing, seconds) : ARM_REST,
     ];
   }
 
@@ -482,17 +652,5 @@ export function overlayOf(
     return [entity.type, temple.first + (tick % temple.cycle)];
   }
 
-  if (entity.type !== 'thundercannon') {
-    return null;
-  }
-
-  const charging = sinceShot(entity) - (THUNDER_CANNON.cooldown - THUNDER_CANNON.fired);
-
-  if (charging < 0) {
-    return null;
-  }
-
-  const step = Math.min(THUNDER_CANNON.charge - 1,
-    Math.floor((charging * THUNDER_CANNON.charge) / THUNDER_CANNON.fired));
-  return [entity.type, entity.facing * THUNDER_CANNON.frames + 1 + step];
+  return null;
 }

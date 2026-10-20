@@ -131,22 +131,50 @@ function middle(e: Entity): Point {
 }
 
 /**
- * "The Barricade keeps out enemy fire ... but lets your own Shooters fire right through": whether
- * the straight way from a shooter to its target crosses the force field of somebody else's Sun
- * Barricades.
+ * "The Barricade keeps out enemy fire ... but lets your own Shooters fire right through": the cell
+ * where the straight way from a shooter to its target first crosses the force field of somebody
+ * else's Sun Barricades, nearest to the shooter, or null. The original looks for it when the gun
+ * fires, and the missile flies there (Missile.cpp, FUN_004660b0).
  */
-export function fieldStops(world: World, shooter: Building, target: Entity): boolean {
+export function fieldStop(
+  world: World,
+  shooter: Building,
+  target: Entity,
+): [number, number] | null {
+  const a = middle(shooter);
+  const b = middle(target);
+  let best: [number, number] | null = null;
+  let nearest = Infinity;
+
   for (const e of world.entities.values()) {
     if (!standing(e, SUN_BARRICADE) || !world.hostile(e.owner, shooter.owner)) {
       continue;
     }
 
     for (const { from, to } of barriersOf(world, e)) {
-      if (crosses(middle(shooter), middle(target), middle(from), middle(to))) {
-        return true;
+      const c = middle(from);
+      const d = middle(to);
+
+      if (!crosses(a, b, c, d)) {
+        continue;
+      }
+
+      // Where the two lines meet, as a share of the way from the shooter to its target.
+      const across = (b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0]);
+      const share = across === 0
+        ? 0
+        : ((c[0] - a[0]) * (d[1] - c[1]) - (c[1] - a[1]) * (d[0] - c[0])) / across;
+
+      if (share < nearest) {
+        nearest = share;
+        // Doubled coordinates back to the cell they fall in.
+        best = [
+          Math.floor((a[0] + (b[0] - a[0]) * share) / 2),
+          Math.floor((a[1] + (b[1] - a[1]) * share) / 2),
+        ];
       }
     }
   }
 
-  return false;
+  return best;
 }

@@ -2,6 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { World, loadDefs, TPS, type Flyer } from '../src/index.js';
+import {
+  ARM_BUILT,
+  ARM_REST,
+  SUN_CANNON_RAISED,
+  discSpin,
+  sunCannonTurn,
+} from '../src/rules/guns.js';
 
 import { shotInterval } from '../src/rules/combat.js';
 import { ScanWorld } from './reference-world.js';
@@ -10,6 +17,14 @@ import { equipWorkshops } from './workshops.js';
 const defs = loadDefs(
   JSON.parse(readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8')),
 );
+
+/** A Sun Cannon with its barrel already raised to its facing, as the tests before its turning
+ * expect: it fires at once. */
+function aimed<T extends { type: string; facing: number; barrel: number; }>(b: T): T {
+  b.barrel = SUN_CANNON_RAISED[b.facing]!;
+  return b;
+}
+
 const mk = () => new World(defs, 42);
 const seconds = (id: string) => shotInterval(defs.get(id)!) / TPS;
 /** Step until the missiles already in the air have landed. */
@@ -29,7 +44,7 @@ test('stacked transports keep entity order after an earlier transport moves into
   const second = world.spawnTransport('sunwalker', 2, 60, 40);
   first.path = [[60, 40]];
   first.move = 100;
-  world.spawnBuilding('suncannon', 1, 48, 39, 1);
+  aimed(world.spawnBuilding('suncannon', 1, 48, 39, 1));
   world.step();
   assert.equal(first.x, 60);
   land(world);
@@ -43,15 +58,15 @@ test('a transport moves out of the firing line before a later cannon updates', (
   const target = world.spawnTransport('sunwalker', 2, 60, 40);
   target.path = [[60, 41]];
   target.move = 100;
-  world.spawnBuilding('suncannon', 1, 48, 39, 1);
+  aimed(world.spawnBuilding('suncannon', 1, 48, 39, 1));
   world.step();
   assert.equal(target.hp, target.hpMax);
 });
 
 test('dead transports cannot hide the next target in the same tick', () => {
   const world = mk();
-  world.spawnBuilding('suncannon', 1, 48, 39, 1);
-  world.spawnBuilding('suncannon', 1, 59, 28, 2);
+  aimed(world.spawnBuilding('suncannon', 1, 48, 39, 1));
+  aimed(world.spawnBuilding('suncannon', 1, 59, 28, 2));
   const first = world.spawnTransport('sunwalker', 2, 60, 40);
   const second = world.spawnTransport('sunwalker', 2, 60, 40);
   first.hp = 0;
@@ -63,7 +78,7 @@ test('dead transports cannot hide the next target in the same tick', () => {
 
 test('tick rebuild includes externally moved, removed and newly spawned transports', () => {
   const world = mk();
-  const cannon = world.spawnBuilding('suncannon', 1, 48, 39, 1);
+  const cannon = aimed(world.spawnBuilding('suncannon', 1, 48, 39, 1));
   const target = world.spawnTransport('sunwalker', 2, 60, 41);
   world.step();
   target.y = 40;
@@ -126,7 +141,7 @@ test('radius targeting keeps row-major tie breaking near a map edge', () => {
 
 test('an enemy occupant has priority over stacked transports', () => {
   const world = mk();
-  world.spawnBuilding('suncannon', 1, 48, 39, 1);
+  aimed(world.spawnBuilding('suncannon', 1, 48, 39, 1));
   const blocker = world.spawnBuilding('sunblocker', 2, 60, 39);
   const transport = world.spawnTransport('sunwalker', 2, 60, 40);
   world.step();
@@ -142,14 +157,23 @@ test('shooters fire separate shots, lock on the closest target and the Sun Canno
   const thunder = world.spawnBuilding('thundercannon', 1, 100, 120, 1);
   const north = world.spawnBuilding('sunblocker', 2, 100, 110);
   // Self-aiming: a Sun Cannon built facing east turns north to the only enemy in its lines.
-  const sun = world.spawnBuilding('suncannon', 1, 140, 120, 1);
+  const sun = aimed(world.spawnBuilding('suncannon', 1, 140, 120, 1));
   const far = world.spawnBuilding('sunblocker', 2, 140, 101);
   world.step();
-  const fired = world.tick;
   assert.equal(thunder.target, null);
   assert.equal(north.hp, north.hpMax);
   assert.equal(sun.facing, 0);
   assert.equal(sun.target, far.id);
+  // It turns before it fires: its barrel goes down from the east, round and up to the north,
+  // eleven frames of 0.2 s (GunAnim.cpp).
+  assert.equal(sun.cooldown, (sunCannonTurn(SUN_CANNON_RAISED[1], 0).length - 1) * 2);
+  assert.equal(sun.cooldown, 22);
+
+  while (world.shots.length === 0) {
+    world.step();
+  }
+
+  const fired = world.tick;
   // One shot carries a whole interval of the per-second damage, then the cannon reloads.
   const interval = 5 * TPS;
   assert.equal(sun.cooldown, interval);
@@ -208,29 +232,18 @@ test('a cannon fires over its own buildings; an enemy one stops the shot even un
   assert.equal(behind.hp, behind.hpMax);
 });
 
-test('a missile flies to where its target stood: one that has walked off is missed', () => {
+test('a unit cannot step out of the way: the hit goes to it wherever it stands now', () => {
   const world = mk();
   world.addIsland(0, 0, 100, 100, 2);
-  world.spawnBuilding('suncannon', 1, 48, 39, 1);
+  aimed(world.spawnBuilding('suncannon', 1, 48, 39, 1));
   const walker = world.spawnTransport('sunwalker', 2, 60, 40);
-  const stayer = world.spawnTransport('sunwalker', 2, 60, 40);
   world.step();
   assert.equal(world.shots.length, 1);
+  // The missile flies to the cell it stood on (Missile.cpp), but the hit is its own.
   assert.deepEqual([world.shots[0]!.x, world.shots[0]!.y], [60, 40]);
-  const aimed = world.entities.get(world.shots[0]!.target)!;
-  // The one aimed at steps aside while the shell is in the air.
-  (aimed.id === walker.id ? walker : stayer).y = 41;
+  walker.y = 41;
   land(world);
-  const moved = aimed.id === walker.id ? walker : stayer;
-  assert.equal(moved.hp, moved.hpMax);
-  // Standing still, it would have been hit.
-  const again = mk();
-  again.addIsland(0, 0, 100, 100, 2);
-  again.spawnBuilding('suncannon', 1, 48, 39, 1);
-  const still = again.spawnTransport('sunwalker', 2, 60, 40);
-  again.step();
-  land(again);
-  assert.ok(still.hp < still.hpMax);
+  assert.ok(walker.hp < walker.hpMax);
 });
 
 test('a missile lands after its flight, survives a save and outlives its gun', () => {
@@ -238,7 +251,7 @@ test('a missile lands after its flight, survives a save and outlives its gun', (
   world.addPlayer(1, 'Blue', 'wind', 0, []);
   world.addPlayer(2, 'Red', 'rain', 0, []);
   world.addIsland(0, 0, 100, 100, 2);
-  const cannon = world.spawnBuilding('suncannon', 1, 40, 40, 1);
+  const cannon = aimed(world.spawnBuilding('suncannon', 1, 40, 40, 1));
   const tower = world.spawnBuilding('sunblocker', 2, 60, 40);
   world.step();
   assert.equal(world.shots.length, 1);
@@ -260,8 +273,8 @@ test('destroying an enemy unit pays a quarter of its cost, once, to the shooter'
   world.addPlayer(2, 'Red', 'rain', 0, []);
   world.addIsland(0, 100, 256, 60, 0);
   // Two cannons aimed at the same weak target must not both be paid.
-  world.spawnBuilding('suncannon', 1, 100, 120, 1);
-  world.spawnBuilding('suncannon', 1, 116, 130, 0);
+  aimed(world.spawnBuilding('suncannon', 1, 100, 120, 1));
+  aimed(world.spawnBuilding('suncannon', 1, 116, 130, 0));
   const victim = world.spawnBuilding('sunarcher', 2, 116, 120);
   victim.hp = 60;
   world.step();
@@ -281,9 +294,9 @@ test('salvage refunds a quarter scaled by health and nothing below half health',
   world.addIsland(0, 100, 256, 60, 1);
   const cost = defs.get('suncannon')!.cost;
   assert.equal(cost, 400);
-  const intact = world.spawnBuilding('suncannon', 1, 100, 120);
-  const dented = world.spawnBuilding('suncannon', 1, 110, 120);
-  const wrecked = world.spawnBuilding('suncannon', 1, 120, 120);
+  const intact = aimed(world.spawnBuilding('suncannon', 1, 100, 120));
+  const dented = aimed(world.spawnBuilding('suncannon', 1, 110, 120));
+  const wrecked = aimed(world.spawnBuilding('suncannon', 1, 120, 120));
   dented.hp = (dented.hpMax * 2) / 3; // the help's example: a third gone → 66
   wrecked.hp = wrecked.hpMax / 2 - 1;
   assert.deepEqual(world.execute({ t: 'salvage', player: 2, target: intact.id }), {
@@ -304,22 +317,22 @@ test('salvage refunds a quarter scaled by health and nothing below half health',
 test('shot timing follows the fire animations of the original', () => {
   assert.equal(seconds('suncannon'), 5); // delayBetweenShots alone: it fires on the first frame
   assert.equal(seconds('thunderarcher'), 1);
-  assert.equal(seconds('thundercannon'), 4);
+  assert.equal(seconds('thundercannon'), 3.6); // 3.625 s, on a 0.1 s tick
   assert.equal(seconds('windarcher'), 0.8);
   assert.equal(seconds('raincannon'), 0.2); // 0.24 s, on a 0.1 s tick
-  assert.equal(seconds('sunarcher'), 7);
-  // A Thunder Cannon shot carries four seconds of its 40 per second.
+  assert.equal(seconds('sunarcher'), 6.5); // on average: a spin takes 5.2 to 8.2 s
+  // A Thunder Cannon shot carries the 3.6 s of its 40 per second.
   const world = mk();
   world.addIsland(0, 0, 100, 100, 2);
-  const tower = world.spawnBuilding('suncannon', 2, 60, 39, 1);
+  const tower = aimed(world.spawnBuilding('suncannon', 2, 60, 39, 1));
   world.spawnBuilding('thundercannon', 1, 48, 39, 1);
   world.step();
   land(world);
-  assert.equal(tower.hpMax - tower.hp, 160);
+  assert.equal(tower.hpMax - tower.hp, 144);
   // The Vander Tower shoots at flyers only: a unit on the ground beside it is left alone.
   const other = mk();
   other.addIsland(0, 0, 100, 100, 2);
-  const near = other.spawnBuilding('suncannon', 2, 54, 39, 1);
+  const near = aimed(other.spawnBuilding('suncannon', 2, 54, 39, 1));
   other.spawnBuilding('thunderarcher', 1, 48, 39, 1);
   other.step();
   assert.equal(near.hp, near.hpMax);
@@ -328,10 +341,10 @@ test('shot timing follows the fire animations of the original', () => {
 test('a destroyed shooter hurts everything next to it and can set off a chain', () => {
   const world = mk();
   world.addIsland(0, 0, 100, 100, 1);
-  const first = world.spawnBuilding('suncannon', 1, 40, 40, 1);
-  const second = world.spawnBuilding('suncannon', 1, 43, 40, 1); // touches the first
-  const third = world.spawnBuilding('suncannon', 1, 46, 40, 1); // touches only the second
-  const apart = world.spawnBuilding('suncannon', 1, 40, 44, 1); // a cell of gap below the first
+  const first = aimed(world.spawnBuilding('suncannon', 1, 40, 40, 1));
+  const second = aimed(world.spawnBuilding('suncannon', 1, 43, 40, 1)); // touches the first
+  const third = aimed(world.spawnBuilding('suncannon', 1, 46, 40, 1)); // touches only the second
+  const apart = aimed(world.spawnBuilding('suncannon', 1, 40, 44, 1)); // a cell of gap below the first
   const walker = world.spawnTransport('sunwalker', 1, 39, 39); // diagonal to the first
   second.hp = 301;
   first.hp = 0;
@@ -356,7 +369,7 @@ test('a destroyed Temple deals 400 in a square from its foot_x; a generator does
   const world = mk();
   world.addIsland(0, 0, 100, 100, 1);
   const temple = world.spawnBuilding('windvortex', 1, 40, 40, 1);
-  const near = world.spawnBuilding('suncannon', 1, 40 + temple.fx, 40, 1);
+  const near = aimed(world.spawnBuilding('suncannon', 1, 40 + temple.fx, 40, 1));
   // Half its foot_x (8) plus one on both axes: two rows below the 8×6 Temple, one column aside.
   const below = world.spawnTransport('sunwalker', 1, 44, 40 + temple.fy + 1);
   const aside = world.spawnTransport('sunwalker', 1, 40 + temple.fx + 1, 42);
@@ -366,7 +379,7 @@ test('a destroyed Temple deals 400 in a square from its foot_x; a generator does
   assert.ok(below.hp < below.hpMax);
   assert.equal(aside.hp, aside.hpMax);
   const battery = world.spawnBuilding('windbattery', 1, 60, 60, 1);
-  const beside = world.spawnBuilding('suncannon', 1, 60 + battery.fx, 60, 1);
+  const beside = aimed(world.spawnBuilding('suncannon', 1, 60 + battery.fx, 60, 1));
   battery.hp = 0;
   world.step();
   assert.equal(beside.hp, beside.hpMax);
@@ -384,7 +397,7 @@ test('transports cut across island ground diagonally, but step onto bridge strai
   assert.deepEqual(world.findPath(1, 19, 4, to(20, 5)), [[19, 5], [20, 5]]);
   // The inside of a building in the way of one of the straight steps closes the diagonal past it;
   // the edge of its footprint does not.
-  world.spawnBuilding('suncannon', 1, 10, 9);
+  aimed(world.spawnBuilding('suncannon', 1, 10, 9));
   assert.equal(world.findPath(1, 12, 10, to(11, 9))!.length, 2);
   assert.equal(world.findPath(1, 9, 9, to(10, 8))!.length, 1);
 });
@@ -412,14 +425,14 @@ test('the Wind Tower takes nothing from the side its back is turned to', () => {
   // Two towers in a row, each with a Sun Cannon firing at it from the west.
   const turned = world.spawnBuilding('windblocker', 2, 50, 40, 3); // back to the west
   const open = world.spawnBuilding('windblocker', 2, 50, 50, 1); // back to the east
-  world.spawnBuilding('suncannon', 1, 40, 40, 1);
-  world.spawnBuilding('suncannon', 1, 40, 50, 1);
+  aimed(world.spawnBuilding('suncannon', 1, 40, 40, 1));
+  aimed(world.spawnBuilding('suncannon', 1, 40, 50, 1));
   world.step();
   land(world);
   assert.equal(turned.hp, turned.hpMax);
   assert.ok(open.hp < open.hpMax);
   // An explosion beside it is no shot from a side: it hurts either way.
-  const bomb = world.spawnBuilding('suncannon', 2, 47, 40, 1);
+  const bomb = aimed(world.spawnBuilding('suncannon', 2, 47, 40, 1));
   bomb.hp = 0;
   world.step();
   assert.equal(turned.hpMax - turned.hp, 301);
@@ -431,7 +444,7 @@ test('a destroyed Ice Tower grows back in forty seconds, and nothing is paid for
   world.addPlayer(2, 'Red', 'rain', 0, []);
   world.addIsland(0, 0, 100, 100, 2);
   const tower = world.spawnBuilding('rainblocker', 2, 50, 40);
-  const cannon = world.spawnBuilding('suncannon', 1, 40, 40, 1);
+  const cannon = aimed(world.spawnBuilding('suncannon', 1, 40, 40, 1));
   tower.hp = 1;
   world.step();
   land(world);
@@ -524,9 +537,9 @@ test('a Sun Barricade field stops enemy shots and lets its owner fire through', 
   world.addIsland(0, 0, 100, 100, 2);
   world.spawnBuilding('sunfence', 2, 50, 20);
   const post = world.spawnBuilding('sunfence', 2, 50, 60);
-  world.spawnBuilding('suncannon', 1, 40, 40, 1);
+  aimed(world.spawnBuilding('suncannon', 1, 40, 40, 1));
   const behind = world.spawnBuilding('rainblocker', 2, 60, 40);
-  world.spawnBuilding('suncannon', 2, 60, 50, 3);
+  aimed(world.spawnBuilding('suncannon', 2, 60, 50, 3));
   const attacker = world.spawnBuilding('rainblocker', 1, 40, 50);
   world.step();
   land(world);
@@ -549,7 +562,7 @@ test('a hostile Sun Barricade between two posts disables their field', () => {
   world.spawnBuilding('sunfence', 2, 50, 20);
   world.spawnBuilding('sunfence', 2, 50, 60);
   world.spawnBuilding('sunfence', 1, 50, 30);
-  world.spawnBuilding('suncannon', 1, 40, 40, 1);
+  aimed(world.spawnBuilding('suncannon', 1, 40, 40, 1));
   const behind = world.spawnBuilding('rainblocker', 2, 60, 40);
   world.step();
   land(world);
@@ -695,6 +708,8 @@ test('a unit takes ten seconds to build, gains hit points evenly and does nothin
   }
 
   assert.equal(cannon.hp, cannon.hpMax);
+  // Built with its barrel flat, it raises it to the east first.
+  run(world, 3 * TPS);
   assert.ok(target.hp < target.hpMax);
 });
 
@@ -913,7 +928,7 @@ test('only archers and anti-air guns can hit an Aerial Transport', () => {
   const world = mk();
   world.addIsland(0, 0, 120, 100, 2);
   const balloon = world.spawnTransport('sunballoon', 1, 50, 40);
-  world.spawnBuilding('suncannon', 2, 40, 39, 1);
+  aimed(world.spawnBuilding('suncannon', 2, 40, 39, 1));
   world.spawnBuilding('thunderfence', 2, 30, 39);
   world.spawnBuilding('thunderfence', 2, 60, 39);
   run(world, 6);
@@ -968,7 +983,7 @@ test('allies do not fight: guns hold their fire and a Priest cannot be carried o
   world.addPlayer(3, 'Foe', 'thunder', 0, []);
   world.addIsland(0, 0, 120, 100, 1);
   world.spawnBuilding('altar', 1, 10, 10);
-  world.spawnBuilding('suncannon', 1, 40, 39, 1);
+  aimed(world.spawnBuilding('suncannon', 1, 40, 39, 1));
   const friend = world.spawnBuilding('sunblocker', 2, 50, 39);
   const foe = world.spawnBuilding('sunblocker', 3, 60, 39);
   // One names the other: that is enough for both.
@@ -1018,7 +1033,7 @@ test('a Meltdown costs the Generator, hurts the enemy beside it and breaks the b
 
 const lost = (b: { hp: number; hpMax: number; }) => b.hpMax - b.hp;
 
-test('an Ice Cannon throws ricochets to the side that take their share of its damage', () => {
+test('an Ice Cannon throws ricochets to the side, missiles of their own that deal 12 each', () => {
   const world = mk();
   world.addPlayer(1, 'Blue', 'rain', 0, []);
   world.addPlayer(2, 'Red', 'wind', 0, []);
@@ -1037,10 +1052,11 @@ test('an Ice Cannon throws ricochets to the side that take their share of its da
   }
 
   const strayed = beside.reduce((sum, b) => sum + lost(b), 0);
-  assert.ok(strayed > 0 && lost(target) > strayed);
+  assert.ok(strayed > 0 && lost(target) > 0);
   assert.equal(floater.hp, floater.hpMax);
-  // The stream is one: every shot is 4, whole or split in two.
-  assert.equal((lost(target) + strayed) % 4, 0);
+  // Every shot on the target deals its whole 4; a ricochet deals 0.6 of the cannon's 20 a second.
+  assert.equal(lost(target) % 4, 0);
+  assert.equal(strayed % 12, 0);
 });
 
 test('where a mission allows it, a transport carries a friendly Priest home to safety', () => {
@@ -1151,4 +1167,27 @@ test('a geyser spent on an island is gone; one in open sky stays, empty', () => 
 
   assert.equal(world.players.get(1)!.storm, 400);
   assert.deepEqual([world.entities.has(adrift.id), adrift.stock], [true, 0]);
+});
+
+test('the Thunder Cannon charges 3.5 s before its missile leaves; the Disc Thrower spins first', () => {
+  const world = mk();
+  world.addIsland(0, 0, 100, 100, 2);
+  const target = aimed(world.spawnBuilding('suncannon', 2, 60, 39, 1));
+  world.spawnBuilding('thundercannon', 1, 48, 39, 1);
+  world.step();
+  const shot = world.shots[0]!;
+  assert.equal(shot.leave - world.tick, 35);
+  assert.ok(shot.land > shot.leave);
+
+  // A target due east: the arm throws 2.7 s into a 7.4 s spin (GunAnim.cpp, FUN_0047cfb0).
+  const other = mk();
+  other.addIsland(0, 0, 100, 100, 2);
+  const thrower = other.spawnBuilding('sunarcher', 1, 40, 40);
+  other.spawnTransport('sunwalker', 2, 46, 41);
+  other.step();
+  const disc = other.shots[0]!;
+  assert.equal(disc.leave - other.tick, Math.round(discSpin(ARM_BUILT, 0).throw * TPS));
+  assert.equal(thrower.cooldown, Math.round(discSpin(ARM_BUILT, 0).end * TPS));
+  assert.equal(thrower.barrel, ARM_REST);
+  assert.ok(target.hp === target.hpMax);
 });

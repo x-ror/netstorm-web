@@ -126,6 +126,7 @@ const UNIT_FIELDS = [
   'level',
   'cost',
   'maxHitPoints',
+  'damageEffect',
   'range',
   'hpPerSec',
   'foot_x',

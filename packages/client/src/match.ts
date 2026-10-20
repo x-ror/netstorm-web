@@ -63,6 +63,8 @@ export interface GameData {
   sounds: Sounds;
   /** Where each unit's pictures hang in its footprint (game-data.ts `hotFeet`). */
   hotFeet: ReadonlyMap<string, readonly [number, number]>;
+  /** Types that burn below half their hit points (burning.ts `burners`). */
+  burning: ReadonlySet<string>;
 }
 
 /** Play one local match. Resolves when the player leaves it for the menu. */
@@ -132,7 +134,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     ? new PerformanceMonitor(world, app.renderer)
     : undefined;
   const renderer = createWorldRenderer(view, () => ui.viewer, terrainG, ground, entityLayer, bars,
-    data.textures, data.sounds, data.hotFeet);
+    data.textures, data.sounds, data.hotFeet, data.burning);
 
   root.hidden = false;
   let leave: ((next?: string) => void) | undefined;
@@ -306,8 +308,17 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
         return sounds.play(mine ? 'droppiece' : undefined);
       case 'build':
         return sounds.play(mine ? 'somethingcreated' : undefined);
+      // A Salvage crumbles the unit away with collapse.wav (Damageable.cpp).
       case 'salvaged':
-        return sounds.play(mine ? 'dissolve' : undefined);
+        return sounds.play(mine ? 'collapse' : undefined);
+      // "Upgrading!" (Factory.cpp): upgradeDone.wav where the Workshop stands, upgradeComplete.wav
+      // to its owner.
+      case 'upgrade': {
+        const workshop = world.entities.get(event.data.workshop);
+        sounds.play('upgradedone',
+          workshop?.kind === 'building' ? cellMiddle(workshop) : undefined);
+        return sounds.play(mine ? 'upgradecomplete' : undefined);
+      }
       case 'spell':
         return sounds.unit(event.data.spell, 'active');
       case 'cast':

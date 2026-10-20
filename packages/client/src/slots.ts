@@ -46,6 +46,12 @@ export const SLOT_COUNTS: Readonly<Record<string, number>> = {
   bridge: 59,
   bridgeconnector: 4, // the ground a bridge lands on, by where the island lies: N, E, S, W
   fringe: 83,
+  sunfactory: 16, // the Workshops: Levels I to IV, see WORKSHOP_GROUP in animations.ts
+  windfactory: 4,
+  rainfactory: 12,
+  thunderfactory: 4,
+  sunfence: 9, // the post of a Sun Barricade, looping
+  rainfence: 3, // the post of an Acid Barricade, spinning while it is joined
   residence: 24, // six frames, lit and unlit, for each of Sun, Thunder, Wind and Rain
 };
 /** The frame lines of each .type file that names shadows: the shadow of slot n is slot n plus

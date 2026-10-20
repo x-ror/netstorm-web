@@ -31,7 +31,7 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 31;
+export const SNAPSHOT_VERSION = 32;
 export const RULES_VERSION = 63;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
@@ -200,6 +200,7 @@ function parseEntity(raw: unknown): Entity {
       'facing',
       'target',
       'cooldown',
+      'barrel',
       'killer',
       'islet',
       'regrow',
@@ -207,6 +208,7 @@ function parseEntity(raw: unknown): Entity {
       'builder',
       'slots',
       'upgrades',
+      'upgrading',
     ], 'building');
     return {
       id,
@@ -222,6 +224,7 @@ function parseEntity(raw: unknown): Entity {
       facing: choice(value.facing, FACINGS, 'building.facing'),
       target: nullableId(value.target, 'building.target'),
       cooldown: integer(value.cooldown, 'building.cooldown'),
+      barrel: integer(value.barrel, 'building.barrel', -1),
       killer: integer(value.killer, 'building.killer', 0, MAX_PLAYERS),
       islet: boolean(value.islet, 'building.islet'),
       regrow: integer(value.regrow, 'building.regrow', 0),
@@ -231,6 +234,7 @@ function parseEntity(raw: unknown): Entity {
       invisible,
       slots: list(value.slots, 'building.slots').map((slot) => text(slot, 'building.slot')),
       upgrades: integer(value.upgrades, 'building.upgrades', 0, MAX_UPGRADES),
+      upgrading: integer(value.upgrading, 'building.upgrading', 0),
     };
   }
 
@@ -356,7 +360,8 @@ function parseEntity(raw: unknown): Entity {
 
 function parseShot(raw: unknown): Shot {
   const value = record(raw, 'shot');
-  keys(value, ['gun', 'target', 'x', 'y', 'amount', 'land'], 'shot');
+  keys(value, ['gun', 'target', 'x', 'y', 'amount', 'leave', 'land', 'blocked', 'ricochet'],
+    'shot');
   const gun = parseEntity(value.gun);
 
   if (gun.kind !== 'building') {
@@ -369,7 +374,10 @@ function parseShot(raw: unknown): Shot {
     x: integer(value.x, 'shot.x', 0, W - 1),
     y: integer(value.y, 'shot.y', 0, H - 1),
     amount: finite(value.amount, 'shot.amount'),
+    leave: integer(value.leave, 'shot.leave'),
     land: integer(value.land, 'shot.land'),
+    blocked: boolean(value.blocked, 'shot.blocked'),
+    ricochet: boolean(value.ricochet, 'shot.ricochet'),
   };
 }
 

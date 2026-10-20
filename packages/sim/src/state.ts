@@ -44,6 +44,8 @@ export const WORKSHOP_SLOTS = 2;
 /** "You get one additional slot each time you Upgrade a Workshop"; "you may only Upgrade each
  * Workshop three times" (help 1525, 1542). */
 export const MAX_UPGRADES = 3;
+/** An Upgrade of a Workshop is done this long after it is paid for (Factory.cpp: `now + 15`). */
+export const UPGRADE_SECONDS = 15;
 /** Share of a unit's cost paid for destroying an enemy unit and, at full health, for salvaging your own. */
 export const REFUND_SHARE = 0.25;
 // Radius, in cells, of the circle a Temple or Generator spreads its Energy over. Measured in the
@@ -425,6 +427,9 @@ export interface Building {
   facing: Facing;
   target: number | null; // entity this shooter is locked on
   cooldown: number; // ticks until the next shot
+  /** The slot of a Sun Cannon's barrel or of a Disc Thrower's arm, which its turns and spins start
+   * from; -1 as it was built. Unused by the other buildings. */
+  barrel: number;
   /** Player whose damage brought the building down, 0 until then; its explosion is his too. */
   killer: number;
   /** Laid off a bridge, it stands on an islet of its own, which falls with it. */
@@ -444,6 +449,8 @@ export interface Building {
   slots: string[];
   /** Times a Workshop has been Upgraded, each adding a slot; 0 for every other building. */
   upgrades: number;
+  /** Ticks until the Upgrade under way is done; 0 when none is. */
+  upgrading: number;
 }
 export interface Transport {
   id: number;
@@ -555,12 +562,20 @@ export interface Shot {
   /** The gun as it stood when it fired: the missile lands even if the gun is destroyed meanwhile. */
   gun: Building;
   target: number;
-  /** The cell the target stood on when the gun fired: the missile flies there, not after it. */
+  /** The cell the missile flies to: where the target stood when the gun fired, or where a hostile
+   * force field crosses its way. */
   x: number;
   y: number;
   amount: number;
+  /** Tick the missile leaves the gun on: later than the shot for a Thunder Cannon, which charges
+   * first, and a Disc Thrower, whose arm spins first. */
+  leave: number;
   /** Tick the missile lands on. */
   land: number;
+  /** Spent on a hostile Sun Barricade's field. */
+  blocked: boolean;
+  /** A ricochet of an Ice Cannon's shell, which strikes whoever it falls on. */
+  ricochet: boolean;
 }
 /** What has hit points and an owner, and what Spells work on. */
 export type Living = Building | Transport | Priest | Flyer;

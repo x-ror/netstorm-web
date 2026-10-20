@@ -59,6 +59,12 @@ SLOTS = {
     "bridge": 59,  # a frame for every way a cell of bridge joins, whole, cracked and hard
     "bridgeconnector": 4,  # the ground a bridge lands on, by where the island lies: N, E, S, W
     "fringe": 83,  # the rock that hangs under the southern rim of an island
+    "sunfactory": 16,  # the Workshops: Levels I to IV, a group of frames each
+    "windfactory": 4,
+    "rainfactory": 12,
+    "thunderfactory": 4,
+    "sunfence": 9,  # the post of a Sun Barricade, looping
+    "rainfence": 3,  # the post of an Acid Barricade, spinning while it is joined
     "residence": 24,  # six frames, lit and unlit, for each of Sun, Thunder, Wind and Rain
 }
 

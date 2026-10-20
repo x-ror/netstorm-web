@@ -24,14 +24,24 @@ import {
   type Transport,
   UNIT_REFRESH,
   MAX_UPGRADES,
+  UPGRADE_SECONDS,
   upgradeCost,
   WORKSHOP_SLOTS,
 } from '../src/index.js';
+import { SUN_CANNON_RAISED } from '../src/rules/guns.js';
 import { equipWorkshops } from './workshops.js';
 
 const defs = loadDefs(
   JSON.parse(readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8')),
 );
+
+/** A Sun Cannon with its barrel already raised to its facing, as the tests before its turning
+ * expect: it fires at once. */
+function aimed<T extends { type: string; facing: number; barrel: number; }>(b: T): T {
+  b.barrel = SUN_CANNON_RAISED[b.facing]!;
+  return b;
+}
+
 const players = [
   { id: 1, name: 'Blue', theme: 'wind' as const, x: 40, y: 40 },
   { id: 2, name: 'Red', theme: 'rain' as const, x: 120, y: 40 },
@@ -149,7 +159,7 @@ test('transport loops between geyser and temple, moving stock into storm power',
 
 test('cannon destroys an enemy transport in its line of fire; blocker shields it', () => {
   const w = mk();
-  w.spawnBuilding('suncannon', 1, 48, 39, 1); // facing east, muzzle at x=51
+  aimed(w.spawnBuilding('suncannon', 1, 48, 39, 1)); // facing east, muzzle at x=51
   const victim = w.spawnTransport('sunwalker', 2, 60, 40); // hp 50, in line (row 40 = centre of the 3×3 footprint)
 
   for (let i = 0; i < 4 * TPS; i++) {
@@ -360,7 +370,7 @@ test('Unit Rate, Kill Reward and Money per Geyser follow the battle options', ()
   assert.equal(w.players.get(1)!.refresh[0]!.ticks, 15 * TPS);
   // Kill Reward: one and a half times the cost of what was destroyed.
   w.addIsland(190, 190, 40, 12, 2);
-  w.spawnBuilding('suncannon', 1, 192, 194, 1);
+  aimed(w.spawnBuilding('suncannon', 1, 192, 194, 1));
   const victim = w.spawnBuilding('sunarcher', 2, 205, 194);
   victim.hp = 1;
   const before = w.players.get(1)!.storm;
@@ -636,7 +646,7 @@ test('walkers pass along the edge of a building that stands flush at a bridge la
   // 3×3 footprint takes that landing cell on its east edge.
   p.hand = [{ piece: 1, age: 0 }];
   assert.equal(w.apply({ t: 'dropPiece', player: 1, hand: 0, x: 51, y: 40, rot: 1 }), null);
-  w.spawnBuilding('suncannon', 1, 48, 39);
+  aimed(w.spawnBuilding('suncannon', 1, 48, 39));
   assert.equal(w.walkable(1, 50, 40), true); // the edge
   assert.equal(w.walkable(1, 49, 40), false); // the middle
 
@@ -683,7 +693,7 @@ test('a piece hardens in the window; explosions and salvage crack solid bridge a
   assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [2, 2, 3, 3]);
   // A cannon off the bridge, touching one solid cell (52) and two cracked cells (53, 54).
   // Put there directly: beside a bridge is not a place a player could build on.
-  const cannon = w.spawnBuilding('suncannon', 1, 52, 41);
+  const cannon = aimed(w.spawnBuilding('suncannon', 1, 52, 41));
   const rider = w.spawnTransport('sunwalker', 1, 53, 40);
   const stander = w.spawnTransport('sunwalker', 1, 52, 40);
   const revision = w.terrainRevision;
@@ -733,7 +743,7 @@ test('a piece turns normal in the window, never hard; hard bridge survives an ex
   assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [4, 4, 2, 2]);
   // A cannon touching one hard cell (52) and two normal cells (53, 54).
   // Put there directly: beside a bridge is not a place a player could build on.
-  const cannon = w.spawnBuilding('suncannon', 1, 52, 41);
+  const cannon = aimed(w.spawnBuilding('suncannon', 1, 52, 41));
   assert.equal(w.apply({ t: 'salvage', player: 1, target: cannon.id }), null);
   assert.deepEqual([at(51, 40), at(52, 40), at(53, 40), at(54, 40)], [4, 4, 3, 3]);
   // Hard bridge is still bridge: it carries the connection to the Temple.
@@ -816,7 +826,7 @@ test('the Priest heals a sixth of his hit points every eight seconds and needs a
   toBeat();
   assert.equal(priest.hp, 100);
   // Damage cannot take him below one hit point: a cannon blowing up beside him deals 301.
-  const cannon = w.spawnBuilding('suncannon', 2, priest.x + 1, priest.y - 1);
+  const cannon = aimed(w.spawnBuilding('suncannon', 2, priest.x + 1, priest.y - 1));
   cannon.hp = 0;
   w.step();
   assert.equal(priest.hp, 1);
@@ -883,9 +893,20 @@ test('a Workshop makes what is in its Production Slots, two and one more for eac
   assert.equal(produce(sun.id, 'sunarcher'), null);
   assert.equal(produce(sun.id, 'sunfence'), 'no free slot');
 
-  // An Upgrade adds one, three times at most.
+  // An Upgrade adds one, three times at most. It is done 15 s after it is paid for, one at a time,
+  // and leaves the Workshop whole.
   for (let i = 0; i < MAX_UPGRADES; i++) {
     assert.equal(w.apply({ t: 'upgradeWorkshop', player: 1, workshop: sun.id }), null);
+    assert.equal(w.apply({ t: 'upgradeWorkshop', player: 1, workshop: sun.id }), 'not ready');
+    sun.hp = 1;
+
+    for (let t = 1; t < UPGRADE_SECONDS * TPS; t++) {
+      w.step();
+    }
+
+    assert.equal(sun.upgrades, i);
+    w.step();
+    assert.deepEqual([sun.upgrades, sun.hp], [i + 1, sun.hpMax]);
   }
 
   // An Upgrade costs what the Workshop does: 600 for the Sun's.

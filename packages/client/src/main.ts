@@ -6,6 +6,7 @@ import { hotFeet, type Maps, type Mission } from './game-data.js';
 import { showMenu } from './menu.js';
 import { createSounds, type SoundIndex } from './sound.js';
 import { runMatch } from './match.js';
+import { burners } from './burning.js';
 import { m } from './paraglide/messages.js';
 
 async function main() {
@@ -20,6 +21,7 @@ async function main() {
   const data = {
     defs: loadDefs(unitsRaw),
     hotFeet: hotFeet(unitsRaw),
+    burning: burners(unitsRaw),
     maps,
     missions,
     textures: await loadTextures(manifest),
