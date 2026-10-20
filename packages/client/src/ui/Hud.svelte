@@ -110,6 +110,8 @@
     switch (action.kind) {
       case 'cast':
         return actions.castSelected();
+      case 'pray':
+        return actions.pray(action.spell);
       case 'build':
         return actions.setTool({ kind: 'build', type: action.type });
       case 'drop':

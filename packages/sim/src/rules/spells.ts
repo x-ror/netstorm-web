@@ -5,7 +5,16 @@
 import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
 import { flies } from '../defs.js';
-import { TPS, Terrain, W, WEAR_CRACKED, isBridge, type Living, type Transport } from '../state.js';
+import {
+  TPS,
+  Terrain,
+  W,
+  WEAR_CRACKED,
+  isBridge,
+  type Living,
+  type Priest,
+  type Transport,
+} from '../state.js';
 import { damage } from './combat.js';
 import { collapse } from './bridges.js';
 import { dropCargo } from './movement.js';
@@ -17,7 +26,9 @@ const VAST: ReadonlySet<string> = new Set(['Energy', 'Production']);
 /** With Altars, the buildings that are not "emplacements": several Spells pass them by. */
 const NOT_EMPLACED: ReadonlySet<string> = new Set(['Energy', 'Production', 'Altar']);
 
-type Spell = (world: World, t: Transport, range: number) => void;
+/** A transport, or a Priest with the Spell his prayer gave him. */
+type Caster = Transport | Priest;
+type Spell = (world: World, t: Caster, range: number) => void;
 
 function near(a: { x: number; y: number; }, b: { x: number; y: number; }): boolean {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y) <= 1;
@@ -25,14 +36,14 @@ function near(a: { x: number; y: number; }, b: { x: number; y: number; }): boole
 
 /** Squared distance from the caster to the nearest cell of a footprint. Whether the original
  * measures a circle or a square is not established (`?`); the range it draws is a circle. */
-function gap(t: Transport, x: number, y: number, fx = 1, fy = 1): number {
+function gap(t: Caster, x: number, y: number, fx = 1, fy = 1): number {
   const dx = Math.max(x - t.x, 0, t.x - (x + fx - 1));
   const dy = Math.max(y - t.y, 0, t.y - (y + fy - 1));
   return dx * dx + dy * dy;
 }
 
 /** "Spells do not affect the caster": everything else in range that is alive and on the map. */
-function around(world: World, t: Transport, range: number): Living[] {
+function around(world: World, t: Caster, range: number): Living[] {
   const found: Living[] = [];
 
   for (const e of world.entities.values()) {
@@ -52,7 +63,7 @@ function around(world: World, t: Transport, range: number): Living[] {
 }
 
 /** Bridge cells in range, each with its squared distance from the caster. */
-function bridges(world: World, t: Transport, range: number, f: (i: number, far: number) => void) {
+function bridges(world: World, t: Caster, range: number, f: (i: number, far: number) => void) {
   for (let y = t.y - range; y <= t.y + range; y++) {
     for (let x = t.x - range; x <= t.x + range; x++) {
       const far = gap(t, x, y);
@@ -76,7 +87,7 @@ function emplacedOrMoving(world: World, e: Living): boolean {
 }
 
 /** Damage of a Spell. It has no allies; the reward is paid for enemy units only. */
-function hurt(world: World, t: Transport, e: Living, amount: number): void {
+function hurt(world: World, t: Caster, e: Living, amount: number): void {
   damage(world, world.hostile(t.owner, e.owner) ? t.owner : 0, e, amount);
 }
 
@@ -201,7 +212,7 @@ const treason: Spell = (world, t, range) => {
 };
 
 /** What lightning and falling rock strike: buildings and whatever walks. */
-function struck(world: World, t: Transport, range: number): Living[] {
+function struck(world: World, t: Caster, range: number): Living[] {
   return around(world, t, range).filter((e) => !airborne(world, e));
 }
 
@@ -215,7 +226,7 @@ const thunderstorm: Spell = (world, t, range) => {
 /** A run of `tries` chances out of `odds[1]`, each a hit of `low` to `high`, until it is dead. */
 function pelt(
   world: World,
-  t: Transport,
+  t: Caster,
   range: number,
   tries: number,
   odds: readonly [number, number],
@@ -251,6 +262,8 @@ const SPELLS: Readonly<Record<string, Spell>> = {
   bombexplodesmall: blast,
   bombexplodemedium: blast,
   bombexplodelarge: blast,
+  // The Devastation a Priest prays for: bombspecialone.type is Devastation's range at 100.
+  bombspecialone: blast,
   bombgraviton: graviton,
   bombhardener: harden,
   bombheal: heal,
@@ -287,8 +300,8 @@ export function spellbound(e: Living): boolean {
   return false;
 }
 
-/** One tick of a transport that is casting; the Spell goes off when the time is up. */
-export function cast(world: World, t: Transport): void {
+/** One tick of a caster that is casting; the Spell goes off when the time is up. */
+export function cast(world: World, t: Caster): void {
   t.casting--;
 
   if (t.casting === 0 && t.spell) {
@@ -347,7 +360,12 @@ export function castSpell(
   world: World,
   c: Extract<Command, { t: 'castSpell'; }>,
 ): CommandError | null {
-  const t = ownTransport(world, c.player, c.transport);
+  const caster = world.entities.get(c.transport);
+  const priest = caster?.kind === 'priest' && caster.owner === c.player && caster.state === 'normal'
+      && caster.praying === 0
+    ? caster
+    : null;
+  const t = ownTransport(world, c.player, c.transport) ?? priest;
 
   if (!t?.spell) {
     return 'bad target';
@@ -367,4 +385,65 @@ export function castSpell(
   player.storm -= def.cost;
   t.casting = Math.max(1, Math.round(def.castTime * TPS));
   return null;
+}
+
+/**
+ * "Priests are also able to 'Pray' in order to acquire the Devastation Spell" (help 1015). From the
+ * Priest's menu in netstorm.game: he stands on his feet and holds nothing; he prays `praytime`
+ * seconds (the unit of the original's counter is `?`), then holds the Spell as cargo and casts it
+ * like a transport. The original offers it in multiplayer only: here to a side whose Knowledge
+ * has the Spell, which a skirmish gives.
+ */
+export function pray(world: World, c: Extract<Command, { t: 'pray'; }>): CommandError | null {
+  const p = world.priestOf(c.player);
+  const def = world.defs.get(c.spell);
+
+  if (!def || !isSpell(def.id) || def.prayTime <= 0) {
+    return 'unknown unit';
+  }
+
+  if (!world.players.get(c.player)!.tech.has(def.id)) {
+    return 'unknown tech';
+  }
+
+  if (
+    !p || p.state !== 'normal' || p.carrying !== null || p.spell !== null
+    || world.terrain[world.at(p.x, p.y)] === Terrain.Sky
+  ) {
+    return 'priest unavailable';
+  }
+
+  p.path = [];
+  p.goal = 'idle';
+  p.target = null;
+  p.spell = def.id;
+  p.praying = Math.max(1, Math.round(def.prayTime * TPS));
+  return null;
+}
+
+/** A tick of a Priest who prays or casts; true while it keeps him standing. An order to walk
+ * breaks a prayer off. */
+export function tickPrayer(world: World, p: Priest): boolean {
+  if (p.casting > 0) {
+    cast(world, p);
+    return true;
+  }
+
+  if (p.praying === 0) {
+    return false;
+  }
+
+  if (p.path.length > 0) {
+    p.praying = 0;
+    p.spell = null;
+    return false;
+  }
+
+  p.praying--;
+
+  if (p.praying === 0) {
+    world.emit({ what: 'spell', who: p.owner, data: { transport: p.id, spell: p.spell! } });
+  }
+
+  return true;
 }

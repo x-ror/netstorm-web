@@ -31,8 +31,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 30;
-export const RULES_VERSION = 61;
+export const SNAPSHOT_VERSION = 31;
+export const RULES_VERSION = 62;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -58,6 +58,8 @@ export interface WorldSnapshot {
   defs: UnitDef[];
   entities: Entity[];
   shots: Shot[];
+  /** Top-left cells of the Residences, which nothing can harm or move. */
+  residences: [number, number][];
   players: SnapshotPlayer[];
 }
 
@@ -83,6 +85,7 @@ function parseDef(raw: unknown): UnitDef {
     'airDamage',
     'createsIsland',
     'castTime',
+    'prayTime',
     'effectTime',
     'spawns',
   ], 'definition');
@@ -114,6 +117,7 @@ function parseDef(raw: unknown): UnitDef {
     airDamage: finite(value.airDamage, 'definition.airDamage'),
     createsIsland: boolean(value.createsIsland, 'definition.createsIsland'),
     castTime: finite(value.castTime, 'definition.castTime'),
+    prayTime: finite(value.prayTime, 'definition.prayTime'),
     effectTime: finite(value.effectTime, 'definition.effectTime'),
     spawns: integer(value.spawns, 'definition.spawns'),
   };
@@ -320,6 +324,9 @@ function parseEntity(raw: unknown): Entity {
     'carrying',
     'goal',
     'target',
+    'spell',
+    'praying',
+    'casting',
   ], 'priest');
   return {
     id,
@@ -339,6 +346,9 @@ function parseEntity(raw: unknown): Entity {
     carrying: nullableId(value.carrying, 'priest.carrying'),
     goal: choice(value.goal, ['idle', 'collect', 'pickup', 'home', 'build'], 'priest.goal'),
     target: nullableId(value.target, 'priest.target'),
+    spell: value.spell === null ? null : text(value.spell, 'priest.spell'),
+    praying: integer(value.praying, 'priest.praying'),
+    casting: integer(value.casting, 'priest.casting'),
     paralyzed,
     invisible,
   };
@@ -361,6 +371,16 @@ function parseShot(raw: unknown): Shot {
     amount: finite(value.amount, 'shot.amount'),
     land: integer(value.land, 'shot.land'),
   };
+}
+
+function parseResidence(raw: unknown): [number, number] {
+  const [x, y, ...rest] = list(raw, 'residence');
+
+  if (rest.length > 0) {
+    throw new TypeError('residence must be [x, y]');
+  }
+
+  return [integer(x, 'residence.x', 0, W - 1), integer(y, 'residence.y', 0, H - 1)];
 }
 
 function parsePlayer(raw: unknown): SnapshotPlayer {
@@ -461,6 +481,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     'defs',
     'entities',
     'shots',
+    'residences',
     'players',
   ], 'snapshot');
 
@@ -471,6 +492,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
   const defs = list(value.defs, 'snapshot.defs').map(parseDef);
   const entities = list(value.entities, 'snapshot.entities').map(parseEntity);
   const shots = list(value.shots, 'snapshot.shots').map(parseShot);
+  const residences = list(value.residences, 'snapshot.residences').map(parseResidence);
   const players = list(value.players, 'snapshot.players').map(parsePlayer);
   unique(defs, (def) => def.id, 'definition');
   unique(entities, (entity) => entity.id, 'entity');
@@ -502,6 +524,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     defs,
     entities,
     shots,
+    residences,
     players,
   };
 }

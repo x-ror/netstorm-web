@@ -44,7 +44,7 @@ import {
 import { tickTransport, collect, pickupCrystal, unload } from './rules/movement.js';
 import { tickPriest, movePriest } from './rules/priest.js';
 import { capturePriest } from './rules/capture.js';
-import { castSpell, spellbound, takeSpell } from './rules/spells.js';
+import { castSpell, pray, spellbound, takeSpell } from './rules/spells.js';
 import { Pathfinder, airPath } from './spatial/pathfinding.js';
 import { CellIndex } from './cell-index.js';
 import { Rng } from './rng.js';
@@ -83,6 +83,7 @@ import { assertWorldInvariants } from './invariants.js';
 export * from './state.js';
 
 export const GEYSER_ISLAND_SIZE = 3; // neutral island a geyser sits on
+export const RESIDENCE_FOOT = 4; // foot_x and foot_y of residence.type
 export * from './commands.js';
 export * from './events.js';
 
@@ -108,6 +109,10 @@ export class World {
   readonly blasted = new Set<number>();
   /** Missiles on their way, in the order they were fired. */
   readonly shots: Shot[] = [];
+  /** Top-left cells of the Residences: "You cannot move or destroy a residence. And you can't
+   * build on top of it." They are no entity, so nothing targets them, and they are walked over
+   * (residence.type is `dropBlocking`, not `blocking`). */
+  readonly residences: [number, number][] = [];
   /** Every Priest made, for `priestAt`; one gone from `entities` is skipped. */
   private readonly priests: Priest[] = [];
   readonly events: Event[] = [];
@@ -163,6 +168,7 @@ export class World {
     }
 
     world.shots.push(...snapshot.shots);
+    world.residences.push(...snapshot.residences);
 
     for (const player of snapshot.players) {
       world.players.set(player.id, { ...player, tech: new Set(player.tech) });
@@ -188,6 +194,7 @@ export class World {
       defs: [...this.defs.values()],
       entities: [...this.entities.values()],
       shots: this.shots,
+      residences: this.residences,
       players: [...this.players.values()].map((player) => ({ ...player, tech: [...player.tech] })),
     };
   }
@@ -221,6 +228,7 @@ export class World {
       defs: [...this.defs.values()],
       entities: [...this.entities.values()],
       shots: this.shots,
+      residences: this.residences,
       players: [...this.players.values()].map((player) => ({ ...player, tech: [...player.tech] })),
     });
   }
@@ -312,6 +320,9 @@ export class World {
       carrying: null,
       goal: 'idle',
       target: null,
+      spell: null,
+      praying: 0,
+      casting: 0,
       paralyzed: 0,
       invisible: 0,
     };
@@ -469,6 +480,13 @@ export class World {
     return (occ !== undefined && occ.kind !== 'building') || this.priestAt(x, y) !== undefined;
   }
 
+  /** Whether (x, y) lies under a Residence, where nothing can be built. */
+  residenceAt(x: number, y: number): boolean {
+    return this.residences.some(([rx, ry]) =>
+      x >= rx && x < rx + RESIDENCE_FOOT && y >= ry && y < ry + RESIDENCE_FOOT
+    );
+  }
+
   private forFoot(b: Building, f: (i: number) => void): void {
     for (let y = b.y; y < b.y + b.fy; y++) {
       for (let x = b.x; x < b.x + b.fx; x++) {
@@ -623,6 +641,8 @@ export class World {
         return takeSpell(this, c);
       case 'castSpell':
         return castSpell(this, c);
+      case 'pray':
+        return pray(this, c);
       case 'dropCargo':
         return unload(this, c);
       case 'produce':
@@ -688,7 +708,7 @@ export class World {
 
   /** Internal rule hook: a flyer goes up over the middle of what sent it, an air base or the
    * transport whose Spell summoned it. Only a base is a home to go back to. */
-  spawnFlyer(type: string, owner: number, from: Building | Transport): Flyer {
+  spawnFlyer(type: string, owner: number, from: Building | Transport | Priest): Flyer {
     const def = this.def(type);
     const [fx, fy] = from.kind === 'building' ? [from.fx, from.fy] : [1, 1];
     const px = from.x * FLYER_SCALE + (fx * FLYER_SCALE) / 2;

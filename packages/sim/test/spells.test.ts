@@ -200,3 +200,31 @@ test('a map sets up its Obelisks, and a snapshot keeps the Spell of a transport'
   const copy = World.fromSnapshot(JSON.parse(JSON.stringify(world.snapshot())));
   assert.equal(copy.hash(), world.hash());
 });
+
+test('a Priest prays for Devastation, then casts it for 100; walking breaks the prayer off', () => {
+  const world = mk(150);
+  const priest = world.addPriest(1, 50, 50);
+  const pray = () => world.apply({ t: 'pray', player: 1, spell: 'bombspecialone' });
+  const cast = () => world.apply({ t: 'castSpell', player: 1, transport: priest.id });
+  // "(Multiplayer Only)": a side is offered it by its Knowledge, which a skirmish gives.
+  assert.equal(pray(), 'unknown tech');
+  world.players.get(1)!.tech.add('bombspecialone');
+  assert.equal(world.apply({ t: 'pray', player: 1, spell: 'bombexplodemedium' }), 'unknown tech');
+  assert.equal(pray(), null);
+  assert.equal(cast(), 'bad target'); // not his until the prayer is over
+  world.apply({ t: 'movePriest', player: 1, x: 52, y: 50 });
+  run(world, 1);
+  assert.deepEqual([priest.spell, priest.praying], [null, 0]);
+
+  run(world, 3 * TPS);
+  assert.equal(pray(), null);
+  run(world, 40 * TPS); // praytime of bombspecialone.type
+  assert.equal(priest.spell, 'bombspecialone');
+  assert.equal(pray(), 'priest unavailable');
+  const foe = world.spawnBuilding('sunblocker', 2, priest.x + 2, priest.y);
+  assert.equal(cast(), null);
+  assert.equal(world.players.get(1)!.storm, 50);
+  run(world, CAST);
+  assert.ok(foe.hp <= 0);
+  assert.equal(world.players.get(1)!.storm, 150); // a quarter of the tower's 400 paid back
+});

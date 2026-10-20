@@ -954,7 +954,7 @@ test('a mission is built from its map: islands, bridges, and the units of every 
       ['priest', 2, 150, 40, 0],
       ['thundercannon', 2, 200, 200, 18], // out in the sky, on an islet of its own
       ['sunwalker', 2, 150, 50, 0],
-      ['residence', 0, 45, 45, 0], // scenery is left out
+      ['residence', 0, 45, 45, 0], // nobody's, saved by its far corner like a building
     ],
   };
   const w = createMission(defs, 1, map, (id) =>
@@ -984,6 +984,11 @@ test('a mission is built from its map: islands, bridges, and the units of every 
   assert.equal([...w.entities.values()].filter((e) => e.kind === 'geyser').length, 1);
   // A bridge the map lays to a geyser has attached it: the islet is its owner's.
   assert.ok(w.isOwnGround(1, 99, 99) && w.isOwnGround(1, 101, 101));
+  // "You cannot move or destroy a residence. And you can't build on top of it." It is walked over.
+  assert.deepEqual(w.residences, [[42, 42]]);
+  assert.equal(w.canBuild({ player: 1, type: 'sunwalker', x: 44, y: 44 }), 'blocked');
+  assert.ok(w.walkable(1, 43, 43));
+  assert.deepEqual(World.fromSnapshot(w.snapshot()).residences, [[42, 42]]);
 
   for (let i = 0; i < 5 * TPS; i++) {
     w.step();

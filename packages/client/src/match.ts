@@ -257,6 +257,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     upgradeSelected: () => controls.upgradeSelected(),
     meltdownSelected: () => controls.meltdownSelected(),
     castSelected: () => controls.castSelected(),
+    pray: (spell) => void commands.push({ t: 'pray', player: ui.viewer, spell }),
     dropSelected: () => controls.dropSelected(),
     view: lookThrough,
     copyAiLog: () => void copyAiLog(),

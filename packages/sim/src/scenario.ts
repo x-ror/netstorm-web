@@ -13,6 +13,7 @@ import {
   KILL_REWARDS,
   UNIT_RATES,
   type BridgeSet,
+  DEVASTATION,
   OUTPOST,
 } from './state.js';
 
@@ -101,7 +102,7 @@ export function createSkirmish(
 
   for (const p of players) {
     w.addPlayer(p.id, p.name, p.theme, p.storm ?? DEFAULT_STORM,
-      p.tech ?? [...skirmishTech(defs, p.theme), OUTPOST]);
+      p.tech ?? [...skirmishTech(defs, p.theme), OUTPOST, DEVASTATION]);
 
     // oxlint-disable no-magic-numbers -- starting base layout, offsets from the player origin
     w.addIsland(p.x - 10, p.y - 8, 21, 17, p.id);

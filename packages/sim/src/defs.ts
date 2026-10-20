@@ -65,6 +65,7 @@ export interface UnitDef {
    * Temples, Workshops and Altars may not: they need the ground of an island. */
   createsIsland: boolean;
   castTime: number; // s a transport stands still casting this Spell
+  prayTime: number; // s a Priest prays before he is given this Spell (`praytime`)
   effectTime: number; // s the Spell's effect lasts (Invisibility, Paralysis)
   spawns: number; // flyers a Summons Spell calls up
 }
@@ -134,6 +135,7 @@ export function loadDefs(raw: unknown): DefTable {
       createsIsland: Array.isArray(r.flags)
         && r.flags.some((flag) => String(flag).toLowerCase() === 'createsisland'),
       castTime: num(r.casttime),
+      prayTime: num(r.praytime),
       effectTime: num(r.effecttime),
       spawns: num(r.spawns),
     });

@@ -18,6 +18,7 @@ import {
   type Building,
   stepShare,
   BUILD_SECONDS,
+  RESIDENCE_FOOT,
 } from '@netstorm/sim';
 import {
   FACING_FRAMES,
@@ -51,6 +52,9 @@ import {
 import { StreamBatch } from './stream-batch.js';
 
 const SPRITE_ANCHOR_X = 0.5;
+/** The frame groups of residence.type: six frames for each of Sun, Thunder, Wind and Rain. */
+const RESIDENCE_FURIES = ['sun', 'thunder', 'wind', 'rain'] as const;
+const RESIDENCE_FRAMES = 6;
 const UNIT_ANCHOR_Y = 0.85; // a unit's feet sit a little above the bottom of its frame
 const STRENGTHS: Readonly<Record<number, 'whole' | 'cracked' | 'hard'>> = {
   [Terrain.HardBridge]: 'hard',
@@ -302,6 +306,20 @@ export function createWorldRenderer(
       tiles.push(landing);
     }
 
+    for (const [x, y] of world.residences) {
+      const texture = textures.get(`slot:residence:${residenceSlot(x, y)}`);
+      const spot = texture && hotSpots.get(texture);
+
+      if (texture && spot) {
+        const house = new Sprite(texture);
+        house.anchor.set(spot.x, spot.y);
+        const { sx, sy } = project(x + RESIDENCE_FOOT, y + RESIDENCE_FOOT);
+        house.position.set(sx, sy);
+        ground.addChild(house);
+        tiles.push(house);
+      }
+    }
+
     // The rock hangs behind the ground: under every tile.
     for (const rock of hanging) {
       ground.addChildAt(rock, 0);
@@ -365,6 +383,14 @@ export function createWorldRenderer(
     }
 
     return found;
+  }
+
+  /** A Residence takes the alignment of the Temple of its island (help: "As a Temple is built,
+   * the alignment of that Temple grows into the Residence"); its six frames, lit and unlit,
+   * are scattered by place. */
+  function residenceSlot(x: number, y: number): number {
+    const theme = world.players.get(world.owner[y * W + x]!)?.theme ?? 'sun';
+    return RESIDENCE_FURIES.indexOf(theme) * RESIDENCE_FRAMES + (x + y) % RESIDENCE_FRAMES;
   }
 
   function groundSet(owner: number): string {

@@ -221,7 +221,7 @@ function workshopsFor(world: WorldView, player: number, def: UnitDef) {
  * units", DevLog); that they take no slot is our reading (`?`). */
 export function takesSlot(def: UnitDef): boolean {
   return def.level > 0 && def.id !== GOLEM && !PRIEST_BUILT.has(def.cls)
-    && def.group !== 'battery';
+    && def.group !== 'battery' && BUILDABLE.has(def.cls);
 }
 
 /** Where the Storm Power Stream of a unit comes from: the nearest of the player's Workshops that
@@ -350,7 +350,10 @@ function transportSiteError(
   x: number,
   y: number,
 ): CommandError | null {
-  if (!world.inside(x, y) || world.occupant[world.at(x, y)] || world.priestAt(x, y)) {
+  if (
+    !world.inside(x, y) || world.occupant[world.at(x, y)] || world.priestAt(x, y)
+    || world.residenceAt(x, y)
+  ) {
     return 'blocked';
   }
 
@@ -423,7 +426,10 @@ function siteError(
 
   for (let y = y0; y < y0 + def.footY; y++) {
     for (let x = x0; x < x0 + def.footX; x++) {
-      if (!world.inside(x, y) || world.occupant[world.at(x, y)] || world.priestAt(x, y)) {
+      if (
+        !world.inside(x, y) || world.occupant[world.at(x, y)] || world.priestAt(x, y)
+        || world.residenceAt(x, y)
+      ) {
         return 'blocked';
       }
 

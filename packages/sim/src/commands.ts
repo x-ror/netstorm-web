@@ -11,7 +11,9 @@ export type Command =
   | { t: 'salvage'; player: number; target: number; }
   | { t: 'meltdown'; player: number; target: number; }
   | { t: 'takeSpell'; player: number; transport: number; obelisk: number; }
+  /** `transport`: the caster, a transport or the player's Priest. */
   | { t: 'castSpell'; player: number; transport: number; }
+  | { t: 'pray'; player: number; spell: string; }
   | { t: 'dropCargo'; player: number; transport: number; }
   | { t: 'produce'; player: number; workshop: number; type: string; }
   | { t: 'upgradeWorkshop'; player: number; workshop: number; };
@@ -59,6 +61,7 @@ export function parseCommand(raw: unknown): Command {
     'meltdown',
     'takeSpell',
     'castSpell',
+    'pray',
     'dropCargo',
     'produce',
     'upgradeWorkshop',
@@ -132,6 +135,9 @@ export function parseCommand(raw: unknown): Command {
     case 'dropCargo':
       keys(value, ['t', 'player', 'transport'], 'command');
       return { t, player, transport: integer(value.transport, 'command.transport', 1, MAX_ID) };
+    case 'pray':
+      keys(value, ['t', 'player', 'spell'], 'command');
+      return { t, player, spell: text(value.spell, 'command.spell') };
     case 'produce':
       keys(value, ['t', 'player', 'workshop', 'type'], 'command');
       return {

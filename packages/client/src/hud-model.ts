@@ -2,6 +2,7 @@ import {
   PIECES,
   rotateLinks,
   MAX_UPGRADES,
+  DEVASTATION,
   OUTPOST,
   PIECE_HARDEN,
   upgradeCost,
@@ -69,6 +70,8 @@ export interface HudActions {
   upgradeSelected(): void;
   meltdownSelected(): void;
   castSelected(): void;
+  /** Have the player's Priest pray for a Spell. */
+  pray(spell: string): void;
   /** A button of the page shown over the map was pressed: its place among the page's buttons. */
   page(button: number): void;
   dropSelected(): void;
@@ -144,6 +147,7 @@ export interface Selected {
 
 export type SelectedAction =
   | { kind: 'cast'; label: string; cost: number; }
+  | { kind: 'pray'; spell: string; label: string; }
   | { kind: 'build'; type: string; label: string; cost: number; }
   | { kind: 'drop'; label: string; }
   | { kind: 'salvage'; label: string; key: string; }
@@ -517,8 +521,38 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
       say(m.runes({ runes: entity.runes, total: RUNES }));
     }
 
+    const spell = entity.spell === null ? undefined : world.defs.get(entity.spell);
+
+    if (spell) {
+      const name = unitName(spell.id, spell.name);
+      say(entity.praying > 0
+        ? m.praying({ name, seconds: Math.ceil(entity.praying / TPS) })
+        : `${m.spell_fact({ name, range: spell.range })}${
+          entity.casting > 0
+            ? ` — ${m.casting({ seconds: Math.ceil(entity.casting / TPS) })}`
+            : ''
+        }`);
+    }
+
     if (entity.owner === me && entity.state === 'normal') {
       say(m.priest_hint(), true);
+      const devastation = world.defs.get(DEVASTATION);
+
+      // "Right-click your Priest and choose 'Pray'": in the original, in multiplayer only.
+      if (spell && entity.praying === 0) {
+        actions.push({
+          kind: 'cast',
+          label: m.action_cast({ name: unitName(spell.id, spell.name) }),
+          cost: spell.cost,
+        });
+      } else if (!spell && devastation && world.players.get(me)?.tech.has(DEVASTATION)) {
+        actions.push({
+          kind: 'pray',
+          spell: devastation.id,
+          label: m.action_pray({ name: unitName(devastation.id, devastation.name) }),
+        });
+      }
+
       // "Use your High Priest to build Temples, Workshops, and Altars."
       const player = world.players.get(me);
       const theme = player?.theme;

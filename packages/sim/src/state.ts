@@ -37,6 +37,8 @@ export const GEYSER_STOCK = 2000; // Storm Power a geyser holds before it is dep
 export const PRIEST_HP = 100;
 /** The unit that takes an island over in multiplayer; see "Outpost" in docs/game-rules.md. */
 export const OUTPOST = 'outpost';
+/** The Devastation a Priest prays for (help 1015); multiplayer only in the original. */
+export const DEVASTATION = 'bombspecialone';
 /** "On a new, Level I Workshop you'll have two Production Slots" (help 1521). */
 export const WORKSHOP_SLOTS = 2;
 /** "You get one additional slot each time you Upgrade a Workshop"; "you may only Upgrade each
@@ -489,6 +491,13 @@ export interface Priest {
   goal: 'idle' | 'collect' | 'pickup' | 'home' | 'build';
   /** Geyser he mines, the crystal he was sent for, or the building he walks to to construct. */
   target: number | null;
+  /** The Spell he prays for or holds: "Priests are also able to 'Pray' in order to acquire the
+   * Devastation Spell" (help 1015). */
+  spell: string | null;
+  /** Ticks of prayer left before `spell` is his; 0 when he is not praying. */
+  praying: number;
+  /** Ticks until the Spell he casts goes off; he stands still meanwhile. 0: not casting. */
+  casting: number;
   /** Ticks of Paralysis left: it neither moves nor shoots meanwhile. */
   paralyzed: number;
   /** Ticks of Invisibility left: nothing can target it or pick it up meanwhile. */

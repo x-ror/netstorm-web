@@ -127,6 +127,8 @@
   "rising": "building: {seconds} s more",
   "spell_fact": "spell: {name}, range {range}",
   "casting": "casting, {seconds} s more",
+  "praying": "praying for {name}, {seconds} s more",
+  "action_pray": "Pray for {name}",
   "transport_hint": "Click a geyser, a crystal, an Obelisk or a downed enemy Priest",
   "runes": "runes: {runes} of {total}",
   "priest_hint": "Click ground to send the Priest there, or a geyser or a crystal",

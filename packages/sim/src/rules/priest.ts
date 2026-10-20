@@ -3,6 +3,7 @@ import type { World } from '../world.js';
 import { TPS, Terrain, type Priest } from '../state.js';
 import { advance, arrive, dropCargo } from './movement.js';
 import { tickRitual } from './capture.js';
+import { tickPrayer } from './spells.js';
 
 const PRIEST_SPEED = 1.8; // cells per second
 // Healing, from Priest.cpp in netstorm.game 10.82: a sixth of the full hit points at a time, at a
@@ -67,6 +68,10 @@ export function tickPriest(world: World, p: Priest): void {
     p.goal = 'idle';
     p.target = null;
     dropCargo(world, p); // a paralysed Priest holds nothing
+    // Nor does he pray or cast: a prayer is lost, a Spell he was given he keeps (`?`).
+    p.spell = p.praying > 0 ? null : p.spell;
+    p.praying = 0;
+    p.casting = 0;
     world.emit({ what: 'priest down', who: p.owner });
     return;
   }
@@ -74,6 +79,10 @@ export function tickPriest(world: World, p: Priest): void {
   // With no ground under him he hangs in place until bridge is laid there again.
   if (world.terrain[world.at(p.x, p.y)] === Terrain.Sky) {
     p.path = [];
+    return;
+  }
+
+  if (tickPrayer(world, p)) {
     return;
   }
 

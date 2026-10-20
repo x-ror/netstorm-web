@@ -1,6 +1,6 @@
 /** Missions built from the original's maps: the islands, bridges and units a .fort file holds
  * (read into data/maps.json by scripts/fort-maps.py). See "Карти місій" in docs/game-rules.md. */
-import { GEYSER_ISLAND_SIZE, World } from './world.js';
+import { GEYSER_ISLAND_SIZE, RESIDENCE_FOOT, World } from './world.js';
 import type { DefTable, Theme, UnitDef } from './defs.js';
 import { growIslands, type IslandSpec } from './terrain.js';
 import { skirmishTech, type SkirmishOptions, applyOptions } from './scenario.js';
@@ -81,6 +81,7 @@ const STATIC: ReadonlySet<string> = new Set([
 ]);
 const MOVING: ReadonlySet<string> = new Set(['Ground Transport', 'Aerial Transport']);
 const PRIEST = 'priest';
+const RESIDENCE = 'residence';
 const THEMES: readonly Theme[] = ['wind', 'rain', 'thunder'];
 
 function templeTheme(defs: DefTable, map: MissionMap, owner: number): Theme | undefined {
@@ -263,6 +264,18 @@ function place(w: World, [type, owner, x, y, frame]: MissionMap['units'][number]
   if (isSpell(type) && w.inside(x, y) && !w.occupant[w.at(x, y)] && !w.priestAt(x, y)) {
     islet(w, x, y, 1, 1, 0);
     w.addObelisk(x, y, type);
+    return;
+  }
+
+  // A Residence belongs to nobody: the alignment of the Temple of its island only shows on it.
+  if (type === RESIDENCE) {
+    const x0 = x - RESIDENCE_FOOT + 1;
+    const y0 = y - RESIDENCE_FOOT + 1;
+
+    if (w.inside(x0, y0) && w.inside(x, y)) {
+      w.residences.push([x0, y0]);
+    }
+
     return;
   }
 

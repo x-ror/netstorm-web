@@ -59,6 +59,7 @@ SLOTS = {
     "bridge": 59,  # a frame for every way a cell of bridge joins, whole, cracked and hard
     "bridgeconnector": 4,  # the ground a bridge lands on, by where the island lies: N, E, S, W
     "fringe": 83,  # the rock that hangs under the southern rim of an island
+    "residence": 24,  # six frames, lit and unlit, for each of Sun, Thunder, Wind and Rain
 }
 
 
