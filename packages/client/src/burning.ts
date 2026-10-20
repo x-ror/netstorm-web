@@ -51,17 +51,23 @@ export function streaksOf(hp: number, max: number): number {
     Math.min(MOST_STREAKS, MOST_STREAKS - Math.floor((hp * 5) / (max - Math.floor(max / 2)))));
 }
 
+const pictures = new WeakMap<
+  Texture,
+  { width: number; height: number; rgba: Uint8ClampedArray; }
+>();
 const masks = new WeakMap<Texture, { width: number; height: number; solid: Uint8Array; }>();
 
-/** Which pixels of a frame are drawn, read once from its atlas. */
-function maskOf(texture: Texture): { width: number; height: number; solid: Uint8Array; } | null {
-  const known = masks.get(texture);
+/** The pixels of a frame, read once from its atlas. */
+export function pixelsOf(
+  texture: Texture,
+): { width: number; height: number; rgba: Uint8ClampedArray; } | null {
+  const known = pictures.get(texture);
 
   if (known) {
     return known;
   }
 
-  const { width, height } = texture.frame;
+  const { x, y, width, height } = texture.frame;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -71,14 +77,27 @@ function maskOf(texture: Texture): { width: number; height: number; solid: Uint8
     return null;
   }
 
-  const { x, y } = texture.frame;
   context.drawImage(texture.source.resource as CanvasImageSource, x, y, width, height, 0, 0, width,
     height);
-  const pixels = context.getImageData(0, 0, width, height).data;
+  const picture = { width, height, rgba: context.getImageData(0, 0, width, height).data };
+  pictures.set(texture, picture);
+  return picture;
+}
+
+/** Which pixels of a frame are drawn. */
+function maskOf(texture: Texture): { width: number; height: number; solid: Uint8Array; } | null {
+  const known = masks.get(texture);
+  const picture = known ? null : pixelsOf(texture);
+
+  if (known || !picture) {
+    return known ?? null;
+  }
+
+  const { width, height, rgba } = picture;
   const solid = new Uint8Array(width * height);
 
   for (let i = 0; i < solid.length; i++) {
-    solid[i] = pixels[i * 4 + 3]! > 0 ? 1 : 0;
+    solid[i] = rgba[i * 4 + 3]! > 0 ? 1 : 0;
   }
 
   const mask = { width, height, solid };

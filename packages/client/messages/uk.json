@@ -196,6 +196,7 @@
   "rejected_target_not_incapacitated": "жрець ще не знерухомлений",
   "event_built": "Збудовано: {name}",
   "event_producing": "У виробництві: {name}",
+  "event_island_attacked": "Ваш острів атакують!",
   "event_upgraded": "Майстерню покращено до рівня {level}",
   "event_lost": "Втрачено: {name}",
   "event_destroyed": "Знищено у ворога: {name}",

@@ -427,9 +427,14 @@ export interface Building {
   facing: Facing;
   target: number | null; // entity this shooter is locked on
   cooldown: number; // ticks until the next shot
-  /** The slot of a Sun Cannon's barrel or of a Disc Thrower's arm, which its turns and spins start
-   * from; -1 as it was built. Unused by the other buildings. */
+  /** The slot of a Sun Cannon's barrel or of a Disc Thrower's arm, or the bearing of a Crossbow,
+   * which its turns and spins start from; -1 as it was built. Unused by the other buildings. */
   barrel: number;
+  /** The tick of the shot before, at the target it has now; -1 for none. A hit of an archer or a
+   * cannon carries its damage rate times the time since then. */
+  lastShot: number;
+  /** An Ice Cannon's burst: ticks of firing left, or -1 while it rests; 0 out of a fight. */
+  burst: number;
   /** Player whose damage brought the building down, 0 until then; its explosion is his too. */
   killer: number;
   /** Laid off a bridge, it stands on an islet of its own, which falls with it. */

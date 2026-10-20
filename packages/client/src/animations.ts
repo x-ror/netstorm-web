@@ -5,7 +5,6 @@
  */
 import {
   ARM_BUILT,
-  ARM_REST,
   BUILD_SECONDS,
   SUN_CANNON_FIRE,
   SUN_CANNON_FLAT,
@@ -15,7 +14,8 @@ import {
   armSlot,
   barriers,
   bearingTo,
-  compassTo,
+  CROSSBOW_BEARINGS,
+  CROSSBOW_PER_FACING,
   discSpin,
   sunCannonTurn,
   RUNE_INTERVAL,
@@ -60,7 +60,7 @@ export interface Gun {
   /** A Sun Cannon's turn: the slots its barrel passes, from the tick it began. */
   turn: { path: number[]; start: number; } | null;
   /** A Disc Thrower's spin: where its arm started, the bearing it throws at, and the length. */
-  spin: { from: number; bearing: number; start: number; end: number; } | null;
+  spin: { from: number; bearing: number; start: number; throw: number; end: number; } | null;
 }
 
 /* oxlint-disable no-magic-numbers -- slot counts and frame groups of the .type files */
@@ -126,47 +126,16 @@ interface Turn {
   step: number;
 }
 
-/**
- * The Crossbow turns through twenty bearings, `orientations = 20` in its type, five frames of a
- * shot to each; a facing is every fifth. The bearings are not evenly spaced: degrees clockwise from
- * north, the table at 0x0060b178 of GunAnim.cpp. It turns one a tenth of a second toward the one
- * nearest its target, and stays where it is when it has none.
- */
-const CROSSBOW = {
-  bearings: [
-    0,
-    21,
-    35,
-    52,
-    71,
-    86,
-    97,
-    115,
-    121,
-    148,
-    180,
-    205,
-    237,
-    256,
-    272,
-    282,
-    291,
-    314,
-    328,
-    345,
-  ],
-  shot: 5,
-  perFacing: 5,
-  /** The frame of a bearing by ticks since a shot. */
-  reload: [4, 3, 2, 2, 1, 1],
-} as const;
-const FULL_TURN = 360;
+/** The Crossbow's five frames to each of its twenty bearings (guns.ts `CROSSBOW_BEARINGS`), and
+ * the frame of a bearing by ticks since a shot. */
+const CROSSBOW = { shot: 5, reload: [4, 3, 2, 2, 1, 1] } as const;
 /** The frames of a sacrifice in the Altar type, after the horns and the struggling captive. */
 export const SACRIFICE = { first: 15, frames: 74 } as const;
 
 /** The Ice Cannon has three frames to a facing, the Thunder Cannon nine: at rest, then eight it
  * charges through, 0.5 s each, the last the one it fires on (GunAnim.cpp). */
 const ICE_CANNON_FRAMES = 3;
+const ICE_CANNON_FRAME = 0.08;
 const THUNDER_CANNON_FRAMES = 9;
 /** The frames of a Sun Barricade's post, and of an Acid Barricade's with the ticks of each. */
 const SUN_POST = 9;
@@ -295,9 +264,10 @@ export function gunOf(
     const target = b.target === null ? undefined : world.entities.get(b.target);
 
     if (b.type === 'sunarcher' && target) {
-      const from = known.barrel < 0 ? ARM_BUILT : ARM_REST;
+      const from = known.barrel < 0 ? ARM_BUILT : known.barrel;
       const bearing = bearingTo(b.x + b.fx / 2, b.y + b.fy / 2, target.x + 1 / 2, target.y + 1 / 2);
-      known.spin = { from, bearing, start: tick, end: discSpin(from, bearing).end * TPS };
+      const spin = discSpin(from, bearing);
+      known.spin = { from, bearing, start: tick, throw: spin.throw * TPS, end: spin.end * TPS };
     }
   }
 
@@ -305,6 +275,43 @@ export function gunOf(
   known.barrel = b.barrel;
   known.cooldown = b.cooldown;
   return known;
+}
+
+/**
+ * The frame a gun fires on, whose launch point (muzzles.ts) its missile leaves from: a Sun
+ * Cannon's raised barrel plus 24, a Thunder Cannon's eighth frame, the last of an Ice Cannon's
+ * three, a Crossbow's fifth to its bearing, and the arm of a Disc Thrower as it throws.
+ */
+export function shotFrame(b: DeepReadonly<Building>, guns: Map<number, Gun>): number | null {
+  switch (b.type) {
+    case 'suncannon':
+      return SUN_CANNON_RAISED[b.facing]! + SUN_CANNON_FIRE;
+    case 'thundercannon':
+      return b.facing * THUNDER_CANNON_FRAMES + THUNDER_CANNON_FRAMES - 1;
+    case 'raincannon':
+      return b.facing * ICE_CANNON_FRAMES + ICE_CANNON_FRAMES - 1;
+    case 'windarcher':
+      return (b.barrel < 0 ? b.facing * CROSSBOW_PER_FACING : b.barrel) * CROSSBOW.shot
+        + CROSSBOW.shot - 1;
+    case 'sunarcher': {
+      const spin = guns.get(b.id)?.spin;
+      return spin ? armSlot(spin.from, spin.bearing, spin.throw / TPS) : null;
+    }
+    default:
+      return null;
+  }
+}
+
+/** The slot of the Disc Thrower's arm its disc sits on: from the start of a spin to the throw. */
+export function discOnArm(
+  b: DeepReadonly<Building>,
+  guns: Map<number, Gun>,
+  tick: number,
+): number | null {
+  const spin = b.type === 'sunarcher' ? guns.get(b.id)?.spin : undefined;
+  return spin && tick - spin.start < spin.throw
+    ? armSlot(spin.from, spin.bearing, (tick - spin.start) / TPS)
+    : null;
 }
 
 /** The slot of a Sun Cannon: flat as built, then each frame of its turn for 0.2 s, raised when it
@@ -326,6 +333,18 @@ function sunCannonSlot(b: DeepReadonly<Building>, gun: Gun, tick: number): numbe
   return b.barrel < 0 ? SUN_CANNON_FLAT : b.barrel;
 }
 
+/**
+ * The Ice Cannon cycles the three frames of its facing, 0.08 s each, while it has a target, its
+ * rest included (GunAnim.cpp). `ticks` may fall between ticks: the renderer turns these frames
+ * faster than the simulation steps.
+ */
+export function iceCannonSlot(b: DeepReadonly<Building>, ticks: number): number {
+  const frame = b.target === null
+    ? 0
+    : Math.floor(ticks / (ICE_CANNON_FRAME * TPS)) % ICE_CANNON_FRAMES;
+  return b.facing * ICE_CANNON_FRAMES + frame;
+}
+
 /** The Thunder Cannon from the start of its cycle: frames 1 to 7, 0.5 s each, then 8, the one it
  * fires on, and back at rest 0.125 s later. */
 function thunderCannonFrame(since: number): number {
@@ -338,22 +357,6 @@ function thunderCannonFrame(since: number): number {
   return since === release
     ? THUNDER_CANNON_FRAMES - 1
     : 1 + Math.floor(since / (THUNDER_CANNON.frame * TPS));
-}
-
-/** The Crossbow's bearing nearest the compass way to a target. */
-function crossbowBearing(b: DeepReadonly<Building>, target: DeepReadonly<Entity>): number {
-  const compass = compassTo(b.x + b.fx / 2, b.y + b.fy / 2, target.x + 1 / 2, target.y + 1 / 2);
-  let best = 0;
-
-  for (const [i, degrees] of CROSSBOW.bearings.entries()) {
-    const off = (a: number) => Math.min(Math.abs(compass - a), FULL_TURN - Math.abs(compass - a));
-
-    if (off(degrees) < off(CROSSBOW.bearings[best]!)) {
-      best = i;
-    }
-  }
-
-  return best;
 }
 
 /** Of the Crossbow's five frames to a bearing: +4 as it fires, then +3, +2, +1 and +0, loaded,
@@ -410,25 +413,19 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Sl
 
   switch (b.type) {
     case 'raincannon':
-      // It cycles the three frames of its facing while it has a target.
-      return [
-        b.type,
-        b.facing * ICE_CANNON_FRAMES + (b.target === null ? 0 : tick % ICE_CANNON_FRAMES),
-      ];
+      return [b.type, iceCannonSlot(b, tick)];
     case 'suncannon':
       return [b.type, sunCannonSlot(b, gunOf(scene.guns, b, tick, world), tick)];
     case 'windarcher': {
+      // It turns, a bearing a tick, to the bearing the simulation turned it to; it stays there.
       const gun = gunOf(scene.guns, b, tick, world);
-      const target = b.target === null ? undefined : world.entities.get(b.target);
-      const bearings = CROSSBOW.bearings.length;
-      const rest = b.facing * CROSSBOW.perFacing;
+      const rest = b.facing * CROSSBOW_PER_FACING;
 
       if (!scene.aims.has(b.id)) {
         scene.aims.set(b.id, rest);
       }
 
-      const want = target ? crossbowBearing(b, target) : scene.aims.get(b.id)!;
-      const at = turnTo(scene.aims, b.id, want, bearings);
+      const at = turnTo(scene.aims, b.id, b.barrel < 0 ? rest : b.barrel, CROSSBOW_BEARINGS.length);
       return [b.type, at * CROSSBOW.shot + crossbowFrame(tick - gun.fired)];
     }
     case 'thundercannon':
@@ -626,14 +623,16 @@ export function overlayOf(
     return ['altar', held ? HORNS.struggle + (tick % HORNS.frames) : HORNS.empty];
   }
 
-  // The arm: through the spin of its spring, then at rest where the spin left it, to the south.
+  // The arm: through the spin of its spring, then where the spin left it. On its base frame, as
+  // built, the original draws no arm (FUN_004827d0).
   if (entity.type === 'sunarcher') {
     const spin = gunOf(guns, entity, tick, world).spin;
-    const seconds = spin ? (tick - spin.start) / TPS : Infinity;
-    return [
-      entity.type,
-      spin && tick - spin.start < spin.end ? armSlot(spin.from, spin.bearing, seconds) : ARM_REST,
-    ];
+
+    if (spin && tick - spin.start < spin.end) {
+      return [entity.type, armSlot(spin.from, spin.bearing, (tick - spin.start) / TPS)];
+    }
+
+    return entity.barrel < 0 ? null : [entity.type, entity.barrel];
   }
 
   if (entity.type === 'sunaviary') {

@@ -4,7 +4,14 @@ import { shakeBridges } from './bridges.js';
 import { tickUpgrade } from './building.js';
 import {
   ARM_BUILT,
-  ARM_REST,
+  CROSSBOW_BEARINGS,
+  CROSSBOW_PER_FACING,
+  CROSSBOW_STEP,
+  ICE_CANNON as ICE_BURST,
+  compassTo,
+  crossbowBearing,
+  iceShotTick,
+  ringSteps,
   SUN_CANNON_FLAT,
   SUN_CANNON_RAISED,
   SUN_CANNON_STEP,
@@ -126,12 +133,26 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
     b.cooldown--;
   }
 
+  // Four seconds of an Ice Cannon's burst run out, and it rests six.
+  if (b.burst > 0 && --b.burst === 0) {
+    b.burst = -1;
+    b.cooldown = Math.max(b.cooldown, ICE_BURST.rest * TPS);
+  }
+
   // "Once locked, they will keep at it until destroyed" — or until it can no longer be hit.
   let target = lockedTarget(world, b, def, enemyAt);
 
   if (!target) {
     target = acquire(world, b, def, enemyAt);
     b.target = target?.id ?? null;
+    // A new target is a new fire animation: the time between hits, and a burst, start over.
+    b.lastShot = -1;
+
+    if (b.burst < 0) {
+      b.cooldown = 0;
+    }
+
+    b.burst = 0;
   }
 
   if (!target || b.cooldown > 0) {
@@ -149,13 +170,39 @@ export function tickBuilding(world: World, b: Building, enemyAt: EnemyAt): void 
     }
   }
 
+  // The Crossbow turns to the bearing nearest its target first, 0.1 s a bearing.
+  if (b.type === CROSSBOW) {
+    const [gx, gy] = centre2(b);
+    const [tx, ty] = centre2(target);
+    const goal = crossbowBearing(compassTo(gx, gy, tx, ty));
+    const from = b.barrel < 0 ? b.facing * CROSSBOW_PER_FACING : b.barrel;
+    const steps = ringSteps(from, goal, CROSSBOW_BEARINGS.length);
+
+    if (steps > 0) {
+      b.barrel = goal;
+      b.cooldown = Math.round(steps * CROSSBOW_STEP * TPS);
+      return;
+    }
+  }
+
+  // An Ice Cannon's burst begins: its first shot comes 0.08 s in. The burst lasts a tick past its
+  // four seconds, so that the shot that falls on its last tick is fired before the rest.
+  if (b.type === ICE_CANNON && b.burst <= 0) {
+    b.burst = ICE_BURST.burst * TPS + 1;
+    b.cooldown = iceShotTick(0);
+    return;
+  }
+
   // "Damage" in the unit data is the average per second. In the original a hit from an archer or a
-  // cannon deals that rate times the time since the gun's previous hit, so one shot carries a whole
-  // interval of it. Other groups deal a fixed share of the rate with every hit.
+  // cannon deals that rate times the time since the gun's previous hit at its target, so one shot
+  // carries a whole interval of it, and the first after an Ice Cannon's rest the rest as well. The
+  // first at a target carries one interval. Other groups deal a fixed share of the rate a hit.
   const { interval, release } = cycleOf(b, def, target);
+  const since = b.lastShot < 0 ? interval : world.tick - b.lastShot;
+  b.lastShot = world.tick;
   const usual = def.group === 'anti-air'
     ? def.dps * FLAT_SHOT_SHARE
-    : (def.dps * interval) / TPS;
+    : (def.dps * since) / TPS;
   // "Crucial for defense against air attack": the Disc Thrower's data sets its hit on air units.
   const amount = airborne(world, target) && def.airDamage ? def.airDamage : usual;
   b.cooldown = interval;
@@ -193,14 +240,20 @@ function cycleOf(
   if (b.type === DISC_THROWER) {
     const [gx, gy] = centre2(b);
     const [tx, ty] = centre2(target);
-    const spin = discSpin(b.barrel < 0 ? ARM_BUILT : ARM_REST, bearingTo(gx, gy, tx, ty));
-    // ponytail: every spin is taken to start from the south, where the last one ended within 30°;
-    // keep the arm's angle if the timing must match the original to the frame.
-    b.barrel = ARM_REST;
+    // A spin starts from the slot the last one left the arm on, as the original's does.
+    const spin = discSpin(b.barrel < 0 ? ARM_BUILT : b.barrel, bearingTo(gx, gy, tx, ty));
+    b.barrel = spin.rest;
     return {
       interval: Math.max(1, Math.round(spin.end * TPS)),
       release: Math.round(spin.throw * TPS),
     };
+  }
+
+  // Seventeen shots in four seconds: 2 or 3 ticks apart, 0.24 s on average.
+  if (b.type === ICE_CANNON) {
+    const elapsed = ICE_BURST.burst * TPS + 1 - b.burst;
+    const k = Math.round((elapsed - ICE_BURST.first * TPS) / (ICE_BURST.every * TPS));
+    return { interval: iceShotTick(k + 1) - iceShotTick(k), release: 0 };
   }
 
   const release = b.type === THUNDER_CANNON_TYPE ? Math.round(THUNDER_CANNON.release * TPS) : 0;

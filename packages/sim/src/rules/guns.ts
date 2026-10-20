@@ -3,6 +3,8 @@
  * times its shots by these, and the client draws the same frames from them, so the two agree.
  */
 
+import { TPS } from '../state.js';
+
 /* oxlint-disable no-magic-numbers -- tables and constants read from GunAnim.cpp */
 
 /** Seconds a Sun Cannon takes over one frame of its turn. */
@@ -59,15 +61,16 @@ const ARM = {
 } as const;
 /** Slots of the arm: 16 bearings wound up, then the same 16 flung out. */
 export const ARM_SLOTS = 16;
-/** The arm's slot as built (its base frame), and where it ends a spin: pointing south. */
+/** The arm's slot as built: its base frame, on which no arm is drawn. */
 export const ARM_BUILT = 32;
-export const ARM_REST = 4;
 
 export interface Spin {
   /** Seconds from the start of the spin to the throw. */
   throw: number;
   /** Seconds the whole spin takes; the next one starts then. */
   end: number;
+  /** The slot the arm is left on, which the next spin starts from. */
+  rest: number;
 }
 
 /** The angle the arm starts a spin from, by its slot: 0 for the base frame of a new building. */
@@ -92,6 +95,7 @@ function run(slot: number, bearing: number, until: number, at?: (slot: number) =
   let spin: number = ARM.spin;
   let thrown = -1;
   let t = 0;
+  let shown = armAt(angle);
 
   for (; t < Math.min(until, ARM.most); t += ARM.frame) {
     angle += ARM.frame * speed;
@@ -106,7 +110,8 @@ function run(slot: number, bearing: number, until: number, at?: (slot: number) =
     }
 
     const sprung = angle >= release - ARM.sprung && angle < release + ARM.sprung;
-    at?.(sprung ? ARM_SLOTS + ((armAt(angle) + 2) % ARM_SLOTS) : armAt(angle));
+    shown = sprung ? ARM_SLOTS + ((armAt(angle) + 2) % ARM_SLOTS) : armAt(angle);
+    at?.(shown);
 
     if (
       thrown >= 0 && speed <= ARM.slow && Math.abs((angle % 360) - ARM.rest) < ARM.slack
@@ -115,7 +120,7 @@ function run(slot: number, bearing: number, until: number, at?: (slot: number) =
     }
   }
 
-  return { throw: thrown < 0 ? t : thrown, end: t };
+  return { throw: thrown < 0 ? t : thrown, end: t, rest: shown };
 }
 
 /** When a Disc Thrower whose arm is on `slot` throws at a target `bearing` degrees from east, and
@@ -141,6 +146,69 @@ export function bearingTo(fromX: number, fromY: number, toX: number, toY: number
 /** Degrees clockwise from north from one point of the board to another. */
 export function compassTo(fromX: number, fromY: number, toX: number, toY: number): number {
   return (450 - bearingTo(fromX, fromY, toX, toY)) % 360;
+}
+
+/**
+ * The Crossbow's twenty bearings, degrees clockwise from north (the table at 0x0060b178): uneven,
+ * five frames of a shot to each, a facing every fifth. It turns one bearing per 0.1 s.
+ */
+export const CROSSBOW_BEARINGS = [
+  0,
+  21,
+  35,
+  52,
+  71,
+  86,
+  97,
+  115,
+  121,
+  148,
+  180,
+  205,
+  237,
+  256,
+  272,
+  282,
+  291,
+  314,
+  328,
+  345,
+] as const;
+export const CROSSBOW_PER_FACING = 5;
+export const CROSSBOW_STEP = 0.1;
+
+/** The Crossbow's bearing nearest a compass way. */
+export function crossbowBearing(compass: number): number {
+  const off = (degrees: number) => {
+    const d = Math.abs(compass - degrees) % 360;
+    return Math.min(d, 360 - d);
+  };
+  let best = 0;
+
+  for (const [i, degrees] of CROSSBOW_BEARINGS.entries()) {
+    if (off(degrees) < off(CROSSBOW_BEARINGS[best]!)) {
+      best = i;
+    }
+  }
+
+  return best;
+}
+
+/** Steps the shorter way round a ring of `size` from one place to another. */
+export function ringSteps(from: number, to: number, size: number): number {
+  const ahead = (((to - from) % size) + size) % size;
+  return Math.min(ahead, size - ahead);
+}
+
+/**
+ * The Ice Cannon fires in bursts: for 4 s a shot every 0.24 s, the first 0.08 s in, then 6 s of
+ * rest, while its frames go on cycling (GunAnim.cpp, FUN_0047ef80). Seventeen shots a burst.
+ */
+export const ICE_CANNON = { burst: 4, rest: 6, first: 0.08, every: 0.24 } as const;
+
+/** The tick of a burst the `k`-th shot of an Ice Cannon falls on. */
+export function iceShotTick(k: number): number {
+  return Math.ceil(Math.round((ICE_CANNON.first + ICE_CANNON.every * k) * TPS * 1e6) / 1e6);
 }
 
 /** The Thunder Cannon charges for 3.5 s and fires; 0.125 s later it is back at rest. */

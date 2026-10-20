@@ -349,6 +349,8 @@ export class World {
       target: null,
       cooldown: 0,
       barrel: -1,
+      lastShot: -1,
+      burst: 0,
       killer: 0,
       islet: false,
       regrow: 0,

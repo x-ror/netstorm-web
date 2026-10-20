@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { ARM_BUILT, ARM_REST, discSpin, loadDefs } from '@netstorm/sim';
+import { ARM_BUILT, discSpin, loadDefs } from '@netstorm/sim';
 import {
   happened,
   hotFeet,
@@ -16,6 +16,9 @@ import {
 } from '../src/game-data.js';
 import { knowledgeOf } from '../src/knowledge.js';
 import { burn, burners, rise, streaksOf, type Spark } from '../src/burning.js';
+import { scatter, type Piece } from '../src/shrapnel.js';
+import { createAlarm, homeIsland } from '../src/alarm.js';
+import { MUZZLES } from '../src/muzzles.js';
 import { paint, paintOf } from '../src/owner-colours.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
 import { DEFAULT_OPTIONS, MAX_STORM, normalizeOptions } from '../src/options.js';
@@ -29,7 +32,7 @@ import {
   parsePath,
   shoreFrame,
 } from '../src/texture-selection.js';
-import { SLOT_COUNTS, heading, overlayOf, shadowOf, slotOf } from '../src/animations.js';
+import { SLOT_COUNTS, heading, overlayOf, shadowOf, shotFrame, slotOf } from '../src/animations.js';
 import { VisualStates } from '../src/presentation.js';
 import {
   MISSILES,
@@ -430,6 +433,7 @@ test('animated entities show a slot of their type for the tick', () => {
   const crossbow = world.spawnBuilding('windarcher', ME, 90, 80, 1);
   assert.deepEqual(slotOf(crossbow, 0, headings), ['windarcher', 25]);
   crossbow.target = world.spawnTransport('sunwalker', ENEMY, 101, 72).id;
+  crossbow.barrel = 3; // where the simulation turns it
   assert.deepEqual([1, 2, 3].map((tick) => slotOf(crossbow, tick, headings)![1]), [20, 15, 15]);
   crossbow.cooldown = 8;
   assert.deepEqual([4, 5, 7, 11].map((tick) => slotOf(crossbow, tick, headings)![1]), [
@@ -458,17 +462,17 @@ test('animated entities show a slot of their type for the tick', () => {
   const guns = new Map();
   assert.deepEqual([slotOf(thrower, 0, headings), overlayOf(thrower, 0, world.view(), guns)], [
     ['sunarcher', 32],
-    ['sunarcher', ARM_REST],
+    null,
   ]);
   thrower.target = world.spawnBuilding('sunblocker', ENEMY, 60, 70).id; // due east
   thrower.cooldown = 74;
-  thrower.barrel = ARM_REST;
   const spin = discSpin(ARM_BUILT, 0);
+  thrower.barrel = spin.rest;
   const at = (seconds: number) =>
     overlayOf(thrower, 1 + Math.round(seconds * 10), world.view(), guns)![1];
   assert.equal(at(0), 0);
   assert.ok(at(spin.throw) >= 16);
-  assert.equal(at(spin.end + 1), ARM_REST);
+  assert.equal(at(spin.end + 1), spin.rest);
   // An Altar shows the runes warded on its ring and the captive between its horns.
   const altar = world.buildingsOf(ME).find((b) => b.type === 'altar')!;
   assert.deepEqual([slotOf(altar, 0, headings), overlayOf(altar, 0, world.view())], [
@@ -856,4 +860,43 @@ test('a unit burns below half its hit points, with a streak more for each tenth 
   assert.deepEqual(sparks, [{ x: 13, y: 22, life: 3 }]);
   rise(sparks, 3);
   assert.deepEqual(sparks, []);
+});
+
+test('a destroyed unit breaks into its pixels, which fly out, fall and are gone in 0.55 s', () => {
+  const pieces: Piece[] = [{ x: 0, y: 0, vx: 1, vy: -14, fall: 6, life: 3, colour: 0 }];
+  scatter(pieces, 1);
+  assert.deepEqual(pieces, [{ x: 1, y: -14, vx: 1, vy: -8, fall: 6, life: 2, colour: 0 }]);
+  scatter(pieces, 2);
+  assert.deepEqual(pieces, []);
+});
+
+test('an alarm sounds when units are hit on their home island, at most once in thirty seconds', () => {
+  const world = skirmish();
+  const alarm = createAlarm(world.view());
+  const home = homeIsland(world.view(), ME);
+  const temple = world.templeOf(ME)!;
+  assert.ok(home.has(world.at(temple.x, temple.y)) && home.size > 100);
+  assert.equal(alarm(ME), false);
+  temple.hp -= 10;
+  assert.equal(alarm(ME), true);
+  temple.hp -= 10;
+  world.tick += 10;
+  assert.equal(alarm(ME), false);
+  temple.hp -= 10;
+  world.tick += 30 * 10;
+  assert.equal(alarm(ME), true);
+});
+
+test('a missile leaves from the launch point of the frame its gun fires on', () => {
+  const world = skirmish();
+  const guns = new Map();
+  const at = (type: string, facing: 0 | 1 | 2 | 3) => {
+    const b = world.spawnBuilding(type, ME, 60, 60, facing);
+    return MUZZLES[type]![shotFrame(b, guns)!];
+  };
+  // A Sun Cannon facing east fires on slot 27, from the end of its barrel (_shapes.shp).
+  assert.deepEqual(at('suncannon', 1), [-8, -25]);
+  // A Thunder Cannon facing north fires on its eighth frame, from high up its barrel.
+  assert.deepEqual(at('thundercannon', 0), [-21, -85]);
+  assert.equal(MUZZLES.sunarcher!.length, 33);
 });

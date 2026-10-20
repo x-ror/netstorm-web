@@ -2,13 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { World, loadDefs, TPS, type Flyer } from '../src/index.js';
-import {
-  ARM_BUILT,
-  ARM_REST,
-  SUN_CANNON_RAISED,
-  discSpin,
-  sunCannonTurn,
-} from '../src/rules/guns.js';
+import { ARM_BUILT, SUN_CANNON_RAISED, discSpin, sunCannonTurn } from '../src/rules/guns.js';
 
 import { shotInterval } from '../src/rules/combat.js';
 import { ScanWorld } from './reference-world.js';
@@ -34,6 +28,15 @@ const land = (world: World) => {
   while (world.tick < last) {
     world.step();
   }
+};
+/** Step until a gun has fired, or a second has gone by, and land what is in the air: an Ice Cannon
+ * fires 0.08 s into its burst, and a Crossbow turns first. */
+const fire = (world: World) => {
+  for (let i = 0; i < TPS && world.shots.length === 0; i++) {
+    world.step();
+  }
+
+  land(world);
 };
 const to = (x: number, y: number) => (cell: [number, number]) => cell[0] === x && cell[1] === y;
 
@@ -218,8 +221,7 @@ test('a cannon fires over its own buildings; an enemy one stops the shot even un
   world.spawnBuilding('raincannon', 1, 40, 40, 1);
   world.spawnBuilding('sunblocker', 1, 45, 40); // its own, in the line of fire
   const enemy = world.spawnBuilding('sunblocker', 2, 50, 40);
-  world.step();
-  land(world);
+  fire(world);
   assert.ok(enemy.hp < enemy.hpMax);
   // An invisible enemy tower cannot be targeted, but still blocks what is behind it.
   const other = mk();
@@ -413,8 +415,7 @@ test('the Crossbow shoots into an arc of thirty degrees either side of its facin
   world.step();
   assert.deepEqual([behind.hp, abeam.hp, wide.hp], [behind.hpMax, abeam.hpMax, wide.hpMax]);
   const ahead = world.spawnBuilding('sunblocker', 2, 50, 43); // 9 east, 2 south: inside
-  world.step();
-  land(world);
+  fire(world);
   assert.ok(ahead.hp < ahead.hpMax);
   assert.deepEqual([behind.hp, abeam.hp, wide.hp], [behind.hpMax, abeam.hpMax, wide.hpMax]);
 });
@@ -1054,8 +1055,7 @@ test('an Ice Cannon throws ricochets to the side, missiles of their own that dea
   const strayed = beside.reduce((sum, b) => sum + lost(b), 0);
   assert.ok(strayed > 0 && lost(target) > 0);
   assert.equal(floater.hp, floater.hpMax);
-  // Every shot on the target deals its whole 4; a ricochet deals 0.6 of the cannon's 20 a second.
-  assert.equal(lost(target) % 4, 0);
+  // A ricochet deals 0.6 of the cannon's 20 a second.
   assert.equal(strayed % 12, 0);
 });
 
@@ -1188,6 +1188,47 @@ test('the Thunder Cannon charges 3.5 s before its missile leaves; the Disc Throw
   const disc = other.shots[0]!;
   assert.equal(disc.leave - other.tick, Math.round(discSpin(ARM_BUILT, 0).throw * TPS));
   assert.equal(thrower.cooldown, Math.round(discSpin(ARM_BUILT, 0).end * TPS));
-  assert.equal(thrower.barrel, ARM_REST);
+  // The next spin starts from where this one leaves the arm, about south.
+  assert.equal(thrower.barrel, discSpin(ARM_BUILT, 0).rest);
   assert.ok(target.hp === target.hpMax);
+});
+
+test('an Ice Cannon fires seventeen shots in four seconds, rests six, and the next hit carries the rest', () => {
+  const world = mk();
+  world.addIsland(0, 0, 100, 100, 2);
+  world.spawnBuilding('raincannon', 1, 40, 40, 1);
+  const target = world.spawnBuilding('thunderblocker', 2, 50, 40);
+  const fired: number[] = [];
+  const amounts: number[] = [];
+
+  for (let i = 0; i < 11 * TPS; i++) {
+    world.step();
+
+    for (const shot of world.shots) {
+      if (!shot.ricochet && !fired.includes(shot.leave)) {
+        fired.push(shot.leave);
+        amounts.push(shot.amount);
+      }
+    }
+  }
+
+  const start = fired[0]!;
+  assert.equal(fired.filter((t) => t < start + 4 * TPS).length, 17);
+  assert.equal(fired.filter((t) => t >= start + 4 * TPS && t < start + 10 * TPS).length, 0);
+  // Its shots are 0.2 or 0.3 s apart and deal 20 a second; the first after the rest, 6 s more.
+  assert.ok(amounts.slice(1, 17).every((a) => a === 4 || a === 6));
+  assert.ok(amounts[17]! > 20 * 6);
+  assert.ok(target.hp < target.hpMax);
+});
+
+test('a Crossbow turns to its target, a bearing in 0.1 s, before it fires', () => {
+  const world = mk();
+  world.addIsland(0, 0, 100, 100, 2);
+  const bow = world.spawnBuilding('windarcher', 1, 40, 40, 1);
+  world.spawnBuilding('sunblocker', 2, 50, 36); // north of east: the bearing of 71°
+  world.step();
+  assert.deepEqual([bow.barrel, bow.cooldown], [4, 1]);
+  assert.equal(world.shots.length, 0);
+  world.step();
+  assert.equal(world.shots.length, 1);
 });

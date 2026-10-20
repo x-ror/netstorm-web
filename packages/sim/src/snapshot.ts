@@ -31,8 +31,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 32;
-export const RULES_VERSION = 63;
+export const SNAPSHOT_VERSION = 33;
+export const RULES_VERSION = 64;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -201,6 +201,8 @@ function parseEntity(raw: unknown): Entity {
       'target',
       'cooldown',
       'barrel',
+      'lastShot',
+      'burst',
       'killer',
       'islet',
       'regrow',
@@ -225,6 +227,8 @@ function parseEntity(raw: unknown): Entity {
       target: nullableId(value.target, 'building.target'),
       cooldown: integer(value.cooldown, 'building.cooldown'),
       barrel: integer(value.barrel, 'building.barrel', -1),
+      lastShot: integer(value.lastShot, 'building.lastShot', -1),
+      burst: integer(value.burst, 'building.burst', -1),
       killer: integer(value.killer, 'building.killer', 0, MAX_PLAYERS),
       islet: boolean(value.islet, 'building.islet'),
       regrow: integer(value.regrow, 'building.regrow', 0),

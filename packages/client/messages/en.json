@@ -196,6 +196,7 @@
   "rejected_target_not_incapacitated": "the Priest is not downed yet",
   "event_built": "Built: {name}",
   "event_producing": "In production: {name}",
+  "event_island_attacked": "Your island is under attack!",
   "event_upgraded": "Workshop upgraded to level {level}",
   "event_lost": "Lost: {name}",
   "event_destroyed": "Enemy destroyed: {name}",

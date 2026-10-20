@@ -30,6 +30,7 @@ import { createMinimap } from './minimap.js';
 import { describeEvent } from './messages.js';
 import { m } from './paraglide/messages.js';
 import { cellAt, centerOn, snapZoom, zoomAt } from './camera.js';
+import { createAlarm } from './alarm.js';
 import { project, ZOOM } from './projection.js';
 import { createUiState } from './ui-state.js';
 import { PerformanceMonitor } from './perf.js';
@@ -348,6 +349,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
       if (event.what === 'destroyed') {
         renderer.explode(event.data.id);
+      } else if (event.what === 'salvaged') {
+        renderer.collapse(event.data.id);
       } else if (event.what === 'ricochet') {
         renderer.ricochet(event.data.hit, event.data.to);
       } else if (event.what === 'cast') {
@@ -369,6 +372,20 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   }
 
   let logId = 0;
+  const alarm = createAlarm(view);
+
+  /** "Your island is under attack", at most once in 30 s. */
+  function watchHome(): void {
+    if (alarm(ui.viewer)) {
+      data.sounds.play('islandunderattack');
+      hud.log([{
+        id: logId++,
+        time: formatTime(world.tick),
+        text: m.event_island_attacked(),
+        tone: 'bad',
+      }]);
+    }
+  }
 
   function renderLog(): void {
     const lines = pending.splice(0).flatMap((event) => {
@@ -478,6 +495,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       }
 
       takeEvents();
+      watchHome();
       renderer.capture();
       return true;
     });

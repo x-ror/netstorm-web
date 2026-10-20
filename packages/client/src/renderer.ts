@@ -19,6 +19,7 @@ import {
   stepShare,
   BUILD_SECONDS,
   RESIDENCE_FOOT,
+  SUN_CANNON_FIRE,
   UPGRADE_SECONDS,
 } from '@netstorm/sim';
 import {
@@ -30,7 +31,17 @@ import {
   shoreFrame,
 } from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
-import { MANA_BOLTS, SACRIFICE, overlayOf, shadowOf, slotOf, type Gun } from './animations.js';
+import {
+  MANA_BOLTS,
+  SACRIFICE,
+  discOnArm,
+  iceCannonSlot,
+  shotFrame,
+  overlayOf,
+  shadowOf,
+  slotOf,
+  type Gun,
+} from './animations.js';
 import {
   MISSILES,
   SPELL_BURSTS,
@@ -53,6 +64,8 @@ import {
 } from './presentation.js';
 import { StreamBatch } from './stream-batch.js';
 import { anchorsOf, burn, rise, sparkColour, streaksOf, type Spark } from './burning.js';
+import { PIECE, scatter, shatter, type Piece } from './shrapnel.js';
+import { MUZZLES } from './muzzles.js';
 
 const SPRITE_ANCHOR_X = 0.5;
 /** The frame groups of residence.type: six frames for each of Sun, Thunder, Wind and Rain. */
@@ -152,6 +165,10 @@ const FIELD_WIDTH = 2;
 const FIELD_ALPHA = 0.7;
 /** At most this many tenths of a second of sparks at once, after a stall or a hidden tab. */
 const MAX_SPARK_STEP = 5;
+const RAISE_SOUNDS = 9;
+const VANDER_BOLT_LIFT = 76;
+/** The disc's frame: the default of sundisc.type. */
+const DISC_FRAME = 1;
 /** Guns that strike at once, with no missile in the air. */
 const LIGHTNING_GUNS: ReadonlySet<string> = new Set(['thunderarcher']);
 /** A Sun Cannon's tail: ten sparks as it leaves, then about two a game frame within three pixels
@@ -208,7 +225,11 @@ export function createWorldRenderer(
   // as in the original.
   const fireG = barsLayer.addChild(new Graphics());
   const sparks: Spark[] = [];
+  const pieces: Piece[] = [];
   const anchors = new Map<number, number[][][]>();
+  /** The slot each Sun Cannon showed last, to hear its turns. */
+  const barrels = new Map<number, number>();
+  const discs = new Map<number, Sprite>();
   let sparkTick = world.tick;
   const placementsAccent: {
     x: number;
@@ -594,6 +615,10 @@ export function createWorldRenderer(
   function drawSparks(): void {
     fireG.clear();
 
+    for (const { x, y, colour } of pieces) {
+      fireG.rect(Math.round(x), Math.round(y), PIECE, PIECE).fill(colour);
+    }
+
     for (const { x, y, life } of sparks) {
       // Five pixels of one colour: a square of two by two and one over it.
       fireG.rect(Math.round(x), Math.round(y) - 1, 2, 2).rect(Math.round(x), Math.round(y) - 2, 1,
@@ -624,6 +649,20 @@ export function createWorldRenderer(
       }
 
       const slot = slotOf(entity, world.tick, scene);
+
+      // A Sun Cannon's barrel creaks at every frame of a turn (sunCannonRaiseLower1..9, at random).
+      if (entity.kind === 'building' && entity.type === 'suncannon' && slot) {
+        const before = barrels.get(entity.id);
+        barrels.set(entity.id, slot[1]);
+
+        if (
+          before !== undefined && before !== slot[1] && Math.max(before, slot[1]) < SUN_CANNON_FIRE
+        ) {
+          sounds.play(`suncannonraiselower${1 + Math.floor(Math.random() * RAISE_SOUNDS)}`,
+            centres.get(entity.id));
+        }
+      }
+
       const texture = (slot ? textures.get(`slot:${slot[0]}:${slot[1]}`) : undefined)
         ?? textures.get(textureKey(entity));
 
@@ -701,6 +740,7 @@ export function createWorldRenderer(
       sprite.alpha = entityAlpha(entity);
       const over = bySpot ? overlayOf(entity, world.tick, world, scene.guns) : null;
       attach(overlays, entity.id, over, sprite, OVERLAY_Z, 1);
+      attachDisc(entity, sprite);
       attach(shadows, entity.id, bySpot ? shadowOf(slot) : null, sprite, -OVERLAY_Z, SHADOW_ALPHA);
       displayedDepth(entity.id, sprite, entity.kind === 'flyer');
 
@@ -758,12 +798,13 @@ export function createWorldRenderer(
         scene.guns.delete(id);
         states.delete(id);
         anchors.delete(id);
+        barrels.delete(id);
         healthBars.get(id)?.destroy();
         healthBars.delete(id);
         constructionBars.get(id)?.destroy();
         constructionBars.delete(id);
 
-        for (const layer of [overlays, shadows]) {
+        for (const layer of [overlays, shadows, discs]) {
           layer.get(id)?.destroy();
           layer.delete(id);
         }
@@ -1114,12 +1155,15 @@ export function createWorldRenderer(
       }
 
       // A gun shoots from its top; a Whirligig drops its bomb from where it hangs.
-      const start = bomber
+      // A gun's missile leaves from the launch point of the frame it fires on, from the hot spot
+      // its frames are drawn at; a Whirligig drops its bomb from where it hangs.
+      const muzzle = entity.kind === 'building' && from ? muzzleOf(entity, from) : null;
+      const start = muzzle ?? (bomber
         ? { x: from?.x ?? previous!.at.x, y: (from?.y ?? previous!.at.y) - BOMB_DROP }
         : {
           x: middle(entity).x,
           y: (from?.y ?? previous!.at.y) - (from?.height ?? previous!.height) * TRACER_LIFT,
-        };
+        });
       // The shot this gun fired this tick: its copy of the gun has the cooldown it has now. A Sun
       // Cannon's cooldown also goes up as it starts to turn, with no shot.
       let shot: (typeof world.shots)[number] | undefined;
@@ -1204,6 +1248,63 @@ export function createWorldRenderer(
       // Ten sparks where it leaves, then two at each step of the way (FUN_004672d0).
       throwTail(from, SHELL_SPARKS_AT_START);
     }
+  }
+
+  /**
+   * Where a gun's missile leaves: the hot spot its frames hang on plus the launch point of the
+   * frame it fires on (Missile.cpp). The Vander Tower's lightning starts 76 pixels over its hot
+   * spot (FUN_0048dcb0). The Disc Thrower throws from where its disc sits on the arm, moved by its
+   * hot foot in pixels, (1, 5), as FUN_00482870 leaves it.
+   */
+  function muzzleOf(b: DeepReadonly<Building>, sprite: Sprite | Graphics): Point | null {
+    if (!(sprite instanceof Sprite) || !hotSpots.get(sprite.texture)) {
+      return null;
+    }
+
+    if (b.type === 'thunderarcher') {
+      return { x: sprite.x, y: sprite.y - VANDER_BOLT_LIFT };
+    }
+
+    const slot = shotFrame(b, scene.guns);
+    const point = slot === null ? undefined : MUZZLES[b.type]?.[slot];
+
+    if (!point) {
+      return null;
+    }
+
+    const [footX, footY] = b.type === 'sunarcher' ? hotFeet.get(b.type) ?? [0, 0] : [0, 0];
+    return {
+      x: sprite.x + point[0] + Math.trunc(footX * TW),
+      y: sprite.y + point[1] + Math.trunc(footY * TH),
+    };
+  }
+
+  /** The Disc Thrower's disc, drawn where it sits on the arm until it is thrown (FUN_004827d0). */
+  function attachDisc(entity: DeepReadonly<Entity>, under: Sprite | Graphics): void {
+    const slot = entity.kind === 'building' ? discOnArm(entity, scene.guns, world.tick) : null;
+    const point = slot === null ? undefined : MUZZLES.sunarcher?.[slot];
+    const texture = textures.get(`slot:sundisc:${DISC_FRAME}`);
+    const spot = texture && hotSpots.get(texture);
+    let disc = discs.get(entity.id);
+
+    if (!point || !texture || !spot) {
+      if (disc) {
+        disc.visible = false;
+      }
+
+      return;
+    }
+
+    if (!disc) {
+      disc = new Sprite(texture);
+      entityRoot(entity.id).addChild(disc);
+      discs.set(entity.id, disc);
+    }
+
+    disc.anchor.set(spot.x, spot.y);
+    disc.position.set(under.x + point[0], under.y + point[1]);
+    disc.zIndex = under.zIndex + OVERLAY_Z * 2;
+    disc.visible = true;
   }
 
   /** Sparks of a Sun Cannon's tail, thrown within three pixels of a point. */
@@ -1315,6 +1416,23 @@ export function createWorldRenderer(
     if (target && at) {
       burst(explosionFor(widths.get(id) ?? 1), at, (groups.get(id)?.zIndex ?? target.zIndex) + 1);
       sounds.play('explosion', at);
+      breakUp(target, false);
+    }
+  }
+
+  /** A salvaged unit crumbles away (Collapse). */
+  function collapse(id: number): void {
+    const target = sprites.get(id);
+
+    if (target) {
+      breakUp(target, true);
+    }
+  }
+
+  function breakUp(sprite: Sprite | Graphics, falls: boolean): void {
+    if (sprite instanceof Sprite) {
+      shatter(pieces, sprite.texture, sprite.x - sprite.anchor.x * sprite.width,
+        sprite.y - sprite.anchor.y * sprite.height, falls);
     }
   }
 
@@ -1330,6 +1448,7 @@ export function createWorldRenderer(
 
   return {
     explode,
+    collapse,
     ricochet,
     cast,
     placed,
@@ -1379,6 +1498,7 @@ export function createWorldRenderer(
       const dt = Math.max(0, Math.min(MAX_SPARK_STEP, presentationTick - sparkTick));
       sparkTick = presentationTick;
       rise(sparks, dt);
+      scatter(pieces, dt);
 
       for (const { from, to, start, land } of shells) {
         const done = Math.min(1, Math.max(0, (presentationTick - start) / (land - start)));
@@ -1411,6 +1531,21 @@ export function createWorldRenderer(
 
         sprite.tint = entityTint(entity, viewer());
         throwSparks(entity, sprite, dt);
+
+        if (
+          entity.kind === 'building' && entity.type === 'raincannon' && entity.rising === 0
+          && sprite instanceof Sprite
+        ) {
+          const texture = textures.get(
+            `slot:raincannon:${iceCannonSlot(entity, presentationTick)}`,
+          );
+          const spot = texture && hotSpots.get(texture);
+
+          if (texture && spot) {
+            sprite.texture = texture;
+            sprite.anchor.set(spot.x, spot.y);
+          }
+        }
 
         const top = sprite instanceof Sprite
           ? sprite.y - sprite.height * sprite.anchor.y
