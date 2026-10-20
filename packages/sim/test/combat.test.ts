@@ -683,10 +683,10 @@ test('a unit takes ten seconds to build, gains hit points evenly and does nothin
 
   assert.equal(cannon.hp, cannon.hpMax / 2);
   assert.equal(target.hp, target.hpMax);
-  // What strikes it while it is built leaves no mark.
+  // Nothing takes it for a target while it is built.
   const foe = world.spawnBuilding('sunarcher', 2, 44, 44);
   run(world, 1);
-  assert.equal(foe.target, cannon.id);
+  assert.equal(foe.target, null);
   assert.ok(world.entities.has(cannon.id) && cannon.hp > cannon.hpMax / 2);
   foe.hp = 0;
 

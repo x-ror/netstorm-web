@@ -787,7 +787,7 @@ export class World {
 
     if (
       occ?.kind === 'building' && this.hostile(me, occ.owner) && occ.invisible === 0
-      && occ.regrow === 0
+      && occ.regrow === 0 && occ.rising === 0
     ) {
       return occ;
     }

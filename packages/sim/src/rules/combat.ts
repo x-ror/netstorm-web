@@ -720,8 +720,9 @@ function acquire(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt): Ent
 export function targetable(world: World, b: { owner: number; }, target: Entity): boolean {
   switch (target.kind) {
     case 'building':
+      // A unit being built is no target until it is done.
       return world.hostile(b.owner, target.owner) && target.regrow === 0
-        && target.invisible === 0;
+        && target.rising === 0 && target.invisible === 0;
     case 'priest':
       return world.hostile(b.owner, target.owner) && target.invisible === 0
         && (target.state === 'normal' || target.state === 'down');
