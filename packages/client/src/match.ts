@@ -40,6 +40,8 @@ import { AiSchedule } from './ai-schedule.js';
 import type { AiReply, AiRequest } from './ai-worker.js';
 
 const HUD_REFRESH_TICKS = 5;
+/** The gift window of a Sacrifice closes by itself after this, keeping the gift chosen. */
+const GIFT_SECONDS = 15;
 const ALTAR = 'altar';
 const HALF_CELL = 0.5;
 /** Seconds after the last rune that the Furies are heard (dais.cpp, FUN_004558e0). */
@@ -268,6 +270,13 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     upgradeSelected: () => controls.upgradeSelected(),
     meltdownSelected: () => controls.meltdownSelected(),
     castSelected: () => controls.castSelected(),
+    gift: (gift) => {
+      if (ui.gift) {
+        commands.push({ t: 'altarGift', player: ui.viewer, altar: ui.gift.altar, gift });
+        ui.gift = null;
+        hud.render();
+      }
+    },
     giftSelected: (gift) => {
       if (ui.selected !== null) {
         commands.push({ t: 'altarGift', player: ui.viewer, altar: ui.selected, gift });
@@ -423,6 +432,11 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
         renderer.explode(event.data.id);
       } else if (event.what === 'salvaged') {
         renderer.collapse(event.data.id);
+      } else if (
+        event.what === 'chained' && event.who === ui.viewer && world.multiplayer && !ui.watching
+      ) {
+        // "SacrificeMenu": the gift is chosen in a window for 15 s (its $Timeout).
+        ui.gift = { altar: event.data.altar, until: world.tick + GIFT_SECONDS * TPS };
       } else if (event.what === 'bridge fell') {
         renderer.fell(event.data);
       } else if (event.what === 'ricochet') {

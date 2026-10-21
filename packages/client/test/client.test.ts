@@ -1028,3 +1028,24 @@ test('an Ice Cannon’s smoke blows ten puffs and fades from pale to deep blue-g
   assert.equal(puffColour(100), 0x9bd2ce);
   assert.equal(puffColour(0), 0x366482);
 });
+
+test('the gift window of a Sacrifice offers the units of the Altar’s Level of all four Furies', () => {
+  const opts = { ...DEFAULT_OPTIONS, mode: 'skirmish' as const, theme: 'wind' as const };
+  const world = createMatchWorld(defs, maps, missions, opts, { known: [], altarLevel: 1 });
+  const temple = world.templeOf(ME)!;
+  const altar = world.spawnBuilding('altar', ME, temple.x + 10, temple.y);
+  const ui = createUiState(ME);
+  const atlas = { atlases: [], frames: {} };
+  assert.equal(hudModel(world.view(), ME, ui, atlas).gift, null);
+  ui.gift = { altar: altar.id, until: world.tick + 150 };
+  const gift = hudModel(world.view(), ME, ui, atlas).gift!;
+  assert.equal(gift.furies.length, 4);
+  // Level 1: the Arc Spire of Thunder is offered, the Sun Cannon known from the start is greyed.
+  assert.ok(gift.furies[2]!.units.some((u) => u.id === 'thunderfence' && !u.known));
+  assert.ok(gift.furies[3]!.units.some((u) => u.id === 'suncannon' && u.known));
+  assert.equal(gift.chosen, 'storm');
+  assert.equal(gift.seconds, 15);
+  // It closes by itself when its time is up.
+  ui.gift.until = world.tick;
+  assert.equal(hudModel(world.view(), ME, ui, atlas).gift, null);
+});

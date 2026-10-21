@@ -319,5 +319,11 @@
   "unit_bridge": "Bridge",
   "unit_residence": "Residence",
   "action_to_altar": "To the Altar",
-  "event_too_early": "Too early! Priests may not be sacrificed within the first two minutes of battle."
+  "event_too_early": "Too early! Priests may not be sacrificed within the first two minutes of battle.",
+  "fury_sun": "Sun",
+  "gift_window": "Glory be to the Furies! You may choose a Level {level} unit as your reward, or Upgrade to get higher level units.",
+  "gift_window_top": "Glory be to the Furies! You may choose a Level {level} unit as your reward.",
+  "gift_altar_top": "Altar at max level",
+  "gift_closes": "{seconds} s",
+  "gift_upgrade_button": "Upgrade the Altar to level {level}"
 }

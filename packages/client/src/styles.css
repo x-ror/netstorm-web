@@ -188,6 +188,36 @@ pre {
 .menu-card button + button {
   margin-left: 8px;
 }
+/* --- the window of a Sacrifice's gift: a column of units for each Fury, then the other gifts */
+.gift .gift-furies {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 12px 0;
+}
+.gift h3 {
+  margin: 0 0 6px;
+  font: 700 14px/1.2 var(--font);
+}
+.gift .gift-furies button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0 0 6px;
+  text-align: left;
+}
+.gift button.chosen {
+  outline: 2px solid var(--cold);
+}
+.gift button:disabled {
+  opacity: 0.45;
+}
+@media (max-width: 600px) {
+  .gift .gift-furies {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 /* --- the start screen: the original's title over the islands, and under it one sheet of the
  * chart holding the menu, as the original hung its buttons under the logo. */
 #menu {

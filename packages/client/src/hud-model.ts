@@ -6,6 +6,7 @@ import {
   GIFT_UPGRADE,
   MAX_ALTAR_UPGRADES,
   giftsOf,
+  homeIsland,
   prayable,
   DEVASTATION,
   OUTPOST,
@@ -62,6 +63,57 @@ export interface HudModel {
   sides: { id: number; name: string; on: boolean; }[];
   /** The computer plays a side, and the reasons for its moves can be copied. */
   aiLog: boolean;
+  /** The window of the Sacrifice's gift, while it is open. */
+  gift: GiftWindow | null;
+}
+
+/** "Glory be to the Furies!" (tell `SacrificeMenu`): the gifts a Sacrifice on the player's Altar
+ * may bring, with the one chosen marked. */
+export interface GiftWindow {
+  text: string;
+  seconds: number;
+  /** The units of the Altar's Level, a column for each Fury: those known are shown, not offered. */
+  furies: { name: string; units: { id: string; name: string; known: boolean; }[]; }[];
+  /** The Altar's Upgrade, or "at Max Level", and whether it can be had. */
+  upgrade: { label: string; open: boolean; };
+  storm: string;
+  chosen: string;
+}
+
+const GIFT_FURIES = ['wind', 'rain', 'thunder', 'sun'] as const;
+
+/** The gift window of `ui.gift`, or null when it is not open. */
+function giftWindow(world: WorldView, me: number, ui: UiState): GiftWindow | null {
+  const site = ui.gift === null ? undefined : world.entities.get(ui.gift.altar);
+  const player = world.players.get(me);
+
+  if (!ui.gift || site?.kind !== 'building' || !player || world.tick >= ui.gift.until) {
+    return null;
+  }
+
+  const level = site.upgrades + 1;
+  const offered = giftsOf(world, site);
+  const top = site.upgrades >= MAX_ALTAR_UPGRADES;
+  return {
+    text: top ? m.gift_window_top({ level }) : m.gift_window({ level }),
+    seconds: Math.max(0, Math.ceil((ui.gift.until - world.tick) / TPS)),
+    furies: GIFT_FURIES.map((fury) => ({
+      name: (FURIES[fury] ?? m.fury_sun)(),
+      units: offered.filter((id) => world.defs.get(id)?.theme === fury).map((id) => ({
+        id,
+        name: unitName(id, world.defs.get(id)?.name ?? id),
+        known: player.tech.has(id),
+      })),
+    })),
+    upgrade: top
+      ? { label: m.gift_altar_top(), open: false }
+      : {
+        label: m.gift_upgrade_button({ level: level + 1 }),
+        open: homeIsland(world, me).has(world.at(site.x, site.y)),
+      },
+    storm: m.gift_storm(),
+    chosen: site.gift,
+  };
 }
 
 /** What the panels ask of the match. */
@@ -77,6 +129,8 @@ export interface HudActions {
   castSelected(): void;
   /** Choose the gift of the selected Altar's next Sacrifice: a unit, Storm Power or its Upgrade. */
   giftSelected(gift: string): void;
+  /** Choose the gift in the window of a Sacrifice, which closes it. */
+  gift(gift: string): void;
   /** Have the player's Priest pray for a Spell. */
   pray(spell: string): void;
   /** A button of the page shown over the map was pressed: its place among the page's buttons. */
@@ -235,6 +289,7 @@ export function hudModel(
     selected: selected(world, me, ui),
     hint: ui.watching ? m.hud_watching_hint() : hint(world, ui),
     watching: ui.watching,
+    gift: giftWindow(world, me, ui),
     aiLog,
     sides: ui.watching
       ? [...world.players.values()].map((side) => ({

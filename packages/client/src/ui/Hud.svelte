@@ -387,6 +387,47 @@
   </div>
 {/if}
 
+{#if model?.gift}
+  {@const gift = model.gift}
+  <div id="overlay">
+    <div class="menu-card gift" role="dialog" aria-label={gift.text}>
+      <p>{gift.text} <span class="muted">{m.gift_closes({ seconds: gift.seconds })}</span></p>
+      <div class="gift-furies">
+        {#each gift.furies as fury (fury.name)}
+          <div>
+            <h3>{fury.name}</h3>
+            {#each fury.units as unit (unit.id)}
+              <button
+                class:chosen={gift.chosen === unit.id}
+                disabled={unit.known}
+                onclick={() => actions.gift(unit.id)}
+              >
+                <UnitIcon {atlas} type={unit.id} name={unit.name} size={CARD_ICON} />
+                <span>{unit.name}</span>
+              </button>
+            {/each}
+          </div>
+        {/each}
+      </div>
+      <div class="gift-more">
+        <button
+          class:chosen={gift.chosen === 'upgrade'}
+          disabled={!gift.upgrade.open}
+          onclick={() => actions.gift('upgrade')}
+        >
+          {gift.upgrade.label}
+        </button>
+        <button
+          class:primary={gift.chosen === 'storm'}
+          onclick={() => actions.gift('storm')}
+        >
+          {gift.storm}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 {#if page}
   <div id="overlay">
     <div class="menu-card">

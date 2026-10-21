@@ -30,6 +30,8 @@ export interface UiState {
   viewer: number;
   /** The computer plays every side: the screen only looks on and gives no orders. */
   watching: boolean;
+  /** The window of a Sacrifice's gift, open on the player's Altar until a tick. */
+  gift: { altar: number; until: number; } | null;
 }
 
 export function createUiState(viewer = 1): UiState {
@@ -43,6 +45,7 @@ export function createUiState(viewer = 1): UiState {
     muted: false,
     viewer,
     watching: false,
+    gift: null,
   };
 }
 
