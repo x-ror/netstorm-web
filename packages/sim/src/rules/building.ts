@@ -495,7 +495,7 @@ function siteError(
       const terrain = world.terrain[world.at(x, y)];
 
       if (
-        isBridge(terrain)
+        isBridge(terrain) || terrain === Terrain.EdgeFarm
         || (terrain === Terrain.Island && !world.isOwnGround(player, x, y)
           // An Outpost may also go up on an island nobody owns, which is how it is taken.
           && !(def.id === OUTPOST && world.owner[world.at(x, y)] === 0))

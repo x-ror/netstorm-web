@@ -89,3 +89,29 @@ test('the campaign makes a geyser every 30 s once the pool holds a geyser’s wo
   run(world, 1);
   assert.equal(geysersOf(world).length, 2);
 });
+
+test('a multiplayer battle grows Edge Farms on the rims of its islands; nothing goes on one', () => {
+  const world = battle();
+  const farms = [...world.terrain.keys()].filter((i) => world.terrain[i] === Terrain.EdgeFarm);
+  assert.ok(farms.length > 0);
+
+  for (const i of farms) {
+    const [x, y] = [i % 256, Math.floor(i / 256)];
+    // On the rim: sky somewhere about it, and nobody's.
+    const around = [-1, 0, 1].flatMap((dy) =>
+      [-1, 0, 1].map((dx) => world.terrain[(y + dy) * 256 + x + dx])
+    );
+    assert.ok(around.includes(Terrain.Sky));
+    assert.equal(world.owner[i], 0);
+    assert.ok(!world.walkable(1, x, y));
+  }
+
+  // The same seed grows the same farms; the campaign's maps grow none.
+  const again = battle();
+  assert.deepEqual(farms,
+    [...again.terrain.keys()].filter((i) => again.terrain[i] === Terrain.EdgeFarm));
+  const map = generateMap(42, { islands: 4, sides });
+  const campaign = createMission(defs, 42, map,
+    (id) => ({ name: String(id), theme: 'wind', storm: 0 }));
+  assert.ok(!campaign.terrain.includes(Terrain.EdgeFarm));
+});

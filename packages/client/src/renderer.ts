@@ -31,6 +31,7 @@ import {
   shoreFrame,
 } from './texture-selection.js';
 import { project, TW, TH } from './projection.js';
+import { FARM_SLOTS } from './farm-slots.js';
 import {
   MANA_BOLTS,
   SACRIFICE,
@@ -147,6 +148,11 @@ const STREAK_CELLS = 4; // cells a streak of the stream is long (ours)
 const STREAM_LIFT = 6; // pixels the stream runs above the ground (ours)
 
 /** The point `d` cells along a way, between the points it passes. */
+/** Island ground or an Edge Farm on it: what the rim frames go round. */
+function isLand(terrain: number | undefined): boolean {
+  return terrain === Terrain.Island || terrain === Terrain.EdgeFarm;
+}
+
 function pointAt(points: readonly Point[], cells: readonly number[], d: number): Point {
   const i = Math.max(1, cells.findIndex((c) => c >= d));
   const a = points[i - 1]!;
@@ -307,8 +313,8 @@ export function createWorldRenderer(
           }
         }
 
-        const sides = terrain === Terrain.Island ? skyAround(x, y, SIDES) : 0;
-        const shore = sides || terrain !== Terrain.Island
+        const sides = isLand(terrain) ? skyAround(x, y, SIDES) : 0;
+        const shore = sides || !isLand(terrain)
           ? shoreFrame(sides, 0, x + y)
           : shoreFrame(0, skyAround(x, y, CORNERS), x + y);
         const texture = (shore === undefined
@@ -339,10 +345,23 @@ export function createWorldRenderer(
           hanging.push(rock);
         }
 
-        const tile = new Sprite(texture);
-        // A rim frame is cut down to its picture: it keeps to the side its ground is on.
-        tile.position.set(sides & SKY.west ? sx + TW - texture.width : sx,
-          sides & SKY.north ? sy + TH - texture.height : sy);
+        // An Edge Farm takes the place of its rim frame, in the colours of the island's ground
+        // (edgefarm.type follows isle.type frame for frame), hung on the frame's hot spot.
+        const farm = terrain === Terrain.EdgeFarm && shore !== undefined
+          ? textures.get(`slot:edgefarm:${FARM_SLOTS[groundSet(farmOwner(x, y))]?.[shore]}`)
+          : undefined;
+        const farmSpot = farm && hotSpots.get(farm);
+        const tile = new Sprite(farm && farmSpot ? farm : texture);
+
+        if (farm && farmSpot) {
+          tile.anchor.set(farmSpot.x, farmSpot.y);
+          tile.position.set(sx + TW - 1, sy + TH - 1);
+        } else {
+          // A rim frame is cut down to its picture: it keeps to the side its ground is on.
+          tile.position.set(sides & SKY.west ? sx + TW - texture.width : sx,
+            sides & SKY.north ? sy + TH - texture.height : sy);
+        }
+
         ground.addChild(tile);
         tiles.push(tile);
 
@@ -419,6 +438,20 @@ export function createWorldRenderer(
       ?? textures.get(key);
   }
 
+  /** The owner of the island an Edge Farm grows on: "the alignment of that Temple grows into the
+   * Edge Farm itself". The farm's own cell has none. */
+  function farmOwner(x: number, y: number): number {
+    for (const [, dx, dy] of SIDES) {
+      const i = (y + dy) * W + x + dx;
+
+      if (world.terrain[i] === Terrain.Island) {
+        return world.owner[i]!;
+      }
+    }
+
+    return 0;
+  }
+
   /** Where the island ends around a cell: SKY bits of the neighbours, given as [bit, dx, dy]. */
   function skyAround(x: number, y: number, around: typeof SIDES): number {
     let found = 0;
@@ -426,8 +459,7 @@ export function createWorldRenderer(
     for (const [bit, dx, dy] of around) {
       const nx = x + dx;
       const ny = y + dy;
-      const island = nx >= 0 && ny >= 0 && nx < W && ny < H
-        && world.terrain[ny * W + nx] === Terrain.Island;
+      const island = nx >= 0 && ny >= 0 && nx < W && ny < H && isLand(world.terrain[ny * W + nx]);
 
       if (!island) {
         found |= bit;

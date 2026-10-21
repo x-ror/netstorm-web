@@ -67,6 +67,7 @@ SLOTS = {
     "sunfence": 9,  # the post of a Sun Barricade, looping
     "rainfence": 3,  # the post of an Acid Barricade, spinning while it is joined
     "residence": 24,  # six frames, lit and unlit, for each of Sun, Thunder, Wind and Rain
+    "edgefarm": 173,  # the frames of isle.type, a farm on each rim frame, for each Fury
 }
 
 

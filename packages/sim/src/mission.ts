@@ -3,6 +3,7 @@
 import { GEYSER_ISLAND_SIZE, RESIDENCE_FOOT, World } from './world.js';
 import type { DefTable, Theme, UnitDef } from './defs.js';
 import { growIslands, type IslandSpec } from './terrain.js';
+import { growFarms } from './farms.js';
 import { skirmishTech, type SkirmishOptions, applyOptions, startBattle } from './scenario.js';
 import { isSpell } from './rules/spells.js';
 import { claimIsland } from './rules/bridges.js';
@@ -15,6 +16,10 @@ export interface MissionMap {
   bridges: [x: number, y: number, frame: number, owner: number][];
   units: [type: string, owner: number, x: number, y: number, frame: number][];
 }
+
+/** Map Density Medium: each of two draws of the coverage lies in 10..15 per cent. */
+const COVERAGE_LOW = 10;
+const COVERAGE_SPAN = 6;
 
 export interface MissionPlayer {
   name: string;
@@ -135,6 +140,19 @@ export function createMission(
     if (island >= 0) {
       w.terrain[i] = Terrain.Island;
       w.owner[i] = lords[island]!;
+    }
+  }
+
+  // A multiplayer battle's islands grow Edge Farms on their rims, as many as the island coverage
+  // the host rolls asks for (FUN_004e8c90: Map Density Medium, 20 to 30 %). The campaign's maps
+  // are left without: whether its "old code" makes them is `?`.
+  if (options.multiplayer) {
+    const coverage = COVERAGE_LOW + w.rng.int(COVERAGE_SPAN) + COVERAGE_LOW
+      + w.rng.int(COVERAGE_SPAN);
+
+    for (const cell of growFarms(ground, specs, coverage)) {
+      w.terrain[cell] = Terrain.EdgeFarm;
+      w.owner[cell] = 0;
     }
   }
 

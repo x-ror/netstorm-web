@@ -54,6 +54,7 @@ export const SLOT_COUNTS: Readonly<Record<string, number>> = {
   sunfence: 9, // the post of a Sun Barricade, looping
   rainfence: 3, // the post of an Acid Barricade, spinning while it is joined
   residence: 24, // six frames, lit and unlit, for each of Sun, Thunder, Wind and Rain
+  edgefarm: 173, // the frames of isle.type, a farm on each rim frame, for each Fury
 };
 /** The frame lines of each .type file that names shadows: the shadow of slot n is slot n plus
  * this. The same table as in scripts/anim-frames.py. */

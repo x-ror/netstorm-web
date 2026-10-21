@@ -245,7 +245,7 @@ test('malformed snapshots fail explicitly instead of silently normalizing state'
       snapshot.terrain.pop();
     },
     (snapshot) => {
-      snapshot.terrain[0] = 5;
+      snapshot.terrain[0] = 6;
     },
     (snapshot) => {
       snapshot.owner[0] = 7;

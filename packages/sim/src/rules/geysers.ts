@@ -18,6 +18,7 @@ import {
   type Transport,
 } from '../state.js';
 import { homeIsland } from './capture.js';
+import { syncRand } from '../rng.js';
 
 /* oxlint-disable no-magic-numbers -- the constants of nugget.cpp */
 const ZONES = GEYSER_ZONES;
@@ -34,7 +35,6 @@ const PAIR_TRIES = 100;
 /** Seeds of the spot generator: of each zone's search and the start, and of a battle's. */
 const ZONE_SEED = 0xfed;
 const BATTLE_SEED = 0xbeef;
-const ZERO_SEED = 0xbad0bad;
 /** The campaign's geyser timer (FUN_004aa060). */
 const CAMPAIGN_INTERVAL = 30;
 /** Geysers by each home at the start: players 1 to 4, and 5 to 8. */
@@ -82,14 +82,6 @@ export function campaignGeysers(): GeyserState {
     made: 0,
     seed: 0,
   };
-}
-
-/** SyncRand (FUN_004ef720): an integer in [0, n). */
-function syncRand(state: { s: number; }, n: number): number {
-  /* oxlint-disable no-magic-numbers -- the generator's constants, and its top 16 bits */
-  state.s = (Math.imul(state.s || ZERO_SEED, 0x10003) + 3) >>> 0;
-  return ((state.s >>> 16) & 0xffff) % n;
-  /* oxlint-enable no-magic-numbers */
 }
 
 /** A coordinate rounded as the original rounds it, `floor(v + 0.5)`. */

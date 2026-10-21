@@ -58,6 +58,7 @@ import {
   PRIEST_HP,
   MAX_FACING,
   Terrain,
+  isGround,
   type Player,
   type Building,
   type Transport,
@@ -444,7 +445,7 @@ export class World {
   isOwnGround(p: number, x: number, y: number): boolean {
     return (
       this.inside(x, y)
-      && this.terrain[this.at(x, y)] !== Terrain.Sky
+      && isGround(this.terrain[this.at(x, y)])
       && this.owner[this.at(x, y)] === p
     );
   }
@@ -464,7 +465,7 @@ export class World {
 
     const from = this.at(x, y);
     const to = this.at(nx, ny);
-    return this.terrain[from] !== Terrain.Sky && this.terrain[to] !== Terrain.Sky
+    return isGround(this.terrain[from]) && isGround(this.terrain[to])
       && joins(this, from, dir) && joins(this, to, oppositeDir(dir));
   }
 
@@ -482,7 +483,7 @@ export class World {
     const i = this.at(x, y);
     const t = this.terrain[i];
 
-    if (t === Terrain.Sky) {
+    if (t === Terrain.Sky || t === Terrain.EdgeFarm) {
       return false;
     }
 

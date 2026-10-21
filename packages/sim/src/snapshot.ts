@@ -37,8 +37,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 38;
-export const RULES_VERSION = 70;
+export const SNAPSHOT_VERSION = 39;
+export const RULES_VERSION = 71;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -595,7 +595,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     spells: choice(value.spells, SPELL_OPTIONS, 'snapshot.spells'),
     obelisks: parseObelisks(value.obelisks),
     geysers: parseGeysers(value.geysers),
-    terrain: grid(value.terrain, 'terrain', Terrain.HardBridge),
+    terrain: grid(value.terrain, 'terrain', Terrain.EdgeFarm),
     owner: grid(value.owner, 'owner', MAX_PLAYERS),
     links: grid(value.links, 'links', LINK_ALL),
     wear: grid(value.wear, 'wear', WEAR_FULL),

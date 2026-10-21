@@ -14,6 +14,7 @@ import {
   TPS,
   Terrain,
   W,
+  isGround,
   type Building,
   type Priest,
   type Transport,
@@ -148,7 +149,7 @@ function freeCellNear(world: World, x: number, y: number): [number, number] {
         const i = world.at(cx, cy);
 
         if (
-          world.terrain[i] !== Terrain.Sky && !world.occupant[i] && !world.priestAt(cx, cy)
+          isGround(world.terrain[i]) && !world.occupant[i] && !world.priestAt(cx, cy)
         ) {
           return [cx, cy];
         }

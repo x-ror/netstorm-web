@@ -19,3 +19,14 @@ export class Rng {
     return this.s;
   }
 }
+
+const ZERO_SEED = 0xbad0bad;
+
+/** SyncRand of netstorm.game (FUN_004ef720): an integer in [0, n) from a state of its own, for
+ * what the original draws from a seed of its own (geyser spots, Edge Farms). */
+export function syncRand(state: { s: number; }, n: number): number {
+  /* oxlint-disable no-magic-numbers -- the generator's constants, and its top 16 bits */
+  state.s = (Math.imul(state.s || ZERO_SEED, 0x10003) + 3) >>> 0;
+  return ((state.s >>> 16) & 0xffff) % n;
+  /* oxlint-enable no-magic-numbers */
+}

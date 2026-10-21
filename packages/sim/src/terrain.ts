@@ -92,7 +92,7 @@ const LETTER_LINKS: Readonly<Record<string, number>> = {
 export const ISLAND_SHAPE_COUNT = ISLAND_SHAPES.length;
 
 /** The chunks a shape takes, as offsets from its top-left corner, with their links. */
-function shapeCells(shape: number): [x: number, y: number, links: number][] {
+export function shapeCells(shape: number): [x: number, y: number, links: number][] {
   const rows = ISLAND_SHAPES[shape];
 
   if (!rows) {

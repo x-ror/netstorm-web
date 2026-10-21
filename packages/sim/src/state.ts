@@ -97,6 +97,13 @@ export const enum Terrain {
   CrackedBridge = 3,
   /** Laid from a piece that had turned hard: explosions and Salvage next to it leave it as it is. */
   HardBridge = 4,
+  /** An Edge Farm on an island's rim: no ground to walk, build or lay bridge on (farms.ts). */
+  EdgeFarm = 5,
+}
+
+/** Island or bridge: ground a walker stands on. */
+export function isGround(terrain: number | undefined): boolean {
+  return terrain !== undefined && terrain !== Terrain.Sky && terrain !== Terrain.EdgeFarm;
 }
 
 export function isBridge(terrain: number | undefined): boolean {

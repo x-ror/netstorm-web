@@ -170,7 +170,7 @@ export function assertWorldInvariants(world: WorldView): void {
     const terrain = world.terrain[cell];
     const owner = world.owner[cell];
 
-    if (terrain === undefined || terrain > Terrain.HardBridge) {
+    if (terrain === undefined || terrain > Terrain.EdgeFarm) {
       fail(`invalid terrain at ${cell}`);
     }
 
