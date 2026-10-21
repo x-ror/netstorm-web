@@ -267,6 +267,8 @@ export function shakeBridges(world: World, b: Building): void {
         world.owner[world.at(x, y)] = 0;
       }
     }
+
+    world.emit({ what: 'islet fell', who: b.owner, data: { x: b.x, y: b.y, w: b.fx, h: b.fy } });
   }
 
   for (let y = b.y - 1; y <= b.y + b.fy; y++) {

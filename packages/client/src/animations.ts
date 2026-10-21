@@ -165,6 +165,13 @@ const AIR_BASES: Readonly<Record<string, { ticks: number; frames: number; }>> = 
 const WHIRLIGIG_RISE = { first: 11, frames: 16 } as const;
 const DEVIL_MAKER_FRAMES = 6;
 /**
+ * The Devil Maker's cycle (FUN_0046ed00): its frames turn faster and faster for 2 s, a step every
+ * 0.05·(t − 2)² s (here never more than one a tick); from 4 s a Dust Devil forms beside it, its
+ * slots 13 to 21 at 4.5 a second, and it is let go at 6 s.
+ */
+const DEVIL_SPIN = { until: 2, step: 0.05 } as const;
+const DEVIL_FORMS = { from: 4, first: 13, last: 21, perSecond: 4.5 } as const;
+/**
  * A Workshop's frame groups A to D are its Levels I to IV, the building growing with each
  * (Factory.cpp of netstorm.game 10.82 shows the group of its level). The first frame of a group is
  * the whole building; how the rest of a group plays is not read (`?`), so it stands still.
@@ -431,6 +438,27 @@ function daisSlot(b: DeepReadonly<Building>, world: WorldView): Slot {
   return ['dais', ring + warded * DAIS.stage + (going < 0 ? 0 : 1 + going)];
 }
 
+/** The frame of a Devil Maker `ticks` into its cycle: the steps it has turned. */
+function devilMakerFrame(ticks: number): number {
+  let steps = 0;
+  let wait = 0;
+
+  for (let t = 1; t <= ticks; t++) {
+    const seconds = t / TPS;
+    const delay = seconds < DEVIL_SPIN.until
+      ? DEVIL_SPIN.step * (seconds - DEVIL_SPIN.until) ** 2
+      : 0;
+    wait += 1 / TPS;
+
+    if (wait >= delay) {
+      steps++;
+      wait = 0;
+    }
+  }
+
+  return steps % DEVIL_MAKER_FRAMES;
+}
+
 function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Slot | null {
   const { world } = scene;
   const working = b.rising === 0 && b.regrow === 0;
@@ -488,7 +516,7 @@ function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Sl
       gunOf(scene.guns, b, tick, world);
       return [b.type, DISC_THROWER.base];
     case 'windaviary':
-      return [b.type, working && b.cooldown > 0 ? tick % DEVIL_MAKER_FRAMES : 0];
+      return [b.type, working ? devilMakerFrame(b.cooldown) : 0];
     case 'altar':
       return daisSlot(b, world);
     default:
@@ -675,6 +703,15 @@ export function overlayOf(
     }
 
     return entity.barrel < 0 ? null : [entity.type, entity.barrel];
+  }
+
+  // A Dust Devil forming beside its Devil Maker before it is let go.
+  if (entity.type === 'windaviary' && entity.rising === 0) {
+    const seconds = entity.cooldown / TPS - DEVIL_FORMS.from;
+    return seconds < 0 ? null : [
+      'windflyer',
+      Math.min(DEVIL_FORMS.last, DEVIL_FORMS.first + Math.floor(DEVIL_FORMS.perSecond * seconds)),
+    ];
   }
 
   if (entity.type === 'sunaviary') {

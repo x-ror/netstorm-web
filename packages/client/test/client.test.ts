@@ -1049,3 +1049,18 @@ test('the gift window of a Sacrifice offers the units of the Altar’s Level of 
   ui.gift.until = world.tick;
   assert.equal(hudModel(world.view(), ME, ui, atlas).gift, null);
 });
+
+test('a Dust Devil forms beside its Devil Maker from 4 s and is let go at 6 s', () => {
+  const opts = { ...DEFAULT_OPTIONS, mode: 'skirmish' as const };
+  const world = createMatchWorld(defs, maps, missions, opts, { known: [], altarLevel: 1 });
+  const temple = world.templeOf(ME)!;
+  const maker = world.spawnBuilding('windaviary', ME, temple.x + 10, temple.y);
+  maker.cooldown = 30;
+  assert.equal(overlayOf(maker, 0, world.view()), null);
+  maker.cooldown = 40;
+  assert.deepEqual(overlayOf(maker, 0, world.view()), ['windflyer', 13]);
+  maker.cooldown = 50;
+  assert.deepEqual(overlayOf(maker, 0, world.view()), ['windflyer', 17]);
+  maker.cooldown = 59;
+  assert.deepEqual(overlayOf(maker, 0, world.view()), ['windflyer', 21]);
+});

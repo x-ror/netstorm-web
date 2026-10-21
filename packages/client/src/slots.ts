@@ -5,7 +5,7 @@ export const SLOT_COUNTS: Readonly<Record<string, number>> = {
   priest: 167,
   geyser: 50,
   sunflyer: 8,
-  windflyer: 13,
+  windflyer: 22,
   rainflyer: 16,
   rainballoon: 20,
   nugget: 9,

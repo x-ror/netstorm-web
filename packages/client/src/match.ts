@@ -417,6 +417,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
         return sounds.play('bridgecrack', cellMiddle(event.data));
       case 'bridge fell':
         return sounds.play('bridgefall', cellMiddle(event.data));
+      case 'islet fell':
+        return sounds.play('islandfall', cellMiddle(event.data));
       case 'destroyed':
         return sounds.play(event.data.type === ALTAR ? 'altarburncollapse' : undefined);
       default:
@@ -439,6 +441,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
         ui.gift = { altar: event.data.altar, until: world.tick + GIFT_SECONDS * TPS };
       } else if (event.what === 'bridge fell') {
         renderer.fell(event.data);
+      } else if (event.what === 'islet fell') {
+        renderer.isletFell(event.data);
       } else if (event.what === 'ricochet') {
         renderer.ricochet(event.data.hit, event.data.to);
       } else if (event.what === 'cast') {

@@ -19,7 +19,7 @@ SLOTS = {
     "priest": 167,  # walking, then floating and the chant of each stage of a sacrifice
     "geyser": 50,  # the eruption, then the dry geyser
     "sunflyer": 8,
-    "windflyer": 13,
+    "windflyer": 22,  # the Dust Devil turning, then forming at the Devil Maker (13-21)
     "rainflyer": 16,
     "rainballoon": 20,
     "nugget": 9,

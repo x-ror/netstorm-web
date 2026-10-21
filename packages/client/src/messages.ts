@@ -117,6 +117,7 @@ export function describeEvent(
     case 'too early':
       return mine ? { text: m.event_too_early(), tone: 'bad' } : null;
     case 'bridge':
+    case 'islet fell':
     // The original says nothing of a new geyser.
     case 'geyser':
       return null;

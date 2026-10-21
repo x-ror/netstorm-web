@@ -6,6 +6,8 @@ type Payloads = {
   'bridge cracked': { x: number; y: number; };
   /** A cell of bridge fell away. */
   'bridge fell': { x: number; y: number; };
+  /** The islet of a unit laid off a bridge fell with it. */
+  'islet fell': { x: number; y: number; w: number; h: number; };
   build: { id: number; type: string; };
   produce: { workshop: number; type: string; };
   upgrade: { workshop: number; level: number; };

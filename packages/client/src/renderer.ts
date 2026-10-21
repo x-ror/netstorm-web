@@ -195,6 +195,7 @@ const TAIL_LIFE = 4;
 const PLACE_TICKS = 3;
 const MAX_PLACE_CELLS = 64;
 const PROGRESS_COLOR = 0xbfe9ff;
+const DEVIL_FORMS_WEST = -1.4;
 /** Ticks between two bursts of an Ice Cannon, the four shots of one being within a second. */
 const SMOKE_GAP = 10;
 /* oxlint-disable no-magic-numbers -- slots of fenceshield.type and range.type */
@@ -696,6 +697,8 @@ export function createWorldRenderer(
     sprite.visible = true;
     sprite.anchor.set(spot.x, spot.y);
     sprite.position.copyFrom(under.position);
+    // A Dust Devil forms 1.4 cells west of its Devil Maker (FUN_0046ed00).
+    sprite.x += slot?.[0] === 'windflyer' && layer === overlays ? DEVIL_FORMS_WEST * TW : 0;
     sprite.zIndex = under.zIndex + z;
     sprite.alpha = under.alpha * alpha;
     // A shadow keeps only its shape: the extraction leaves it in a flat palette colour.
@@ -1622,6 +1625,22 @@ export function createWorldRenderer(
     }
   }
 
+  /** The islet under a unit laid off a bridge rains down with it, cell by cell (IslandDropper). */
+  function isletFell(rect: { x: number; y: number; w: number; h: number; }): void {
+    const rock = textures.get(`ground:neutral:${GROUND_FRAMES[0]}`);
+
+    if (!rock) {
+      return;
+    }
+
+    for (let y = rect.y; y < rect.y + rect.h; y++) {
+      for (let x = rect.x; x < rect.x + rect.w; x++) {
+        const { sx, sy } = project(x, y);
+        crumble(pieces, rock, sx, sy);
+      }
+    }
+  }
+
   /** A salvaged unit crumbles away (Collapse). */
   function collapse(id: number): void {
     const target = sprites.get(id);
@@ -1652,6 +1671,7 @@ export function createWorldRenderer(
     explode,
     collapse,
     fell,
+    isletFell,
     ricochet,
     cast,
     placed,
