@@ -31,6 +31,7 @@ import {
   GIFT_STORM,
   GIFT_UPGRADE,
   giftsOf,
+  energyNeed,
   type Building,
   upgradeCost,
   WORKSHOP_SLOTS,
@@ -396,7 +397,7 @@ test('Unit Rate, Kill Reward and Money per Geyser follow the battle options', ()
   assert.deepEqual([plain.unitRate, plain.killReward, plain.geyserStock], [4, 25, 2000]);
 });
 
-test("energy must come from a nearby source of the unit's own alignment", () => {
+test('energy comes from Temples and Generators near the site, letter by letter', () => {
   const w = mk();
   const p = w.players.get(1)!;
   p.tech.add('thundercannon');
@@ -405,20 +406,24 @@ test("energy must come from a nearby source of the unit's own alignment", () => 
   const far = { player: 1, x: 70, y: 41 } as const;
   // More than 30 cells from the centre of the Wind Temple: too far for anything.
   assert.equal(w.apply({ t: 'build', type: 'suncannon', ...far }), 'no energy');
-  // A Sun Generator feeds only Sun units. One source is enough for a level 1 unit (Sun Cannon)
-  // but not for a level 2 one (Whirlibase shows two Sun icons in the game).
+  // A Sun Generator gives one Sun Energy: enough for a level 1 Sun unit (`s`), not for a level 2
+  // one (Whirlibase, `ss`), nor for a Crossbow (`ws`), whose Wind it cannot stand for.
   w.spawnBuilding('sunbattery', 1, 64, 41);
-  assert.equal(w.apply({ t: 'build', type: 'windarcher', ...far }), 'no energy');
   assert.equal(w.canBuild({ type: 'suncannon', ...far }), null);
   assert.equal(w.canBuild({ type: 'sunaviary', ...far }), 'no energy');
-  // A Wind Generator feeds Wind and Sun units, not Thunder ones.
+  assert.equal(w.apply({ t: 'build', type: 'windarcher', ...far }), 'no energy');
+  // A Wind Generator gives the Wind; the Sun one fills the Crossbow's "any". Not a Thunder Cannon.
   w.spawnBuilding('windbattery', 1, 64, 36);
   assert.equal(w.canBuild({ type: 'sunaviary', ...far }), null);
   assert.equal(w.apply({ t: 'build', type: 'thundercannon', ...far }), 'no energy');
-  // The Crossbow is level 2: one Wind energy plus one more that is not sun-only.
-  assert.equal(w.apply({ t: 'build', type: 'windarcher', ...far }), 'no energy');
-  w.spawnBuilding('windbattery', 1, 60, 36);
   assert.equal(w.apply({ t: 'build', type: 'windarcher', ...far }), null);
+  // A Temple gives two of its Fury: a level 2 unit beside it needs nothing else, a level 3 one
+  // (Devil Maker, `wws`) one more.
+  const near = { player: 1, x: 32, y: 34 } as const;
+  assert.equal(w.canBuild({ type: 'windblocker', ...near }), null);
+  assert.equal(energyNeed(w.def('windaviary')), 'wws');
+  assert.equal(energyNeed(w.def('outpost')), 's');
+  assert.equal(energyNeed(w.def('altar')), '');
 });
 
 test('bridge needs an unbroken attachment to the Temple; attaching to a geyser claims its island', () => {

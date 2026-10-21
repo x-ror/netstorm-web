@@ -21,4 +21,11 @@ export { giftsOf, homeIsland } from './rules/capture.js';
 export { barriers, type Barrier } from './rules/fences.js';
 export { FLYER_SCALE, huntRadius } from './rules/flyers.js';
 export { stepShare } from './rules/movement.js';
-export { canProduce, canUpgrade, makerError, makerOf, takesSlot } from './rules/building.js';
+export {
+  canProduce,
+  canUpgrade,
+  energyNeed,
+  makerError,
+  makerOf,
+  takesSlot,
+} from './rules/building.js';

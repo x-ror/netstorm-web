@@ -27,7 +27,8 @@ test('an Outpost takes a neutral island, takes crystals, and the most Outposts d
   }
 
   world.addPriest(1, 28, 20);
-  const order = { t: 'build', player: 1, type: 'outpost', x: 45, y: 15 } as const;
+  // Within the Temple's Energy, which an Outpost needs one of.
+  const order = { t: 'build', player: 1, type: 'outpost', x: 42, y: 15 } as const;
   // "Outposts are only available in multiplayer games."
   assert.equal(world.apply(order), 'unknown tech');
   world.players.get(1)!.tech.add('outpost');
@@ -38,7 +39,7 @@ test('an Outpost takes a neutral island, takes crystals, and the most Outposts d
   assert.equal(world.depotsOf(1).length, 2);
 
   // A crystal brought to the Outpost is handed in there.
-  const golem = world.spawnTransport('sunwalker', 1, 50, 17);
+  const golem = world.spawnTransport('sunwalker', 1, 47, 17);
   golem.goal = 'home';
   golem.carrying = world.spawnCrystal(golem, 200).id;
   const before = world.players.get(1)!.storm;

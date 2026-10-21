@@ -1,7 +1,7 @@
 import type { World } from '../world.js';
 import type { Command, CommandError } from '../commands.js';
 import type { DeepReadonly, WorldView } from '../view.js';
-import { upgradeCost, type UnitDef } from '../defs.js';
+import { upgradeCost, type Theme, type UnitDef } from '../defs.js';
 import {
   DIRS,
   BUILD_SECONDS,
@@ -132,9 +132,7 @@ export function canBuild(
     return 'priest unavailable';
   }
 
-  return def.level > 0 && !hasEnergy(world, command.player, def, command.x, command.y)
-    ? 'no energy'
-    : null;
+  return hasEnergy(world, command.player, def, command.x, command.y) ? null : 'no energy';
 }
 
 /** "Use your High Priest to build Temples, Workshops, and Altars": the building is laid as a site
@@ -393,53 +391,83 @@ function transportSiteError(
     : 'blocked';
 }
 
-/** Energy icons on a unit's card, by level. Read from the game for Sun units of level 1 (Sun Cannon,
- * Golem: one) and level 2 (Whirlibase: two). The own/any split for the Furies' units and all of
- * level 3 follow the same pattern but are not yet confirmed in the game. */
-function energyNeed(level: number): { own: number; any: number; } {
-  if (level <= 1) {
-    return { own: 1, any: 0 };
+/** The letter of a Fury's Energy; Sun's stands for any. */
+const LETTERS: Record<Theme, string> = { wind: 'w', rain: 'r', thunder: 't', sun: 's' };
+const ANY = 's';
+/** "Temples now provide 2 themed mana" (DevLog 415); the original gives a computer's Temple 1
+ * (FUN_00404e10), which the simulation, knowing no computers, leaves out. */
+const TEMPLE_ENERGY = 2;
+
+/**
+ * The Energy a unit needs, one letter an icon on its card (FUN_004c6250): of level 1 its Fury's,
+ * of level 2 one more of any, of level 3 its Fury's twice and one of any. The Generators and the
+ * Outpost need one of any (`mana = "s"`), and what has no group none.
+ */
+export function energyNeed(def: UnitDef): string {
+  if (def.group === 'battery' || def.id === OUTPOST) {
+    return ANY;
   }
 
-  return level === 2 ? { own: 1, any: 1 } : { own: 2, any: 1 };
+  if (def.group === '' || def.theme === null || def.level <= 0) {
+    return '';
+  }
+
+  const own = LETTERS[def.theme];
+
+  if (def.level === 1) {
+    return own;
+  }
+
+  // oxlint-disable-next-line no-magic-numbers -- level 2
+  return def.level === 2 ? own + ANY : own + own + ANY;
 }
 
-/** Each Temple or Generator whose circle covers the build site supplies one Energy. A unit needs
- * `own` of its own alignment plus `any` more of whatever kind; Sun units accept any kind for both,
- * and the "sun-only" Sun Generator feeds nothing but Sun units. */
+/**
+ * Whether Temples and Generators of the player and his allies cover the site with the Energy the
+ * unit needs (FUN_0048f7c0, FUN_0048fab0). A Temple gives two of its Fury, a Generator one, the
+ * Sun Generator one of Sun. A Fury's icon takes a source of that Fury; the "any" icon a Sun one
+ * first, else any left. Nothing is used up: one source serves every unit. A source covers the
+ * site when the distance between their middles is below the range, widened by half the
+ * diagonal of the unit's footprint.
+ */
 function hasEnergy(world: WorldView, player: number, def: UnitDef, x: number, y: number): boolean {
-  const need = energyNeed(def.level);
-  let own = 0;
-  let total = 0;
+  const need = energyNeed(def);
 
-  for (const b of world.buildingsOf(player)) {
-    const source = world.def(b.type);
+  if (!need) {
+    return true;
+  }
 
-    if ((source.cls !== 'Energy' && source.group !== 'battery') || b.rising > 0) {
+  const reach = ENERGY_RANGE * ENERGY_RANGE + (def.footX * def.footX) / 2;
+  const sources: string[] = [];
+
+  for (const b of world.entities.values()) {
+    if (b.kind !== 'building' || b.rising > 0 || !b.owner || world.hostile(player, b.owner)) {
       continue;
     }
 
-    // Centre to centre; which point of the unit the original tests against the circle is unknown.
+    const source = world.def(b.type);
+    const count = source.cls === 'Energy' ? TEMPLE_ENERGY : Number(source.group === 'battery');
     const dx = b.x + b.fx / 2 - (x + def.footX / 2);
     const dy = b.y + b.fy / 2 - (y + def.footY / 2);
 
-    if (dx * dx + dy * dy > ENERGY_RANGE * ENERGY_RANGE) {
-      continue;
-    }
-
-    if (def.theme === 'sun') {
-      own++;
-      total++;
-    } else if (source.theme !== 'sun') {
-      total++;
-
-      if (source.theme === def.theme) {
-        own++;
-      }
+    if (count && source.theme && dx * dx + dy * dy < reach) {
+      sources.push(...Array.from({ length: count }, () => LETTERS[source.theme!]));
     }
   }
 
-  return own >= need.own && total >= need.own + need.any;
+  for (const icon of need) {
+    const at = icon === ANY
+      ? (sources.includes(ANY) ? sources.indexOf(ANY) : sources.length - 1)
+      : sources.indexOf(icon);
+
+    if (at < 0) {
+      return false;
+    }
+
+    sources.splice(at, 1);
+  }
+
+  return true;
 }
 
 /** "You can build units on your home island, on any un-owned island connected by bridges, or off of
