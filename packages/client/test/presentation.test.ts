@@ -64,6 +64,7 @@ function fixture() {
     index: { units: {}, files: {} },
     play: (...args: unknown[]) => heard.push(args),
     unit: (...args: unknown[]) => heard.push(args),
+    loop: () => () => {},
   } as unknown as Sounds;
   const texture = new Texture({ source: new TextureSource({ width: 16, height: 16 }) });
   hotSpots.set(texture, { x: 0.5, y: 1 });

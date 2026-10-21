@@ -32,7 +32,16 @@ import {
   parsePath,
   shoreFrame,
 } from '../src/texture-selection.js';
-import { SLOT_COUNTS, heading, overlayOf, shadowOf, shotFrame, slotOf } from '../src/animations.js';
+import {
+  SLOT_COUNTS,
+  flyerSlot,
+  heading,
+  overlayOf,
+  shadowOf,
+  shotFrame,
+  slotOf,
+} from '../src/animations.js';
+import { Growth } from '../src/growth.js';
 import { VisualStates } from '../src/presentation.js';
 import {
   alongBarrel,
@@ -951,4 +960,37 @@ test('the missile of a cannon flies along its barrel, not to the middle of its t
   assert.deepEqual(nearSide(10, 20, 4, 4, 1), [10, 22]);
   assert.deepEqual(nearSide(10, 20, 4, 4, 0), [12, 24]);
   assert.deepEqual(nearSide(10, 20, 4, 4, -1), [12, 22]);
+});
+
+test('flyers turn their frames by the clock: a Whirligig’s rotor in 0.145 s, the others per frame', () => {
+  // A Man o' War: 0.1 s a frame, sixteen of them; a Dust Devil: 0.08 s, thirteen.
+  assert.equal(flyerSlot('rainflyer', 1, 15), 15);
+  assert.equal(flyerSlot('rainflyer', 1, 16), 0);
+  assert.equal(flyerSlot('windflyer', 1, 1), 1);
+  assert.equal(flyerSlot('windflyer', 1, 2.5), 3);
+  // Within one tick the rotor goes round most of the way.
+  const frames = new Set([0, 0.25, 0.5, 0.75, 1].map((t) => flyerSlot('sunflyer', 0, t)));
+  assert.ok(frames.size >= 4 && [...frames].every((f) => f >= 0 && f <= 7));
+});
+
+test('a building going up shows its pixels from the base up, as many as the work done', () => {
+  // A picture 6 wide and 6 high, its top row clear.
+  const rgba = new Uint8ClampedArray(6 * 6 * 4);
+
+  for (let i = 6; i < 36; i++) {
+    rgba.set([10, 20, 30, 255], i * 4);
+  }
+
+  const growth = new Growth(rgba, 6, 6, () => 0.5);
+  const shown = () => [...Array(36).keys()].filter((i) => growth.out[i * 4 + 3]! > 0);
+  growth.step(0, 0);
+  // Only the seeds of the edge: the lowest row.
+  assert.ok(shown().every((i) => i >= 30));
+  growth.step(1, 0.5);
+  assert.ok(shown().length >= 15);
+  assert.ok(shown().some((i) => i >= 30));
+  // Done, and time enough for every pixel to take its own colour.
+  growth.step(1, 1);
+  growth.step(20, 1);
+  assert.deepEqual([...growth.out], [...rgba]);
 });

@@ -219,6 +219,30 @@ function geyserLevel(stock: number, whole: number): number {
   return stock <= 0 ? THIRDS : Math.min(THIRDS - 1, Math.floor(((whole - stock) * THIRDS) / whole));
 }
 
+/* oxlint-disable no-magic-numbers -- the frame clocks of BaseFlyerProcess */
+/** A Whirligig's rotor: its eight frames over 0.145356 s (FUN_0046bd70). */
+const WHIRLIGIG_PERIOD = 0.145356;
+const WHIRLIGIG_LAST = 7;
+/** Seconds a frame of a Dust Devil (FUN_0046c280) and of a Man o' War (FUN_0046c160). */
+const FLYER_FRAME: Readonly<Record<string, number>> = { windflyer: 0.08, rainflyer: 0.1 };
+/* oxlint-enable no-magic-numbers */
+
+/**
+ * The slot a flyer shows `ticks` into the battle, fractions of a tick included: the original
+ * turns them by the clock, not by the step. A Whirligig's rotor starts where its id puts it.
+ */
+export function flyerSlot(type: string, id: number, ticks: number): number {
+  const seconds = ticks / TPS;
+
+  if (type === 'sunflyer') {
+    const phase = (id % WHIRLIGIG_PERIOD) / WHIRLIGIG_PERIOD;
+    return Math.round((WHIRLIGIG_LAST * ((seconds + phase) % WHIRLIGIG_PERIOD)) / WHIRLIGIG_PERIOD);
+  }
+
+  const frame = FLYER_FRAME[type];
+  return frame ? Math.floor(seconds / frame) % LOOPS[type]! : 0;
+}
+
 /** The slot of the shadow that lies under a slot, for the types that have shadows. */
 export function shadowOf(slot: Slot | null): Slot | null {
   const base = slot ? SHADOW_BASE[slot[0]] : undefined;

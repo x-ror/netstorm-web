@@ -39,6 +39,8 @@ export type Place = { x: number; y: number; };
 export interface Sounds {
   /** Play a sound by its name; an unknown name is silence. With a place, it fades with distance. */
   play(name: string | undefined, at?: Place): void;
+  /** Play a sound over and over until the function it gives is called. */
+  loop(name: string, at?: Place): () => void;
   /** Play what a unit type sounds like when it does something. */
   unit(type: string, what: UnitSound, at?: Place): void;
   /** Start or stop the air of the place: a wind that loops, and far-off sounds now and then. */
@@ -183,6 +185,37 @@ export function createSounds(index: SoundIndex): Sounds {
         source.addEventListener('ended', () => release(name!));
         source.start();
       });
+    },
+    loop(name, at) {
+      const file = index.files[name];
+      let source: AudioBufferSourceNode | undefined;
+      let stopped = false;
+
+      if (!file) {
+        return () => {};
+      }
+
+      const volume = file[1] * (at ? sounds.heard(at) : 1);
+      const pan = at ? sounds.side(at) : 0;
+      void load(name).then((buffer) => {
+        if (stopped || !buffer || !context || !master) {
+          return;
+        }
+
+        source = context.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        const gain = context.createGain();
+        gain.gain.value = volume;
+        const panner = context.createStereoPanner();
+        panner.pan.value = pan;
+        source.connect(gain).connect(panner).connect(master);
+        source.start();
+      });
+      return () => {
+        stopped = true;
+        source?.stop();
+      };
     },
     ambience(on) {
       clearTimeout(farOff);

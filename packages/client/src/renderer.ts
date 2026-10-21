@@ -1,4 +1,4 @@
-import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import {
   type WorldView,
   type DeepReadonly,
@@ -40,6 +40,7 @@ import {
   shotFrame,
   overlayOf,
   shadowOf,
+  flyerSlot,
   slotOf,
   type Gun,
 } from './animations.js';
@@ -66,7 +67,8 @@ import {
   VisualStates,
 } from './presentation.js';
 import { StreamBatch } from './stream-batch.js';
-import { anchorsOf, burn, rise, sparkColour, streaksOf, type Spark } from './burning.js';
+import { anchorsOf, burn, pixelsOf, rise, sparkColour, streaksOf, type Spark } from './burning.js';
+import { Growth } from './growth.js';
 import { PIECE, scatter, shatter, type Piece } from './shrapnel.js';
 import { MUZZLES } from './muzzles.js';
 
@@ -452,6 +454,67 @@ export function createWorldRenderer(
     return 0;
   }
 
+  /** Buildings going up, each with the picture it grows into and the texture drawn meanwhile. */
+  const growths = new Map<number, {
+    growth: Growth;
+    context: CanvasRenderingContext2D;
+    image: ImageData;
+    texture: Texture;
+  }>();
+
+  /** A building going up shows the pixels of it the work has brought so far (growth.ts). */
+  function grow(b: DeepReadonly<Building>, sprite: Sprite, dt: number): void {
+    let g = growths.get(b.id);
+
+    if (!g) {
+      const picture = typeof document === 'undefined' ? null : pixelsOf(sprite.texture);
+      const canvas = picture && document.createElement('canvas');
+      const context = canvas?.getContext('2d');
+      const spot = hotSpots.get(sprite.texture);
+
+      if (!picture || !canvas || !context || !spot) {
+        return;
+      }
+
+      canvas.width = picture.width;
+      canvas.height = picture.height;
+      const texture = Texture.from(canvas);
+      hotSpots.set(texture, spot);
+      g = {
+        growth: new Growth(picture.rgba, picture.width, picture.height),
+        context,
+        image: context.createImageData(picture.width, picture.height),
+        texture,
+      };
+      growths.set(b.id, g);
+    }
+
+    g.growth.step(dt, 1 - b.rising / (BUILD_SECONDS * TPS));
+    g.image.data.set(g.growth.out);
+    g.context.putImageData(g.image, 0, 0);
+    g.texture.source.update();
+    sprite.texture = g.texture;
+    sprite.alpha = 1;
+  }
+
+  function stopGrowing(id: number): void {
+    growths.get(id)?.texture.destroy(true);
+    growths.delete(id);
+    building.get(id)?.();
+    building.delete(id);
+  }
+
+  /** Show a slot on a sprite, hung on the slot's hot spot. */
+  function retexture(sprite: Sprite, [type, slot]: readonly [string, number]): void {
+    const texture = textures.get(`slot:${type}:${slot}`);
+    const spot = texture && hotSpots.get(texture);
+
+    if (texture && spot) {
+      sprite.texture = texture;
+      sprite.anchor.set(spot.x, spot.y);
+    }
+  }
+
   /** Where the island ends around a cell: SKY bits of the neighbours, given as [bit, dx, dy]. */
   function skyAround(x: number, y: number, around: typeof SIDES): number {
     let found = 0;
@@ -561,8 +624,9 @@ export function createWorldRenderer(
   const holding = new Set<number>();
   entityLayer.sortableChildren = true;
 
-  /** Buildings under construction, to hear them finished. */
+  /** Buildings under construction, to hear them finished, and the loops they sound meanwhile. */
   const rising = new Set<number>();
+  const building = new Map<number, () => void>();
 
   /** A building sounds when it is finished: with the sound of its .type file, or the original's
    * "buildDone" (ours). Units do not sound for what they do by themselves: only when ordered. */
@@ -572,8 +636,14 @@ export function createWorldRenderer(
     }
 
     if (entity.rising > 0) {
+      if (!rising.has(entity.id)) {
+        // "jimBuild.wav" loops while it goes up (ConstructionProcess, FUN_0044e960).
+        building.set(entity.id, sounds.loop('jimbuild', centres.get(entity.id)));
+      }
+
       rising.add(entity.id);
     } else if (rising.delete(entity.id)) {
+      stopGrowing(entity.id);
       sounds.play(unitSound(sounds.index, entity.type, 'built') ?? 'builddone',
         centres.get(entity.id));
     }
@@ -826,6 +896,7 @@ export function createWorldRenderer(
         widths.delete(id);
         centres.delete(id);
         rising.delete(id);
+        stopGrowing(id);
         headings.delete(id);
         glides.delete(id);
         scene.aims.delete(id);
@@ -1589,6 +1660,25 @@ export function createWorldRenderer(
           if (texture && spot) {
             sprite.texture = texture;
             sprite.anchor.set(spot.x, spot.y);
+          }
+        }
+
+        if (entity.kind === 'building' && entity.rising > 0 && sprite instanceof Sprite) {
+          grow(entity, sprite, dt);
+        }
+
+        // A flyer's frames run by the clock, faster than the steps for a Whirligig.
+        if (entity.kind === 'flyer' && sprite instanceof Sprite) {
+          const slot: [string, number] = [
+            entity.type,
+            flyerSlot(entity.type, entity.id, presentationTick),
+          ];
+          retexture(sprite, slot);
+          const shadow = shadows.get(entity.id);
+          const under = shadowOf(slot);
+
+          if (shadow instanceof Sprite && under) {
+            retexture(shadow, under);
           }
         }
 
