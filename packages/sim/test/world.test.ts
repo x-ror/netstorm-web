@@ -25,6 +25,9 @@ import {
   UNIT_REFRESH,
   MAX_UPGRADES,
   UPGRADE_SECONDS,
+  MAX_ALTAR_UPGRADES,
+  RUNES,
+  RUNE_INTERVAL,
   upgradeCost,
   WORKSHOP_SLOTS,
 } from '../src/index.js';
@@ -1014,4 +1017,46 @@ test('a mission is built from its map: islands, bridges, and the units of every 
   for (let i = 0; i < 5 * TPS; i++) {
     w.step();
   }
+});
+
+test('an Altar given its Upgrade for a gift stays after the Sacrifice and plays it for 5.4 s', () => {
+  const w = mk();
+  const red = w.priestOf(2)!;
+  const blue = w.priestOf(1)!;
+  const altar = w.buildingsOf(1).find((b) => b.type === 'altar')!;
+  const gift = (upgrade: boolean) =>
+    w.apply({ t: 'altarGift', player: 1, altar: altar.id, upgrade });
+  assert.equal(w.apply({ t: 'altarGift', player: 2, altar: altar.id, upgrade: true }),
+    'bad target');
+  // Level 3 is the last; and only an Altar on the home island can be Upgraded.
+  altar.upgrades = MAX_ALTAR_UPGRADES;
+  assert.equal(gift(true), 'fully upgraded');
+  assert.equal(gift(false), null);
+  altar.upgrades = 0;
+  const away = w.spawnBuilding('altar', 1, 200, 200);
+  assert.equal(w.apply({ t: 'altarGift', player: 1, altar: away.id, upgrade: true }), 'blocked');
+  w.entities.delete(away.id);
+  assert.equal(gift(true), null);
+  // The last rune all but warded, with the Altar's own Priest beside it.
+  red.state = 'chained';
+  red.chainedAt = altar.id;
+  red.runes = RUNES - 1;
+  red.runeTimer = RUNE_INTERVAL - 1;
+  [blue.x, blue.y] = [altar.x - 1, altar.y];
+
+  for (let i = 0; i < 3 && w.entities.has(red.id); i++) {
+    w.step();
+  }
+
+  assert.ok(!w.entities.has(red.id));
+  assert.ok(w.entities.has(altar.id), 'the Upgrade keeps the Altar');
+  assert.equal(altar.upgrading, 54);
+  assert.ok(w.drainEvents().some((e) => e.what === 'sacrifice' && e.data.upgrade));
+
+  for (let i = 0; i < 54; i++) {
+    w.step();
+  }
+
+  assert.equal(altar.upgrades, 1);
+  assert.ok(w.drainEvents().some((e) => e.what === 'altar upgrade' && e.data.level === 2));
 });

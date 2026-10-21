@@ -20,7 +20,10 @@ type Payloads = {
   rune: { priest: number; runes: number; };
   released: { priest: number; };
   saved: { priest: number; owner: number; };
-  sacrifice: { victim: number; };
+  /** `upgrade`: the Altar is Upgraded rather than consumed. */
+  sacrifice: { victim: number; upgrade: boolean; };
+  /** An Altar's Upgrade has played: it is of `level` now. */
+  'altar upgrade': { altar: number; level: number; };
   /** An Ice Cannon shot hit `hit` and threw a ricochet into `to`. */
   ricochet: { hit: number; to: number; };
   rejected: { cmd: Command['t']; err: CommandError; };

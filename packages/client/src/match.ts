@@ -40,6 +40,10 @@ import type { AiReply, AiRequest } from './ai-worker.js';
 const HUD_REFRESH_TICKS = 5;
 const ALTAR = 'altar';
 const HALF_CELL = 0.5;
+/** Seconds after the last rune that the Furies are heard (dais.cpp, FUN_004558e0). */
+const UPGRADE_CRY = 1.5;
+const SACRIFICE_CRY = 4;
+const SACRIFICE_THUNDER = 2.8;
 
 /** The middle of a map cell, in the pixels the map is drawn in: where its sound is made. */
 function cellMiddle(cell: { x: number; y: number; }): { x: number; y: number; } {
@@ -260,6 +264,11 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     upgradeSelected: () => controls.upgradeSelected(),
     meltdownSelected: () => controls.meltdownSelected(),
     castSelected: () => controls.castSelected(),
+    giftSelected: (upgrade) => {
+      if (ui.selected !== null) {
+        commands.push({ t: 'altarGift', player: ui.viewer, altar: ui.selected, upgrade });
+      }
+    },
     pray: (spell) => void commands.push({ t: 'pray', player: ui.viewer, spell }),
     dropSelected: () => controls.dropSelected(),
     view: lookThrough,
@@ -300,6 +309,21 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
   /** The sound of an event of the battle. Spells and transports sound as their .type files say;
    * the rest are matched to the events by the names of the original's sound files (ours). */
+  /** Sounds due a while after what made them, by the tick they are due. */
+  const echoes: { tick: number; name: string; }[] = [];
+
+  function later(name: string, seconds: number): void {
+    echoes.push({ tick: world.tick + Math.round(seconds * TPS), name });
+  }
+
+  function echo(): void {
+    for (let i = echoes.length - 1; i >= 0; i--) {
+      if (echoes[i]!.tick <= world.tick) {
+        data.sounds.play(echoes.splice(i, 1)[0]!.name);
+      }
+    }
+  }
+
   function hear(event: SimEvent): void {
     const mine = event.who === ui.viewer;
     const { sounds } = data;
@@ -330,8 +354,14 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
         return sounds.play(mine ? 'ourpriestimmobile' : undefined);
       case 'released':
         return sounds.play('priestfree');
+      // "itIsDone2.wav" as the last rune is warded, then the Furies' answer (dais.cpp,
+      // FUN_004558e0): for an Upgrade priestSacrifice4.wav at 1.5 s, else priestSacrifice2.wav at
+      // 4 s, and thunderCrack.wav at 2.8 s either way.
       case 'sacrifice':
-        return sounds.play('priestsacrifice2');
+        later(event.data.upgrade ? 'priestsacrifice4' : 'priestsacrifice2',
+          event.data.upgrade ? UPGRADE_CRY : SACRIFICE_CRY);
+        later('thundercrack', SACRIFICE_THUNDER);
+        return sounds.play('itisdone2');
       case 'bridge cracked':
         return sounds.play('bridgecrack', cellMiddle(event.data));
       case 'bridge fell':
@@ -496,6 +526,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
       takeEvents();
       watchHome();
+      echo();
       renderer.capture();
       return true;
     });

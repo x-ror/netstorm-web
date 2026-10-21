@@ -28,7 +28,8 @@ export const SLOT_COUNTS: Readonly<Record<string, number>> = {
   sunaviary: 27,
   windaviary: 6,
   rainaviary: 13,
-  dais: 59,
+  dais: 176, // the ring of an Altar of each of the three Levels, through the five stages of a sacrifice
+  daisextraframes: 90, // an Altar's Upgrade: Level 1 to 2, then 2 to 3
   altar: 89,
   windarcher: 80,
   anim: 88,

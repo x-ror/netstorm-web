@@ -125,6 +125,10 @@ export function describeEvent(
       return mine
         ? { text: m.event_upgraded({ level: event.data.level }), tone: 'good' }
         : null;
+    case 'altar upgrade':
+      return mine
+        ? { text: m.event_altar_upgraded({ level: event.data.level }), tone: 'good' }
+        : null;
     case 'destroyed':
       return {
         text: mine

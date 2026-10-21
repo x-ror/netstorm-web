@@ -2,16 +2,91 @@ import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
 import { shakeBridges } from './bridges.js';
 import { removeBuilding } from './combat.js';
+import type { WorldView } from '../view.js';
 import {
+  ALTAR_UPGRADE_SECONDS,
+  MAX_ALTAR_UPGRADES,
   RUNES,
   RUNE_INTERVAL,
+  TPS,
   Terrain,
+  W,
   type Building,
   type Priest,
   type Transport,
 } from '../state.js';
 
 const RELEASE_SEARCH_RADIUS = 16;
+const STEPS = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+
+/** The cells of island ground joined to a player's Temple: his home island, the one the original
+ * keeps from battle to battle (`?` that it is this ground). */
+export function homeIsland(world: WorldView, player: number): Set<number> {
+  const temple = world.templeOf(player);
+  const home = new Set<number>();
+
+  if (!temple) {
+    return home;
+  }
+
+  const queue = [world.at(temple.x, temple.y)];
+  home.add(queue[0]!);
+
+  for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
+    const [x, y] = [next % W, Math.floor(next / W)];
+
+    for (const [dx, dy] of STEPS) {
+      const cell = world.at(x + dx, y + dy);
+
+      if (
+        world.inside(x + dx, y + dy) && !home.has(cell) && world.terrain[cell] === Terrain.Island
+      ) {
+        home.add(cell);
+        queue.push(cell);
+      }
+    }
+  }
+
+  return home;
+}
+
+/** Why an Altar cannot take the gift asked, or null. "You will only be able to Upgrade an Altar on
+ * your home island" (WarnCantUpgradeAltarOffHomeIsland), and to Level 3 at most. */
+function altarGiftError(world: World, altar: Building, upgrade: boolean): CommandError | null {
+  if (!upgrade) {
+    return null;
+  }
+
+  if (altar.upgrades >= MAX_ALTAR_UPGRADES) {
+    return 'fully upgraded';
+  }
+
+  return homeIsland(world, altar.owner).has(world.at(altar.x, altar.y)) ? null : 'blocked';
+}
+
+/** Choose the gift of an Altar's next Sacrifice. */
+export function altarGift(
+  world: World,
+  c: Extract<Command, { t: 'altarGift'; }>,
+): CommandError | null {
+  const altar = world.building(c.altar);
+
+  if (
+    !altar || altar.owner !== c.player || world.def(altar.type).cls !== 'Altar'
+    || altar.rising > 0 || altar.upgrading > 0
+  ) {
+    return 'bad target';
+  }
+
+  const error = altarGiftError(world, altar, c.upgrade);
+
+  if (error) {
+    return error;
+  }
+
+  altar.upgradeGift = c.upgrade;
+  return null;
+}
 
 function ownAltar(world: World, owner: number): Building | undefined {
   return world.buildingsOf(owner).find((b) => world.def(b.type).cls === 'Altar' && b.rising === 0);
@@ -279,11 +354,20 @@ function completeSacrifice(world: World, victim: Priest, altar: Building): void 
 
   loser.alive = false;
   world.entities.delete(victim.id);
-  world.emit({ what: 'sacrifice', who: by, data: { victim: victim.owner } });
+  // "Your gift can be new Knowledge ... When new Knowledge is granted the Altar is consumed." The
+  // other gift Upgrades it: it stays, and plays its Upgrade.
+  const upgrade = altar.upgradeGift && altarGiftError(world, altar, true) === null;
+  world.emit({ what: 'sacrifice', who: by, data: { victim: victim.owner, upgrade } });
 
-  // The altar is consumed: in the original it blows up a few seconds after the last rune.
-  removeBuilding(world, altar);
-  shakeBridges(world, altar);
+  if (upgrade) {
+    altar.upgradeGift = false;
+    altar.upgrading = Math.round(ALTAR_UPGRADE_SECONDS * TPS);
+  } else {
+    // In the original it blows up a few seconds after the last rune.
+    removeBuilding(world, altar);
+    shakeBridges(world, altar);
+  }
+
   // The battle is over when nobody left standing has an enemy. Of allies who win together, the
   // one who made the sacrifice is named.
   const alive = [...world.players.values()].filter((player) => player.alive);

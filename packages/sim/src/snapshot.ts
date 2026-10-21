@@ -31,8 +31,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 33;
-export const RULES_VERSION = 64;
+export const SNAPSHOT_VERSION = 34;
+export const RULES_VERSION = 65;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -211,6 +211,7 @@ function parseEntity(raw: unknown): Entity {
       'slots',
       'upgrades',
       'upgrading',
+      'upgradeGift',
     ], 'building');
     return {
       id,
@@ -239,6 +240,7 @@ function parseEntity(raw: unknown): Entity {
       slots: list(value.slots, 'building.slots').map((slot) => text(slot, 'building.slot')),
       upgrades: integer(value.upgrades, 'building.upgrades', 0, MAX_UPGRADES),
       upgrading: integer(value.upgrading, 'building.upgrading', 0),
+      upgradeGift: boolean(value.upgradeGift, 'building.upgradeGift'),
     };
   }
 

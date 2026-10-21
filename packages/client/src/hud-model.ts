@@ -2,6 +2,7 @@ import {
   PIECES,
   rotateLinks,
   MAX_UPGRADES,
+  MAX_ALTAR_UPGRADES,
   DEVASTATION,
   OUTPOST,
   PIECE_HARDEN,
@@ -70,6 +71,8 @@ export interface HudActions {
   upgradeSelected(): void;
   meltdownSelected(): void;
   castSelected(): void;
+  /** Choose the gift of the selected Altar's next Sacrifice: its Upgrade, or Knowledge. */
+  giftSelected(upgrade: boolean): void;
   /** Have the player's Priest pray for a Spell. */
   pray(spell: string): void;
   /** A button of the page shown over the map was pressed: its place among the page's buttons. */
@@ -153,7 +156,8 @@ export type SelectedAction =
   | { kind: 'salvage'; label: string; key: string; }
   | { kind: 'produce'; type: string; label: string; }
   | { kind: 'upgrade'; label: string; cost: number; }
-  | { kind: 'meltdown'; label: string; };
+  | { kind: 'meltdown'; label: string; }
+  | { kind: 'gift'; upgrade: boolean; label: string; };
 
 const PLANK_DROP = 9; // from the top of a cell down to the hot spot of its Bridge frame
 const PLANK_FACE = 7; // pixels of a frame's front face under its cell
@@ -398,6 +402,32 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
 
 /** A Workshop's level and Production Slots and, for the player's own, the units of its Fury he
  * knows that it could take into a free slot, and its Upgrade. */
+/** "You must choose a gift from the Furies": Knowledge, which consumes the Altar, or its Upgrade,
+ * to Level 3 at most and on the home island only (the simulation says no elsewhere). */
+function altar(
+  me: number,
+  b: DeepReadonly<Building>,
+  say: (text: string, muted?: boolean) => void,
+  actions: SelectedAction[],
+): void {
+  const level = b.upgrades + 1;
+  say(m.altar_fact({ level, gift: b.upgradeGift ? m.gift_upgrade() : m.gift_knowledge() }));
+
+  if (b.owner !== me || b.upgrading > 0) {
+    return;
+  }
+
+  if (b.upgradeGift) {
+    actions.push({ kind: 'gift', upgrade: false, label: m.action_gift_knowledge() });
+  } else if (b.upgrades < MAX_ALTAR_UPGRADES) {
+    actions.push({
+      kind: 'gift',
+      upgrade: true,
+      label: m.action_gift_upgrade({ level: level + 1 }),
+    });
+  }
+}
+
 function workshop(
   world: WorldView,
   me: number,
@@ -478,6 +508,10 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
 
     if (world.defs.get(entity.type)?.cls === 'Production') {
       workshop(world, me, entity, say, actions);
+    }
+
+    if (world.defs.get(entity.type)?.cls === 'Altar' && entity.rising === 0) {
+      altar(me, entity, say, actions);
     }
   }
 

@@ -46,6 +46,10 @@ export const WORKSHOP_SLOTS = 2;
 export const MAX_UPGRADES = 3;
 /** An Upgrade of a Workshop is done this long after it is paid for (Factory.cpp: `now + 15`). */
 export const UPGRADE_SECONDS = 15;
+/** An Altar has Levels 1 to 3: two Upgrades at most (help 990–995). */
+export const MAX_ALTAR_UPGRADES = 2;
+/** The Altar's Upgrade plays 45 frames of 0.12 s (dais.cpp, FUN_00455b40). */
+export const ALTAR_UPGRADE_SECONDS = 5.4;
 /** Share of a unit's cost paid for destroying an enemy unit and, at full health, for salvaging your own. */
 export const REFUND_SHARE = 0.25;
 // Radius, in cells, of the circle a Temple or Generator spreads its Energy over. Measured in the
@@ -454,8 +458,12 @@ export interface Building {
   slots: string[];
   /** Times a Workshop has been Upgraded, each adding a slot; 0 for every other building. */
   upgrades: number;
-  /** Ticks until the Upgrade under way is done; 0 when none is. */
+  /** Ticks until the Upgrade under way is done; 0 when none is. A Workshop's takes 15 s; an
+   * Altar's plays for 5.4 s after the Sacrifice that bought it. */
   upgrading: number;
+  /** An Altar's gift from the Furies for its next Sacrifice: its own Upgrade instead of Knowledge,
+   * which consumes it. False for every other building. */
+  upgradeGift: boolean;
 }
 export interface Transport {
   id: number;

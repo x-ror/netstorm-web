@@ -41,7 +41,7 @@ EVENTS = [
     # From the code of netstorm.game: the Vander Tower's lightning, a Sun Cannon's barrel going up or
     # down, an Upgrade under way and done, a Bulf catching fire, a Salvage, an island under attack.
     "shortZap", *[f"sunCannonRaiseLower{n}" for n in range(1, 10)], "jimbuild", "upgradeDone",
-    "upgradeComplete", "bulfHurt", "collapse", "islandUnderAttack",
+    "upgradeComplete", "bulfHurt", "collapse", "islandUnderAttack", "itIsDone2", "priestSacrifice4",
 ]
 BITRATE = "48k"
 HUNDREDTHS_PER_BEL = 2000  # of amplitude: 20 dB is a factor of ten

@@ -43,7 +43,7 @@ import {
 } from './rules/building.js';
 import { tickTransport, collect, pickupCrystal, unload } from './rules/movement.js';
 import { tickPriest, movePriest } from './rules/priest.js';
-import { capturePriest } from './rules/capture.js';
+import { altarGift, capturePriest } from './rules/capture.js';
 import { castSpell, pray, spellbound, takeSpell } from './rules/spells.js';
 import { Pathfinder, airPath } from './spatial/pathfinding.js';
 import { CellIndex } from './cell-index.js';
@@ -361,6 +361,7 @@ export class World {
       slots: [],
       upgrades: 0,
       upgrading: 0,
+      upgradeGift: false,
     };
     this.entities.set(b.id, b);
     this.forFoot(b, (i) => {
@@ -647,6 +648,8 @@ export class World {
         return castSpell(this, c);
       case 'pray':
         return pray(this, c);
+      case 'altarGift':
+        return altarGift(this, c);
       case 'dropCargo':
         return unload(this, c);
       case 'produce':

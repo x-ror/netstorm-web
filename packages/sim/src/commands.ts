@@ -1,5 +1,5 @@
 import { FACINGS, MAX_ID, MAX_PLAYERS, type Facing } from './state.js';
-import { choice, integer, keys, record, text } from './validation.js';
+import { boolean, choice, integer, keys, record, text } from './validation.js';
 
 export type Command =
   | { t: 'dropPiece'; player: number; hand: number; x: number; y: number; rot: number; }
@@ -14,6 +14,8 @@ export type Command =
   /** `transport`: the caster, a transport or the player's Priest. */
   | { t: 'castSpell'; player: number; transport: number; }
   | { t: 'pray'; player: number; spell: string; }
+  /** The gift of an Altar's next Sacrifice: its Upgrade (`upgrade`) or Knowledge. */
+  | { t: 'altarGift'; player: number; altar: number; upgrade: boolean; }
   | { t: 'dropCargo'; player: number; transport: number; }
   | { t: 'produce'; player: number; workshop: number; type: string; }
   | { t: 'upgradeWorkshop'; player: number; workshop: number; };
@@ -62,6 +64,7 @@ export function parseCommand(raw: unknown): Command {
     'takeSpell',
     'castSpell',
     'pray',
+    'altarGift',
     'dropCargo',
     'produce',
     'upgradeWorkshop',
@@ -135,6 +138,14 @@ export function parseCommand(raw: unknown): Command {
     case 'dropCargo':
       keys(value, ['t', 'player', 'transport'], 'command');
       return { t, player, transport: integer(value.transport, 'command.transport', 1, MAX_ID) };
+    case 'altarGift':
+      keys(value, ['t', 'player', 'altar', 'upgrade'], 'command');
+      return {
+        t,
+        player,
+        altar: integer(value.altar, 'command.altar', 1, MAX_ID),
+        upgrade: boolean(value.upgrade, 'command.upgrade'),
+      };
     case 'pray':
       keys(value, ['t', 'player', 'spell'], 'command');
       return { t, player, spell: text(value.spell, 'command.spell') };

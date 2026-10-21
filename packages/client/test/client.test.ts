@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { ARM_BUILT, discSpin, loadDefs } from '@netstorm/sim';
+import { ARM_BUILT, discSpin, homeIsland, loadDefs } from '@netstorm/sim';
 import {
   happened,
   hotFeet,
@@ -17,7 +17,7 @@ import {
 import { knowledgeOf } from '../src/knowledge.js';
 import { burn, burners, rise, streaksOf, type Spark } from '../src/burning.js';
 import { scatter, type Piece } from '../src/shrapnel.js';
-import { createAlarm, homeIsland } from '../src/alarm.js';
+import { createAlarm } from '../src/alarm.js';
 import { MUZZLES } from '../src/muzzles.js';
 import { paint, paintOf } from '../src/owner-colours.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
@@ -325,8 +325,10 @@ test('animated entities show a slot of their type for the tick', () => {
   // Every slot the animations may ask for is shipped, with the offset of its picture.
   for (const [type, count] of Object.entries(SLOT_COUNTS)) {
     for (let slot = 0; slot < count; slot++) {
-      // Two lines are blank frames, which have no picture: the Priest's 65th and the Altar's 15th.
-      const blank = (type === 'priest' && slot === 64) || (type === 'altar' && slot === 14);
+      // Some lines are blank frames, which have no picture: the Priest's 65th, the Altar's 15th,
+      // and four of the ring between Level 1 and Level 2, which no animation asks for.
+      const blank = (type === 'priest' && slot === 64) || (type === 'altar' && slot === 14)
+        || (type === 'dais' && slot >= 60 && slot < 64);
       assert.ok(blank || parsePath(manifest[type]!['@']![slot]!).offset, `${type} ${slot}`);
     }
   }
@@ -899,4 +901,25 @@ test('a missile leaves from the launch point of the frame its gun fires on', () 
   // A Thunder Cannon facing north fires on its eighth frame, from high up its barrel.
   assert.deepEqual(at('thundercannon', 0), [-21, -85]);
   assert.equal(MUZZLES.sunarcher!.length, 33);
+});
+
+test('an Altar shows the ring of its Level, and its Upgrade with the horns hidden', () => {
+  const world = skirmish();
+  const scene = {
+    world: world.view(),
+    headings: new Map<number, number>(),
+    aims: new Map<number, number>(),
+    states: new VisualStates(),
+    guns: new Map(),
+  };
+  const altar = world.buildingsOf(ME).find((b) => b.type === 'altar')!;
+  altar.upgrades = 1;
+  assert.deepEqual(slotOf(altar, 0, scene), ['dais', 64]);
+  // Level 1 to 2: 45 frames of 0.12 s, the first at once.
+  altar.upgrades = 0;
+  altar.upgrading = 54;
+  assert.deepEqual(slotOf(altar, 1, scene), ['daisextraframes', 0]);
+  altar.upgrading = 1;
+  assert.deepEqual(slotOf(altar, 2, scene), ['daisextraframes', 44]);
+  assert.equal(overlayOf(altar, 2, world.view()), null);
 });

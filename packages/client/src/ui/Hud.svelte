@@ -110,6 +110,8 @@
     switch (action.kind) {
       case 'cast':
         return actions.castSelected();
+      case 'gift':
+        return actions.giftSelected(action.upgrade);
       case 'pray':
         return actions.pray(action.spell);
       case 'build':

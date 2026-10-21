@@ -354,6 +354,17 @@ export function tickUpgrade(world: World, b: Building): void {
   }
 
   b.upgrades++;
+
+  // An Altar's Upgrade ends with the ring of its new Level (dais.cpp, notifySacrificeDone).
+  if (world.def(b.type).cls === 'Altar') {
+    world.emit({
+      what: 'altar upgrade',
+      who: b.owner,
+      data: { altar: b.id, level: b.upgrades + 1 },
+    });
+    return;
+  }
+
   b.hp = b.hpMax;
   world.emit({ what: 'upgrade', who: b.owner, data: { workshop: b.id, level: b.upgrades + 1 } });
 }

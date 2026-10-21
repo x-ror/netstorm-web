@@ -41,7 +41,8 @@ SLOTS = {
     "sunaviary": 27,  # the dome opening, then the Whirligig rising out of it
     "windaviary": 6,
     "rainaviary": 13,
-    "dais": 59,  # the ring of an Altar through the five stages of a sacrifice
+    "dais": 176,  # the ring of an Altar of each of the three Levels, through the five stages of a sacrifice
+    "daisextraframes": 90,  # an Altar's Upgrade: Level 1 to 2, then 2 to 3  # the ring of an Altar through the five stages of a sacrifice
     "altar": 89,  # its horns, the captive struggling between them, then the sacrifice
     "windarcher": 80,  # for each facing: five frames of a shot, then twenty of turning
     "anim": 88,  # the explosions: two large ones, a middling one and a small one

@@ -4,6 +4,7 @@
  * slots listed here. One frame is shown per tick; the original's frame rates are not read (`?`).
  */
 import {
+  ALTAR_UPGRADE_SECONDS,
   ARM_BUILT,
   BUILD_SECONDS,
   SUN_CANNON_FIRE,
@@ -176,11 +177,16 @@ const WORKSHOP_GROUP: Readonly<Record<string, number>> = {
 };
 /**
  * An Altar is two pictures: the ring (type Dais) and the horns over it (type Altar). The ring
- * shows how many of the five runes are warded: a still for each count (slots 3, 14, 25, ...) and
- * ten frames of the next one going. The horns hold the captive, who struggles through 13 frames.
- * A Priest warding a rune chants the 18 frames of that stage, after his 77 other slots.
+ * shows how many of the five runes are warded: a still for each count (slots 3, 14, 25, ... for
+ * Level 1; the ring of Level 2 from slot 64, of Level 3 from 120, the table at 0x005fc85c of
+ * dais.cpp) and ten frames of the next one going. The horns hold the captive, who struggles
+ * through 13 frames. A Priest warding a rune chants the 18 frames of that stage, after his 77 other
+ * slots.
  */
-const DAIS = { rising: 1, laid: 2, still: 3, going: 4, stage: 11, frames: 10 } as const;
+const DAIS = { rising: 1, laid: 2, rings: [3, 64, 120], stage: 11, frames: 10 } as const;
+/** An Altar's Upgrade: 45 frames of 0.12 s from Level 1 to 2 (type DaisExtraFrames, slots 0 to
+ * 44), and from 2 to 3 (45 to 89); the horns are hidden meanwhile (dais.cpp, FUN_00454140). */
+const ALTAR_UPGRADE = { frames: 45, frame: 0.12 } as const;
 const HORNS = { empty: 0, struggle: 1, frames: 13 } as const;
 const CHANT = { first: 77, frames: 18 } as const;
 const FORCE_FIELD_FRAMES = 30;
@@ -385,12 +391,20 @@ function daisSlot(b: DeepReadonly<Building>, world: WorldView): Slot {
     ];
   }
 
+  if (b.upgrading > 0) {
+    const elapsed = Math.round(ALTAR_UPGRADE_SECONDS * TPS) - b.upgrading;
+    const frame = Math.min(ALTAR_UPGRADE.frames - 1,
+      Math.floor(elapsed / (ALTAR_UPGRADE.frame * TPS)));
+    return ['daisextraframes', b.upgrades * ALTAR_UPGRADE.frames + frame];
+  }
+
   const captive = captiveOf(world, b.id);
   const warded = Math.min(captive?.runes ?? 0, RUNES);
   const going = captive && captive.runeTimer > 0 && warded < RUNES
     ? Math.min(DAIS.frames - 1, Math.floor((captive.runeTimer * DAIS.frames) / RUNE_INTERVAL))
     : -1;
-  return ['dais', warded * DAIS.stage + (going < 0 ? DAIS.still : DAIS.going + going)];
+  const ring = DAIS.rings[Math.min(b.upgrades, DAIS.rings.length - 1)]!;
+  return ['dais', ring + warded * DAIS.stage + (going < 0 ? 0 : 1 + going)];
 }
 
 function buildingSlot(b: DeepReadonly<Building>, tick: number, scene: Scene): Slot | null {
@@ -619,6 +633,10 @@ export function overlayOf(
   }
 
   if (entity.type === 'altar') {
+    if (entity.upgrading > 0) {
+      return null;
+    }
+
     const held = captiveOf(world, entity.id);
     return ['altar', held ? HORNS.struggle + (tick % HORNS.frames) : HORNS.empty];
   }

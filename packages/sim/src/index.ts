@@ -17,6 +17,7 @@ export { threatMap, type ThreatMap } from './ai/threat.js';
 export { BRIDGE_SCAN } from './rules/bridges.js';
 export { blastDamage, facesWhenLaid, shotInterval } from './rules/combat.js';
 export * from './rules/guns.js';
+export { homeIsland } from './rules/capture.js';
 export { barriers, type Barrier } from './rules/fences.js';
 export { FLYER_SCALE, huntRadius } from './rules/flyers.js';
 export { stepShare } from './rules/movement.js';
