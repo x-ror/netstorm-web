@@ -35,6 +35,8 @@ import {
 import { SLOT_COUNTS, heading, overlayOf, shadowOf, shotFrame, slotOf } from '../src/animations.js';
 import { VisualStates } from '../src/presentation.js';
 import {
+  alongBarrel,
+  nearSide,
   MISSILES,
   SPELL_BURSTS,
   explosionFor,
@@ -922,4 +924,15 @@ test('an Altar shows the ring of its Level, and its Upgrade with the horns hidde
   altar.upgrading = 1;
   assert.deepEqual(slotOf(altar, 2, scene), ['daisextraframes', 44]);
   assert.equal(overlayOf(altar, 2, world.view()), null);
+});
+
+test('the missile of a cannon flies along its barrel, not to the middle of its target', () => {
+  const muzzle = { x: 100, y: 50 };
+  const middle = { x: 300, y: 70 };
+  assert.deepEqual(alongBarrel(muzzle, middle, 1), { x: 300, y: 50 }); // east: along its row
+  assert.deepEqual(alongBarrel(muzzle, { x: 120, y: -200 }, 0), { x: 100, y: -200 }); // north
+  // It stops where it touches its target: the side facing the gun.
+  assert.deepEqual(nearSide(10, 20, 4, 4, 1), [10, 22]);
+  assert.deepEqual(nearSide(10, 20, 4, 4, 0), [12, 24]);
+  assert.deepEqual(nearSide(10, 20, 4, 4, -1), [12, 22]);
 });

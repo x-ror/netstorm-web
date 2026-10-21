@@ -46,6 +46,8 @@ import {
   MISSILES,
   SPELL_BURSTS,
   FIELD_PUFF,
+  alongBarrel,
+  nearSide,
   SHELL_BURST,
   explosionFor,
   impactOf,
@@ -1180,12 +1182,23 @@ export function createWorldRenderer(
         continue;
       }
 
+      const cannon = entity.kind === 'building' && world.def(entity.type).group === 'cannon';
+
       if (shot) {
         const target = aim ?? placements.get(shot.target)?.entity;
         // A shot into a hostile force field flies to the cell where it meets the field.
         const foot = !shot.blocked && target ? footprintOf(target) : null;
-        const point = project(shot.x + (foot?.w ?? 1) / 2, shot.y + (foot?.h ?? 1) / 2);
+        const [w, h] = [foot?.w ?? 1, foot?.h ?? 1];
+        // A cannon's missile stops at the near side of its target, where it touches it.
+        const [px, py] = nearSide(shot.x, shot.y, w, h,
+          cannon && entity.kind === 'building' ? entity.facing : -1);
+        const point = project(px, py);
         endpoint = { x: point.sx, y: point.sy };
+      }
+
+      // A cannon fires along its barrel, not at the middle of its target.
+      if (cannon && entity.kind === 'building') {
+        endpoint = alongBarrel(start, endpoint, entity.facing);
       }
 
       // A Thunder Cannon charges, and a Disc Thrower spins, before its missile leaves.

@@ -68,6 +68,32 @@ export const SHELL_BURST = EXPLOSIONS.small;
 /** What a shot spent on a Sun Barricade's field leaves: "Puff of dust (used when fence gets hit)". */
 export const FIELD_PUFF = EXPLOSIONS.middling;
 
+/**
+ * Where a cannon's missile flies: straight along its barrel from the muzzle, to the target's
+ * column when it faces north or south, to its row when east or west (Missile.cpp, FUN_004a48e0).
+ */
+export function alongBarrel(
+  from: { x: number; y: number; },
+  to: { x: number; y: number; },
+  facing: number,
+): { x: number; y: number; } {
+  return facing % 2 === 0 ? { x: from.x, y: to.y } : { x: to.x, y: from.y };
+}
+
+/** Where on a footprint a missile ends: for a cannon facing north, east, south or west, the side
+ * of it that faces the gun, where the missile touches it; else its middle. */
+export function nearSide(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  facing: number,
+): [number, number] {
+  const sides = [[w / 2, h], [0, h / 2], [w / 2, 0], [w, h / 2]];
+  const [dx, dy] = sides[facing] ?? [w / 2, h / 2];
+  return [x + dx!, y + dy!];
+}
+
 /** The slot of a missile on its way along (dx, dy) in screen pixels, at a tick. */
 export function missileSlot(shooter: string, dx: number, dy: number, tick: number): number {
   const { bearings, frames } = MISSILES[shooter]!;
