@@ -2,7 +2,7 @@ import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
 import { flies } from '../defs.js';
 import { arriveAtObelisk, cast, loseSpell } from './spells.js';
-import { arriveAtAltar, arriveAtPriest, hail, releasePriest, takeCaptive } from './capture.js';
+import { arriveAtAltar, arriveAtPriest, hail, releasePriest } from './capture.js';
 import { TPS, CRYSTAL_VALUE, Terrain, type Transport, type Priest, type Geyser } from '../state.js';
 
 // From carrier.cpp of netstorm.game 10.82.
@@ -76,6 +76,28 @@ export function advance(world: World, e: Transport | Priest, speed: number): boo
   return true;
 }
 
+/** Cells an Aerial Transport rises before it flies and sinks before it lands: an altitude of 44 at
+ * 11 a cell (BalloonProcess, FUN_004acce0). Every trip ends landed. */
+const CLIMB_CELLS = 4;
+
+/** An Aerial Transport's take-off and landing, `CLIMB_CELLS / speed` seconds each; true while it
+ * keeps it from flying on or from what it came for. */
+function climb(t: Transport, speed: number): boolean {
+  if (t.climbing > 0) {
+    t.climbing--;
+    return true;
+  }
+
+  if (t.aloft === (t.path.length > 0)) {
+    return false;
+  }
+
+  t.aloft = !t.aloft;
+  t.climbing = Math.max(1, Math.round((CLIMB_CELLS / speed) * TPS));
+  t.climbing--;
+  return true;
+}
+
 const CLOUD_FLOATER = 'rainballoon';
 /** A Cloud Floater with a crystal gets a sixtieth of its hit points back every second. */
 const MEND_PARTS = 60;
@@ -95,9 +117,11 @@ function fallsAt(world: World, x: number, y: number): boolean {
 
 /**
  * "If it encounters another Transport other than a fellow Crab, it will stun it, and steal what
- * it's carrying, whether Priest or Storm Crystal." A Crab with nothing on it robs an enemy
- * transport that stands on its cell. The victim loses its errand. From a Bulf with two crystals
- * the Crab takes one, which is all it can carry.
+ * it's carrying, whether Priest or Storm Crystal." A Crab with no cargo (a Spell it may hold) robs
+ * an enemy carrier on foot that stands on its cell (FUN_0042cdb0). The victim stops where it is
+ * and loses its errand: no stun lasts, its way is only taken from it. From a Bulf with two
+ * crystals the Crab takes one. With a crystal the Crab heads for its Temple; with a captive Priest
+ * it stays, for its player to send on. It never takes a Spell, nor its owner's own Priest.
  */
 function steal(world: World, crab: Transport): void {
   const onFoot = world.priestAt(crab.x, crab.y);
@@ -117,11 +141,16 @@ function steal(world: World, crab: Transport): void {
       continue;
     }
 
-    if (cargo.kind === 'priest' && victim.kind === 'transport') {
-      // It cannot carry its owner's Priest, and here it takes one only if it has an altar to go to.
-      if (cargo.owner === crab.owner || !takeCaptive(world, victim, crab, cargo)) {
+    if (cargo.kind === 'priest') {
+      if (cargo.owner === crab.owner) {
         continue;
       }
+
+      victim.carrying = null;
+      cargo.carriedBy = crab.id;
+      crab.carrying = cargo.id;
+      crab.path = [];
+      stop(crab);
     } else if (cargo.kind === 'crystal') {
       if (cargo.value > CRYSTAL_VALUE) {
         cargo.value -= CRYSTAL_VALUE;
@@ -136,11 +165,8 @@ function steal(world: World, crab: Transport): void {
       goHome(world, crab);
     }
 
-    if (victim.carrying === null) {
-      victim.path = [];
-      stop(victim);
-    }
-
+    victim.path = [];
+    stop(victim);
     return;
   }
 }
@@ -158,7 +184,13 @@ export function tickTransport(world: World, t: Transport): void {
     return;
   }
 
-  advance(world, t, world.def(t.type).speed);
+  const speed = world.def(t.type).speed;
+
+  if (flies(world.def(t.type)) && climb(t, speed)) {
+    return;
+  }
+
+  advance(world, t, speed);
   mend(world, t);
 
   if (t.type === CRYSTAL_CRAB && t.carrying === null) {
@@ -228,10 +260,21 @@ function arriveAtGeyser(world: World, t: Carrier): void {
   }
 
   // Taking the crystal is instant here; the help does not say how long it takes in the original.
-  const crystals = t.kind === 'transport' && t.type === BULF ? BULF_CRYSTALS : 1;
-  const value = Math.min(crystals * CRYSTAL_VALUE, g.stock);
-  g.stock -= value;
-  t.carrying = world.spawnCrystal(t, value).id;
+  // A Bulf takes two when the geyser holds two crystals' worth, else one, and tops one up to two
+  // (FUN_0042ba90).
+  const held = t.carrying === null ? undefined : world.entities.get(t.carrying);
+
+  if (held?.kind === 'crystal') {
+    const more = Math.min(CRYSTAL_VALUE, g.stock);
+    g.stock -= more;
+    held.value += more;
+  } else {
+    const crystals = isBulf(t) && g.stock >= BULF_CRYSTALS * CRYSTAL_VALUE ? BULF_CRYSTALS : 1;
+    const value = Math.min(crystals * CRYSTAL_VALUE, g.stock);
+    g.stock -= value;
+    t.carrying = world.spawnCrystal(t, value).id;
+  }
+
   goHome(world, t);
 
   if (g.stock <= 0 && onIsland(world, g)) {
@@ -292,9 +335,28 @@ function arriveAtCrystal(world: World, t: Carrier): void {
     return;
   }
 
-  c.carriedBy = t.id;
-  t.carrying = c.id;
+  const held = t.carrying === null ? undefined : world.entities.get(t.carrying);
+
+  // A Bulf holding one crystal takes a second off the ground; the two are one load (FUN_00428640).
+  if (held?.kind === 'crystal') {
+    held.value = BULF_CRYSTALS * CRYSTAL_VALUE;
+    world.entities.delete(c.id);
+  } else {
+    c.carriedBy = t.id;
+    t.carrying = c.id;
+  }
+
   goHome(world, t);
+}
+
+/** A Bulf that holds a single crystal, which can take one more. */
+function bulfWithOne(world: World, t: Carrier): boolean {
+  const held = t.carrying === null ? undefined : world.entities.get(t.carrying);
+  return isBulf(t) && held?.kind === 'crystal' && held.value <= CRYSTAL_VALUE;
+}
+
+function isBulf(t: Carrier): boolean {
+  return t.kind === 'transport' && t.type === BULF;
 }
 
 /** Head for the Temple with the cargo. `target` is kept so the transport returns to the same geyser. */
@@ -413,7 +475,8 @@ export function dropCargo(world: World, t: Carrier): void {
   }
 }
 
-/** The player's transport, or his Priest on his feet, with nothing in its hands. */
+/** The player's transport, or his Priest on his feet, with nothing in its hands, or a Bulf with
+ * room for a second crystal. */
 function ownCarrier(world: World, player: number, id: number): Carrier | null {
   const t = world.entities.get(id);
 
@@ -421,7 +484,8 @@ function ownCarrier(world: World, player: number, id: number): Carrier | null {
     return null;
   }
 
-  return t.carrying === null && (t.kind === 'transport' || t.state === 'normal') ? t : null;
+  const free = t.carrying === null || bulfWithOne(world, t);
+  return free && (t.kind === 'transport' || t.state === 'normal') ? t : null;
 }
 
 /**
@@ -443,6 +507,19 @@ export function unload(
 
   if (!cargo) {
     return 'bad target';
+  }
+
+  // "Not while flying" (FUN_0042aa80).
+  if (t.kind === 'transport' && (t.aloft || t.climbing > 0)) {
+    return 'not ready';
+  }
+
+  // A Bulf with two crystals drops one of them (FUN_0044f8a0).
+  if (cargo.kind === 'crystal' && cargo.value > CRYSTAL_VALUE) {
+    cargo.value -= CRYSTAL_VALUE;
+    const dropped = world.spawnCrystal(t, CRYSTAL_VALUE);
+    dropped.carriedBy = null;
+    return null;
   }
 
   dropCargo(world, t);

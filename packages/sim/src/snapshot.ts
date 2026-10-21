@@ -37,8 +37,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 37;
-export const RULES_VERSION = 69;
+export const SNAPSHOT_VERSION = 38;
+export const RULES_VERSION = 70;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -302,6 +302,8 @@ function parseEntity(raw: unknown): Entity {
       'target',
       'spell',
       'casting',
+      'aloft',
+      'climbing',
     ], 'transport');
     return {
       id,
@@ -327,6 +329,8 @@ function parseEntity(raw: unknown): Entity {
       target: nullableId(value.target, 'transport.target'),
       spell: value.spell === null ? null : text(value.spell, 'transport.spell'),
       casting: integer(value.casting, 'transport.casting', 0),
+      aloft: boolean(value.aloft, 'transport.aloft'),
+      climbing: integer(value.climbing, 'transport.climbing', 0),
       paralyzed,
       invisible,
     };

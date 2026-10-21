@@ -505,6 +505,10 @@ export interface Transport {
   spell: string | null;
   /** Ticks until the Spell it is casting goes off; it stands still meanwhile. 0: not casting. */
   casting: number;
+  /** An Aerial Transport in the air, between its take-off and its landing. */
+  aloft: boolean;
+  /** Ticks of an Aerial Transport's take-off or landing left; 0 for every other. */
+  climbing: number;
   /** Ticks of Paralysis left: it neither moves nor shoots meanwhile. */
   paralyzed: number;
   /** Ticks of Invisibility left: nothing can target it or pick it up meanwhile. */

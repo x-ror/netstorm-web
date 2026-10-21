@@ -413,6 +413,8 @@ export class World {
       target: null,
       spell: null,
       casting: 0,
+      aloft: false,
+      climbing: 0,
       paralyzed: 0,
       invisible: 0,
     };

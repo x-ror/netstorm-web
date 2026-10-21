@@ -879,8 +879,11 @@ function inRadius(world: World, b: Building, def: UnitDef, target: Entity): bool
   const cy = b.y + (b.fy >> 1);
   const width = target.kind === 'building' ? target.fx : 1;
   const height = target.kind === 'building' ? target.fy : 1;
-  const dx = Math.max(target.x - cx, 0, cx - (target.x + width - 1));
-  const dy = Math.max(target.y - cy, 0, cy - (target.y + height - 1));
+  // An Aerial Transport is hit over its footprint, about its cell (FUN_004dcf50): an Air Ship's
+  // 4×4 is reached a cell and a half farther than a Balloon.
+  const half = target.kind === 'transport' ? (world.def(target.type).footX - 1) / 2 : 0;
+  const dx = Math.max(target.x - cx - half, 0, cx - (target.x + width - 1) - half);
+  const dy = Math.max(target.y - cy - half, 0, cy - (target.y + height - 1) - half);
   return Math.max(dx, dy) <= range;
 }
 

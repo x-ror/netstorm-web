@@ -56,8 +56,10 @@ function around(world: World, t: Caster, range: number): Living[] {
 
     const held = e.kind === 'priest' && (e.state === 'carried' || e.state === 'chained');
     const [fx, fy] = e.kind === 'building' ? [e.fx, e.fy] : [1, 1];
+    // A transport is reached half its footprint farther (FUN_0041e6f0): an Air Ship's is 4×4.
+    const reach = e.kind === 'transport' ? range + (world.def(e.type).footX - 1) / 2 : range;
 
-    if (!held && gap(t, e.x, e.y, fx, fy) <= range * range) {
+    if (!held && gap(t, e.x, e.y, fx, fy) <= reach * reach) {
       found.push(e);
     }
   }
@@ -383,6 +385,11 @@ export function castSpell(
 
   if (t.casting > 0) {
     return 'casting';
+  }
+
+  // "Not while flying" (FUN_0042aa80).
+  if (t.kind === 'transport' && (t.aloft || t.climbing > 0)) {
+    return 'not ready';
   }
 
   const def = world.def(t.spell);
