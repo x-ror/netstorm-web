@@ -1,7 +1,7 @@
 /**
  * A battlefield for a skirmish, made up from a seed: two home islands in opposite corners, as
- * many islands more as asked for, built by the original's island builder, and geysers on islets
- * of their own in the open sky between. Invented: the original ships maps, it does not make them.
+ * many islands more as asked for, built by the original's island builder. The geysers are the
+ * battle's (rules/geysers.ts). Invented: the original ships maps, it does not make them.
  * The same seed and options always give the same map.
  */
 import { growIslands, islandChunks, ISLAND_SHAPE_COUNT, type IslandSpec } from './terrain.js';
@@ -17,7 +17,6 @@ export interface GeneratedSide {
 export interface GenerateOptions {
   /** Islands in all, the two homes included. */
   islands: number;
-  geysers: number;
   sides: readonly [GeneratedSide, GeneratedSide];
 }
 
@@ -38,13 +37,7 @@ const TEMPLE_W = 8;
 const TEMPLE_H = 6;
 /** Island cells kept clear around a Temple, so the Priest and the first units have room. */
 const TEMPLE_MARGIN = 2;
-/** Open sky kept between a geyser's islet and anything else, and between two geysers. */
-const GEYSER_CLEARANCE = 4;
-const GEYSER_SPACING = 10;
-/** Cells from the map's edge the geysers keep. */
-const EDGE = 20;
 const TRIES = 400;
-const GEYSER_TRIES = 1600;
 const PRIEST = 'priest';
 /* oxlint-enable no-magic-numbers */
 
@@ -124,43 +117,13 @@ export function generateMap(seed: number, options: GenerateOptions): MissionMap 
     }
   }
 
-  // Geysers in the open sky, clear of the islands and of each other.
-  const geysers: [number, number][] = [];
-
-  for (let tries = 0; geysers.length < options.geysers && tries < GEYSER_TRIES; tries++) {
-    const x = between(rng, EDGE, W - 1 - EDGE);
-    const y = between(rng, EDGE, H - 1 - EDGE);
-
-    if (
-      clearSky(ground, x, y, GEYSER_CLEARANCE)
-      && geysers.every(([gx, gy]) => Math.max(Math.abs(gx - x), Math.abs(gy - y)) >= GEYSER_SPACING)
-    ) {
-      geysers.push([x, y]);
-    }
-  }
-
   return {
     islands: specs.map((s) => [s.shape, s.cx, s.cy, s.seed]),
-    geysers,
+    // The geysers come with the battle: rules/geysers.ts.
+    geysers: [],
     bridges: [],
     units,
   };
-}
-
-/** Whether every cell within `reach` of (x, y) is open sky. */
-function clearSky(ground: Int16Array, x: number, y: number, reach: number): boolean {
-  for (let dy = -reach; dy <= reach; dy++) {
-    for (let dx = -reach; dx <= reach; dx++) {
-      const cx = x + dx;
-      const cy = y + dy;
-
-      if (cx < 0 || cy < 0 || cx >= W || cy >= H || ground[cy * W + cx] !== -1) {
-        return false;
-      }
-    }
-  }
-
-  return true;
 }
 
 /** The top left of a Temple's cells on the island, with a margin of its ground all about, the

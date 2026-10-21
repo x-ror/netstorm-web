@@ -32,6 +32,7 @@ import {
 import { landShots, tickBuilding } from './rules/combat.js';
 import { FLYER_SCALE, flightTicks, tickAirBase, tickFlyer } from './rules/flyers.js';
 import { tickPlayer } from './rules/economy.js';
+import { campaignGeysers, tickGeysers } from './rules/geysers.js';
 import {
   energy,
   canBuild,
@@ -63,6 +64,7 @@ import {
   type Priest,
   type Crystal,
   type Geyser,
+  type GeyserState,
   type Obelisk,
   type Flyer,
   type Entity,
@@ -133,6 +135,8 @@ export class World {
   geyserStock: number = GEYSER_STOCK;
   /** `allowAnyCapture` of a mission: a transport may carry off a friendly Priest, to save him. */
   anyCapture = false;
+  /** New geysers during the battle: their options, pool and timer. */
+  geysers: GeyserState = campaignGeysers();
 
   constructor(
     public readonly defs: DefTable,
@@ -153,6 +157,7 @@ export class World {
     world.killReward = snapshot.killReward;
     world.geyserStock = snapshot.geyserStock;
     world.anyCapture = snapshot.anyCapture;
+    world.geysers = snapshot.geysers;
     world.terrain.set(snapshot.terrain);
     world.owner.set(snapshot.owner);
     world.links.set(snapshot.links);
@@ -213,6 +218,7 @@ export class World {
       killReward: this.killReward,
       geyserStock: this.geyserStock,
       anyCapture: this.anyCapture,
+      geysers: structuredClone(this.geysers),
     };
   }
 
@@ -290,6 +296,7 @@ export class World {
     };
     this.entities.set(g.id, g);
     this.occupant[y * W + x] = g.id;
+    this.geysers.made++;
     return g;
   }
 
@@ -690,6 +697,7 @@ export class World {
     }
 
     landShots(this);
+    tickGeysers(this);
     const tickEntities = [...this.entities.values()];
 
     for (const e of tickEntities) {

@@ -24,6 +24,8 @@ type Payloads = {
   sacrifice: { victim: number; upgrade: boolean; };
   /** An Altar's Upgrade has played: it is of `level` now. */
   'altar upgrade': { altar: number; level: number; };
+  /** A new geyser came up during the battle. */
+  geyser: { id: number; };
   /** An Ice Cannon shot hit `hit` and threw a ricochet into `to`. */
   ricochet: { hit: number; to: number; };
   rejected: { cmd: Command['t']; err: CommandError; };

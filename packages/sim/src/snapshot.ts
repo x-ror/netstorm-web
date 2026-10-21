@@ -1,9 +1,13 @@
 import { UNIT_CLASSES, UNIT_GROUPS, type UnitDef } from './defs.js';
-import type { Entity, Player, Shot } from './state.js';
+import type { Entity, GeyserState, Player, Shot } from './state.js';
 import {
   BRIDGE_SETS,
   BRIDGE_SLOTS,
+  GEYSER_INTERVALS,
+  GEYSER_PLACEMENTS,
+  GEYSER_RESPAWNS,
   GEYSER_STOCKS,
+  GEYSER_ZONES,
   KILL_REWARDS,
   UNIT_RATES,
   LINK_ALL,
@@ -31,8 +35,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 34;
-export const RULES_VERSION = 65;
+export const SNAPSHOT_VERSION = 35;
+export const RULES_VERSION = 66;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -50,6 +54,7 @@ export interface WorldSnapshot {
   killReward: number;
   geyserStock: number;
   anyCapture: boolean;
+  geysers: GeyserState;
   terrain: number[];
   owner: number[];
   links: number[];
@@ -471,6 +476,39 @@ function grid(raw: unknown, label: string, max: number): number[] {
   return values.map((value) => integer(value, label, 0, max));
 }
 
+function parseGeysers(raw: unknown): GeyserState {
+  const value = record(raw, 'geysers');
+  keys(value, [
+    'placement',
+    'interval',
+    'respawn',
+    'floor',
+    'pool',
+    'loose',
+    'next',
+    'made',
+    'seed',
+  ], 'geysers');
+  const pool = list(value.pool, 'geysers.pool').map((p) => integer(p, 'geysers.pool', -MAX_UINT32));
+
+  if (pool.length !== GEYSER_ZONES + 1) {
+    throw new TypeError('Invalid geysers.pool length');
+  }
+
+  return {
+    placement: choice(value.placement, GEYSER_PLACEMENTS, 'geysers.placement'),
+    // The campaign's 30 s is one of the option's values.
+    interval: choice(value.interval, GEYSER_INTERVALS, 'geysers.interval'),
+    respawn: choice(value.respawn, GEYSER_RESPAWNS, 'geysers.respawn'),
+    floor: integer(value.floor, 'geysers.floor'),
+    pool,
+    loose: integer(value.loose, 'geysers.loose', -MAX_UINT32),
+    next: integer(value.next, 'geysers.next'),
+    made: integer(value.made, 'geysers.made'),
+    seed: integer(value.seed, 'geysers.seed', 0, MAX_UINT32),
+  };
+}
+
 /** Validate and detach all data. Cross-reference invariants are checked by World.fromSnapshot. */
 export function parseSnapshot(raw: unknown): WorldSnapshot {
   const value = record(raw, 'snapshot');
@@ -487,6 +525,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     'killReward',
     'geyserStock',
     'anyCapture',
+    'geysers',
     'terrain',
     'owner',
     'links',
@@ -530,6 +569,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     killReward: choice(value.killReward, KILL_REWARDS, 'snapshot.killReward'),
     geyserStock: choice(value.geyserStock, GEYSER_STOCKS, 'snapshot.geyserStock'),
     anyCapture: boolean(value.anyCapture, 'snapshot.anyCapture'),
+    geysers: parseGeysers(value.geysers),
     terrain: grid(value.terrain, 'terrain', Terrain.HardBridge),
     owner: grid(value.owner, 'owner', MAX_PLAYERS),
     links: grid(value.links, 'links', LINK_ALL),

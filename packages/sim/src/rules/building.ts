@@ -20,6 +20,7 @@ import {
 } from '../state.js';
 import { joins, shakeBridges } from './bridges.js';
 import { damage, removeBuilding } from './combat.js';
+import { feed, unitValue } from './geysers.js';
 import { removeTransport } from './movement.js';
 
 export function energy(world: WorldView, p: number): { own: number; total: number; } {
@@ -588,6 +589,7 @@ export function salvage(world: World, c: Extract<Command, { t: 'salvage'; }>): C
 
   world.players.get(c.player)!.storm += refund;
   world.emit({ what: 'salvaged', who: c.player, data: { id: unit.id, type: unit.type, refund } });
+  feed(world, unitValue(world, unit) - refund);
   return null;
 }
 

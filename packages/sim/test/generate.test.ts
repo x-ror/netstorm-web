@@ -4,10 +4,9 @@ import { generateMap, growIslands, islandChunks, W } from '../src/index.js';
 
 const sides = [{ id: 1, theme: 'wind' }, { id: 2, theme: 'rain' }] as const;
 
-test('a made-up map has two homes with Temples, the islands and geysers asked for, apart', () => {
-  const map = generateMap(42, { islands: 6, geysers: 12, sides });
+test('a made-up map has two homes with Temples, the islands asked for, apart', () => {
+  const map = generateMap(42, { islands: 6, sides });
   assert.equal(map.islands.length, 6);
-  assert.equal(map.geysers.length, 12);
   // No two islands share a chunk.
   const chunks = map.islands.flatMap(([shape, cx, cy, seed]) =>
     islandChunks({ shape, cx, cy, seed }).map(([x, y]) => y * 16 + x)
@@ -28,12 +27,7 @@ test('a made-up map has two homes with Temples, the islands and geysers asked fo
 
   assert.equal(map.units.filter(([type]) => type === 'priest').length, 2);
 
-  // Geysers lie in open sky.
-  for (const [x, y] of map.geysers) {
-    assert.equal(ground[y * W + x], -1);
-  }
-
   // The same seed again gives the same map.
-  assert.deepEqual(generateMap(42, { islands: 6, geysers: 12, sides }), map);
-  assert.notDeepEqual(generateMap(43, { islands: 6, geysers: 12, sides }), map);
+  assert.deepEqual(generateMap(42, { islands: 6, sides }), map);
+  assert.notDeepEqual(generateMap(43, { islands: 6, sides }), map);
 });

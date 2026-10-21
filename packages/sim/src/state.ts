@@ -23,6 +23,15 @@ export const UNIT_RATES = [30, 15, 8, 4] as const;
 export const KILL_REWARDS = [0, 25, 50, 75, 100, 150] as const;
 /** "Money per Geyser": Storm Power a geyser holds. */
 export const GEYSER_STOCKS = [2000, 3000, 4000, 5000] as const;
+/** "Geyser Placement": no new geysers, anywhere on the map, or evenly over its 16 zones. The
+ * original's Synced and Timed are left out. */
+export const GEYSER_PLACEMENTS = ['none', 'traditional', 'balanced'] as const;
+/** "Geyser Interval": seconds between two tries at a new geyser; 0 is None. */
+export const GEYSER_INTERVALS = [0, 30, 45, 60, 120] as const;
+/** "Geyser Respawn": what the Storm Power of the fallen is multiplied by on its way to new geysers. */
+export const GEYSER_RESPAWNS = [0.8, 0.9, 1, 1.1, 1.25] as const;
+/** "Starting Geysers": what the count of geysers at the start is multiplied by. */
+export const STARTING_GEYSERS = [0, 0.8, 1, 1.5, 5] as const;
 /* oxlint-enable no-magic-numbers */
 /** What the options are when nothing chooses them: the campaign's values. */
 export const DEFAULT_UNIT_RATE = 4;
@@ -530,6 +539,29 @@ export interface Crystal {
   y: number;
   value: number; // Storm Power credited on delivery
   carriedBy: number | null;
+}
+/** Zones of the Balanced placement: a 4×4 grid over the battle (`numZones` in nugget.cpp). */
+export const GEYSER_ZONES = 16;
+export type GeyserPlacement = (typeof GEYSER_PLACEMENTS)[number];
+/** The machinery of new geysers (nugget.cpp): the options, the pool of Storm Power they come
+ * from, and when the next one is due. See rules/geysers.ts. */
+export interface GeyserState {
+  placement: GeyserPlacement;
+  /** Seconds between two tries. */
+  interval: number;
+  respawn: number;
+  /** Traditional: while fewer geysers than this have been made, one comes whatever the pool. */
+  floor: number;
+  /** Balanced: the undistributed pool, then the pools of zones 1 to 16. */
+  pool: number[];
+  /** Traditional: the one pool. */
+  loose: number;
+  /** Tick of the next try. */
+  next: number;
+  /** Geysers ever made in this battle, those of the map included. */
+  made: number;
+  /** State of the generator that picks the spots of Traditional geysers; 0 before the first. */
+  seed: number;
 }
 export interface Geyser {
   id: number;

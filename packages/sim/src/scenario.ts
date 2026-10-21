@@ -1,14 +1,20 @@
 /** A skirmish on rectangular islands, for tests and for maps that bring no islands. Missions are
  * built from the original's maps in mission.ts. */
 import { World } from './world.js';
+import { startGeysers } from './rules/geysers.js';
 import type { Theme, DefTable } from './defs.js';
 import {
   BRIDGE_SETS,
   BRIDGE_SLOTS,
   DEFAULT_KILL_REWARD,
   DEFAULT_UNIT_RATE,
+  GEYSER_INTERVALS,
+  GEYSER_PLACEMENTS,
+  GEYSER_RESPAWNS,
   GEYSER_STOCK,
   GEYSER_STOCKS,
+  STARTING_GEYSERS,
+  type GeyserPlacement,
   HAND_SIZE,
   KILL_REWARDS,
   UNIT_RATES,
@@ -30,6 +36,33 @@ export interface SkirmishOptions {
   geyserStock?: number;
   /** `allowAnyCapture` of a mission: friendly Priests may be carried off to safety. */
   anyCapture?: boolean;
+  /** The geyser options of a multiplayer battle, which also make the geysers of the start. Left
+   * out, the battle has the map's geysers and the campaign's machinery for new ones. */
+  geysers?: GeyserOptions;
+}
+
+export interface GeyserOptions {
+  placement?: GeyserPlacement;
+  /** Seconds, one of GEYSER_INTERVALS. */
+  interval?: number;
+  /** One of GEYSER_RESPAWNS. */
+  respawn?: number;
+  /** One of STARTING_GEYSERS. */
+  start?: number;
+}
+
+/** The geysers of a multiplayer battle's start, and its machinery for new ones. */
+export function startBattle(w: World, options: SkirmishOptions): void {
+  const g = options.geysers;
+
+  if (g) {
+    startGeysers(w, {
+      placement: GEYSER_PLACEMENTS.find((p) => p === g.placement) ?? DEFAULT_PLACEMENT,
+      interval: pick(GEYSER_INTERVALS, g.interval, DEFAULT_INTERVAL),
+      respawn: pick(GEYSER_RESPAWNS, g.respawn, 1),
+      start: pick(STARTING_GEYSERS, g.start, 1),
+    });
+  }
 }
 
 function pick(values: readonly number[], value: number | undefined, fallback: number): number {
@@ -47,6 +80,9 @@ export interface SkirmishPlayer {
 }
 
 const DEFAULT_STORM = 2000; // starting Storm Power
+// The multiplayer defaults of netstorm.game 10.82: Balanced, 1 Min.
+const DEFAULT_PLACEMENT: GeyserPlacement = 'balanced';
+const DEFAULT_INTERVAL = 60;
 
 const BASE_TECH = [
   'sunwalker',
@@ -119,6 +155,7 @@ export function createSkirmish(
     w.addGeyser(x, y);
   }
 
+  startBattle(w, options);
   return w;
 }
 

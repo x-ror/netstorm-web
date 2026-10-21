@@ -16,6 +16,7 @@ import {
   type Transport,
 } from '../state.js';
 import { damage } from './combat.js';
+import { feed } from './geysers.js';
 import { collapse } from './bridges.js';
 import { dropCargo } from './movement.js';
 
@@ -306,6 +307,8 @@ export function cast(world: World, t: Caster): void {
 
   if (t.casting === 0 && t.spell) {
     SPELLS[t.spell]!(world, t, world.def(t.spell).range);
+    // The Spell's cost goes to new geysers (FUN_0041f4d0).
+    feed(world, world.def(t.spell).cost);
     world.emit({ what: 'cast', who: t.owner, data: { transport: t.id, spell: t.spell } });
   }
 }

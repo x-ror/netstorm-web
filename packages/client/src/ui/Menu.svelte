@@ -4,7 +4,11 @@
     BRIDGE_SETS,
     BRIDGE_SLOTS,
     DIFFICULTIES,
+    GEYSER_INTERVALS,
+    GEYSER_PLACEMENTS,
+    GEYSER_RESPAWNS,
     GEYSER_STOCKS,
+    STARTING_GEYSERS,
     KILL_REWARDS,
     UNIT_RATES,
   } from '@netstorm/sim';
@@ -12,7 +16,8 @@
   import {
     BRIDGE_LABELS,
     DIFFICULTY_LABELS,
-    GEYSER_COUNTS,
+    GEYSER_PLACEMENT_LABELS,
+    STARTING_GEYSER_LABELS,
     ISLAND_COUNTS,
     MAX_SEED,
     MAX_STORM,
@@ -289,9 +294,33 @@
                 </label>
                 <label>
                   {m.menu_geysers()}
-                  <select name="geysers" bind:value={options.geysers}>
-                    {#each GEYSER_COUNTS as count (count)}<option value={count}>
-                        {count}
+                  <select name="startGeysers" bind:value={options.startGeysers}>
+                    {#each STARTING_GEYSERS as share, i (share)}<option value={share}>
+                        {STARTING_GEYSER_LABELS[i]?.()}
+                      </option>{/each}
+                  </select>
+                </label>
+                <label>
+                  {m.menu_geyser_placement()}
+                  <select name="geyserPlacement" bind:value={options.geyserPlacement}>
+                    {#each GEYSER_PLACEMENTS as id (id)}<option value={id}>
+                        {GEYSER_PLACEMENT_LABELS[id]()}
+                      </option>{/each}
+                  </select>
+                </label>
+                <label>
+                  {m.menu_geyser_interval()}
+                  <select name="geyserInterval" bind:value={options.geyserInterval}>
+                    {#each GEYSER_INTERVALS as seconds (seconds)}<option value={seconds}>
+                        {seconds ? m.menu_geyser_interval_option({ seconds }) : m.menu_none()}
+                      </option>{/each}
+                  </select>
+                </label>
+                <label>
+                  {m.menu_geyser_respawn()}
+                  <select name="geyserRespawn" bind:value={options.geyserRespawn}>
+                    {#each GEYSER_RESPAWNS as share (share)}<option value={share}>
+                        {m.menu_geyser_respawn_option({ share: Math.round(share * 100) })}
                       </option>{/each}
                   </select>
                 </label>

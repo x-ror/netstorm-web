@@ -115,7 +115,7 @@ test('the default match is the first mission on its own map', () => {
   }
 });
 
-/** A skirmish from the menu: Thunder against Wind, six islands and twelve geysers. */
+/** A skirmish from the menu: Thunder against Wind, six islands, no geysers at the start. */
 const make = (seed: number, more = {}) =>
   createMatchWorld(defs, maps, missions, {
     ...DEFAULT_OPTIONS,
@@ -123,7 +123,7 @@ const make = (seed: number, more = {}) =>
     theme: 'thunder',
     enemyTheme: 'wind',
     islands: 6,
-    geysers: 12,
+    startGeysers: 0,
     seed,
     ...more,
   });
@@ -134,7 +134,8 @@ test('a skirmish is fought on a map made from its seed, with the Furies and the 
   assert.equal(world.templeOf(ENEMY)!.type, 'windvortex');
   assert.deepEqual(world.buildingsOf(ENEMY).map((b) => b.type), ['windvortex']);
   assert.ok(world.priestOf(ME) && world.priestOf(ENEMY));
-  assert.equal([...world.entities.values()].filter((e) => e.kind === 'geyser').length, 12);
+  // Only the three by each home.
+  assert.equal([...world.entities.values()].filter((e) => e.kind === 'geyser').length, 6);
   // The same seed gives the same map; another seed, another.
   const at = (w: typeof world) => [w.templeOf(ME)!.x, w.templeOf(ME)!.y];
   assert.deepEqual(at(make(5)), at(world));
@@ -769,9 +770,11 @@ test('an emptied number field starts with nothing; a missing one keeps the defau
   assert.equal(normalizeOptions({ difficulty: 'hard' }, missions).difficulty, 'hard');
   assert.equal(normalizeOptions({ difficulty: 'cheat' }, missions).difficulty, 'normal');
   assert.equal(normalizeOptions({ opponent: 'watch' }, missions).opponent, 'watch');
-  assert.equal(normalizeOptions({ islands: 9, geysers: 5 }, missions).islands, 9);
-  assert.equal(normalizeOptions({ islands: 9, geysers: 5 }, missions).geysers,
-    DEFAULT_OPTIONS.geysers);
+  assert.equal(normalizeOptions({ islands: 9, startGeysers: 7 }, missions).islands, 9);
+  assert.equal(normalizeOptions({ islands: 9, startGeysers: 7 }, missions).startGeysers,
+    DEFAULT_OPTIONS.startGeysers);
+  assert.equal(normalizeOptions({ geyserPlacement: 'traditional' }, missions).geyserPlacement,
+    'traditional');
 });
 
 test('a component missing a function its contract promises fails at mount', () => {

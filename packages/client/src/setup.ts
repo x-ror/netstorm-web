@@ -61,19 +61,26 @@ export function createMatchWorld(
     }, battle);
   }
 
-  // A skirmish is fought on a map made up from its seed: two homes, the islands and geysers the
-  // menu asks for.
+  // A skirmish is fought on a map made up from its seed: two homes and the islands the menu asks
+  // for, with the geysers of a multiplayer battle.
   if (options.mode === 'skirmish') {
     const made = generateMap(options.seed, {
       islands: options.islands,
-      geysers: options.geysers,
       sides: [{ id: ME, theme: options.theme }, { id: ENEMY, theme: options.enemyTheme }],
     });
     return createMission(defs, options.seed, made, (id) => ({
       name: id === ME ? m.player_you() : enemy,
       theme: id === ME ? options.theme : options.enemyTheme,
       storm: options.storm,
-    }), battle);
+    }), {
+      ...battle,
+      geysers: {
+        placement: options.geyserPlacement,
+        interval: options.geyserInterval,
+        respawn: options.geyserRespawn,
+        start: options.startGeysers,
+      },
+    });
   }
 
   // A mission without a map: both bases are rectangles at fixed spots, each with the Fury the

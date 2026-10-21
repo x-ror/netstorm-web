@@ -2,6 +2,7 @@ import type { World } from '../world.js';
 import { flies, type UnitDef } from '../defs.js';
 import { shakeBridges } from './bridges.js';
 import { tickUpgrade } from './building.js';
+import { feed, unitValue } from './geysers.js';
 import {
   ARM_BUILT,
   CROSSBOW_BEARINGS,
@@ -793,13 +794,17 @@ export function damage(
     return;
   }
 
-  const amountPaid = Math.floor((world.def(entity.type).cost * world.killReward) / PER_CENT);
+  // What the killer is not paid goes to new geysers (FUN_00458270).
+  const value = unitValue(world, entity);
   const player = world.players.get(by);
+  const amountPaid = player ? Math.floor((value * world.killReward) / PER_CENT) : 0;
 
   if (player && amountPaid > 0) {
     player.storm += amountPaid;
     world.emit({ what: 'reward', who: by, data: { id: entity.id, amount: amountPaid } });
   }
+
+  feed(world, value - amountPaid);
 }
 
 function lockedTarget(world: World, b: Building, def: UnitDef, enemyAt: EnemyAt): Entity | null {

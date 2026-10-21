@@ -2,12 +2,17 @@ import {
   BRIDGE_SETS,
   BRIDGE_SLOTS,
   DIFFICULTIES,
+  GEYSER_INTERVALS,
+  GEYSER_PLACEMENTS,
+  GEYSER_RESPAWNS,
   GEYSER_STOCKS,
   HAND_SIZE,
+  STARTING_GEYSERS,
   KILL_REWARDS,
   UNIT_RATES,
   type BridgeSet,
   type Difficulty,
+  type GeyserPlacement,
   type Theme,
 } from '@netstorm/sim';
 import { type Mission } from './game-data.js';
@@ -34,8 +39,12 @@ export interface MatchOptions {
   difficulty: Difficulty;
   /** Islands of a skirmish's made-up map, the two homes included. */
   islands: number;
-  /** Geysers of a skirmish's made-up map. */
-  geysers: number;
+  /** "Starting Geysers": what the count of a skirmish's geysers at the start is multiplied by. */
+  startGeysers: number;
+  /** "Geyser Placement", "Geyser Interval" (seconds) and "Geyser Respawn" of a skirmish. */
+  geyserPlacement: GeyserPlacement;
+  geyserInterval: number;
+  geyserRespawn: number;
   /** The "Bridges" battle option: which set of pieces the Temples hand out. */
   bridges: BridgeSet;
   /** The "Bridge Slots" battle option: pieces the Production Window holds. */
@@ -54,7 +63,6 @@ export const PLAYABLE_THEMES: readonly PlayableTheme[] = ['wind', 'rain', 'thund
 export const OPPONENTS: readonly Opponent[] = ['ai', 'idle', 'watch'];
 /* oxlint-disable no-magic-numbers -- the choices the menu offers */
 export const ISLAND_COUNTS: readonly number[] = [2, 4, 6, 9];
-export const GEYSER_COUNTS: readonly number[] = [4, 8, 12, 16];
 /* oxlint-enable no-magic-numbers */
 export const BRIDGE_LABELS: Record<BridgeSet, () => string> = {
   standard: m.bridges_standard,
@@ -68,6 +76,18 @@ export const DIFFICULTY_LABELS: Record<Difficulty, () => string> = {
   hard: m.menu_hard,
 };
 export const UNIT_RATE_NAMES = ['Slow', 'Medium', 'Fast', 'Very Fast'];
+export const STARTING_GEYSER_LABELS: (() => string)[] = [
+  m.menu_none,
+  m.menu_geysers_fewer,
+  m.menu_normal,
+  m.menu_geysers_extra,
+  m.menu_geysers_insane,
+];
+export const GEYSER_PLACEMENT_LABELS: Record<GeyserPlacement, () => string> = {
+  none: m.menu_none,
+  traditional: m.menu_placement_traditional,
+  balanced: m.menu_placement_balanced,
+};
 export const MAX_STORM = 100_000;
 export const MAX_SEED = 0x7fffffff;
 // The campaign's values, which the simulation takes when an option is left alone.
@@ -88,7 +108,10 @@ export const DEFAULT_OPTIONS: MatchOptions = {
   opponent: 'ai',
   difficulty: 'normal',
   islands: 4,
-  geysers: 8,
+  startGeysers: 1,
+  geyserPlacement: 'balanced',
+  geyserInterval: 60,
+  geyserRespawn: 1,
   bridges: 'standard',
   slots: HAND_SIZE,
   unitRate: DEFAULT_UNIT_RATE,
@@ -118,7 +141,11 @@ export function normalizeOptions(
     seed: clamp(given(raw.seed, d.seed), MAX_SEED, d.seed),
     opponent: OPPONENTS.find((id) => id === raw.opponent) ?? d.opponent,
     islands: oneOf(ISLAND_COUNTS, Number(raw.islands), d.islands),
-    geysers: oneOf(GEYSER_COUNTS, Number(raw.geysers), d.geysers),
+    startGeysers: oneOf(STARTING_GEYSERS, Number(raw.startGeysers), d.startGeysers),
+    geyserPlacement: GEYSER_PLACEMENTS.find((id) => id === raw.geyserPlacement)
+      ?? d.geyserPlacement,
+    geyserInterval: oneOf(GEYSER_INTERVALS, Number(raw.geyserInterval), d.geyserInterval),
+    geyserRespawn: oneOf(GEYSER_RESPAWNS, Number(raw.geyserRespawn), d.geyserRespawn),
     difficulty: DIFFICULTIES.find((id) => id === raw.difficulty) ?? d.difficulty,
     lang: raw.lang === 'en' ? 'en' : 'uk',
     bridges: BRIDGE_SETS.find((id) => id === raw.bridges) ?? d.bridges,

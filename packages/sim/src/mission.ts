@@ -3,7 +3,7 @@
 import { GEYSER_ISLAND_SIZE, RESIDENCE_FOOT, World } from './world.js';
 import type { DefTable, Theme, UnitDef } from './defs.js';
 import { growIslands, type IslandSpec } from './terrain.js';
-import { skirmishTech, type SkirmishOptions, applyOptions } from './scenario.js';
+import { skirmishTech, type SkirmishOptions, applyOptions, startBattle } from './scenario.js';
 import { isSpell } from './rules/spells.js';
 import { claimIsland } from './rules/bridges.js';
 import { DIRS, LINK_ALL, Terrain, W, type Facing } from './state.js';
@@ -183,6 +183,7 @@ export function createMission(
   }
 
   w.invalidateTerrain();
+  startBattle(w, options);
   return w;
 }
 

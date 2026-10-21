@@ -114,6 +114,8 @@ export function describeEvent(
         }
         : null;
     case 'bridge':
+    // The original says nothing of a new geyser.
+    case 'geyser':
       return null;
     case 'build':
       return mine ? { text: m.event_built({ name: name(event.data.type) }), tone: 'info' } : null;
