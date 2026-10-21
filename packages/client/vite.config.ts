@@ -6,6 +6,7 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { TEXTURES, parsePath, selectFrame, type Manifest } from './src/texture-selection.js';
 import {
   inOrderOf,
+  campaignOf,
   mapsOf,
   slimMaps,
   slimMissions,
@@ -22,13 +23,17 @@ function readData(name: string): unknown {
 function gameData(): Record<string, unknown> {
   const maps = slimMaps(readData('maps'));
   const missions = slimMissions(readData('missions'), maps);
+  const english = readData('missions');
+  const ukrainian = translateMissions(english, readData('missions.uk'));
   return {
     units: slimUnits(readData('units')),
     maps: mapsOf(missions, maps),
     missions,
     // The same missions with their texts in Ukrainian (data/missions.uk.json), in the same order.
-    'missions-uk': inOrderOf(missions,
-      slimMissions(translateMissions(readData('missions'), readData('missions.uk')), maps)),
+    'missions-uk': inOrderOf(missions, slimMissions(ukrainian, maps)),
+    // The chapters of the campaign, with their texts in English and in Ukrainian.
+    campaign: campaignOf(english),
+    'campaign-uk': campaignOf(ukrainian),
   };
 }
 
@@ -72,7 +77,8 @@ function gameAssets(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const path = (req.url?.split('?')[0] ?? '').replace(/^\//, '');
-        const name = /^data\/(units|maps|missions|missions-uk)\.json$/.exec(path)?.[1];
+        const name = /^data\/(units|maps|missions|missions-uk|campaign|campaign-uk)\.json$/
+          .exec(path)?.[1];
 
         if (name) {
           res.setHeader('Content-Type', 'application/json');

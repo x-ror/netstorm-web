@@ -332,5 +332,14 @@
   "gift_window_top": "Слава Фуріям! Обери нагородою юніт рівня {level}.",
   "gift_altar_top": "Вівтар найвищого рівня",
   "gift_closes": "{seconds} с",
-  "gift_upgrade_button": "Підвищити Вівтар до рівня {level}"
+  "gift_upgrade_button": "Підвищити Вівтар до рівня {level}",
+  "page_try_again": "Спробувати місію «{title}» ще раз?",
+  "page_replay": "Переграти місію",
+  "page_leave_missions": "Вийти з місій",
+  "page_abort": "Покинути місію?\n\nВийти з цієї місії й повернутися до головного меню?",
+  "page_main_menu": "Головне меню",
+  "page_continue_mission": "Продовжити місію",
+  "menu_mission_done": "Пройдено",
+  "page_review": "Цілі місії (F8)",
+  "page_leave_mission": "Покинути місію"
 }

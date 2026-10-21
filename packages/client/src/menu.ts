@@ -1,7 +1,8 @@
 import { mount, unmount } from 'svelte';
 import type { DefTable } from '@netstorm/sim';
 import type { Atlas } from './assets.js';
-import type { Mission } from './game-data.js';
+import type { Chapter, Mission } from './game-data.js';
+import { doneMissions } from './campaign.js';
 import { loadOptions, saveOptions, type MatchOptions } from './options.js';
 import { typed, type MenuProps } from './ui/contracts.js';
 import Menu from './ui/Menu.svelte';
@@ -11,6 +12,7 @@ import { setLocale } from './paraglide/runtime.js';
 export function showMenu(
   root: HTMLElement,
   texts: Record<'uk' | 'en', Mission[]>,
+  campaign: Record<'uk' | 'en', Chapter[]>,
   defs: DefTable,
   atlas: Atlas,
 ): Promise<MatchOptions> {
@@ -24,6 +26,8 @@ export function showMenu(
       props: {
         missions: texts.en,
         translated: texts.uk,
+        campaign,
+        done: doneMissions(),
         defs,
         atlas,
         initial,

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Add to data/missions.json how each mission is won and lost, and read its header again.
 
-A mission file names its sections in square brackets, and a section may carry a second name: the
-event that brings it up. "[Succeeded][BadTeamDead]" is shown, and the mission won, when every enemy
-is defeated; "[Failed][Ai2PriestDead]" when the Priest of side 2 is sacrificed. A section that only
-names an event is a failure too when its button leads to "TryAgain"; any other is a message shown
-when the event comes ("[@120]": 120 seconds into the mission), listed under "tell" with the name
-its text has in the file. The buttons of every section are kept under "buttons", by the name
-of the section: their label, what they do ("Tell" shows another section, "DoNothing" goes on with
-the battle, "LeaveBattle" and the "Mission..." ones leave it) and what with. data/missions.json keeps the
-first name of each section only, so the events are read from the files again.
+A mission file names its sections in square brackets, and a section may carry more names: the
+events that bring it up. "[Succeeded][BadTeamDead]" is shown when every enemy is defeated,
+"[Failed][Ai2PriestDead]" when the Priest of side 2 dies, "[@120]" 120 seconds into the mission.
+The engine raises the events and shows the section, if there is one; its buttons decide the rest
+("Tell" shows another section, "DoNothing" goes on with the battle, "MissionBegin" starts a mission,
+"MissionRestart" plays this one again, "MissionAbort" and "LeaveBattle" leave). Every section is
+listed under "sections" in the file's order, with all its names, its $Timeout and its inline
+commands; the buttons under "buttons", by the first name of their section. data/missions.json
+keeps the first name of each section only, so the names are read from the files again.
 
 The header is read as the original's config.cpp reads a value: up to the end of its line, quotes
 dropped (a quote after ` is kept) and the rest cut at an unquoted "//". A quote left open does not
@@ -23,11 +23,6 @@ import re
 import sys
 
 HEAD = re.compile(r"^((?:\[[^\]]+\])+)\s*$")
-WON = {"succeeded", "success"}
-LOST = {"failed"}
-
-
-EVENT = re.compile(r"@\d+|ai\d+(priest|temple)\w+")
 ESCAPE = "`"
 
 
@@ -68,33 +63,36 @@ def header(text: str) -> dict:
 
 
 def goals(text: str) -> dict:
-    found: dict = {"win": [], "lose": [], "tell": [], "buttons": {}}
-    sections: list[tuple[set[str], list[str]]] = []
-    first: list[str] = []
+    """Every section in the file's order: all the names on its line (the first is its own, the
+    others the events that bring it up, as FUN_0044a180 matches any of them), its buttons, its
+    $Timeout and its inline commands such as <$Config,Done{mission.fileName}=1>."""
+    found: dict = {"buttons": {}, "sections": []}
+    sections: list[tuple[list[str], list[str]]] = []
 
     for line in text.replace("\r", "").split("\n"):
         head = HEAD.match(line)
 
         if head:
-            names = re.findall(r"\[([^\]]+)\]", head[1])
-            sections.append(({name.lower() for name in names}, []))
-            first.append(names[0])
+            sections.append((re.findall(r"\[([^\]]+)\]", head[1]), []))
         elif sections:
             sections[-1][1].append(line)
 
-    for (names, body), section in zip(sections, first):
-        events = sorted(names - WON - LOST)
+    for names, body in sections:
         buttons = [line[len("$Button="):].split(",") for line in body if line.startswith("$Button=")]
+        timeouts = [line[len("$Timeout="):].split(",") for line in body if line.startswith("$Timeout=")]
+        commands = [
+            [part.strip() for part in command.split(",", 1)]
+            for line in body for command in re.findall(r"<\$([^>]+)>", line)
+        ]
 
         if buttons:
-            found["buttons"][section] = [[part.strip() for part in button] for button in buttons]
+            found["buttons"][names[0]] = [[part.strip() for part in button] for button in buttons]
 
-        if names & WON:
-            found["win"] += events
-        elif names & LOST or (events and any("Tell,TryAgain" in line for line in body)):
-            found["lose"] += [e for e in events if re.fullmatch(r"ai\d+(priest|temple)dead", e)]
-        elif any(EVENT.fullmatch(e) for e in events):
-            found["tell"].append({"on": [e for e in events if EVENT.fullmatch(e)], "section": section})
+        found["sections"].append({
+            "names": [name.lower() for name in names],
+            **({"timeout": [part.strip() for part in timeouts[0]]} if timeouts else {}),
+            **({"commands": commands} if commands else {}),
+        })
 
     return found
 
@@ -106,7 +104,12 @@ def main() -> None:
     for mission in missions:
         path = source / f"{mission['file']}.english"
 
-        if path.exists() and mission.get("header", {}).get("missionType"):
+        # A chapter of the campaign (offical*.english) names itself on a line of its own.
+        if path.exists() and mission["file"].startswith("offical"):
+            title = re.search(r'^title\s*=\s*"([^"]*)"', path.read_bytes().decode("latin-1"), re.M)
+            mission["header"] = {"title": title[1]} if title else {}
+
+        if path.exists() and (mission.get("header", {}).get("missionType") or mission["file"] == "tell"):
             text = path.read_bytes().decode("latin-1")
             mission["header"] = header(text)
             mission["goals"] = goals(text)

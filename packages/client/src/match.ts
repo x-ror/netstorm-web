@@ -13,7 +13,6 @@ import {
 } from '@netstorm/sim';
 import {
   DEFAULT_AI_DELAY,
-  happened,
   outcome,
   type Maps,
   type Mission,
@@ -23,6 +22,8 @@ import {
 import { type MatchOptions } from './options.js';
 import { createMatchWorld, ME } from './setup.js';
 import { saveProfile } from './profile.js';
+import { markDone } from './campaign.js';
+import { nextEvent } from './mission-events.js';
 import { createWorldRenderer } from './renderer.js';
 import { createControls } from './controls.js';
 import { createHud } from './hud.js';
@@ -40,6 +41,7 @@ import { AiSchedule } from './ai-schedule.js';
 import type { AiReply, AiRequest } from './ai-worker.js';
 
 const HUD_REFRESH_TICKS = 5;
+const MS_PER_SECOND = 1000;
 /** The gift window of a Sacrifice closes by itself after this, keeping the gift chosen. */
 const GIFT_SECONDS = 15;
 const ALTAR = 'altar';
@@ -288,7 +290,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     view: lookThrough,
     copyAiLog: () => void copyAiLog(),
     page: (button) => press(shown[button]),
-    exit: () => leave?.(),
+    // In a mission the menu holds what the original's does there (FUN_00506820): the objectives
+    // again, the mission from the start, and leaving it; in a skirmish it leaves.
+    exit: () => (mission ? show('', missionMenu()) : leave?.()),
   }, data.atlas, [...world.players.keys()].some(computer));
   const controls = createControls({
     world: view,
@@ -313,13 +317,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const pending: SimEvent[] = [];
 
   /** Take the tick's events: effects play at once, the log is written with the next HUD refresh. */
-  /** Sides whose Priest has been carried off, and those that began with a Temple: what the
-   * events of the mission's script ask about. */
-  const captured = new Set<number>();
-  const temples = new Set([...world.players.keys()].filter((id) => world.templeOf(id)));
-  const unread = [...(mission?.messages ?? [])];
-  /** Sides whose Priest the player or an ally has brought to safety. */
-  const saved = new Set<number>();
+  /** The events of the mission's script raised so far, and the next of its timed pages. */
+  const raised = new Set<string>();
+  let timedAt = 0;
 
   /** The sound of an event of the battle. Spells and transports sound as their .type files say;
    * the rest are matched to the events by the names of the original's sound files (ours). */
@@ -454,14 +454,6 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       ) {
         // What the Furies gave is the player's for the battles to come.
         saveProfile(world.players.get(ME)!);
-      } else if (event.what === 'saved' && !world.hostile(event.who, ME)) {
-        saved.add(event.data.owner);
-      } else if (event.what === 'captured') {
-        const priest = world.entities.get(event.data.priest);
-
-        if (priest?.kind === 'priest') {
-          captured.add(priest.owner);
-        }
       }
 
       pending.push(event);
@@ -495,7 +487,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   }
 
   const me = world.priestOf(ME)!;
-  centerOn(camera, me.x, me.y);
+  // "[Init]"'s <$ViewSpot,(XxY)> puts the view where the mission wants it; else on the Priest.
+  centerOn(camera, mission?.view?.[0] ?? me.x, mission?.view?.[1] ?? me.y);
   (window as unknown as { ns: unknown; }).ns = {
     world,
     match,
@@ -516,43 +509,132 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
   let hudTick = -1;
   let ended = false;
+  /** A page of the script is open: the game stands still and no event is raised meanwhile. */
+  let reading = false;
   /** The buttons of the page of the script that is shown, in their order on it. */
   let shown: MissionButton[] = [];
+  /** The `$Timeout` of the page shown, pressing its button by itself. */
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  /** The pages of tell.english the missions' buttons lead to. */
+  const TELL: Record<string, MissionPage> = {
+    tryagain: {
+      text: m.page_try_again({ title: mission?.title ?? '' }),
+      buttons: [
+        { label: m.page_replay(), action: 'MissionRestart', arg: '0' },
+        { label: m.page_leave_missions(), action: 'MissionAbort', arg: '1' },
+      ],
+    },
+    abort: {
+      text: m.page_abort(),
+      buttons: [
+        { label: m.page_main_menu(), action: 'LeaveBattle', arg: '1' },
+        { label: m.page_replay(), action: 'MissionRestart', arg: '0' },
+        { label: m.page_continue_mission(), action: 'DoNothing', arg: '0' },
+      ],
+    },
+  };
 
   /**
-   * Show a page of the script with its buttons. A page without any goes on with the battle; once
-   * the battle is over every page also offers the way back to the menu.
+   * Show a page of the script with its buttons, the game standing still. A page with none has an
+   * OK (config.english `OkButton`); one that holds `<$Config,Done…>` completes the mission; one
+   * with a `$Timeout` presses its button by itself (in real seconds).
    */
   function show(title: string, page: MissionPage): void {
+    reading = true;
+    ui.paused = true;
+    resetClock();
+    clearTimeout(timeout);
     shown = page.buttons.filter((button) => button.action !== 'ShowTechnology');
 
-    if (ended) {
-      shown = [...shown, { label: m.page_to_menu(), action: 'MissionAbort', arg: '' }];
-    } else if (!shown.length) {
-      shown = [{ label: m.page_continue(), action: 'DoNothing', arg: '' }];
+    if (!shown.length) {
+      shown = [{ label: m.page_continue(), action: 'DoNothing', arg: '0' }];
+    }
+
+    if (page.done && mission) {
+      markDone(mission.id);
+    }
+
+    if (page.timeout) {
+      const { button } = page.timeout;
+      timeout = setTimeout(() => press(button), page.timeout.seconds * MS_PER_SECOND);
     }
 
     hud.showPage(title, page.text, shown.map((button) => button.label));
   }
 
-  /** Do what a button of the script says. */
+  /** Do what a button of the script says (guide.cpp, FUN_0047b540, FUN_0047b3c0). */
   function press(button: MissionButton | undefined): void {
-    const next = button?.action === 'Tell' ? mission?.pages[button.arg.toLowerCase()] : undefined;
+    clearTimeout(timeout);
+    const arg = button?.arg.toLowerCase() ?? '';
+    const next = button?.action === 'Tell' ? mission?.pages[arg] ?? TELL[arg] : undefined;
 
     if (next) {
       show('', next);
     } else if (button?.action === 'DoNothing' && !ended) {
+      reading = false;
       hud.hidePage();
       ui.paused = false;
       resetClock();
       hud.render();
     } else if (button?.action === 'MissionBegin') {
-      leave?.(button.arg.toLowerCase());
+      leave?.(arg);
+    } else if (button?.action === 'MissionRestart' && mission) {
+      leave?.(mission.id);
+    } else if (button?.action === 'MissionAbort' && arg === '0') {
+      show('', TELL.abort!);
     } else {
-      // "LeaveBattle", "MissionAbort" and a "Tell" of a page the mission does not have, such as
-      // the "TryAgain" of every failure.
+      // "LeaveBattle", "MissionAbort,1", and what the remake does not know.
       leave?.();
     }
+  }
+
+  /** The menu of a mission in battle. */
+  function missionMenu(): MissionPage {
+    return {
+      text: mission?.title ?? '',
+      buttons: [
+        { label: m.page_review(), action: 'Tell', arg: 'a.' },
+        { label: m.page_replay(), action: 'MissionRestart', arg: '0' },
+        { label: m.page_leave_mission(), action: 'MissionAbort', arg: '0' },
+        { label: m.page_continue_mission(), action: 'DoNothing', arg: '0' },
+      ],
+    };
+  }
+
+  /** "Review Mission Objectives - F8": the first page of the briefing again. */
+  function review(event: KeyboardEvent): void {
+    const objectives = mission?.pages['a.'];
+
+    if (event.key === 'F8' && objectives && !reading) {
+      event.preventDefault();
+      show('', objectives);
+    }
+  }
+
+  window.addEventListener('keydown', review);
+
+  /** The next page the mission's script brings up: an event the engine raised, or a timed one
+   * that has come, unless the player's own Priest is dead (FUN_004fa120). */
+  function nextPage(): MissionPage | undefined {
+    if (!mission) {
+      return undefined;
+    }
+
+    const event = nextEvent(view, ME, raised);
+
+    if (event) {
+      return mission.pages[event];
+    }
+
+    const due = mission.timed[timedAt];
+
+    if (due && world.tick > due.at * TPS) {
+      timedAt++;
+      return world.players.get(ME)?.alive === false ? undefined : mission.pages[due.page];
+    }
+
+    return undefined;
   }
 
   document.addEventListener('visibilitychange', resetClock);
@@ -620,30 +702,23 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       minimap.draw();
     }
 
-    const result = ended ? null : outcome(mission, world, ME, saved);
-    // One message of the script at a time, the game standing still while it is read.
-    const told = result || ui.paused
-      ? -1
-      : unread.findIndex((message) =>
-        message.on.some((event) => happened(event, world, captured, temples))
-      );
+    const told = reading || ended ? undefined : nextPage();
 
-    if (told >= 0) {
-      ui.paused = true;
-      resetClock();
-      show('', unread.splice(told, 1)[0]!);
+    if (told) {
+      show('', told);
     }
+
+    // A skirmish ends on the simulation's verdict, with the multiplayer end's music.
+    const result = mission || ended ? null : outcome(world, ME);
 
     if (result) {
       ended = true;
       renderLog();
       const won = result === 'won';
       data.sounds.music(won ? 'fanfare' : 'defeat');
-      const page = mission?.pages[won ? 'succeeded' : 'failed'];
       show(won ? m.page_victory() : m.page_defeat(), {
-        text: page?.text
-          || (won ? m.page_enemy_sacrificed() : m.page_own_sacrificed()),
-        buttons: page?.buttons ?? [],
+        text: won ? m.page_enemy_sacrificed() : m.page_own_sacrificed(),
+        buttons: [{ label: m.page_to_menu(), action: 'MissionAbort', arg: '1' }],
       });
     }
   });
@@ -657,6 +732,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   minimap.dispose();
   hud.dispose();
   document.removeEventListener('visibilitychange', resetClock);
+  window.removeEventListener('keydown', review);
   perf?.dispose();
   aiWorker?.terminate();
   app.destroy(true, { children: true });

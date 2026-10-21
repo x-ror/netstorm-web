@@ -403,11 +403,13 @@ pre {
   font: 700 15px/1.25 var(--font);
 }
 .page .mission-list {
+  position: relative;
   margin: 0;
   padding: 8px;
   /* a scroll, by hand or to the chosen mission, stops on a whole row */
   scroll-snap-type: y proximity;
-  scroll-padding-top: 8px;
+  /* under the sticky tabs of the campaign's difficulty */
+  scroll-padding-top: 44px;
   /* where the list runs on past an edge, its rows fade out there rather than being cut */
   mask-image: linear-gradient(transparent, #000 28px, #000 calc(100% - 28px), transparent);
   border-right: 1px solid var(--rule);
@@ -681,6 +683,30 @@ pre {
   overflow: auto;
   margin: 0 -8px;
   padding: 0 8px;
+}
+.mission-list .levels {
+  grid-template-columns: repeat(3, 1fr);
+  scroll-snap-align: start;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin-bottom: 4px;
+  background: var(--paper);
+}
+.mission-list .chapter {
+  scroll-snap-align: start;
+  margin: 12px 4px 4px;
+  font: 700 13px/1.2 var(--font);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-soft, var(--ink));
+}
+.mission.locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.mission .done {
+  color: var(--good, var(--cold));
 }
 .mission {
   position: relative;

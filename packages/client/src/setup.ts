@@ -55,10 +55,11 @@ export function createMatchWorld(
   options: MatchOptions,
   profile: Profile = loadProfile(),
 ): World {
-  const map = options.mode === 'mission' ? maps[options.mission] : undefined;
   const mission = options.mode === 'mission'
     ? missions.find((entry) => entry.id === options.mission)
     : undefined;
+  // The Easy and Hard files play on the map of the Normal one (`loadFort`).
+  const map = options.mode === 'mission' ? maps[mission?.map ?? options.mission] : undefined;
   const enemy = mission?.enemy || m.player_opponent();
   // Who the computer plays: every side but the player's, and his too when the computer plays both.
   const computer = (id: number) =>
@@ -70,6 +71,7 @@ export function createMatchWorld(
     killReward: options.killReward,
     geyserStock: options.geyserStock,
     anyCapture: mission?.anyCapture ?? false,
+    moreGeysers: mission?.moreGeysers ?? false,
   };
 
   // A mission is played on its map as the original stores it: the islands, bridges and units of

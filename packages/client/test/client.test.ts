@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { AI_ALIGNMENTS, ARM_BUILT, discSpin, homeIsland, loadDefs } from '@netstorm/sim';
 import {
-  happened,
   hotFeet,
   mapsOf,
   outcome,
@@ -14,6 +13,7 @@ import {
   inOrderOf,
   translateMissions,
 } from '../src/game-data.js';
+import { nextEvent } from '../src/mission-events.js';
 import { knowledgeOf } from '../src/knowledge.js';
 import { burn, burners, rise, streaksOf, type Spark } from '../src/burning.js';
 import { scatter, type Piece } from '../src/shrapnel.js';
@@ -78,7 +78,9 @@ const missions = slimMissions(read('missions'), maps);
 
 test('shipped data keeps the maps of the missions and the campaign briefings only', () => {
   assert.deepEqual(Object.keys(maps.thewarbegins!), ['islands', 'geysers', 'bridges', 'units']);
-  assert.deepEqual(Object.keys(mapsOf(missions, maps)).length, missions.length);
+  // One map for each mission, its Easy and Hard files sharing the Normal one's.
+  assert.deepEqual(Object.keys(mapsOf(missions, maps)).length,
+    new Set(missions.map((m) => m.map)).size);
   assert.deepEqual(maps.thewarbegins!.islands, [[17, 5, 6, 240], [3, 8, 7, 146]]);
   assert.ok(maps.thewarbegins!.geysers.length > 0);
   const mission = missions.find((m) => m.id === 'thewarbegins')!;
@@ -90,9 +92,13 @@ test('shipped data keeps the maps of the missions and the campaign briefings onl
   assert.match(mission.briefing, /^"Darkness and tyranny/);
   assert.match(mission.briefing, /Lords of Darkness are now/);
   assert.match(mission.briefing, /\n--Lament of Light\n/);
-  assert.match(mission.succeeded, /Success/);
-  // Easy and hard variants and non-mission files are left out.
-  assert.ok(missions.every((m) => !/easy$|hard$/.test(m.id) && maps[m.id]));
+  // "[Succeeded][BadTeamDead]" is one page by both names, and it completes the mission.
+  assert.match(mission.pages.succeeded!.text, /Success/);
+  assert.equal(mission.pages.badteamdead, mission.pages.succeeded);
+  assert.ok(mission.pages.succeeded!.done);
+  // The Easy and Hard files play on the Normal one's map; non-mission files are left out.
+  assert.equal(missions.find((m) => m.id === 'thewarbeginseasy')?.map, 'thewarbegins');
+  assert.ok(missions.every((m) => maps[m.map]));
 });
 
 test('verse keeps its lines, prose is joined, attributions stay apart', () => {
@@ -273,37 +279,45 @@ test('a mission sets up its sides: names, knowledge, Storm Power and alliances',
   assert.equal(first.players.get(ENEMY)!.storm, 0);
 });
 
-test('a mission is won and lost as its file says', () => {
-  const goals = (id: string) => {
-    const m = missions.find((mission) => mission.id === id)!;
-    return [m.rescue, m.wards, m.anyCapture];
-  };
-  assert.deepEqual(goals('thewarbegins'), [[], [], false]);
-  assert.deepEqual(goals('totherescue'), [[], [2], false]);
-  assert.deepEqual(goals('enemyterritory'), [[2], [2], true]);
+test('a mission’s events bring up the pages that name them; a skirmish ends on its winner', () => {
+  const territory = missions.find((m) => m.id === 'enemyterritory')!;
+  assert.ok(territory.anyCapture);
+  // Won when the traitor's Priest stands on the player's ground; no page for all enemies gone.
+  assert.match(territory.pages.ai2priestsaved!.text, /Success/);
+  assert.equal(territory.pages.badteamdead, undefined);
+  assert.match(territory.pages.ai2priestdead!.text, /Failure/);
 
   const world = createMatchWorld(defs, maps, missions, {
     ...DEFAULT_OPTIONS,
     mission: 'enemyterritory',
   });
-  const territory = missions.find((m) => m.id === 'enemyterritory')!;
-  assert.equal(world.anyCapture, true);
-  assert.equal(outcome(territory, world, ME, new Set()), null);
-  assert.equal(outcome(territory, world, ME, new Set([2])), 'won');
-  // The traitor is sacrificed: the mission is lost though the player still stands.
-  world.players.get(2)!.alive = false;
-  assert.equal(outcome(territory, world, ME, new Set([2])), 'lost');
+  const raised = new Set<string>();
+  const all = () => {
+    const events: string[] = [];
 
-  // Without goals of its own a battle ends with its winner; allies win together.
+    for (let event = nextEvent(world, ME, raised); event; event = nextEvent(world, ME, raised)) {
+      events.push(event);
+    }
+
+    return events;
+  };
+  const start = all();
+  assert.ok(!start.includes('ai2priestdead') && !start.includes('failed'));
+  // Each comes once: the traitor sacrificed raises his death, and only once.
+  world.players.get(2)!.alive = false;
+  assert.ok(all().includes('ai2priestdead'));
+  assert.ok(!all().includes('ai2priestdead'));
+
+  // A skirmish ends with its winner; allies win together.
   const plain = {
     winner: 2 as number | null,
     players: world.players,
     hostile: world.hostile.bind(world),
   };
   world.players.get(2)!.alive = true;
-  assert.equal(outcome(undefined, plain, ME, new Set()), 'won');
-  assert.equal(outcome(undefined, { ...plain, winner: 3 }, ME, new Set()), 'lost');
-  assert.equal(outcome(undefined, { ...plain, winner: null }, ME, new Set()), null);
+  assert.equal(outcome(plain, ME), 'won');
+  assert.equal(outcome({ ...plain, winner: 3 }, ME), 'lost');
+  assert.equal(outcome({ ...plain, winner: null }, ME), null);
 });
 
 test('an island cell gets the rim frame of the sides the sky is on', () => {
@@ -548,12 +562,12 @@ test('a mission gives its computer sides their orders, income and pace, and its 
   });
 
   const rescue = missions.find((m) => m.id === 'totherescue')!;
-  assert.deepEqual(rescue.messages.map((m) => m.on), [['@120']]);
-  assert.match(rescue.messages[0]!.text, /^A message arrives from the governor/);
+  assert.deepEqual(rescue.timed, [{ at: 120, page: '@120' }]);
+  assert.match(rescue.pages['@120']!.text, /^A message arrives from the governor/);
   assert.match(rescue.briefing, /Avert this crisis of confidence/); // the second page, "A1."
   // Buttons of the script: a reply leads to another page, a victory to the next mission.
   const power = missions.find((m) => m.id === 'thunderingpower')!;
-  const note = power.messages.find((m) => m.on.includes('@500'))!;
+  const note = power.pages['@500']!;
   assert.deepEqual(note.buttons, [
     { label: 'Reply', action: 'Tell', arg: 'Wife' },
     { label: 'Ignore', action: 'DoNothing', arg: '0' },
@@ -571,20 +585,16 @@ test('a mission gives its computer sides their orders, income and pace, and its 
     arg: 'DissolvedAlliance',
   });
   assert.ok(missions.some((m) => m.id === 'dissolvedalliance'));
+  // "[Ai2TempleHalf][Ai2PriestCaptured]": the original raises "ai2TempleHalfDead", which the first
+  // name does not match, so the page comes only with the capture. It closes by itself in 15 s.
   const guard = missions.find((m) => m.id === 'guardmyback')!;
-  assert.deepEqual(guard.messages[0]!.on, ['ai2priestcaptured', 'ai2templehalf']);
-
-  const temple = { hp: 100, hpMax: 400 };
-  const world = { tick: 1199, templeOf: (id: number) => (id === 2 ? temple : undefined) };
-  const none = new Set<number>();
-  assert.equal(happened('@120', world, none, none), false);
-  assert.equal(happened('@120', { ...world, tick: 1200 }, none, none), true);
-  assert.equal(happened('ai2templehalf', world, none, new Set([2])), true);
-  assert.equal(happened('ai2templedead', world, none, new Set([2])), false);
-  // A side that never had a Temple has not lost one.
-  assert.equal(happened('ai3templedead', world, none, new Set([2])), false);
-  assert.equal(happened('ai3templedead', world, none, new Set([2, 3])), true);
-  assert.equal(happened('ai2priestcaptured', world, new Set([2]), none), true);
+  assert.ok(guard.pages.ai2priestcaptured && !guard.pages.ai2templehalfdead);
+  assert.deepEqual(guard.pages.ai2priestcaptured!.timeout, {
+    seconds: 15,
+    button: { label: '', action: 'DoNothing', arg: '0' },
+  });
+  // Run For It! starts its view on a cell of its own ([Init]).
+  assert.deepEqual(missions.find((m) => m.id === 'runforit')!.view, [139, 88]);
 });
 
 test('missiles point the way they fly, and effects are runs of shipped slots', () => {
@@ -827,7 +837,7 @@ test('a translation replaces the texts and button labels of a mission and nothin
   const power = ours.find((m) => m.id === 'thunderingpower')!;
   const original = missions.find((m) => m.id === 'thunderingpower')!;
   assert.equal(power.title, 'Міць Грому');
-  const note = power.messages.find((m) => m.on.includes('@500'))!;
+  const note = power.pages['@500']!;
   assert.equal(note.text, 'Записка від Маркіза.');
   assert.deepEqual(note.buttons.map((b) => [b.label, b.action, b.arg]), [
     ['Відповісти', 'Tell', 'Wife'],
@@ -835,11 +845,7 @@ test('a translation replaces the texts and button labels of a mission and nothin
   ]);
   // What is not translated stays English; how the mission plays does not change.
   assert.equal(power.pages.wife!.text, original.pages.wife!.text);
-  assert.deepEqual([power.rescue, power.wards, power.sides], [
-    original.rescue,
-    original.wards,
-    original.sides,
-  ]);
+  assert.deepEqual([power.timed, power.sides], [original.timed, original.sides]);
   assert.equal(ours.length, missions.length);
   // Listed as the original lists them, whatever the translated titles.
   assert.deepEqual(inOrderOf(missions, [...ours].reverse()).map((m) => m.id),

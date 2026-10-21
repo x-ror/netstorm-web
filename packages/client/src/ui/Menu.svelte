@@ -17,6 +17,7 @@
   import type { Mission } from '../game-data.js';
   import {
     BRIDGE_LABELS,
+    CAMPAIGN_LEVELS,
     DIFFICULTY_LABELS,
     GEYSER_PLACEMENT_LABELS,
     GENERATOR_RANGE_LABELS,
@@ -38,7 +39,8 @@
   import { m } from '../paraglide/messages.js';
   import { setLocale } from '../paraglide/runtime.js';
 
-  let { missions: english, translated, defs, atlas, initial, onstart }: MenuProps = $props();
+  let { missions: english, translated, campaign, done, defs, atlas, initial, onstart }: MenuProps =
+    $props();
 
   /** Each Fury on its card: its name and the units it is known by. */
   const FURIES: Record<PlayableTheme, { name: () => string; units: string[]; }> = {
@@ -61,6 +63,32 @@
   // The same missions in the language chosen; a mission keeps its id in both.
   const missions = $derived(options.lang === 'en' ? english : translated);
   const mission = $derived(missions.find((entry) => entry.id === options.mission));
+  /** The chapters at the difficulty chosen, in the language chosen. */
+  const chapters = $derived((options.lang === 'en' ? campaign.en : campaign.uk)
+    .filter((chapter) => chapter.difficulty === options.campaignLevel));
+  const byId = $derived(new Map(missions.map((entry) => [entry.id, entry])));
+
+  /** A mission can be played once the one before it is done, as the original's checklist has
+   * it ($Checked=…,{DonePrevious}). */
+  function open(entry: { after: string | null; }): boolean {
+    return entry.after === null || done.has(entry.after);
+  }
+
+  /** At another difficulty, the first mission not yet done that can be played. */
+  function chooseLevel(): void {
+    const all = chapters.flatMap((chapter) => chapter.missions);
+    const next = all.find((entry) => open(entry) && !done.has(entry.id)) ?? all[0];
+
+    if (next && !all.some((entry) => entry.id === options.mission)) {
+      options.mission = next.id;
+      const found = byId.get(next.id);
+
+      if (found) {
+        chooseMission(found);
+      }
+    }
+  }
+
   let list: HTMLElement | undefined = $state();
   /** The briefing, or the Knowledge the mission gives ("Review Knowledge"). */
   let view: 'briefing' | 'knowledge' = $state('briefing');
@@ -86,13 +114,18 @@
   // list scrolls: scrollIntoView would scroll the whole menu too where it is taller than the window.
   $effect(() => {
     const chosen = options.mission;
-    const row = list?.querySelector(`input[value="${CSS.escape(chosen)}"]`)?.closest('label');
+    const label = list?.querySelector(`input[value="${CSS.escape(chosen)}"]`)?.closest('label');
+    // The first mission of a chapter is shown with the chapter's name, under the sticky tabs.
+    const heading = label?.previousElementSibling;
+    const row = heading?.matches('h4') ? heading as HTMLElement : label;
 
     if (!list || !row) {
       return;
     }
 
-    const top = row.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
+    // Measured in the list's own layout: while the menu comes in, it is scaled on the screen.
+    const tabs = list.querySelector<HTMLElement>('.tabs')?.offsetHeight ?? 0;
+    const top = row.offsetTop - tabs;
 
     // A hidden mission comes up to the top, so the list starts on a whole row.
     if (top < list.scrollTop || top + row.offsetHeight > list.scrollTop + list.clientHeight) {
@@ -171,19 +204,44 @@
 
         {#if screen === 'missions'}
           <div class="mission-list" bind:this={list}>
-            {#each missions as entry (entry.id)}
-              {@const enemy = enemyOf(entry)}
-              <label class="mission">
-                <input
-                  type="radio"
-                  name="mission"
-                  value={entry.id}
-                  bind:group={options.mission}
-                  onchange={() => chooseMission(entry)}
-                />
-                <b>{entry.title}</b>
-                {#if enemy}<small>{enemy}</small>{/if}
-              </label>
+            <div class="segmented tabs levels">
+              {#each CAMPAIGN_LEVELS as level (level)}
+                <label>
+                  <input
+                    type="radio"
+                    name="campaignLevel"
+                    value={level}
+                    bind:group={options.campaignLevel}
+                    onchange={chooseLevel}
+                  />
+                  <span>{DIFFICULTY_LABELS[level === 'normal' ? 'normal' : level]()}</span>
+                </label>
+              {/each}
+            </div>
+            {#each chapters as chapter (chapter.id)}
+              <h4 class="chapter" title={chapter.text}>{chapter.name}</h4>
+              {#each chapter.missions as step, i (step.id)}
+                {@const entry = byId.get(step.id)}
+                {#if entry}
+                  {@const enemy = enemyOf(entry)}
+                  <label class="mission" class:locked={!open(step)}>
+                    <input
+                      type="radio"
+                      name="mission"
+                      value={entry.id}
+                      disabled={!open(step)}
+                      bind:group={options.mission}
+                      onchange={() => chooseMission(entry)}
+                    />
+                    <b>{i + 1}. {entry.title}{#if done.has(entry.id)}<span
+                          class="done"
+                          title={m.menu_mission_done()}
+                        >
+                          ✓</span>{/if}</b>
+                    {#if enemy}<small>{enemy}</small>{/if}
+                  </label>
+                {/if}
+              {/each}
             {/each}
           </div>
           <div class="briefing">

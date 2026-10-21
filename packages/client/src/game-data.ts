@@ -21,31 +21,31 @@ export interface MissionSide {
   ai?: Omit<AiOptions, 'player'>;
 }
 
-/** A text of the mission's script and the events that bring it up: "@120" is 120 seconds into the
- * mission, "ai3templedead" the fall of the Temple of side 3. */
-export interface MissionMessage {
-  on: string[];
-  text: string;
-  buttons: MissionButton[];
-}
-
 /** A button under a text of the script: `Tell` shows the page named by `arg`, `DoNothing` goes on
- * with the battle, `MissionBegin` starts the mission named by `arg`, the rest leave the battle. */
+ * with the battle, `MissionBegin` starts the mission named by `arg`, `MissionRestart` plays this
+ * one again, `MissionAbort` asks to leave (`0`) or leaves (`1`), `LeaveBattle` leaves. */
 export interface MissionButton {
   label: string;
   action: string;
   arg: string;
 }
 
-/** A page of the script that a button leads to. */
+/** A page of the script: a section of the mission file. */
 export interface MissionPage {
   text: string;
   buttons: MissionButton[];
+  /** It holds `<$Config,Done{mission.fileName}=1>`: showing it completes the mission. */
+  done?: boolean;
+  /** `$Timeout`: the button pressed by itself after so many seconds of real time. */
+  timeout?: { seconds: number; button: MissionButton; };
 }
 
 export interface Mission {
-  /** File name of the mission and of its map in `maps.json`. */
+  /** File name of the mission. */
   id: string;
+  /** The map it is played on, in `maps.json`: its own, or the one its `loadFort` names, as the
+   * Easy and Hard files share the map of the Normal one. */
+  map: string;
   title: string;
   /** Starting Storm Power of the human player in the original mission. */
   storm: number;
@@ -55,53 +55,34 @@ export interface Mission {
   /** What the mission file says of each side, by player id; 1 is the human player. */
   sides: Record<string, MissionSide>;
   briefing: string;
-  succeeded: string;
-  failed: string;
-  /** Sides whose Priest has to be brought to safety to win ("[Succeeded][Ai2PriestSaved]"). With
-   * none, the mission is won when every enemy is defeated ("[Succeeded][BadTeamDead]"). */
-  rescue: number[];
-  /** Sides whose defeat loses the mission ("[Failed][Ai2PriestDead]"), besides the player's own. */
-  wards: number[];
   /** `allowAnyCapture`: transports may pick up friendly Priests. */
   anyCapture: boolean;
-  messages: MissionMessage[];
-  /** Every page of the script by the name of its section in lower case, for buttons to lead to;
-   * 'succeeded' and 'failed' are the pages of the two endings. */
+  /** `moreGeysers`: new geysers come up every 30 s. */
+  moreGeysers: boolean;
+  /**
+   * The pages of the script by every name on the line of their section, in lower case: the
+   * section's own and the events that bring it up ("succeeded" and "badteamdead" are one page),
+   * matched whole, as the original's FUN_0044a180 does.
+   */
   pages: Record<string, MissionPage>;
+  /** The pages "[@N]" in the file's order: N seconds into the mission. */
+  timed: { at: number; page: string; }[];
+  /** `[Init]`'s `<$ViewSpot,(XxY)>`: the cell the view starts on. */
+  view?: [number, number];
 }
 
-/** The side numbers in the events of one kind: "ai2priestsaved" gives 2 for "priestsaved". */
-function sidesIn(events: unknown, kind: string): number[] {
-  return (Array.isArray(events) ? events : []).flatMap((event) => {
-    const side = new RegExp(`^ai(\\d+)${kind}$`).exec(String(event))?.[1];
-    return side ? [Number(side)] : [];
-  });
-}
-
-/**
- * How a mission stands for the player `me`: won, lost or still on. `saved` holds the sides whose
- * Priest has been brought to safety.
- */
+/** How a skirmish stands for the player `me`: won, lost or still on. A mission has no verdict
+ * of its own: the pages its events bring up decide what comes next. */
 export function outcome(
-  mission: Pick<Mission, 'rescue' | 'wards'> | undefined,
   world: {
     winner: number | null;
     players: ReadonlyMap<number, { alive: boolean; }>;
     hostile: (a: number, b: number) => boolean;
   },
   me: number,
-  saved: ReadonlySet<number>,
 ): 'won' | 'lost' | null {
-  const fallen = [me, ...(mission?.wards ?? [])].some((id) =>
-    world.players.get(id)?.alive === false
-  );
-
-  if (fallen) {
+  if (world.players.get(me)?.alive === false) {
     return 'lost';
-  }
-
-  if (mission?.rescue.length) {
-    return mission.rescue.every((id) => saved.has(id)) ? 'won' : null;
   }
 
   if (world.winner === null) {
@@ -219,7 +200,7 @@ export function slimMaps(raw: unknown): Maps {
 
 /** Keep only the maps some mission is played on. */
 export function mapsOf(missions: Mission[], maps: Maps): Maps {
-  return Object.fromEntries(missions.flatMap((m) => maps[m.id] ? [[m.id, maps[m.id]!]] : []));
+  return Object.fromEntries(missions.flatMap((m) => maps[m.map] ? [[m.map, maps[m.map]!]] : []));
 }
 
 const SIDES = 8;
@@ -304,7 +285,10 @@ export function translateMissions(raw: unknown, translation: unknown): unknown {
   const byId = asRecord(translation);
   return (Array.isArray(raw) ? raw : []).map((entry) => {
     const file = asRecord(entry);
-    const ours = asRecord(byId[String(file.file)]);
+    // The Easy and Hard files tell what the Normal one does.
+    const ours = asRecord(
+      byId[String(file.file)] ?? byId[String(file.file).replace(/(easy|hard)$/, '')],
+    );
 
     if (!Object.keys(ours).length) {
       return file;
@@ -336,6 +320,58 @@ export function translateMissions(raw: unknown, translation: unknown): unknown {
   });
 }
 
+/** A chapter of the campaign at one difficulty: an `offical*.english` file of the original. */
+export interface Chapter {
+  /** The file, `offical31` for instance. */
+  id: string;
+  /** Its title, the difficulty left out: "Struggle For Freedom". */
+  name: string;
+  difficulty: 'easy' | 'normal' | 'hard';
+  /** The text of its Overview page. */
+  text: string;
+  /** Its missions in order, each with the mission completed before it can be played (its
+   * `$Checked` line's last field, `{DoneTheWarBegins}`), or null for none. */
+  missions: { id: string; after: string | null; }[];
+}
+
+/**
+ * The campaign as the original's Campaign menu lists it (tell.english [UCampaign], FUN_00507ee0):
+ * the `offical*` files in the order of their names, each a chapter at one difficulty with an
+ * Overview whose `$Checked=label,MissionBegin,File,{DoneFile},{DonePrevious}` lines are its
+ * missions. The tutorials and the boot camp are left out.
+ */
+export function campaignOf(raw: unknown): Chapter[] {
+  const chapters: Chapter[] = [];
+  const files = (Array.isArray(raw) ? raw : []).map(asRecord)
+    .filter((file) => /^offical\d+$/.test(String(file.file)))
+    .sort((a, b) => String(a.file).localeCompare(String(b.file)));
+
+  for (const file of files) {
+    const title = String(asRecord(file.header).title ?? '');
+    const level = /^(.*?)\s*\((Easy|Normal|Hard)\)$/.exec(title);
+    const overview = text(asRecord(file.sections), 'Overview');
+    const missions = [...overview.matchAll(/^\$Checked=[^,]*,MissionBegin,([^,]+),[^,]*,(.*)$/gm)]
+      .map(([, id, after]) => ({
+        id: id!.trim().toLowerCase(),
+        after: /\{Done(.+)\}/i.exec(after ?? '')?.[1]?.toLowerCase() ?? null,
+      }));
+
+    if (!level || !missions.length) {
+      continue;
+    }
+
+    chapters.push({
+      id: String(file.file),
+      name: level[1]!,
+      difficulty: level[2]!.toLowerCase() as Chapter['difficulty'],
+      text: reflow(overview.split('\n').filter((line) => !/^\s*[{$]/.test(line)).join('\n').trim()),
+      missions,
+    });
+  }
+
+  return chapters;
+}
+
 /** The missions of `others` in the order of `order`, by id: a translation lists them as the
  * original does, not by its own titles. */
 export function inOrderOf(order: readonly Mission[], others: readonly Mission[]): Mission[] {
@@ -343,7 +379,7 @@ export function inOrderOf(order: readonly Mission[], others: readonly Mission[])
   return [...others].sort((a, b) => (place.get(a.id) ?? Infinity) - (place.get(b.id) ?? Infinity));
 }
 
-/** The campaign missions (normal difficulty) that have a map, with their briefing texts. */
+/** The campaign missions, Easy, Normal and Hard, that have a map, with their scripts. */
 export function slimMissions(raw: unknown, maps: Maps): Mission[] {
   if (!Array.isArray(raw)) {
     return [];
@@ -356,13 +392,16 @@ export function slimMissions(raw: unknown, maps: Maps): Mission[] {
     const id = typeof file.file === 'string' ? file.file : '';
     const header = asRecord(file.header);
     const sections = asRecord(file.sections);
+    const map = typeof header.loadFort === 'string' ? header.loadFort.toLowerCase() : id;
 
-    if (!maps[id] || header.missionType !== 'Tutorial' || typeof header.title !== 'string') {
+    if (!maps[map] || header.missionType !== 'Tutorial' || typeof header.title !== 'string') {
       continue;
     }
 
+    const goals = asRecord(file.goals);
     missions.push({
       id,
+      map,
       title: header.title,
       storm: Number(header.myStartMoney) || 0,
       enemy: typeof header.aiName === 'string' ? header.aiName : '',
@@ -371,67 +410,75 @@ export function slimMissions(raw: unknown, maps: Maps): Mission[] {
       // "A1." is the second page of the briefing.
       briefing: [text(sections, 'A.'), text(sections, 'A1.')].filter(Boolean)
         .map((page) => reflow(withoutTitle(page, header.title as string))).join('\n\n'),
-      messages: tells(asRecord(file.goals), sections),
-      pages: pagesOf(asRecord(file.goals), sections),
-      succeeded: reflow(text(sections, 'Succeeded') || text(sections, 'succeeded')),
-      failed: reflow(text(sections, 'Failed')),
-      rescue: sidesIn(asRecord(file.goals).win, 'priestsaved'),
-      wards: sidesIn(asRecord(file.goals).lose, 'priestdead'),
       anyCapture: Number(header.allowAnyCapture) === 1,
+      moreGeysers: Number(header.moreGeysers) === 1,
+      ...scriptOf(goals, sections),
     });
   }
 
-  return missions.sort((a, b) => a.title.localeCompare(b.title));
+  return missions;
 }
 
-const SECOND_TICKS = 10; // TPS of the simulation; not imported, the build config loads this file
-
-/**
- * Whether an event of a mission's script has come. `captured` holds the sides whose Priest has
- * been carried off, `temples` those that had a Temple when the mission began.
- */
-export function happened(
-  event: string,
-  world: {
-    tick: number;
-    templeOf: (player: number) => { hp: number; hpMax: number; } | undefined;
-  },
-  captured: ReadonlySet<number>,
-  temples: ReadonlySet<number>,
-): boolean {
-  const timed = /^@(\d+)$/.exec(event);
-
-  if (timed) {
-    return world.tick >= Number(timed[1]) * SECOND_TICKS;
-  }
-
-  const [, id, what] = /^ai(\d+)(templedead|templehalf|priestcaptured)$/.exec(event) ?? [];
-  const side = Number(id);
-  const temple = world.templeOf(side);
-
-  switch (what) {
-    case 'templedead':
-      return temples.has(side) && !temple;
-    case 'templehalf':
-      return temples.has(side) && (!temple || temple.hp * 2 <= temple.hpMax);
-    case 'priestcaptured':
-      return captured.has(side);
-    default:
-      return false;
-  }
-}
-
-/** The messages of the script, as scripts/mission-goals.py lists them, with their texts. */
-function tells(
+/** The sections of a script as scripts/mission-goals.py lists them, made pages. */
+function scriptOf(
   goals: Record<string, unknown>,
   sections: Record<string, unknown>,
-): MissionMessage[] {
-  return (Array.isArray(goals.tell) ? goals.tell : []).flatMap((entry) => {
-    const { on, section } = asRecord(entry);
-    const body = reflow(text(sections, String(section)));
-    const buttons = buttonsOf(goals, String(section));
-    return Array.isArray(on) && body ? [{ on: on.map(String), text: body, buttons }] : [];
-  });
+): Pick<Mission, 'pages' | 'timed' | 'view'> {
+  const pages: Record<string, MissionPage> = {};
+  const timed: Mission['timed'] = [];
+  let view: [number, number] | undefined;
+  const listed = Array.isArray(goals.sections) ? goals.sections.map(asRecord) : [];
+
+  for (const section of listed) {
+    const names = Array.isArray(section.names) ? section.names.map(String) : [];
+    const first = Object.keys(sections).find((name) => name.toLowerCase() === names[0]);
+    const commands = Array.isArray(section.commands)
+      ? section.commands.map((c) => (Array.isArray(c) ? c.map(String) : []))
+      : [];
+    // "<$ViewSpot,(139x88)>" of [Init]: the cell the view starts on.
+    const spot = commands.find(([name]) => name?.toLowerCase() === 'viewspot');
+    const cell = /\((\d+)x(\d+)\)/.exec(spot?.[1] ?? '');
+
+    if (cell) {
+      view = [Number(cell[1]), Number(cell[2])];
+    }
+
+    const body = first ? reflow(text(sections, first)) : '';
+
+    if (!first || !body) {
+      continue;
+    }
+
+    const timeout = Array.isArray(section.timeout) ? section.timeout.map(String) : [];
+    const page: MissionPage = {
+      text: body,
+      buttons: buttonsOf(goals, first),
+      ...(commands.some(([name, arg]) =>
+          name?.toLowerCase() === 'config' && /^Done/i.test(arg ?? '')
+        )
+        ? { done: true }
+        : {}),
+      ...(timeout.length >= 2
+        ? {
+          timeout: {
+            seconds: Number(timeout[0]),
+            button: { label: '', action: timeout[1]!, arg: timeout[2] ?? '' },
+          },
+        }
+        : {}),
+    };
+
+    for (const name of names) {
+      pages[name] ??= page;
+      const at = /^@(\d+)$/.exec(name);
+
+      if (at) {
+        timed.push({ at: Number(at[1]), page: name });
+      }
+    }
+  }
+
+  return { pages, timed, ...(view ? { view } : {}) };
 }
 
 /** The buttons scripts/mission-goals.py lists for a section: label, action and argument. */
@@ -442,23 +489,6 @@ function buttonsOf(goals: Record<string, unknown>, section: string): MissionButt
       ? [{ label: String(button[0]), action: String(button[1]), arg: String(button[2] ?? '') }]
       : []
   );
-}
-
-function pagesOf(
-  goals: Record<string, unknown>,
-  sections: Record<string, unknown>,
-): Record<string, MissionPage> {
-  const pages: Record<string, MissionPage> = {};
-
-  for (const name of Object.keys(sections)) {
-    const body = reflow(text(sections, name));
-
-    if (body) {
-      pages[name.toLowerCase()] = { text: body, buttons: buttonsOf(goals, name) };
-    }
-  }
-
-  return pages;
 }
 
 function text(sections: Record<string, unknown>, name: string): string {

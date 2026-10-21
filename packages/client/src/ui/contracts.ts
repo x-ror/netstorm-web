@@ -1,7 +1,7 @@
 import type { Component } from 'svelte';
 import type { DefTable } from '@netstorm/sim';
 import type { Atlas } from '../assets.js';
-import type { Mission } from '../game-data.js';
+import type { Chapter, Mission } from '../game-data.js';
 import type { HudActions, HudModel, LogLine, Page } from '../hud-model.js';
 import type { MatchOptions } from '../options.js';
 
@@ -31,6 +31,9 @@ export type MenuProps = {
   /** The missions with the original's English texts, and with Ukrainian ones. */
   missions: Mission[];
   translated: Mission[];
+  /** The chapters of the campaign in English and in Ukrainian, and the missions completed. */
+  campaign: Record<'uk' | 'en', Chapter[]>;
+  done: ReadonlySet<string>;
   defs: DefTable;
   atlas: Atlas;
   initial: MatchOptions;

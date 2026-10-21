@@ -2,7 +2,7 @@ import './styles.css';
 import '@fontsource-variable/golos-text';
 import { loadDefs } from '@netstorm/sim';
 import { loadTextures, type Atlas } from './assets.js';
-import { hotFeet, type Maps, type Mission } from './game-data.js';
+import { hotFeet, type Chapter, type Maps, type Mission } from './game-data.js';
 import { showMenu } from './menu.js';
 import { createSounds, type SoundIndex } from './sound.js';
 import { runMatch } from './match.js';
@@ -10,14 +10,17 @@ import { burners } from './burning.js';
 import { m } from './paraglide/messages.js';
 
 async function main() {
-  const [unitsRaw, maps, missions, translated, manifest, soundIndex] = await Promise.all([
-    fetchJson<unknown>('data/units.json'),
-    fetchJson<Maps>('data/maps.json'),
-    fetchJson<Mission[]>('data/missions.json'),
-    fetchJson<Mission[]>('data/missions-uk.json'),
-    fetchJson<Atlas>('data/sprites.json'),
-    fetchJson<SoundIndex>('data/sounds.json'),
-  ]);
+  const [unitsRaw, maps, missions, translated, campaign, campaignUk, manifest, soundIndex] =
+    await Promise.all([
+      fetchJson<unknown>('data/units.json'),
+      fetchJson<Maps>('data/maps.json'),
+      fetchJson<Mission[]>('data/missions.json'),
+      fetchJson<Mission[]>('data/missions-uk.json'),
+      fetchJson<Chapter[]>('data/campaign.json'),
+      fetchJson<Chapter[]>('data/campaign-uk.json'),
+      fetchJson<Atlas>('data/sprites.json'),
+      fetchJson<SoundIndex>('data/sounds.json'),
+    ]);
   const data = {
     defs: loadDefs(unitsRaw),
     hotFeet: hotFeet(unitsRaw),
@@ -35,7 +38,7 @@ async function main() {
   // The menus play ser22.mus over and over, as the original's do (FUN_00480850).
   const menuOf = () => {
     data.sounds.music('ser22', true);
-    return showMenu(menu, texts, data.defs, data.atlas);
+    return showMenu(menu, texts, { en: campaign, uk: campaignUk }, data.defs, data.atlas);
   };
   let options = await menuOf();
 

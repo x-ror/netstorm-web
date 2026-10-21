@@ -332,5 +332,14 @@
   "gift_window_top": "Glory be to the Furies! You may choose a Level {level} unit as your reward.",
   "gift_altar_top": "Altar at max level",
   "gift_closes": "{seconds} s",
-  "gift_upgrade_button": "Upgrade the Altar to level {level}"
+  "gift_upgrade_button": "Upgrade the Altar to level {level}",
+  "page_try_again": "Would you like to attempt the mission {title} again?",
+  "page_replay": "Replay mission",
+  "page_leave_missions": "Leave missions",
+  "page_abort": "Leave Mission?\n\nDo you wish to quit this mission and return to the main menu now?",
+  "page_main_menu": "Main menu",
+  "page_continue_mission": "Continue mission",
+  "menu_mission_done": "Done",
+  "page_review": "Review mission objectives (F8)",
+  "page_leave_mission": "Leave mission"
 }

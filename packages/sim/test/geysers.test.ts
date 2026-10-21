@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   World,
+  applyOptions,
   createMission,
   generateMap,
   loadDefs,
@@ -75,10 +76,15 @@ test('what the killer is not paid, and what Salvage does not return, goes to the
   assert.equal(world.geysers.loose, Math.trunc(Math.fround(0.9) * (cost - cost / 4)));
 });
 
-test('the campaign makes a geyser every 30 s once the pool holds a geyser’s worth', () => {
+test('a mission with moreGeysers makes a geyser every 30 s once the pool holds a geyser’s worth', () => {
   const world = new World(defs, 1);
   world.addPlayer(1, 'Blue', 'wind', 0, []);
   world.addIsland(100, 100, 20, 20, 1);
+  world.geysers.loose = world.geyserStock + 1;
+  // Without it, none.
+  run(world, 30 * TPS);
+  assert.equal(geysersOf(world).length, 0);
+  applyOptions(world, { moreGeysers: true });
   world.geysers.loose = world.geyserStock + 1;
   run(world, 1);
   assert.equal(geysersOf(world).length, 1);

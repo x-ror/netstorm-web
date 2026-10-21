@@ -346,5 +346,59 @@
     "title": "Буря лютує!",
     "sections": {},
     "buttons": {}
+  },
+  "offical3": {
+    "title": "Боротьба за свободу (Easy)",
+    "sections": {
+      "Overview": "{offical3.title}\n\nДобрий народ Німбуса поневолюють Владики Темряви — Вітру, Дощу й Грому. Острів за островом упав, правителів вирізано, а людей зігнуто під волю злої воєнної машини.\n\nЛише ти стоїш на варті справедливості в Німбусі: ти маєш здолати Владик Темряви й визволити народ Німбуса з неволі.\n\nТвоя мета — зібрати союзників проти сил темряви, що здіймаються.\n\n$Checked=1 The War Begins!,MissionBegin,TheWarBeginsEasy,{DoneTheWarBeginsEasy},1\n$Checked=2 Master of Whirligigs,MissionBegin,MasterOfWhirligigsEasy,{DoneMasterOfWhirligigsEasy},{DoneTheWarBeginsEasy}\n$Checked=3 Save the Island!,MissionBegin,SaveTheIslandEasy,{DoneSaveTheIslandEasy},{DoneMasterOfWhirligigsEasy}\n$Checked=4 Fragile Fortune,MissionBegin,FragileFortuneEasy,{DoneFragileFortuneEasy},{DoneSaveTheIslandEasy}\n$Checked=5 Thundering Power!,MissionBegin,ThunderingPowerEasy,{DoneThunderingPowerEasy},{DoneFragileFortuneEasy}\n$Checked=6 Dissolved Alliance,MissionBegin,DissolvedAllianceEasy,{DoneDissolvedAllianceEasy},{DoneThunderingPowerEasy}"
+    }
+  },
+  "offical31": {
+    "title": "Боротьба за свободу (Normal)",
+    "sections": {
+      "Overview": "{offical31.title}\n\nДобрий народ Німбуса поневолюють Владики Темряви — Вітру, Дощу й Грому. Острів за островом упав, правителів вирізано, а людей зігнуто під волю злої воєнної машини.\n\nЛише ти стоїш на варті справедливості в Німбусі: ти маєш здолати Владик Темряви й визволити народ Німбуса з неволі.\n\nТвоя мета — зібрати союзників проти сил темряви, що здіймаються.\n\n$Checked=1 The War Begins!,MissionBegin,TheWarBegins,{DoneTheWarBegins},1\n$Checked=2 Master of Whirligigs,MissionBegin,MasterOfWhirligigs,{DoneMasterOfWhirligigs},{DoneTheWarBegins}\n$Checked=3 Save the Island!,MissionBegin,SaveTheIsland,{DoneSaveTheIsland},{DoneMasterOfWhirligigs}\n$Checked=4 Fragile Fortune,MissionBegin,FragileFortune,{DoneFragileFortune},{DoneSaveTheIsland}\n$Checked=5 Thundering Power!,MissionBegin,ThunderingPower,{DoneThunderingPower},{DoneFragileFortune}\n$Checked=6 Dissolved Alliance,MissionBegin,DissolvedAlliance,{DoneDissolvedAlliance},{DoneThunderingPower}"
+    }
+  },
+  "offical32": {
+    "title": "Боротьба за свободу (Hard)",
+    "sections": {
+      "Overview": "{offical32.title}\n\nДобрий народ Німбуса поневолюють Владики Темряви — Вітру, Дощу й Грому. Острів за островом упав, правителів вирізано, а людей зігнуто під волю злої воєнної машини.\n\nЛише ти стоїш на варті справедливості в Німбусі: ти маєш здолати Владик Темряви й визволити народ Німбуса з неволі.\n\nТвоя мета — зібрати союзників проти сил темряви, що здіймаються.\n\n$Checked=1 The War Begins!,MissionBegin,TheWarBeginsHard,{DoneTheWarBeginsHard},1\n$Checked=2 Master of Whirligigs,MissionBegin,MasterOfWhirligigsHard,{DoneMasterOfWhirligigsHard},{DoneTheWarBeginsHard}\n$Checked=3 Save the Island!,MissionBegin,SaveTheIslandHard,{DoneSaveTheIslandHard},{DoneMasterOfWhirligigsHard}\n$Checked=4 Fragile Fortune,MissionBegin,FragileFortuneHard,{DoneFragileFortuneHard},{DoneSaveTheIslandHard}\n$Checked=5 Thundering Power!,MissionBegin,ThunderingPowerHard,{DoneThunderingPowerHard},{DoneFragileFortuneHard}\n$Checked=6 Dissolved Alliance,MissionBegin,DissolvedAllianceHard,{DoneDissolvedAllianceHard},{DoneThunderingPowerHard}"
+    }
+  },
+  "offical4": {
+    "title": "Народ повстає (Easy)",
+    "sections": {
+      "Overview": "{offical4.title}\n\nТвій острів міцний. Тепер борися за свободу всіх добрих людей у небесах Німбуса.\n\n$Checked=1 The Noose,MissionBegin,TheNooseEasy,{DoneTheNooseEasy},{DoneDissolvedAllianceEasy}\n$Checked=2 Rain Vs. Rain,MissionBegin,RainVsRainEasy,{DoneRainVsRainEasy},{DoneTheNooseEasy}\n$Checked=3 Run For It!,MissionBegin,RunForItEasy,{DoneRunForItEasy},{DoneRainVsRainEasy}\n$Checked=4 Guard My Back,MissionBegin,GuardMyBackEasy,{DoneGuardMyBackEasy},{DoneRunForItEasy}\n$Checked=5 Surrounded!,MissionBegin,SurroundedEasy,{DoneSurroundedEasy},{DoneGuardMyBackEasy}"
+    }
+  },
+  "offical41": {
+    "title": "Народ повстає (Normal)",
+    "sections": {
+      "Overview": "{offical41.title}\n\nТвій острів міцний. Тепер борися за свободу всіх добрих людей у небесах Німбуса.\n\n$Checked=1 The Noose,MissionBegin,TheNoose,{DoneTheNoose},{DoneDissolvedAlliance}\n$Checked=2 Rain Vs. Rain,MissionBegin,RainVsRain,{DoneRainVsRain},{DoneTheNoose}\n$Checked=3 Run For It!,MissionBegin,RunForIt,{DoneRunForIt},{DoneRainVsRain}\n$Checked=4 Guard My Back,MissionBegin,GuardMyBack,{DoneGuardMyBack},{DoneRunForIt}\n$Checked=5 Surrounded!,MissionBegin,Surrounded,{DoneSurrounded},{DoneGuardMyBack}"
+    }
+  },
+  "offical42": {
+    "title": "Народ повстає (Hard)",
+    "sections": {
+      "Overview": "{offical42.title}\n\nТвій острів міцний. Тепер борися за свободу всіх добрих людей у небесах Німбуса.\n\n$Checked=1 The Noose,MissionBegin,TheNooseHard,{DoneTheNooseHard},{DoneDissolvedAllianceHard}\n$Checked=2 Rain Vs. Rain,MissionBegin,RainVsRainHard,{DoneRainVsRainHard},{DoneTheNooseHard}\n$Checked=3 Run For It!,MissionBegin,RunForItHard,{DoneRunForItHard},{DoneRainVsRainHard}\n$Checked=4 Guard My Back,MissionBegin,GuardMyBackHard,{DoneGuardMyBackHard},{DoneRunForItHard}\n$Checked=5 Surrounded!,MissionBegin,SurroundedHard,{DoneSurroundedHard},{DoneGuardMyBackHard}"
+    }
+  },
+  "offical5": {
+    "title": "Повна перемога (Easy)",
+    "sections": {
+      "Overview": "{offical5.title}\n\nЧи зможеш ти розгромити сили темряви й здобути остаточну перемогу?\n\n$Checked=1 Breaking Through,MissionBegin,BreakingThroughEasy,{DoneBreakingThroughEasy},{DoneSurroundedEasy}\n$Checked=2 To The Rescue!,MissionBegin,ToTheRescueEasy,{DoneToTheRescueEasy},{DoneBreakingThroughEasy}\n$Checked=3 Vicious,MissionBegin,ViciousEasy,{DoneViciousEasy},{DoneToTheRescueEasy}\n$Checked=4 Enemy Territory,MissionBegin,EnemyTerritoryEasy,{DoneEnemyTerritoryEasy},{DoneViciousEasy}\n$Checked=5 Final Confrontation,MissionBegin,FinalConfrontationEasy,{DoneFinalConfrontationEasy},{DoneEnemyTerritoryEasy}"
+    }
+  },
+  "offical51": {
+    "title": "Повна перемога (Normal)",
+    "sections": {
+      "Overview": "{offical51.title}\n\nЧи зможеш ти розгромити сили темряви й здобути остаточну перемогу?\n\n$Checked=1 Breaking Through,MissionBegin,BreakingThrough,{DoneBreakingThrough},{DoneSurrounded}\n$Checked=2 To The Rescue!,MissionBegin,ToTheRescue,{DoneToTheRescue},{DoneBreakingThrough}\n$Checked=3 Vicious,MissionBegin,Vicious,{DoneVicious},{DoneToTheRescue}\n$Checked=4 Enemy Territory,MissionBegin,EnemyTerritory,{DoneEnemyTerritory},{DoneVicious}\n$Checked=5 Final Confrontation,MissionBegin,FinalConfrontation,{DoneFinalConfrontation},{DoneEnemyTerritory}"
+    }
+  },
+  "offical52": {
+    "title": "Повна перемога (Hard)",
+    "sections": {
+      "Overview": "{offical52.title}\n\nЧи зможеш ти розгромити сили темряви й здобути остаточну перемогу?\n\n$Checked=1 Breaking Through,MissionBegin,BreakingThroughHard,{DoneBreakingThroughHard},{DoneSurroundedHard}\n$Checked=2 To The Rescue!,MissionBegin,ToTheRescueHard,{DoneToTheRescueHard},{DoneBreakingThroughHard}\n$Checked=3 Vicious,MissionBegin,ViciousHard,{DoneViciousHard},{DoneToTheRescueHard}\n$Checked=4 Enemy Territory,MissionBegin,EnemyTerritoryHard,{DoneEnemyTerritoryHard},{DoneViciousHard}\n$Checked=5 Final Confrontation,MissionBegin,FinalConfrontationHard,{DoneFinalConfrontationHard},{DoneEnemyTerritoryHard}"
+    }
   }
 }

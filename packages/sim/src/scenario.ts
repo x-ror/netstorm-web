@@ -1,7 +1,7 @@
 /** A skirmish on rectangular islands, for tests and for maps that bring no islands. Missions are
  * built from the original's maps in mission.ts. */
 import { World } from './world.js';
-import { startGeysers } from './rules/geysers.js';
+import { campaignGeysers, startGeysers } from './rules/geysers.js';
 import { startObelisks } from './rules/spells.js';
 import type { Theme, DefTable } from './defs.js';
 import {
@@ -43,6 +43,8 @@ export interface SkirmishOptions {
   generatorRange?: number;
   /** `allowAnyCapture` of a mission: friendly Priests may be carried off to safety. */
   anyCapture?: boolean;
+  /** `moreGeysers` of a mission: new geysers come up every 30 s. */
+  moreGeysers?: boolean;
   /** A battle of multiplayer, with its geyser options, which also make the geysers of the start.
    * Left out, a battle of the campaign: the map's geysers and the campaign's rules. */
   multiplayer?: MultiplayerOptions;
@@ -204,6 +206,7 @@ export function applyOptions(w: World, options: SkirmishOptions): void {
   w.geyserStock = pick(GEYSER_STOCKS, options.geyserStock, GEYSER_STOCK);
   w.energyRange = pick(GENERATOR_RANGES, options.generatorRange, ENERGY_RANGE);
   w.anyCapture = options.anyCapture ?? false;
+  w.geysers = campaignGeysers(options.moreGeysers);
 }
 
 /** What a player of a Fury knows at the start: the Sun units and those of his own Fury. */

@@ -24,6 +24,9 @@ import { m } from './paraglide/messages.js';
 /** The options of a skirmish, what the start screen sets and the match reads; no DOM here. */
 
 export type PlayableTheme = Exclude<Theme, 'sun'>;
+/** The three files of a chapter of the campaign: Easy, Normal and Hard. */
+export const CAMPAIGN_LEVELS = ['easy', 'normal', 'hard'] as const;
+export type CampaignLevel = (typeof CAMPAIGN_LEVELS)[number];
 /** Who plays the other side: the computer, nobody, or the computer on both sides to watch. */
 export type Opponent = 'ai' | 'idle' | 'watch';
 
@@ -50,6 +53,8 @@ export interface MatchOptions {
   geyserRespawn: number;
   /** "Generator Range" of a skirmish: cells a Temple's or Generator's Energy reaches. */
   generatorRange: number;
+  /** The difficulty of the campaign: which of each chapter's three files is played. */
+  campaignLevel: CampaignLevel;
   /** "Spells" of a skirmish: no Obelisks, Obelisks over the map, or every Spell by prayer. */
   spells: SpellOption;
   /** The "Bridges" battle option: which set of pieces the Temples hand out. */
@@ -133,6 +138,7 @@ export const DEFAULT_OPTIONS: MatchOptions = {
   geyserInterval: 60,
   geyserRespawn: 1,
   spells: 'none',
+  campaignLevel: 'normal',
   generatorRange: 30,
   bridges: 'standard',
   slots: HAND_SIZE,
@@ -169,6 +175,7 @@ export function normalizeOptions(
     geyserInterval: oneOf(GEYSER_INTERVALS, Number(raw.geyserInterval), d.geyserInterval),
     geyserRespawn: oneOf(GEYSER_RESPAWNS, Number(raw.geyserRespawn), d.geyserRespawn),
     spells: SPELL_OPTIONS.find((id) => id === raw.spells) ?? d.spells,
+    campaignLevel: CAMPAIGN_LEVELS.find((id) => id === raw.campaignLevel) ?? d.campaignLevel,
     generatorRange: oneOf(GENERATOR_RANGES, Number(raw.generatorRange), d.generatorRange),
     difficulty: DIFFICULTIES.find((id) => id === raw.difficulty) ?? d.difficulty,
     lang: raw.lang === 'en' ? 'en' : 'uk',
