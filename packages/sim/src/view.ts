@@ -17,6 +17,7 @@ export interface WorldView {
   readonly unitRate: number;
   readonly killReward: number;
   readonly geyserStock: number;
+  readonly energyRange: number;
   readonly anyCapture: boolean;
   readonly multiplayer: boolean;
   readonly spells: SpellOption;

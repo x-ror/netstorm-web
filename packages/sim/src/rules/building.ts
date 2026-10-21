@@ -5,7 +5,6 @@ import { upgradeCost, type Theme, type UnitDef } from '../defs.js';
 import {
   DIRS,
   BUILD_SECONDS,
-  ENERGY_RANGE,
   MAX_FACING,
   REFUND_SHARE,
   Terrain,
@@ -438,7 +437,7 @@ function hasEnergy(world: WorldView, player: number, def: UnitDef, x: number, y:
     return true;
   }
 
-  const reach = ENERGY_RANGE * ENERGY_RANGE + (def.footX * def.footX) / 2;
+  const reach = world.energyRange ** 2 + (def.footX * def.footX) / 2;
   const sources: string[] = [];
 
   for (const b of world.entities.values()) {

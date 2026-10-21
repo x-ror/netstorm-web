@@ -9,6 +9,8 @@ import {
   BRIDGE_SLOTS,
   DEFAULT_KILL_REWARD,
   DEFAULT_UNIT_RATE,
+  ENERGY_RANGE,
+  GENERATOR_RANGES,
   GEYSER_INTERVALS,
   GEYSER_PLACEMENTS,
   GEYSER_RESPAWNS,
@@ -37,6 +39,8 @@ export interface SkirmishOptions {
   killReward?: number;
   /** Storm Power, one of GEYSER_STOCKS. */
   geyserStock?: number;
+  /** Cells, one of GENERATOR_RANGES. */
+  generatorRange?: number;
   /** `allowAnyCapture` of a mission: friendly Priests may be carried off to safety. */
   anyCapture?: boolean;
   /** A battle of multiplayer, with its geyser options, which also make the geysers of the start.
@@ -198,6 +202,7 @@ export function applyOptions(w: World, options: SkirmishOptions): void {
   w.unitRate = pick(UNIT_RATES, options.unitRate, DEFAULT_UNIT_RATE);
   w.killReward = pick(KILL_REWARDS, options.killReward, DEFAULT_KILL_REWARD);
   w.geyserStock = pick(GEYSER_STOCKS, options.geyserStock, GEYSER_STOCK);
+  w.energyRange = pick(GENERATOR_RANGES, options.generatorRange, ENERGY_RANGE);
   w.anyCapture = options.anyCapture ?? false;
 }
 

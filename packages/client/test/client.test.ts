@@ -750,6 +750,8 @@ test('the HUD is built as plain data from the world and the tool in hand', () =>
   const units = hudModel(world.view(), ME, ui, atlas).units;
   assert.ok(!units.some((card) => card.id === 'suncannon'));
   const golem = units.find((card) => card.id === 'sunwalker');
+  // "Energy to Build": a Golem needs one of any.
+  assert.deepEqual(golem?.energy, ['sun']);
   assert.deepEqual([golem?.poor, golem?.short, golem?.active, golem?.facing], [
     true,
     true,

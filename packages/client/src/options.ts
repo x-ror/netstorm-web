@@ -2,6 +2,7 @@ import {
   BRIDGE_SETS,
   BRIDGE_SLOTS,
   DIFFICULTIES,
+  GENERATOR_RANGES,
   GEYSER_INTERVALS,
   GEYSER_PLACEMENTS,
   GEYSER_RESPAWNS,
@@ -47,6 +48,8 @@ export interface MatchOptions {
   geyserPlacement: GeyserPlacement;
   geyserInterval: number;
   geyserRespawn: number;
+  /** "Generator Range" of a skirmish: cells a Temple's or Generator's Energy reaches. */
+  generatorRange: number;
   /** "Spells" of a skirmish: no Obelisks, Obelisks over the map, or every Spell by prayer. */
   spells: SpellOption;
   /** The "Bridges" battle option: which set of pieces the Temples hand out. */
@@ -87,6 +90,14 @@ export const STARTING_GEYSER_LABELS: (() => string)[] = [
   m.menu_geysers_extra,
   m.menu_geysers_insane,
 ];
+/** Short, Normal, Long, Very Long, Extreme. */
+export const GENERATOR_RANGE_LABELS: (() => string)[] = [
+  m.menu_range_short,
+  m.menu_range_normal,
+  m.menu_range_long,
+  m.menu_range_very_long,
+  m.menu_range_extreme,
+];
 export const SPELL_LABELS: Record<SpellOption, () => string> = {
   none: m.menu_none,
   obelisks: m.menu_spells_obelisks,
@@ -122,6 +133,7 @@ export const DEFAULT_OPTIONS: MatchOptions = {
   geyserInterval: 60,
   geyserRespawn: 1,
   spells: 'none',
+  generatorRange: 30,
   bridges: 'standard',
   slots: HAND_SIZE,
   unitRate: DEFAULT_UNIT_RATE,
@@ -157,6 +169,7 @@ export function normalizeOptions(
     geyserInterval: oneOf(GEYSER_INTERVALS, Number(raw.geyserInterval), d.geyserInterval),
     geyserRespawn: oneOf(GEYSER_RESPAWNS, Number(raw.geyserRespawn), d.geyserRespawn),
     spells: SPELL_OPTIONS.find((id) => id === raw.spells) ?? d.spells,
+    generatorRange: oneOf(GENERATOR_RANGES, Number(raw.generatorRange), d.generatorRange),
     difficulty: DIFFICULTIES.find((id) => id === raw.difficulty) ?? d.difficulty,
     lang: raw.lang === 'en' ? 'en' : 'uk',
     bridges: BRIDGE_SETS.find((id) => id === raw.bridges) ?? d.bridges,

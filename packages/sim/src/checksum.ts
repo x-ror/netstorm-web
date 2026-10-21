@@ -30,6 +30,7 @@ export function hashWorld(world: WorldView, rngState: number, nextId: number): n
   uint(world.unitRate);
   uint(world.killReward);
   uint(world.geyserStock);
+  uint(world.energyRange);
   byte(world.anyCapture ? 1 : 0);
   byte(world.multiplayer ? 1 : 0);
   text(world.spells);

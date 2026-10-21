@@ -5,6 +5,7 @@ import {
   GIFT_STORM,
   GIFT_UPGRADE,
   MAX_ALTAR_UPGRADES,
+  energyNeed,
   giftsOf,
   homeIsland,
   prayable,
@@ -81,6 +82,7 @@ export interface GiftWindow {
 }
 
 const GIFT_FURIES = ['wind', 'rain', 'thunder', 'sun'] as const;
+const ENERGY_LETTERS: Readonly<Record<string, Theme>> = { w: 'wind', r: 'rain', t: 'thunder' };
 
 /** The gift window of `ui.gift`, or null when it is not open. */
 function giftWindow(world: WorldView, me: number, ui: UiState): GiftWindow | null {
@@ -195,6 +197,8 @@ export interface UnitCard {
   facing: string | null;
   /** The Unit Rate running out: seconds left and the share of the wait still to go. */
   cooling: { seconds: number; left: number; } | null;
+  /** "Energy to Build": an icon for each Energy it needs, by Fury; Sun's stands for any. */
+  energy: Theme[];
 }
 
 export interface Selected {
@@ -458,6 +462,7 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
             left: cooling.ticks / (world.unitRate * TPS),
           }
           : null,
+        energy: [...energyNeed(def)].map((letter) => ENERGY_LETTERS[letter] ?? 'sun'),
       };
     });
 }

@@ -1,7 +1,6 @@
 import { type Application, type Container, type Graphics, Sprite, type Texture } from 'pixi.js';
 import {
   DIRS,
-  ENERGY_RANGE,
   huntRadius,
   PIECES,
   pieceEnds,
@@ -615,7 +614,7 @@ export function createControls(options: {
     const hunt = huntRadius(def.id, (type) => world.def(type));
 
     if (def.cls === 'Energy' || def.group === 'battery') {
-      overlay.ellipse(middle.sx, middle.sy, ENERGY_RANGE * TW, ENERGY_RANGE * TH)
+      overlay.ellipse(middle.sx, middle.sy, world.energyRange * TW, world.energyRange * TH)
         .stroke({ color: COLOR.energy, alpha: REACH_ALPHA, width: 1 });
     }
 
@@ -661,8 +660,8 @@ export function createControls(options: {
 
   /** The circles over which the player's Temple and Generators supply energy. */
   function drawEnergy(): void {
-    const rx = ENERGY_RANGE * TW;
-    const ry = ENERGY_RANGE * TH;
+    const rx = world.energyRange * TW;
+    const ry = world.energyRange * TH;
 
     for (const building of world.buildingsOf(ui.viewer)) {
       const def = world.def(building.type);

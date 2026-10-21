@@ -23,6 +23,9 @@ export const UNIT_RATES = [30, 15, 8, 4] as const;
 export const KILL_REWARDS = [0, 25, 50, 75, 100, 150] as const;
 /** "Money per Geyser": Storm Power a geyser holds. */
 export const GEYSER_STOCKS = [2000, 3000, 4000, 5000] as const;
+/** "Generator Range": the radius, in cells, of a Temple's or Generator's Energy: Short, Normal,
+ * Long (the default, and the campaign's), Very Long, Extreme (table at 0x60f4dc). */
+export const GENERATOR_RANGES = [14, 22, 30, 38, 46] as const;
 /** "Spells": no Obelisks, Obelisks over the map, or every Spell by prayer (option index 9). */
 export const SPELL_OPTIONS = ['none', 'obelisks', 'prayer'] as const;
 /** "Geyser Placement": no new geysers, anywhere on the map, or evenly over its 16 zones. The

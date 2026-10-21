@@ -123,6 +123,7 @@ export function createMatchWorld(
       };
     }, {
       ...battle,
+      generatorRange: options.generatorRange,
       multiplayer: {
         spells: options.spells,
         placement: options.geyserPlacement,

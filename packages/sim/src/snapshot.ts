@@ -3,6 +3,7 @@ import type { Entity, GeyserState, Player, Shot, SpellOption } from './state.js'
 import {
   BRIDGE_SETS,
   BRIDGE_SLOTS,
+  GENERATOR_RANGES,
   GEYSER_INTERVALS,
   GEYSER_PLACEMENTS,
   GEYSER_RESPAWNS,
@@ -37,8 +38,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 40;
-export const RULES_VERSION = 74;
+export const SNAPSHOT_VERSION = 41;
+export const RULES_VERSION = 75;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -55,6 +56,7 @@ export interface WorldSnapshot {
   unitRate: number;
   killReward: number;
   geyserStock: number;
+  energyRange: number;
   anyCapture: boolean;
   multiplayer: boolean;
   spells: SpellOption;
@@ -545,6 +547,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     'unitRate',
     'killReward',
     'geyserStock',
+    'energyRange',
     'anyCapture',
     'multiplayer',
     'spells',
@@ -592,6 +595,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     unitRate: choice(value.unitRate, UNIT_RATES, 'snapshot.unitRate'),
     killReward: choice(value.killReward, KILL_REWARDS, 'snapshot.killReward'),
     geyserStock: choice(value.geyserStock, GEYSER_STOCKS, 'snapshot.geyserStock'),
+    energyRange: choice(value.energyRange, GENERATOR_RANGES, 'snapshot.energyRange'),
     anyCapture: boolean(value.anyCapture, 'snapshot.anyCapture'),
     multiplayer: boolean(value.multiplayer, 'snapshot.multiplayer'),
     spells: choice(value.spells, SPELL_OPTIONS, 'snapshot.spells'),

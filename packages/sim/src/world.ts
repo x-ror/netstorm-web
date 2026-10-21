@@ -55,6 +55,7 @@ import {
   H,
   PIECE_INTERVAL,
   GEYSER_STOCK,
+  ENERGY_RANGE,
   PRIEST_HP,
   MAX_FACING,
   Terrain,
@@ -136,6 +137,8 @@ export class World {
   killReward: number = DEFAULT_KILL_REWARD;
   /** Storm Power a new geyser holds (the Money per Geyser option). */
   geyserStock: number = GEYSER_STOCK;
+  /** Cells a Temple's or Generator's Energy reaches (the Generator Range option). */
+  energyRange: number = ENERGY_RANGE;
   /** `allowAnyCapture` of a mission: a transport may carry off a friendly Priest, to save him. */
   anyCapture = false;
   /** A battle of multiplayer rather than of the campaign: the Sacrifice's gift window, the ban on
@@ -166,6 +169,7 @@ export class World {
     world.unitRate = snapshot.unitRate;
     world.killReward = snapshot.killReward;
     world.geyserStock = snapshot.geyserStock;
+    world.energyRange = snapshot.energyRange;
     world.anyCapture = snapshot.anyCapture;
     world.multiplayer = snapshot.multiplayer;
     world.spells = snapshot.spells;
@@ -230,6 +234,7 @@ export class World {
       unitRate: this.unitRate,
       killReward: this.killReward,
       geyserStock: this.geyserStock,
+      energyRange: this.energyRange,
       anyCapture: this.anyCapture,
       multiplayer: this.multiplayer,
       spells: this.spells,

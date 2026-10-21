@@ -12,7 +12,6 @@ import {
   barriers,
   FLYER_SCALE,
   DIRS,
-  ENERGY_RANGE,
   makerOf,
   oppositeDir,
   type Building,
@@ -1021,7 +1020,7 @@ export function createWorldRenderer(
   /** The nearest of the player's finished Temples and Generators whose circle covers the spot. */
   function energySource(player: number, spot: Point): DeepReadonly<Building> | undefined {
     let best: DeepReadonly<Building> | undefined;
-    let bestFar = ENERGY_RANGE;
+    let bestFar = world.energyRange;
 
     for (const e of world.buildingsOf(player)) {
       const def = world.defs.get(e.type);

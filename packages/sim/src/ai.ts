@@ -27,7 +27,6 @@ import { flies, upgradeCost, type UnitDef, type UnitGroup } from './defs.js';
 import {
   DEVASTATION,
   DIRS,
-  ENERGY_RANGE,
   MAX_FACING,
   MAX_UPGRADES,
   OUTPOST,
@@ -1511,7 +1510,7 @@ function fundCapture(world: WorldView, move: Move): void {
         return other.id !== b.id && kind.group !== 'battery' && kind.level > 0
           && Math.hypot(other.x + other.fx / 2 - b.x - b.fx / 2,
               other.y + other.fy / 2 - b.y - b.fy / 2)
-            <= ENERGY_RANGE;
+            <= world.energyRange;
       });
     }
 

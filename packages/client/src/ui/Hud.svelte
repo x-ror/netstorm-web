@@ -250,6 +250,9 @@
             <UnitIcon {atlas} type={card.id} name={card.name} size={CARD_ICON} />
             <span class="name">{card.name}{card.facing ? ` · ${card.facing}` : ''}</span>
             <span class="cost">{card.cost}</span>
+            <span class="needs" title={m.hud_energy()}>
+              {#each card.energy as fury, i (i)}<i class="theme-{fury}"></i>{/each}
+            </span>
             {#if card.cooling}
               <span
                 class="cooling"

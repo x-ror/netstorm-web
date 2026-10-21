@@ -4,6 +4,7 @@
     BRIDGE_SETS,
     BRIDGE_SLOTS,
     DIFFICULTIES,
+    GENERATOR_RANGES,
     GEYSER_INTERVALS,
     GEYSER_PLACEMENTS,
     GEYSER_RESPAWNS,
@@ -18,6 +19,7 @@
     BRIDGE_LABELS,
     DIFFICULTY_LABELS,
     GEYSER_PLACEMENT_LABELS,
+    GENERATOR_RANGE_LABELS,
     SPELL_LABELS,
     STARTING_GEYSER_LABELS,
     ISLAND_COUNTS,
@@ -291,6 +293,14 @@
                   <select name="islands" bind:value={options.islands}>
                     {#each ISLAND_COUNTS as count (count)}<option value={count}>
                         {count}
+                      </option>{/each}
+                  </select>
+                </label>
+                <label>
+                  {m.menu_generator_range()}
+                  <select name="generatorRange" bind:value={options.generatorRange}>
+                    {#each GENERATOR_RANGES as cells, i (cells)}<option value={cells}>
+                        {m.menu_range_option({ name: GENERATOR_RANGE_LABELS[i]?.() ?? '', cells })}
                       </option>{/each}
                   </select>
                 </label>
