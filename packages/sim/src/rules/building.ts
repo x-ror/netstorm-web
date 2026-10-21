@@ -18,7 +18,7 @@ import {
   WORKSHOP_SLOTS,
   type Building,
 } from '../state.js';
-import { joins, shakeBridges } from './bridges.js';
+import { connectedToTemple, friendlyGround, joins, shakeBridges } from './bridges.js';
 import { damage, removeBuilding } from './combat.js';
 import { homeIsland } from './capture.js';
 import { feed, unitValue } from './geysers.js';
@@ -386,7 +386,8 @@ function transportSiteError(
     return 'blocked';
   }
 
-  return world.terrain[world.at(x, y)] === Terrain.Island && world.isOwnGround(player, x, y)
+  // On ground of his own or of an ally ("Only on Controlled Island").
+  return world.terrain[world.at(x, y)] === Terrain.Island && friendlyGround(world, player, x, y)
     ? null
     : 'blocked';
 }
@@ -482,6 +483,11 @@ function siteError(
 ): CommandError | null {
   let sky = 0;
   let offBridge = false;
+  let joined: Uint8Array | null | undefined;
+  const allied = (x: number, y: number) => {
+    const owner = world.owner[world.at(x, y)]!;
+    return owner !== 0 && owner !== player && !world.hostile(player, owner);
+  };
 
   for (let y = y0; y < y0 + def.footY; y++) {
     for (let x = x0; x < x0 + def.footX; x++) {
@@ -497,6 +503,9 @@ function siteError(
       if (
         isBridge(terrain) || terrain === Terrain.EdgeFarm
         || (terrain === Terrain.Island && !world.isOwnGround(player, x, y)
+          // An ally's island takes the unit if his ground joins it to the player's own.
+          && !(allied(x, y)
+            && (joined ??= connectedToTemple(world, player))?.[world.at(x, y)] === 1)
           // An Outpost may also go up on an island nobody owns, which is how it is taken.
           && !(def.id === OUTPOST && world.owner[world.at(x, y)] === 0))
       ) {

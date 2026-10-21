@@ -12,6 +12,7 @@ import {
   WEAR_CRACKED,
   WEAR_FULL,
   isBridge,
+  isGround,
   PIECES,
   PIECE_HARDEN,
   oppositeDir,
@@ -30,9 +31,21 @@ export function joins(world: WorldView, i: number, dir: number): boolean {
   return (linksAt(world, i) & (1 << dir)) !== 0;
 }
 
-/** Cells of the player's ground joined to the Temple, or to an Outpost ("you may build bridges off
- * of the island containing the Outpost"), by an unbroken run of own island and bridge. */
-function connectedToTemple(world: WorldView, player: number): Uint8Array | null {
+/** Ground of the player or of an ally: "you still have be connected to your Ally's bridge
+ * network" (tell), as the original's drop test asks of every piece (RiftType, FUN_004c6680). */
+export function friendlyGround(world: WorldView, player: number, x: number, y: number): boolean {
+  if (!world.inside(x, y) || !isGround(world.terrain[world.at(x, y)])) {
+    return false;
+  }
+
+  const owner = world.owner[world.at(x, y)]!;
+  return owner === player || (owner !== 0 && !world.hostile(player, owner));
+}
+
+/** Cells of the player's ground, and his allies', joined to his Temple, or to an Outpost ("you may
+ * build bridges off of the island containing the Outpost"), by an unbroken run of island and
+ * bridge. */
+export function connectedToTemple(world: WorldView, player: number): Uint8Array | null {
   const depots = world.depotsOf(player);
 
   if (!depots.length) {
@@ -65,7 +78,7 @@ function connectedToTemple(world: WorldView, player: number): Uint8Array | null 
       const ny = y + dy;
 
       if (
-        world.isOwnGround(player, nx, ny)
+        friendlyGround(world, player, nx, ny)
         && !connected[world.at(nx, ny)]
         && joins(world, i, dir)
         && joins(world, world.at(nx, ny), oppositeDir(dir))

@@ -275,6 +275,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     },
     pray: (spell) => void commands.push({ t: 'pray', player: ui.viewer, spell }),
     dropSelected: () => controls.dropSelected(),
+    deliverSelected: () => controls.deliverSelected(),
     view: lookThrough,
     copyAiLog: () => void copyAiLog(),
     page: (button) => press(shown[button]),

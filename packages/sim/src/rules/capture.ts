@@ -21,6 +21,8 @@ import {
 } from '../state.js';
 
 const RELEASE_SEARCH_RADIUS = 16;
+/** `earlyCaptureTimer` (state.cpp): battle start plus 120 s. */
+const EARLY_SACRIFICE_SECONDS = 120;
 const STEPS = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
 
 /** The cells of island ground joined to a player's Temple: his home island, the one the original
@@ -183,6 +185,24 @@ export function capturePriest(
   const t = world.entities.get(c.transport);
   const p = world.entities.get(c.target);
 
+  // A captive it holds it is sent with to the Altar: after a Crab took him, or a refusal.
+  if (
+    t?.kind === 'transport' && t.owner === c.player && p?.kind === 'priest'
+    && t.carrying === p.id && world.hostile(p.owner, c.player)
+  ) {
+    const altar = ownAltar(world, c.player);
+    const path = altar && world.wayOf(t, (cell) => world.adjacentTo(cell[0], cell[1], altar));
+
+    if (!altar || !path) {
+      return altar ? 'no path' : 'no altar';
+    }
+
+    t.path = path;
+    t.goal = 'altar';
+    t.target = altar.id;
+    return null;
+  }
+
   // A Transport cannot carry its owner's Priest, nor a Priest together with a Storm Crystal.
   if (
     !t
@@ -317,6 +337,14 @@ export function arriveAtAltar(world: World, t: Transport): void {
 
   if (captiveOf(world, altar)) {
     return; // wait until the circle is free
+  }
+
+  // In multiplayer no Priest is chained in the first 120 s of the battle (FUN_00453700): the
+  // order is refused, and the carrier stands with its captive until it is sent again.
+  if (world.multiplayer && world.tick < EARLY_SACRIFICE_SECONDS * TPS) {
+    stop(t);
+    world.emit({ what: 'too early', who: t.owner, data: { transport: t.id } });
+    return;
   }
 
   p.state = 'chained';

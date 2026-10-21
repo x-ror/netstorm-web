@@ -317,5 +317,7 @@
   "unit_buried": "Обеліск",
   "unit_fenceshield": "Силове поле",
   "unit_bridge": "Міст",
-  "unit_residence": "Резиденція"
+  "unit_residence": "Резиденція",
+  "action_to_altar": "До Вівтаря",
+  "event_too_early": "Зарано! Перші дві хвилини бою жерців у жертву не приносять."
 }

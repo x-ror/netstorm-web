@@ -82,6 +82,8 @@ export interface HudActions {
   /** A button of the page shown over the map was pressed: its place among the page's buttons. */
   page(button: number): void;
   dropSelected(): void;
+  /** Send the selected transport on to the Altar with the captive it holds. */
+  deliverSelected(): void;
   /** Look through another side's eyes, when watching the computer play. */
   view(player: number): void;
   /** Copy the reasons the computer gave for its moves, for reading them elsewhere. */
@@ -157,6 +159,7 @@ export type SelectedAction =
   | { kind: 'pray'; spell: string; label: string; }
   | { kind: 'build'; type: string; label: string; cost: number; }
   | { kind: 'drop'; label: string; }
+  | { kind: 'altar'; label: string; }
   | { kind: 'salvage'; label: string; key: string; }
   | { kind: 'produce'; type: string; label: string; }
   | { kind: 'upgrade'; label: string; cost: number; }
@@ -667,6 +670,14 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
     && entity.carrying !== null
   ) {
     actions.push({ kind: 'drop', label: m.action_drop() });
+    const cargo = world.entities.get(entity.carrying);
+
+    if (
+      entity.kind === 'transport' && entity.goal !== 'altar' && cargo?.kind === 'priest'
+      && world.hostile(cargo.owner, me)
+    ) {
+      actions.push({ kind: 'altar', label: m.action_to_altar() });
+    }
   }
 
   if ((entity.kind === 'building' || entity.kind === 'transport') && entity.owner === me) {

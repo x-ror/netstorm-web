@@ -1172,6 +1172,16 @@ function buildOutpost(world: WorldView, move: Move, reached: Uint8Array | null):
 
 /** Send one transport for a downed enemy priest, unless one is already on its way to him. */
 function capture(world: WorldView, move: Move, transports: View<Transport>[]): void {
+  // A captive held by a transport that stands (a Crab took him, or it was too early for the
+  // Sacrifice) goes on to the Altar.
+  for (const t of transports) {
+    const held = t.carrying === null ? undefined : world.entities.get(t.carrying);
+
+    if (t.goal === 'idle' && held?.kind === 'priest' && world.hostile(held.owner, move.me)) {
+      move.commands.push({ t: 'capturePriest', player: move.me, transport: t.id, target: held.id });
+    }
+  }
+
   const captive = enemyPriest(world, move.me, 'down');
 
   if (!captive) {

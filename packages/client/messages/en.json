@@ -317,5 +317,7 @@
   "unit_buried": "Obelisk",
   "unit_fenceshield": "Force Field",
   "unit_bridge": "Bridge",
-  "unit_residence": "Residence"
+  "unit_residence": "Residence",
+  "action_to_altar": "To the Altar",
+  "event_too_early": "Too early! Priests may not be sacrificed within the first two minutes of battle."
 }

@@ -17,6 +17,9 @@ type Payloads = {
   cast: { transport: number; spell: string; };
   captured: { priest: number; };
   chained: { priest: number; altar: number; };
+  /** "Too Early! Priests may not be Sacrificed within the first few minutes": the carrier holds
+   * its captive and stops. */
+  'too early': { transport: number; };
   rune: { priest: number; runes: number; };
   released: { priest: number; };
   saved: { priest: number; owner: number; };

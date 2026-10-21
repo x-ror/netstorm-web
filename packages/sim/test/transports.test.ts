@@ -94,3 +94,39 @@ test('an Aerial Transport rises and sinks 4/speed s at each end of a trip, and c
   world.players.get(1)!.storm = 1000;
   assert.equal(world.apply({ t: 'castSpell', player: 1, transport: balloon.id }), null);
 });
+
+test('in multiplayer no Priest is chained in the first 120 s; the carrier is sent again later', () => {
+  const world = mk();
+  world.multiplayer = true;
+  const altar = world.spawnBuilding('altar', 1, 30, 20);
+  const golem = world.spawnTransport('sunwalker', 1, altar.x - 1, altar.y);
+  const red = world.addPriest(2, golem.x, golem.y);
+  red.state = 'carried';
+  red.carriedBy = golem.id;
+  golem.carrying = red.id;
+  const send = () =>
+    world.apply({ t: 'capturePriest', player: 1, transport: golem.id, target: red.id });
+  assert.equal(send(), null);
+  run(world, 2);
+  assert.deepEqual([golem.goal, golem.carrying, red.state], ['idle', red.id, 'carried']);
+  assert.ok(world.drainEvents().some((e) => e.what === 'too early'));
+  run(world, 120 * TPS);
+  assert.equal(send(), null);
+  run(world, 2);
+  assert.equal(red.state, 'chained');
+});
+
+test('a unit goes up on an ally’s island that his ground joins to the player’s own', () => {
+  const world = new World(defs, 1);
+  world.addPlayer(1, 'Blue', 'wind', 9000, ['sunblocker'], [2]);
+  world.addPlayer(2, 'Green', 'rain', 0, []);
+  world.addIsland(10, 10, 30, 20, 1);
+  world.spawnBuilding('windvortex', 1, 12, 12);
+  world.spawnBuilding('windbattery', 1, 36, 14);
+  world.spawnBuilding('sunfactory', 1, 14, 22).slots.push('sunblocker');
+  world.addIsland(40, 10, 20, 20, 2);
+  world.addIsland(42, 40, 10, 10, 2); // the ally's, joined to nothing of Blue's
+  const order = (x: number, y: number) => world.canBuild({ player: 1, type: 'sunblocker', x, y });
+  assert.equal(order(42, 15), null);
+  assert.equal(order(44, 42), 'blocked');
+});

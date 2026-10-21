@@ -118,6 +118,8 @@
         return actions.setTool({ kind: 'build', type: action.type });
       case 'drop':
         return actions.dropSelected();
+      case 'altar':
+        return actions.deliverSelected();
       case 'salvage':
         return actions.salvageSelected();
       case 'meltdown':

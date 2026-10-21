@@ -724,6 +724,13 @@ export function createControls(options: {
         voice(world.entities.get(ui.selected), 'drop');
       }
     },
+    deliverSelected() {
+      const t = ui.selected === null ? undefined : world.entities.get(ui.selected);
+
+      if (t?.kind === 'transport' && t.carrying !== null) {
+        submit({ t: 'capturePriest', player: ui.viewer, transport: t.id, target: t.carrying });
+      }
+    },
     castSelected() {
       if (ui.selected !== null) {
         submit({ t: 'castSpell', player: ui.viewer, transport: ui.selected });
