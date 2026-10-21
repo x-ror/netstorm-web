@@ -29,3 +29,4 @@ export {
   makerOf,
   takesSlot,
 } from './rules/building.js';
+export { prayable } from './rules/spells.js';

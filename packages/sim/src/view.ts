@@ -1,5 +1,5 @@
 import type { UnitDef, UnitGroup } from './defs.js';
-import type { Building, Entity, GeyserState, Player, Priest, Shot } from './state.js';
+import type { Building, Entity, GeyserState, Player, Priest, Shot, SpellOption } from './state.js';
 import type { CommandError } from './commands.js';
 
 export type DeepReadonly<T> = T extends Map<infer K, infer V> ? ReadonlyMap<K, DeepReadonly<V>>
@@ -19,6 +19,8 @@ export interface WorldView {
   readonly geyserStock: number;
   readonly anyCapture: boolean;
   readonly multiplayer: boolean;
+  readonly spells: SpellOption;
+  readonly obelisks: { readonly left: number; readonly next: number; };
   readonly geysers: DeepReadonly<GeyserState>;
   readonly terrain: ArrayLike<number>;
   readonly owner: ArrayLike<number>;

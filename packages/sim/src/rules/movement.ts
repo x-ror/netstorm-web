@@ -1,7 +1,7 @@
 import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
 import { flies } from '../defs.js';
-import { arriveAtObelisk, cast } from './spells.js';
+import { arriveAtObelisk, cast, loseSpell } from './spells.js';
 import { arriveAtAltar, arriveAtPriest, hail, releasePriest, takeCaptive } from './capture.js';
 import { TPS, CRYSTAL_VALUE, Terrain, type Transport, type Priest, type Geyser } from '../state.js';
 
@@ -201,6 +201,7 @@ export function arrive(world: World, t: Carrier): boolean {
 export function removeTransport(world: World, t: Transport): void {
   dropCargo(world, t);
   world.entities.delete(t.id);
+  loseSpell(world, t.spell);
 }
 
 function nextTo(a: { x: number; y: number; }, b: { x: number; y: number; }): boolean {

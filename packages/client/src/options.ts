@@ -7,12 +7,14 @@ import {
   GEYSER_RESPAWNS,
   GEYSER_STOCKS,
   HAND_SIZE,
+  SPELL_OPTIONS,
   STARTING_GEYSERS,
   KILL_REWARDS,
   UNIT_RATES,
   type BridgeSet,
   type Difficulty,
   type GeyserPlacement,
+  type SpellOption,
   type Theme,
 } from '@netstorm/sim';
 import { type Mission } from './game-data.js';
@@ -45,6 +47,8 @@ export interface MatchOptions {
   geyserPlacement: GeyserPlacement;
   geyserInterval: number;
   geyserRespawn: number;
+  /** "Spells" of a skirmish: no Obelisks, Obelisks over the map, or every Spell by prayer. */
+  spells: SpellOption;
   /** The "Bridges" battle option: which set of pieces the Temples hand out. */
   bridges: BridgeSet;
   /** The "Bridge Slots" battle option: pieces the Production Window holds. */
@@ -83,6 +87,11 @@ export const STARTING_GEYSER_LABELS: (() => string)[] = [
   m.menu_geysers_extra,
   m.menu_geysers_insane,
 ];
+export const SPELL_LABELS: Record<SpellOption, () => string> = {
+  none: m.menu_none,
+  obelisks: m.menu_spells_obelisks,
+  prayer: m.menu_spells_prayer,
+};
 export const GEYSER_PLACEMENT_LABELS: Record<GeyserPlacement, () => string> = {
   none: m.menu_none,
   traditional: m.menu_placement_traditional,
@@ -112,6 +121,7 @@ export const DEFAULT_OPTIONS: MatchOptions = {
   geyserPlacement: 'balanced',
   geyserInterval: 60,
   geyserRespawn: 1,
+  spells: 'none',
   bridges: 'standard',
   slots: HAND_SIZE,
   unitRate: DEFAULT_UNIT_RATE,
@@ -146,6 +156,7 @@ export function normalizeOptions(
       ?? d.geyserPlacement,
     geyserInterval: oneOf(GEYSER_INTERVALS, Number(raw.geyserInterval), d.geyserInterval),
     geyserRespawn: oneOf(GEYSER_RESPAWNS, Number(raw.geyserRespawn), d.geyserRespawn),
+    spells: SPELL_OPTIONS.find((id) => id === raw.spells) ?? d.spells,
     difficulty: DIFFICULTIES.find((id) => id === raw.difficulty) ?? d.difficulty,
     lang: raw.lang === 'en' ? 'en' : 'uk',
     bridges: BRIDGE_SETS.find((id) => id === raw.bridges) ?? d.bridges,

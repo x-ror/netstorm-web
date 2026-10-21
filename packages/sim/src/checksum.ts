@@ -32,6 +32,8 @@ export function hashWorld(world: WorldView, rngState: number, nextId: number): n
   uint(world.geyserStock);
   byte(world.anyCapture ? 1 : 0);
   byte(world.multiplayer ? 1 : 0);
+  text(world.spells);
+  text(JSON.stringify(world.obelisks));
   text(JSON.stringify(world.geysers));
 
   for (let i = 0; i < W * H; i++) {

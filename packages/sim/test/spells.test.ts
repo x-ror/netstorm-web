@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { World, loadDefs, TPS, Terrain, createMission, type Transport } from '../src/index.js';
+import { damage } from '../src/rules/combat.js';
 
 const defs = loadDefs(
   JSON.parse(readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8')),
@@ -206,15 +207,15 @@ test('a Priest prays for Devastation, then casts it for 100; walking breaks the 
   const priest = world.addPriest(1, 50, 50);
   const pray = () => world.apply({ t: 'pray', player: 1, spell: 'bombspecialone' });
   const cast = () => world.apply({ t: 'castSpell', player: 1, transport: priest.id });
-  // "(Multiplayer Only)": a side is offered it by its Knowledge, which a skirmish gives.
-  assert.equal(pray(), 'unknown tech');
-  world.players.get(1)!.tech.add('bombspecialone');
-  assert.equal(world.apply({ t: 'pray', player: 1, spell: 'bombexplodemedium' }), 'unknown tech');
+  // "(Multiplayer Only)"; and without Spells = Prayer only this Devastation.
+  assert.equal(pray(), 'unknown unit');
+  world.multiplayer = true;
+  assert.equal(world.apply({ t: 'pray', player: 1, spell: 'bombexplodemedium' }), 'unknown unit');
   assert.equal(pray(), null);
   assert.equal(cast(), 'bad target'); // not his until the prayer is over
   world.apply({ t: 'movePriest', player: 1, x: 52, y: 50 });
   run(world, 1);
-  assert.deepEqual([priest.spell, priest.praying], [null, 0]);
+  assert.deepEqual([priest.prayer, priest.praying], [null, 0]);
 
   run(world, 3 * TPS);
   assert.equal(pray(), null);
@@ -227,4 +228,40 @@ test('a Priest prays for Devastation, then casts it for 100; walking breaks the 
   run(world, CAST);
   assert.ok(foe.hp <= 0);
   assert.equal(world.players.get(1)!.storm, 150); // a quarter of the tower's 400 paid back
+});
+
+test('Spells = Prayer: every Spell but the Thunder ones; damage breaks a prayer, the old Spell kept', () => {
+  const world = mk();
+  world.multiplayer = true;
+  world.spells = 'prayer';
+  const priest = world.addPriest(1, 50, 50);
+  const pray = (spell: string) => world.apply({ t: 'pray', player: 1, spell });
+  assert.equal(pray('bombspecialone'), 'unknown unit');
+  assert.equal(pray('bomblightingzap'), 'unknown unit');
+  priest.spell = 'bombheal';
+  assert.equal(pray('bombexplodemedium'), null);
+  run(world, 1);
+  assert.equal(priest.spell, 'bombheal', 'the Spell he holds stays his while he prays');
+  damage(world, 2, priest, 1);
+  assert.deepEqual([priest.prayer, priest.praying, priest.spell], [null, 0, 'bombheal']);
+});
+
+test('Spells = Obelisks: 3 and one a player from 180 s, every 20 s; a Spell lost brings another', () => {
+  const world = mk();
+  world.multiplayer = true;
+  world.addIsland(120, 120, 40, 40, 0);
+  world.obelisks = { left: 5, next: 180 * TPS };
+  const obelisks = () => [...world.entities.values()].filter((e) => e.kind === 'obelisk').length;
+  run(world, 180 * TPS - 1);
+  assert.equal(obelisks(), 0);
+  run(world, 1);
+  assert.equal(obelisks(), 1);
+  run(world, 20 * TPS);
+  assert.equal(obelisks(), 2);
+  // A Golem with a Spell is lost: its Spell comes up again somewhere.
+  const golem = world.spawnTransport('sunwalker', 1, 50, 50);
+  golem.spell = 'bombheal';
+  golem.hp = 0;
+  run(world, 1);
+  assert.equal(obelisks(), 3);
 });

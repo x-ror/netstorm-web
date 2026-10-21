@@ -6,6 +6,7 @@ import {
   GIFT_UPGRADE,
   MAX_ALTAR_UPGRADES,
   giftsOf,
+  prayable,
   DEVASTATION,
   OUTPOST,
   PIECE_HARDEN,
@@ -578,35 +579,44 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
     }
 
     const spell = entity.spell === null ? undefined : world.defs.get(entity.spell);
+    const prayer = entity.prayer === null ? undefined : world.defs.get(entity.prayer);
 
     if (spell) {
       const name = unitName(spell.id, spell.name);
-      say(entity.praying > 0
-        ? m.praying({ name, seconds: Math.ceil(entity.praying / TPS) })
-        : `${m.spell_fact({ name, range: spell.range })}${
-          entity.casting > 0
-            ? ` — ${m.casting({ seconds: Math.ceil(entity.casting / TPS) })}`
-            : ''
-        }`);
+      say(
+        `${m.spell_fact({ name, range: spell.range })}${
+          entity.casting > 0 ? ` — ${m.casting({ seconds: Math.ceil(entity.casting / TPS) })}` : ''
+        }`,
+      );
+    }
+
+    if (prayer) {
+      const name = unitName(prayer.id, prayer.name);
+      say(m.praying({ name, seconds: Math.ceil(entity.praying / TPS) }));
     }
 
     if (entity.owner === me && entity.state === 'normal') {
       say(m.priest_hint(), true);
-      const devastation = world.defs.get(DEVASTATION);
 
-      // "Right-click your Priest and choose 'Pray'": in the original, in multiplayer only.
       if (spell && entity.praying === 0) {
         actions.push({
           kind: 'cast',
           label: m.action_cast({ name: unitName(spell.id, spell.name) }),
           cost: spell.cost,
         });
-      } else if (!spell && devastation && world.players.get(me)?.tech.has(DEVASTATION)) {
-        actions.push({
-          kind: 'pray',
-          spell: devastation.id,
-          label: m.action_pray({ name: unitName(devastation.id, devastation.name) }),
-        });
+      }
+
+      // "Right-click your Priest and choose 'Pray'": in the original, in multiplayer only; not
+      // while he holds the Devastation prayed for.
+      if (entity.praying === 0 && entity.casting === 0 && entity.spell !== DEVASTATION) {
+        for (const id of prayable(world)) {
+          const def = world.defs.get(id)!;
+          actions.push({
+            kind: 'pray',
+            spell: id,
+            label: m.action_pray({ name: unitName(id, def.name) }),
+          });
+        }
       }
 
       // "Use your High Priest to build Temples, Workshops, and Altars."

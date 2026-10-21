@@ -45,7 +45,7 @@ import {
 import { tickTransport, collect, pickupCrystal, unload } from './rules/movement.js';
 import { tickPriest, movePriest } from './rules/priest.js';
 import { altarGift, capturePriest } from './rules/capture.js';
-import { castSpell, pray, spellbound, takeSpell } from './rules/spells.js';
+import { castSpell, pray, spellbound, takeSpell, tickObelisks } from './rules/spells.js';
 import { Pathfinder, airPath } from './spatial/pathfinding.js';
 import { CellIndex } from './cell-index.js';
 import { Rng } from './rng.js';
@@ -65,6 +65,7 @@ import {
   type Crystal,
   type Geyser,
   type GeyserState,
+  type SpellOption,
   GIFT_STORM,
   type Obelisk,
   type Flyer,
@@ -139,6 +140,10 @@ export class World {
   /** A battle of multiplayer rather than of the campaign: the Sacrifice's gift window, the ban on
    * an early Sacrifice. */
   multiplayer = false;
+  /** The Spells option of a multiplayer battle. */
+  spells: SpellOption = 'none';
+  /** Spells = Obelisks: Obelisks still to come up, and the tick the next is due. */
+  obelisks = { left: 0, next: 0 };
   /** New geysers during the battle: their options, pool and timer. */
   geysers: GeyserState = campaignGeysers();
 
@@ -162,6 +167,8 @@ export class World {
     world.geyserStock = snapshot.geyserStock;
     world.anyCapture = snapshot.anyCapture;
     world.multiplayer = snapshot.multiplayer;
+    world.spells = snapshot.spells;
+    world.obelisks = snapshot.obelisks;
     world.geysers = snapshot.geysers;
     world.terrain.set(snapshot.terrain);
     world.owner.set(snapshot.owner);
@@ -224,6 +231,8 @@ export class World {
       geyserStock: this.geyserStock,
       anyCapture: this.anyCapture,
       multiplayer: this.multiplayer,
+      spells: this.spells,
+      obelisks: { ...this.obelisks },
       geysers: structuredClone(this.geysers),
     };
   }
@@ -336,6 +345,7 @@ export class World {
       goal: 'idle',
       target: null,
       spell: null,
+      prayer: null,
       praying: 0,
       casting: 0,
       paralyzed: 0,
@@ -706,6 +716,7 @@ export class World {
 
     landShots(this);
     tickGeysers(this);
+    tickObelisks(this);
     const tickEntities = [...this.entities.values()];
 
     for (const e of tickEntities) {

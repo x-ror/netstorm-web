@@ -8,6 +8,7 @@
     GEYSER_PLACEMENTS,
     GEYSER_RESPAWNS,
     GEYSER_STOCKS,
+    SPELL_OPTIONS,
     STARTING_GEYSERS,
     KILL_REWARDS,
     UNIT_RATES,
@@ -17,6 +18,7 @@
     BRIDGE_LABELS,
     DIFFICULTY_LABELS,
     GEYSER_PLACEMENT_LABELS,
+    SPELL_LABELS,
     STARTING_GEYSER_LABELS,
     ISLAND_COUNTS,
     MAX_SEED,
@@ -289,6 +291,14 @@
                   <select name="islands" bind:value={options.islands}>
                     {#each ISLAND_COUNTS as count (count)}<option value={count}>
                         {count}
+                      </option>{/each}
+                  </select>
+                </label>
+                <label>
+                  {m.menu_spells()}
+                  <select name="spells" bind:value={options.spells}>
+                    {#each SPELL_OPTIONS as id (id)}<option value={id}>
+                        {SPELL_LABELS[id]()}
                       </option>{/each}
                   </select>
                 </label>

@@ -2,6 +2,7 @@
  * built from the original's maps in mission.ts. */
 import { World } from './world.js';
 import { startGeysers } from './rules/geysers.js';
+import { startObelisks } from './rules/spells.js';
 import type { Theme, DefTable } from './defs.js';
 import {
   BRIDGE_SETS,
@@ -15,6 +16,8 @@ import {
   GEYSER_STOCKS,
   STARTING_GEYSERS,
   type GeyserPlacement,
+  SPELL_OPTIONS,
+  type SpellOption,
   HAND_SIZE,
   KILL_REWARDS,
   UNIT_RATES,
@@ -38,10 +41,11 @@ export interface SkirmishOptions {
   anyCapture?: boolean;
   /** A battle of multiplayer, with its geyser options, which also make the geysers of the start.
    * Left out, a battle of the campaign: the map's geysers and the campaign's rules. */
-  multiplayer?: GeyserOptions;
+  multiplayer?: MultiplayerOptions;
 }
 
-export interface GeyserOptions {
+export interface MultiplayerOptions {
+  spells?: SpellOption;
   placement?: GeyserPlacement;
   /** Seconds, one of GEYSER_INTERVALS. */
   interval?: number;
@@ -57,6 +61,12 @@ export function startBattle(w: World, options: SkirmishOptions): void {
 
   if (g) {
     w.multiplayer = true;
+    w.spells = SPELL_OPTIONS.find((s) => s === g.spells) ?? 'none';
+
+    if (w.spells === 'obelisks') {
+      startObelisks(w);
+    }
+
     startGeysers(w, {
       placement: GEYSER_PLACEMENTS.find((p) => p === g.placement) ?? DEFAULT_PLACEMENT,
       interval: pick(GEYSER_INTERVALS, g.interval, DEFAULT_INTERVAL),

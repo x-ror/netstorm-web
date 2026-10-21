@@ -65,7 +65,8 @@ interface Spot {
   avoid: Rect[];
 }
 
-const BATTLE: Rect = { x0: EDGE, y0: EDGE, x1: W - EDGE, y1: H - EDGE };
+/** The battle rectangle (FUN_004a9170). */
+export const BATTLE: Rect = { x0: EDGE, y0: EDGE, x1: W - EDGE, y1: H - EDGE };
 
 /** The machinery as the campaign runs it: the Traditional placement every 30 s, from the Storm
  * Power of the fallen as it is, never below the 2000 of a campaign geyser (`?` campaign). */

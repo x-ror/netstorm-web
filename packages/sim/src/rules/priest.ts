@@ -68,8 +68,8 @@ export function tickPriest(world: World, p: Priest): void {
     p.goal = 'idle';
     p.target = null;
     dropCargo(world, p); // a paralysed Priest holds nothing
-    // Nor does he pray or cast: a prayer is lost, a Spell he was given he keeps (`?`).
-    p.spell = p.praying > 0 ? null : p.spell;
+    // Nor does he pray or cast: a prayer is lost, the Spell he holds he keeps (FUN_004bd760).
+    p.prayer = null;
     p.praying = 0;
     p.casting = 0;
     world.emit({ what: 'priest down', who: p.owner });

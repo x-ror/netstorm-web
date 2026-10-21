@@ -5,7 +5,9 @@
 import type { Command, CommandError } from '../commands.js';
 import type { World } from '../world.js';
 import { flies } from '../defs.js';
+import type { WorldView } from '../view.js';
 import {
+  DEVASTATION,
   TPS,
   Terrain,
   W,
@@ -16,7 +18,7 @@ import {
   type Transport,
 } from '../state.js';
 import { damage } from './combat.js';
-import { feed } from './geysers.js';
+import { BATTLE, feed } from './geysers.js';
 import { collapse } from './bridges.js';
 import { dropCargo } from './movement.js';
 
@@ -179,6 +181,10 @@ const paralysis: Spell = (world, t, range) => {
     // It spares the Priests of the caster's side and stops everything else, friend or foe.
     if (e.kind !== 'priest' || world.hostile(t.owner, e.owner)) {
       e.paralyzed = world.def(t.spell!).effectTime * TPS;
+
+      if (e.kind === 'priest') {
+        breakPrayer(e);
+      }
     }
   }
 };
@@ -322,6 +328,7 @@ export function arriveAtObelisk(world: World, t: Transport): void {
   t.target = null;
 
   if (o?.kind === 'obelisk' && near(o, t)) {
+    loseSpell(world, t.spell);
     t.spell = o.spell;
     world.occupant[world.at(o.x, o.y)] = 0;
     world.entities.delete(o.id);
@@ -399,18 +406,14 @@ export function castSpell(
  */
 export function pray(world: World, c: Extract<Command, { t: 'pray'; }>): CommandError | null {
   const p = world.priestOf(c.player);
-  const def = world.defs.get(c.spell);
 
-  if (!def || !isSpell(def.id) || def.prayTime <= 0) {
+  if (!prayable(world).includes(c.spell)) {
     return 'unknown unit';
   }
 
-  if (!world.players.get(c.player)!.tech.has(def.id)) {
-    return 'unknown tech';
-  }
-
+  // He may hold a crystal or another Spell, but not a Devastation prayed for (FUN_004bdf20).
   if (
-    !p || p.state !== 'normal' || p.carrying !== null || p.spell !== null
+    !p || p.state !== 'normal' || p.casting > 0 || p.spell === DEVASTATION
     || world.terrain[world.at(p.x, p.y)] === Terrain.Sky
   ) {
     return 'priest unavailable';
@@ -419,9 +422,37 @@ export function pray(world: World, c: Extract<Command, { t: 'pray'; }>): Command
   p.path = [];
   p.goal = 'idle';
   p.target = null;
-  p.spell = def.id;
-  p.praying = Math.max(1, Math.round(def.prayTime * TPS));
+  p.prayer = c.spell;
+  p.praying = Math.max(1, Math.round(world.def(c.spell).prayTime * TPS));
   return null;
+}
+
+/** Thunder Strike and Thunderstorm are never prayed for (FUN_004bdf20). */
+const NOT_PRAYED: ReadonlySet<string> = new Set(['bomblightingzap', 'bomblightingwave']);
+
+/** The Spells a Priest may pray for: in multiplayer only, the Devastation of `bombspecialone`; with
+ * Spells = Prayer every other Spell instead, the Thunder ones aside. */
+export function prayable(world: WorldView): string[] {
+  if (!world.multiplayer) {
+    return [];
+  }
+
+  if (world.spells !== 'prayer') {
+    return [DEVASTATION];
+  }
+
+  return [...world.defs.values()]
+    .filter((def) =>
+      isSpell(def.id) && def.id !== DEVASTATION && !NOT_PRAYED.has(def.id)
+      && def.prayTime > 0
+    )
+    .map((def) => def.id);
+}
+
+/** A prayer is broken off: by an order to walk, Paralysis or any damage. The Spell he holds he keeps. */
+export function breakPrayer(p: Priest): void {
+  p.prayer = null;
+  p.praying = 0;
 }
 
 /** A tick of a Priest who prays or casts; true while it keeps him standing. An order to walk
@@ -437,16 +468,76 @@ export function tickPrayer(world: World, p: Priest): boolean {
   }
 
   if (p.path.length > 0) {
-    p.praying = 0;
-    p.spell = null;
+    breakPrayer(p);
     return false;
   }
 
   p.praying--;
 
   if (p.praying === 0) {
+    loseSpell(world, p.spell);
+    p.spell = p.prayer;
+    p.prayer = null;
     world.emit({ what: 'spell', who: p.owner, data: { transport: p.id, spell: p.spell! } });
   }
 
   return true;
+}
+
+/* oxlint-disable no-magic-numbers -- gem.cpp and nugget.cpp */
+/** Spells = Obelisks: 3 and one more a player, the first at 180 s, then one every 20 s. */
+const OBELISK_BASE = 3;
+const OBELISK_FIRST = 180;
+const OBELISK_EVERY = 20;
+const OBELISK_TRIES = 1000;
+/** Chance of a Spell on an Obelisk by its level (FUN_00478760). */
+const SPELL_WEIGHTS: Readonly<Record<number, number>> = { 1: 20, 2: 30, 3: 50, 4: 100 };
+/* oxlint-enable no-magic-numbers */
+
+/** The Obelisks of a multiplayer battle with Spells = Obelisks (FUN_004a95c0). */
+export function startObelisks(world: World): void {
+  world.obelisks = { left: OBELISK_BASE + world.players.size, next: OBELISK_FIRST * TPS };
+}
+
+export function tickObelisks(world: World): void {
+  const o = world.obelisks;
+
+  if (o.left > 0 && world.tick >= o.next) {
+    spawnObelisk(world);
+    o.left--;
+    o.next = world.tick + OBELISK_EVERY * TPS;
+  }
+}
+
+/** A Spell a carrier held is gone, with it or for another: in multiplayer an Obelisk comes up
+ * somewhere instead (FUN_004285e0), but for a Devastation prayed for. */
+export function loseSpell(world: World, spell: string | null): void {
+  if (spell && spell !== DEVASTATION && world.multiplayer) {
+    spawnObelisk(world);
+  }
+}
+
+/** An Obelisk with a Spell drawn by its level, on a free cell of island anywhere (FUN_004a94b0). */
+function spawnObelisk(world: World): void {
+  const spells = [...world.defs.values()].filter((def) =>
+    isSpell(def.id)
+    && SPELL_WEIGHTS[def.level]
+  );
+  let r = world.rng.int(spells.reduce((sum, def) => sum + SPELL_WEIGHTS[def.level]!, 0));
+  const spell = spells.find((def) => (r -= SPELL_WEIGHTS[def.level]!) < 0)!;
+  const rect = BATTLE;
+
+  for (let i = 0; i < OBELISK_TRIES; i++) {
+    const x = rect.x0 + world.rng.int(rect.x1 - rect.x0);
+    const y = rect.y0 + world.rng.int(rect.y1 - rect.y0);
+    const cell = world.at(x, y);
+
+    if (
+      world.terrain[cell] === Terrain.Island && !world.occupant[cell] && !world.priestAt(x, y)
+      && !world.residenceAt(x, y)
+    ) {
+      world.addObelisk(x, y, spell.id);
+      return;
+    }
+  }
 }

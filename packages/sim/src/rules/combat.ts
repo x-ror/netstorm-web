@@ -3,6 +3,7 @@ import { flies, type UnitDef } from '../defs.js';
 import { shakeBridges } from './bridges.js';
 import { tickUpgrade } from './building.js';
 import { feed, unitValue } from './geysers.js';
+import { breakPrayer } from './spells.js';
 import {
   ARM_BUILT,
   CROSSBOW_BEARINGS,
@@ -776,6 +777,12 @@ export function damage(
   }
 
   const before = entity.hp;
+
+  // Any damage breaks a Priest's prayer off (FUN_004bd5a0).
+  if (entity.kind === 'priest' && amount > 0) {
+    breakPrayer(entity);
+  }
+
   // A Priest cannot be destroyed: damage never takes him below one hit point.
   const least = entity.kind === 'priest' ? Math.min(1, before) : 0;
   entity.hp = Math.max(least, +(before - amount).toFixed(HP_DECIMALS));

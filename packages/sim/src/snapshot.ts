@@ -1,5 +1,5 @@
 import { UNIT_CLASSES, UNIT_GROUPS, type UnitDef } from './defs.js';
-import type { Entity, GeyserState, Player, Shot } from './state.js';
+import type { Entity, GeyserState, Player, Shot, SpellOption } from './state.js';
 import {
   BRIDGE_SETS,
   BRIDGE_SLOTS,
@@ -8,6 +8,7 @@ import {
   GEYSER_RESPAWNS,
   GEYSER_STOCKS,
   GEYSER_ZONES,
+  SPELL_OPTIONS,
   KILL_REWARDS,
   UNIT_RATES,
   LINK_ALL,
@@ -36,8 +37,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 36;
-export const RULES_VERSION = 68;
+export const SNAPSHOT_VERSION = 37;
+export const RULES_VERSION = 69;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -56,6 +57,8 @@ export interface WorldSnapshot {
   geyserStock: number;
   anyCapture: boolean;
   multiplayer: boolean;
+  spells: SpellOption;
+  obelisks: { left: number; next: number; };
   geysers: GeyserState;
   terrain: number[];
   owner: number[];
@@ -342,6 +345,7 @@ function parseEntity(raw: unknown): Entity {
     'goal',
     'target',
     'spell',
+    'prayer',
     'praying',
     'casting',
   ], 'priest');
@@ -364,6 +368,7 @@ function parseEntity(raw: unknown): Entity {
     goal: choice(value.goal, ['idle', 'collect', 'pickup', 'home', 'build'], 'priest.goal'),
     target: nullableId(value.target, 'priest.target'),
     spell: value.spell === null ? null : text(value.spell, 'priest.spell'),
+    prayer: value.prayer === null ? null : text(value.prayer, 'priest.prayer'),
     praying: integer(value.praying, 'priest.praying'),
     casting: integer(value.casting, 'priest.casting'),
     paralyzed,
@@ -480,6 +485,12 @@ function grid(raw: unknown, label: string, max: number): number[] {
   return values.map((value) => integer(value, label, 0, max));
 }
 
+function parseObelisks(raw: unknown): { left: number; next: number; } {
+  const value = record(raw, 'obelisks');
+  keys(value, ['left', 'next'], 'obelisks');
+  return { left: integer(value.left, 'obelisks.left'), next: integer(value.next, 'obelisks.next') };
+}
+
 function parseGeysers(raw: unknown): GeyserState {
   const value = record(raw, 'geysers');
   keys(value, [
@@ -530,6 +541,8 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     'geyserStock',
     'anyCapture',
     'multiplayer',
+    'spells',
+    'obelisks',
     'geysers',
     'terrain',
     'owner',
@@ -575,6 +588,8 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     geyserStock: choice(value.geyserStock, GEYSER_STOCKS, 'snapshot.geyserStock'),
     anyCapture: boolean(value.anyCapture, 'snapshot.anyCapture'),
     multiplayer: boolean(value.multiplayer, 'snapshot.multiplayer'),
+    spells: choice(value.spells, SPELL_OPTIONS, 'snapshot.spells'),
+    obelisks: parseObelisks(value.obelisks),
     geysers: parseGeysers(value.geysers),
     terrain: grid(value.terrain, 'terrain', Terrain.HardBridge),
     owner: grid(value.owner, 'owner', MAX_PLAYERS),

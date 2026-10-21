@@ -85,6 +85,7 @@ export function createMatchWorld(
         : { name: enemy, theme: options.enemyTheme, storm: options.storm }, {
       ...battle,
       multiplayer: {
+        spells: options.spells,
         placement: options.geyserPlacement,
         interval: options.geyserInterval,
         respawn: options.geyserRespawn,

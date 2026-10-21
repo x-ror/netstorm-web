@@ -23,6 +23,8 @@ export const UNIT_RATES = [30, 15, 8, 4] as const;
 export const KILL_REWARDS = [0, 25, 50, 75, 100, 150] as const;
 /** "Money per Geyser": Storm Power a geyser holds. */
 export const GEYSER_STOCKS = [2000, 3000, 4000, 5000] as const;
+/** "Spells": no Obelisks, Obelisks over the map, or every Spell by prayer (option index 9). */
+export const SPELL_OPTIONS = ['none', 'obelisks', 'prayer'] as const;
 /** "Geyser Placement": no new geysers, anywhere on the map, or evenly over its 16 zones. The
  * original's Synced and Timed are left out. */
 export const GEYSER_PLACEMENTS = ['none', 'traditional', 'balanced'] as const;
@@ -529,10 +531,12 @@ export interface Priest {
   goal: 'idle' | 'collect' | 'pickup' | 'home' | 'build';
   /** Geyser he mines, the crystal he was sent for, or the building he walks to to construct. */
   target: number | null;
-  /** The Spell he prays for or holds: "Priests are also able to 'Pray' in order to acquire the
-   * Devastation Spell" (help 1015). */
+  /** The Spell he holds, from an Obelisk or a prayer. */
   spell: string | null;
-  /** Ticks of prayer left before `spell` is his; 0 when he is not praying. */
+  /** The Spell he prays for: "Priests are also able to 'Pray' in order to acquire the Devastation
+   * Spell" (help 1015). It takes the place of `spell` when the prayer is done. */
+  prayer: string | null;
+  /** Ticks of prayer left before `prayer` is his; 0 when he is not praying. */
   praying: number;
   /** Ticks until the Spell he casts goes off; he stands still meanwhile. 0: not casting. */
   casting: number;
@@ -551,6 +555,7 @@ export interface Crystal {
 }
 /** Zones of the Balanced placement: a 4×4 grid over the battle (`numZones` in nugget.cpp). */
 export const GEYSER_ZONES = 16;
+export type SpellOption = (typeof SPELL_OPTIONS)[number];
 export type GeyserPlacement = (typeof GEYSER_PLACEMENTS)[number];
 /** The machinery of new geysers (nugget.cpp): the options, the pool of Storm Power they come
  * from, and when the next one is due. See rules/geysers.ts. */
