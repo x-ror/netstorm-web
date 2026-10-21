@@ -73,6 +73,12 @@ export interface MatchOptions {
 
 export const PLAYABLE_THEMES: readonly PlayableTheme[] = ['wind', 'rain', 'thunder'];
 export const OPPONENTS: readonly Opponent[] = ['ai', 'idle', 'watch'];
+
+/** Who plays the other sides in the match: chosen on the skirmish screen, while a mission is
+ * always the player against the computer. */
+export function opponentOf(options: Pick<MatchOptions, 'mode' | 'opponent'>): Opponent {
+  return options.mode === 'mission' ? 'ai' : options.opponent;
+}
 /* oxlint-disable no-magic-numbers -- the choices the menu offers */
 export const ISLAND_COUNTS: readonly number[] = [2, 4, 6, 9];
 /* oxlint-enable no-magic-numbers */

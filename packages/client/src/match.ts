@@ -19,7 +19,7 @@ import {
   type MissionButton,
   type MissionPage,
 } from './game-data.js';
-import { type MatchOptions } from './options.js';
+import { opponentOf, type MatchOptions } from './options.js';
 import { createMatchWorld, ME } from './setup.js';
 import { saveProfile } from './profile.js';
 import { markDone } from './campaign.js';
@@ -93,7 +93,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   const ui = createUiState(ME);
   // Watching, the computer plays every side and the screen only looks on, through one side's
   // eyes at a time.
-  ui.watching = options.opponent === 'watch';
+  const opponent = opponentOf(options);
+  ui.watching = opponent === 'watch';
   ui.muted = data.sounds.muted; // the choice outlives a match
   // A sound is as loud as its place is near the middle of the screen, measured on the map.
   data.sounds.heard = (at) =>
@@ -170,7 +171,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     }
   };
   // Watching, the computer plays the player's side too.
-  const computer = (player: number) => ui.watching || (options.opponent === 'ai' && player !== ME);
+  const computer = (player: number) => ui.watching || (opponent === 'ai' && player !== ME);
   // The move is worked out in a worker from the world as it stands and applied AI_LEAD ticks
   // later, so the frame never waits for it; a tick whose moves are late waits instead.
   const schedule = new AiSchedule(AI_LEAD);

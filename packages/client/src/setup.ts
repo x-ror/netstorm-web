@@ -12,7 +12,7 @@ import {
   type World,
 } from '@netstorm/sim';
 import { type Maps, type Mission } from './game-data.js';
-import { type MatchOptions } from './options.js';
+import { opponentOf, type MatchOptions } from './options.js';
 import { loadProfile, type Profile } from './profile.js';
 import { m } from './paraglide/messages.js';
 
@@ -62,8 +62,8 @@ export function createMatchWorld(
   const map = options.mode === 'mission' ? maps[mission?.map ?? options.mission] : undefined;
   const enemy = mission?.enemy || m.player_opponent();
   // Who the computer plays: every side but the player's, and his too when the computer plays both.
-  const computer = (id: number) =>
-    options.opponent === 'watch' || (options.opponent === 'ai' && id !== ME);
+  const opponent = opponentOf(options);
+  const computer = (id: number) => opponent === 'watch' || (opponent === 'ai' && id !== ME);
   const battle = {
     bridges: options.bridges,
     slots: options.slots,

@@ -21,7 +21,7 @@ import { createAlarm } from '../src/alarm.js';
 import { MUZZLES } from '../src/muzzles.js';
 import { paint, paintOf } from '../src/owner-colours.js';
 import { createMatchWorld, ENEMY, ME } from '../src/setup.js';
-import { DEFAULT_OPTIONS, MAX_STORM, normalizeOptions } from '../src/options.js';
+import { DEFAULT_OPTIONS, MAX_STORM, normalizeOptions, opponentOf } from '../src/options.js';
 import { contract } from '../src/ui/contracts.js';
 import {
   FACING_FRAMES,
@@ -1071,4 +1071,13 @@ test('a Dust Devil forms beside its Devil Maker from 4 s and is let go at 6 s', 
   assert.deepEqual(overlayOf(maker, 0, world.view()), ['windflyer', 17]);
   maker.cooldown = 59;
   assert.deepEqual(overlayOf(maker, 0, world.view()), ['windflyer', 21]);
+});
+
+test('a mission is the player against the computer, whoever the skirmish screen set', () => {
+  assert.equal(opponentOf({ mode: 'mission', opponent: 'watch' }), 'ai');
+  assert.equal(opponentOf({ mode: 'mission', opponent: 'idle' }), 'ai');
+  assert.equal(opponentOf({ mode: 'skirmish', opponent: 'watch' }), 'watch');
+  const world = createMatchWorld(defs, maps, missions, { ...DEFAULT_OPTIONS, opponent: 'watch' });
+  assert.ok(!world.players.get(ME)!.ai);
+  assert.ok(world.players.get(ENEMY)!.ai);
 });
