@@ -20,8 +20,8 @@ type Payloads = {
   rune: { priest: number; runes: number; };
   released: { priest: number; };
   saved: { priest: number; owner: number; };
-  /** `upgrade`: the Altar is Upgraded rather than consumed. */
-  sacrifice: { victim: number; upgrade: boolean; };
+  /** `gift`: GIFT_STORM, GIFT_UPGRADE (the Altar stays) or the unit now known. */
+  sacrifice: { victim: number; gift: string; };
   /** An Altar's Upgrade has played: it is of `level` now. */
   'altar upgrade': { altar: number; level: number; };
   /** A new geyser came up during the battle. */

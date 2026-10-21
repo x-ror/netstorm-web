@@ -143,6 +143,19 @@ test('a skirmish is fought on a map made from its seed, with the Furies and the 
   assert.equal(make(5).hash(), world.hash());
 });
 
+test('a skirmish starts with the Sun basics and what the Furies granted in the battles before', () => {
+  const opts = { ...DEFAULT_OPTIONS, mode: 'skirmish' as const, theme: 'thunder' as const };
+  const world = createMatchWorld(defs, maps, missions, opts, {
+    known: ['thunderfence'],
+    altarLevel: 2,
+  });
+  const me = world.players.get(ME)!;
+  assert.ok(world.multiplayer);
+  assert.ok(me.tech.has('suncannon') && me.tech.has('thunderfence'));
+  assert.ok(!me.tech.has('thundercannon') && !me.tech.has('sunfence'));
+  assert.equal(me.altarLevel, 2);
+});
+
 test('without a map, geysers that would cut into a home island are dropped', () => {
   const world = skirmish();
   assert.equal(world.players.get(ME)!.theme, 'wind');

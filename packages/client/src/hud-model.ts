@@ -2,7 +2,10 @@ import {
   PIECES,
   rotateLinks,
   MAX_UPGRADES,
+  GIFT_STORM,
+  GIFT_UPGRADE,
   MAX_ALTAR_UPGRADES,
+  giftsOf,
   DEVASTATION,
   OUTPOST,
   PIECE_HARDEN,
@@ -71,8 +74,8 @@ export interface HudActions {
   upgradeSelected(): void;
   meltdownSelected(): void;
   castSelected(): void;
-  /** Choose the gift of the selected Altar's next Sacrifice: its Upgrade, or Knowledge. */
-  giftSelected(upgrade: boolean): void;
+  /** Choose the gift of the selected Altar's next Sacrifice: a unit, Storm Power or its Upgrade. */
+  giftSelected(gift: string): void;
   /** Have the player's Priest pray for a Spell. */
   pray(spell: string): void;
   /** A button of the page shown over the map was pressed: its place among the page's buttons. */
@@ -157,7 +160,7 @@ export type SelectedAction =
   | { kind: 'produce'; type: string; label: string; }
   | { kind: 'upgrade'; label: string; cost: number; }
   | { kind: 'meltdown'; label: string; }
-  | { kind: 'gift'; upgrade: boolean; label: string; };
+  | { kind: 'gift'; gift: string; label: string; };
 
 const PLANK_DROP = 9; // from the top of a cell down to the hot spot of its Bridge frame
 const PLANK_FACE = 7; // pixels of a frame's front face under its cell
@@ -402,29 +405,48 @@ function unitCards(world: WorldView, me: number, ui: UiState): UnitCard[] {
 
 /** A Workshop's level and Production Slots and, for the player's own, the units of its Fury he
  * knows that it could take into a free slot, and its Upgrade. */
-/** "You must choose a gift from the Furies": Knowledge, which consumes the Altar, or its Upgrade,
- * to Level 3 at most and on the home island only (the simulation says no elsewhere). */
+/** "Glory be to the Furies! You may choose a Level n unit as your reward, or Upgrade" (tell
+ * `SacrificeMenu`): in multiplayer, a unit of the Altar's Level the player does not know, 5000
+ * Storm Power, or the Altar's Upgrade, to Level 3 at most and on the home island only (the
+ * simulation says no elsewhere). The campaign has no choice: 5000 Storm Power. */
 function altar(
+  world: WorldView,
   me: number,
   b: DeepReadonly<Building>,
   say: (text: string, muted?: boolean) => void,
   actions: SelectedAction[],
 ): void {
   const level = b.upgrades + 1;
-  say(m.altar_fact({ level, gift: b.upgradeGift ? m.gift_upgrade() : m.gift_knowledge() }));
+  const name = (gift: string) => {
+    if (gift === GIFT_UPGRADE) {
+      return m.gift_upgrade({ level: level + 1 });
+    }
 
-  if (b.owner !== me || b.upgrading > 0) {
+    return gift === GIFT_STORM
+      ? m.gift_storm()
+      : unitName(gift, world.defs.get(gift)?.name ?? gift);
+  };
+
+  if (!world.multiplayer) {
+    say(m.altar_fact({ level, gift: m.gift_storm() }));
     return;
   }
 
-  if (b.upgradeGift) {
-    actions.push({ kind: 'gift', upgrade: false, label: m.action_gift_knowledge() });
-  } else if (b.upgrades < MAX_ALTAR_UPGRADES) {
-    actions.push({
-      kind: 'gift',
-      upgrade: true,
-      label: m.action_gift_upgrade({ level: level + 1 }),
-    });
+  say(m.altar_fact({ level, gift: name(b.gift) }));
+  const player = world.players.get(me);
+
+  if (b.owner !== me || b.upgrading > 0 || !player) {
+    return;
+  }
+
+  const gifts = [
+    ...giftsOf(world, b).filter((id) => !player.tech.has(id)),
+    GIFT_STORM,
+    ...(b.upgrades < MAX_ALTAR_UPGRADES ? [GIFT_UPGRADE] : []),
+  ];
+
+  for (const gift of gifts.filter((id) => id !== b.gift)) {
+    actions.push({ kind: 'gift', gift, label: m.action_gift({ gift: name(gift) }) });
   }
 }
 
@@ -511,7 +533,7 @@ function selected(world: WorldView, me: number, ui: UiState): Selected | null {
     }
 
     if (world.defs.get(entity.type)?.cls === 'Altar' && entity.rising === 0) {
-      altar(me, entity, say, actions);
+      altar(world, me, entity, say, actions);
     }
   }
 

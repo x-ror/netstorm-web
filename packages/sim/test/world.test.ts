@@ -28,6 +28,10 @@ import {
   MAX_ALTAR_UPGRADES,
   RUNES,
   RUNE_INTERVAL,
+  GIFT_STORM,
+  GIFT_UPGRADE,
+  giftsOf,
+  type Building,
   upgradeCost,
   WORKSHOP_SLOTS,
 } from '../src/index.js';
@@ -1019,25 +1023,11 @@ test('a mission is built from its map: islands, bridges, and the units of every 
   }
 });
 
-test('an Altar given its Upgrade for a gift stays after the Sacrifice and plays it for 5.4 s', () => {
-  const w = mk();
+/** The last rune of a Sacrifice of Red on Blue's Altar all but warded, Blue's Priest beside it;
+ * steps until it is done. */
+function sacrifice(w: World, altar: Building) {
   const red = w.priestOf(2)!;
   const blue = w.priestOf(1)!;
-  const altar = w.buildingsOf(1).find((b) => b.type === 'altar')!;
-  const gift = (upgrade: boolean) =>
-    w.apply({ t: 'altarGift', player: 1, altar: altar.id, upgrade });
-  assert.equal(w.apply({ t: 'altarGift', player: 2, altar: altar.id, upgrade: true }),
-    'bad target');
-  // Level 3 is the last; and only an Altar on the home island can be Upgraded.
-  altar.upgrades = MAX_ALTAR_UPGRADES;
-  assert.equal(gift(true), 'fully upgraded');
-  assert.equal(gift(false), null);
-  altar.upgrades = 0;
-  const away = w.spawnBuilding('altar', 1, 200, 200);
-  assert.equal(w.apply({ t: 'altarGift', player: 1, altar: away.id, upgrade: true }), 'blocked');
-  w.entities.delete(away.id);
-  assert.equal(gift(true), null);
-  // The last rune all but warded, with the Altar's own Priest beside it.
   red.state = 'chained';
   red.chainedAt = altar.id;
   red.runes = RUNES - 1;
@@ -1049,9 +1039,31 @@ test('an Altar given its Upgrade for a gift stays after the Sacrifice and plays 
   }
 
   assert.ok(!w.entities.has(red.id));
+  return w.drainEvents().find((e) => e.what === 'sacrifice')!.data.gift;
+}
+
+test('an Altar given its Upgrade for a gift stays after the Sacrifice and plays it for 5.4 s', () => {
+  const w = mk();
+  w.multiplayer = true;
+  const altar = w.buildingsOf(1).find((b) => b.type === 'altar')!;
+  const gift = (what: string) =>
+    w.apply({ t: 'altarGift', player: 1, altar: altar.id, gift: what });
+  assert.equal(w.apply({ t: 'altarGift', player: 2, altar: altar.id, gift: GIFT_UPGRADE }),
+    'bad target');
+  // Level 3 is the last; and only an Altar on the home island can be Upgraded.
+  altar.upgrades = MAX_ALTAR_UPGRADES;
+  assert.equal(gift(GIFT_UPGRADE), 'fully upgraded');
+  assert.equal(gift(GIFT_STORM), null);
+  altar.upgrades = 0;
+  const away = w.spawnBuilding('altar', 1, 200, 200);
+  assert.equal(w.apply({ t: 'altarGift', player: 1, altar: away.id, gift: GIFT_UPGRADE }),
+    'blocked');
+  w.entities.delete(away.id);
+  assert.equal(gift(GIFT_UPGRADE), null);
+  assert.equal(sacrifice(w, altar), GIFT_UPGRADE);
   assert.ok(w.entities.has(altar.id), 'the Upgrade keeps the Altar');
   assert.equal(altar.upgrading, 54);
-  assert.ok(w.drainEvents().some((e) => e.what === 'sacrifice' && e.data.upgrade));
+  assert.equal(w.players.get(1)!.altarLevel, 2, 'the Level is kept for the next battles');
 
   for (let i = 0; i < 54; i++) {
     w.step();
@@ -1059,4 +1071,32 @@ test('an Altar given its Upgrade for a gift stays after the Sacrifice and plays 
 
   assert.equal(altar.upgrades, 1);
   assert.ok(w.drainEvents().some((e) => e.what === 'altar upgrade' && e.data.level === 2));
+});
+
+test('a Sacrifice grants a unit of the Altar’s Level of any Fury, or 5000 Storm Power', () => {
+  const w = mk();
+  w.multiplayer = true;
+  w.players.get(1)!.altarLevel = 2;
+  const altar = w.buildingsOf(1).find((b) => b.type === 'altar')!;
+  const gift = (what: string) =>
+    w.apply({ t: 'altarGift', player: 1, altar: altar.id, gift: what });
+  // This Altar was laid of Level 1, whatever is kept: an Arc Spire of Thunder is offered, a Crossbow of Level 2 is not; nor the Golem.
+  assert.ok(giftsOf(w, altar).includes('thunderfence'));
+  assert.ok(!giftsOf(w, altar).includes('sunwalker'));
+  assert.equal(gift('windarcher'), 'unknown unit');
+  assert.equal(gift('suncannon'), 'already known');
+  w.players.get(1)!.tech.delete('thunderfence');
+  assert.equal(gift('thunderfence'), null);
+  assert.equal(sacrifice(w, altar), 'thunderfence');
+  assert.ok(w.players.get(1)!.tech.has('thunderfence'));
+  assert.ok(!w.entities.has(altar.id), 'the Altar is consumed');
+  assert.equal(w.players.get(1)!.altarLevel, 1, 'and the Level kept goes back to 1');
+
+  // The campaign has no window: 5000 Storm Power, whatever was chosen.
+  const campaign = mk();
+  const own = campaign.buildingsOf(1).find((b) => b.type === 'altar')!;
+  own.gift = 'thunderfence';
+  const storm = campaign.players.get(1)!.storm;
+  assert.equal(sacrifice(campaign, own), GIFT_STORM);
+  assert.equal(campaign.players.get(1)!.storm, storm + 5000);
 });

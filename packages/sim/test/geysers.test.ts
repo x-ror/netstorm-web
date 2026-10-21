@@ -22,7 +22,7 @@ function battle(geysers = {}) {
     name: String(id),
     theme: id === 1 ? 'wind' : 'rain',
     storm: 5000,
-  }), { geysers });
+  }), { multiplayer: geysers });
 }
 
 const geysersOf = (world: World) =>

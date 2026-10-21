@@ -36,9 +36,9 @@ export interface SkirmishOptions {
   geyserStock?: number;
   /** `allowAnyCapture` of a mission: friendly Priests may be carried off to safety. */
   anyCapture?: boolean;
-  /** The geyser options of a multiplayer battle, which also make the geysers of the start. Left
-   * out, the battle has the map's geysers and the campaign's machinery for new ones. */
-  geysers?: GeyserOptions;
+  /** A battle of multiplayer, with its geyser options, which also make the geysers of the start.
+   * Left out, a battle of the campaign: the map's geysers and the campaign's rules. */
+  multiplayer?: GeyserOptions;
 }
 
 export interface GeyserOptions {
@@ -51,11 +51,12 @@ export interface GeyserOptions {
   start?: number;
 }
 
-/** The geysers of a multiplayer battle's start, and its machinery for new ones. */
+/** The start of a multiplayer battle: its geysers, and its machinery for new ones. */
 export function startBattle(w: World, options: SkirmishOptions): void {
-  const g = options.geysers;
+  const g = options.multiplayer;
 
   if (g) {
+    w.multiplayer = true;
     startGeysers(w, {
       placement: GEYSER_PLACEMENTS.find((p) => p === g.placement) ?? DEFAULT_PLACEMENT,
       interval: pick(GEYSER_INTERVALS, g.interval, DEFAULT_INTERVAL),
@@ -83,6 +84,19 @@ const DEFAULT_STORM = 2000; // starting Storm Power
 // The multiplayer defaults of netstorm.game 10.82: Balanced, 1 Min.
 const DEFAULT_PLACEMENT: GeyserPlacement = 'balanced';
 const DEFAULT_INTERVAL = 60;
+
+/** What a player knows at the start of a multiplayer battle before what the Furies have granted
+ * him (FUN_004be9e0): the Golem, Disc Thrower, Sun Cannon, Stone Tower and Sun Generator. And the
+ * Outpost and the Devastation he may pray for, which no Knowledge gates. */
+export const MULTIPLAYER_TECH: readonly string[] = [
+  'sunwalker',
+  'sunarcher',
+  'suncannon',
+  'sunblocker',
+  'sunbattery',
+  OUTPOST,
+  DEVASTATION,
+];
 
 const BASE_TECH = [
   'sunwalker',

@@ -20,6 +20,7 @@ import {
 } from '../state.js';
 import { joins, shakeBridges } from './bridges.js';
 import { damage, removeBuilding } from './combat.js';
+import { homeIsland } from './capture.js';
 import { feed, unitValue } from './geysers.js';
 import { removeTransport } from './movement.js';
 
@@ -549,6 +550,12 @@ export function build(world: World, c: Extract<Command, { t: 'build'; }>): Comma
   const way = PRIEST_BUILT.has(def.cls) ? builderPath(world, c.player, def, c.x, c.y) : null;
   const b = world.spawnBuilding(def.id, c.player, c.x, c.y, c.facing ?? 0);
   b.islet = islet;
+
+  // An Altar on the home island is of the Level the player keeps between battles.
+  if (def.cls === 'Altar' && homeIsland(world, c.player).has(world.at(c.x, c.y))) {
+    b.upgrades = world.players.get(c.player)!.altarLevel - 1;
+  }
+
   // Its hit points grow with the work, from next to nothing to all of them.
   b.rising = BUILD_SECONDS * TPS;
   b.hp = 1;

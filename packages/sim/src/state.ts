@@ -57,6 +57,12 @@ export const MAX_UPGRADES = 3;
 export const UPGRADE_SECONDS = 15;
 /** An Altar has Levels 1 to 3: two Upgrades at most (help 990–995). */
 export const MAX_ALTAR_UPGRADES = 2;
+/** The gifts of a Sacrifice other than a unit: "Get 5,000" Storm Power, which the window falls
+ * back on after 15 s, and the Altar's Upgrade (tell `SacrificeMenu`, dais.cpp). */
+export const GIFT_STORM = 'storm';
+export const GIFT_UPGRADE = 'upgrade';
+/** Storm Power of the gift, and of every Sacrifice in the campaign (`_DAT_005ac410`). */
+export const SACRIFICE_STORM = 5000;
 /** The Altar's Upgrade plays 45 frames of 0.12 s (dais.cpp, FUN_00455b40). */
 export const ALTAR_UPGRADE_SECONDS = 5.4;
 /** Share of a unit's cost paid for destroying an enemy unit and, at full health, for salvaging your own. */
@@ -424,6 +430,9 @@ export interface Player {
   allies: number[];
   /** Storm Power the side is given every second: `aiMoneyRechargeRate` of a mission. */
   income: number;
+  /** The Level of the player's Altar, kept between battles: an Altar built on the home island is
+   * of it (player +0x71 of the original's core data). */
+  altarLevel: number;
 }
 
 export interface Building {
@@ -470,9 +479,9 @@ export interface Building {
   /** Ticks until the Upgrade under way is done; 0 when none is. A Workshop's takes 15 s; an
    * Altar's plays for 5.4 s after the Sacrifice that bought it. */
   upgrading: number;
-  /** An Altar's gift from the Furies for its next Sacrifice: its own Upgrade instead of Knowledge,
-   * which consumes it. False for every other building. */
-  upgradeGift: boolean;
+  /** An Altar's gift from the Furies for its next Sacrifice: GIFT_STORM, GIFT_UPGRADE or a unit to
+   * know. GIFT_STORM for every other building. */
+  gift: string;
 }
 export interface Transport {
   id: number;

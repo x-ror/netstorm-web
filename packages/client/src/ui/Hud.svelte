@@ -111,7 +111,7 @@
       case 'cast':
         return actions.castSelected();
       case 'gift':
-        return actions.giftSelected(action.upgrade);
+        return actions.giftSelected(action.gift);
       case 'pray':
         return actions.pray(action.spell);
       case 'build':

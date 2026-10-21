@@ -18,6 +18,7 @@ export interface WorldView {
   readonly killReward: number;
   readonly geyserStock: number;
   readonly anyCapture: boolean;
+  readonly multiplayer: boolean;
   readonly geysers: DeepReadonly<GeyserState>;
   readonly terrain: ArrayLike<number>;
   readonly owner: ArrayLike<number>;

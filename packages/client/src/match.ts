@@ -3,6 +3,7 @@ import {
   FixedStepClock,
   aiMove,
   DIFFICULTY,
+  GIFT_UPGRADE,
   ReplayRecorder,
   TPS,
   playReplay,
@@ -21,6 +22,7 @@ import {
 } from './game-data.js';
 import { type MatchOptions } from './options.js';
 import { createMatchWorld, ME } from './setup.js';
+import { saveProfile } from './profile.js';
 import { createWorldRenderer } from './renderer.js';
 import { createControls } from './controls.js';
 import { createHud } from './hud.js';
@@ -266,9 +268,9 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
     upgradeSelected: () => controls.upgradeSelected(),
     meltdownSelected: () => controls.meltdownSelected(),
     castSelected: () => controls.castSelected(),
-    giftSelected: (upgrade) => {
+    giftSelected: (gift) => {
       if (ui.selected !== null) {
-        commands.push({ t: 'altarGift', player: ui.viewer, altar: ui.selected, upgrade });
+        commands.push({ t: 'altarGift', player: ui.viewer, altar: ui.selected, gift });
       }
     },
     pray: (spell) => void commands.push({ t: 'pray', player: ui.viewer, spell }),
@@ -397,8 +399,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       // FUN_004558e0): for an Upgrade priestSacrifice4.wav at 1.5 s, else priestSacrifice2.wav at
       // 4 s, and thunderCrack.wav at 2.8 s either way.
       case 'sacrifice':
-        later(event.data.upgrade ? 'priestsacrifice4' : 'priestsacrifice2',
-          event.data.upgrade ? UPGRADE_CRY : SACRIFICE_CRY);
+        later(event.data.gift === GIFT_UPGRADE ? 'priestsacrifice4' : 'priestsacrifice2',
+          event.data.gift === GIFT_UPGRADE ? UPGRADE_CRY : SACRIFICE_CRY);
         later('thundercrack', SACRIFICE_THUNDER);
         return sounds.play('itisdone2');
       case 'bridge cracked':
@@ -426,6 +428,11 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
         renderer.cast(event.data.transport, event.data.spell);
       } else if (event.what === 'bridge') {
         renderer.placed(event.data);
+      } else if (
+        event.what === 'sacrifice' && event.who === ME && world.multiplayer && !ui.watching
+      ) {
+        // What the Furies gave is the player's for the battles to come.
+        saveProfile(world.players.get(ME)!);
       } else if (event.what === 'saved' && !world.hostile(event.who, ME)) {
         saved.add(event.data.owner);
       } else if (event.what === 'captured') {

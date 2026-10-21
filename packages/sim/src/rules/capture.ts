@@ -5,7 +5,10 @@ import { removeBuilding } from './combat.js';
 import type { WorldView } from '../view.js';
 import {
   ALTAR_UPGRADE_SECONDS,
+  GIFT_STORM,
+  GIFT_UPGRADE,
   MAX_ALTAR_UPGRADES,
+  SACRIFICE_STORM,
   RUNES,
   RUNE_INTERVAL,
   TPS,
@@ -50,11 +53,36 @@ export function homeIsland(world: WorldView, player: number): Set<number> {
   return home;
 }
 
+/** The Golem, known from the start, is never a gift. */
+const GOLEM = 'sunwalker';
+
+/**
+ * The units a Sacrifice on the Altar may grant (FUN_00505fe0): of all four Furies, whoever is
+ * sacrificed, and exactly of the Altar's Level; those the player knows are shown, not granted.
+ */
+export function giftsOf(world: WorldView, altar: { upgrades: number; }): string[] {
+  const level = altar.upgrades + 1;
+  return [...world.defs.values()]
+    .filter((def) =>
+      def.group !== '' && def.theme !== null && def.level === level
+      && def.id !== GOLEM
+    )
+    .map((def) => def.id);
+}
+
 /** Why an Altar cannot take the gift asked, or null. "You will only be able to Upgrade an Altar on
  * your home island" (WarnCantUpgradeAltarOffHomeIsland), and to Level 3 at most. */
-function altarGiftError(world: World, altar: Building, upgrade: boolean): CommandError | null {
-  if (!upgrade) {
+function altarGiftError(world: World, altar: Building, gift: string): CommandError | null {
+  if (gift === GIFT_STORM) {
     return null;
+  }
+
+  if (gift !== GIFT_UPGRADE) {
+    if (!giftsOf(world, altar).includes(gift)) {
+      return 'unknown unit';
+    }
+
+    return world.players.get(altar.owner)!.tech.has(gift) ? 'already known' : null;
   }
 
   if (altar.upgrades >= MAX_ALTAR_UPGRADES) {
@@ -78,13 +106,13 @@ export function altarGift(
     return 'bad target';
   }
 
-  const error = altarGiftError(world, altar, c.upgrade);
+  const error = altarGiftError(world, altar, c.gift);
 
   if (error) {
     return error;
   }
 
-  altar.upgradeGift = c.upgrade;
+  altar.gift = c.gift;
   return null;
 }
 
@@ -354,15 +382,27 @@ function completeSacrifice(world: World, victim: Priest, altar: Building): void 
 
   loser.alive = false;
   world.entities.delete(victim.id);
-  // "Your gift can be new Knowledge ... When new Knowledge is granted the Altar is consumed." The
-  // other gift Upgrades it: it stays, and plays its Upgrade.
-  const upgrade = altar.upgradeGift && altarGiftError(world, altar, true) === null;
-  world.emit({ what: 'sacrifice', who: by, data: { victim: victim.owner, upgrade } });
+  // The gift of the window (FUN_004554d0, FUN_00453f80): a unit known from now on, 5000 Storm
+  // Power, or the Altar's Upgrade, which keeps it. Every gift but the Upgrade consumes the Altar
+  // and takes the Level kept between battles back to 1. The campaign has no window: 5000.
+  const sacrificer = world.players.get(by)!;
+  const gift = !world.multiplayer || altarGiftError(world, altar, altar.gift) !== null
+    ? GIFT_STORM
+    : altar.gift;
+  world.emit({ what: 'sacrifice', who: by, data: { victim: victim.owner, gift } });
 
-  if (upgrade) {
-    altar.upgradeGift = false;
+  if (gift === GIFT_STORM) {
+    sacrificer.storm += SACRIFICE_STORM;
+  } else if (gift !== GIFT_UPGRADE) {
+    sacrificer.tech.add(gift);
+  }
+
+  if (gift === GIFT_UPGRADE) {
+    sacrificer.altarLevel = altar.upgrades + 2;
+    altar.gift = GIFT_STORM;
     altar.upgrading = Math.round(ALTAR_UPGRADE_SECONDS * TPS);
   } else {
+    sacrificer.altarLevel = 1;
     // In the original it blows up a few seconds after the last rune.
     removeBuilding(world, altar);
     shakeBridges(world, altar);

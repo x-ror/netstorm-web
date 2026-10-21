@@ -3,12 +3,14 @@ import {
   createSkirmish,
   generateMap,
   H,
+  MULTIPLAYER_TECH,
   W,
   type DefTable,
   type World,
 } from '@netstorm/sim';
 import { type Maps, type Mission } from './game-data.js';
 import { type MatchOptions } from './options.js';
+import { loadProfile, type Profile } from './profile.js';
 import { m } from './paraglide/messages.js';
 
 export const ME = 1;
@@ -35,6 +37,7 @@ export function createMatchWorld(
   maps: Maps,
   missions: Mission[],
   options: MatchOptions,
+  profile: Profile = loadProfile(),
 ): World {
   const map = options.mode === 'mission' ? maps[options.mission] : undefined;
   const mission = options.mode === 'mission'
@@ -68,13 +71,20 @@ export function createMatchWorld(
       islands: options.islands,
       sides: [{ id: ME, theme: options.theme }, { id: ENEMY, theme: options.enemyTheme }],
     });
-    return createMission(defs, options.seed, made, (id) => ({
-      name: id === ME ? m.player_you() : enemy,
-      theme: id === ME ? options.theme : options.enemyTheme,
-      storm: options.storm,
-    }), {
+    // The player knows what a multiplayer battle starts with and what the Furies have granted him
+    // in the battles before; the computer, its Fury's units.
+    return createMission(defs, options.seed, made, (id) =>
+      id === ME
+        ? {
+          name: m.player_you(),
+          theme: options.theme,
+          storm: options.storm,
+          tech: [...MULTIPLAYER_TECH, ...profile.known],
+          altarLevel: profile.altarLevel,
+        }
+        : { name: enemy, theme: options.enemyTheme, storm: options.storm }, {
       ...battle,
-      geysers: {
+      multiplayer: {
         placement: options.geyserPlacement,
         interval: options.geyserInterval,
         respawn: options.geyserRespawn,

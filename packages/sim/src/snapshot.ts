@@ -19,6 +19,7 @@ import {
   FACINGS,
   MAX_ID,
   MAX_PLAYERS,
+  MAX_ALTAR_UPGRADES,
   MAX_UPGRADES,
   MAX_UINT32,
   Terrain,
@@ -35,8 +36,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 35;
-export const RULES_VERSION = 66;
+export const SNAPSHOT_VERSION = 36;
+export const RULES_VERSION = 67;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -54,6 +55,7 @@ export interface WorldSnapshot {
   killReward: number;
   geyserStock: number;
   anyCapture: boolean;
+  multiplayer: boolean;
   geysers: GeyserState;
   terrain: number[];
   owner: number[];
@@ -216,7 +218,7 @@ function parseEntity(raw: unknown): Entity {
       'slots',
       'upgrades',
       'upgrading',
-      'upgradeGift',
+      'gift',
     ], 'building');
     return {
       id,
@@ -245,7 +247,7 @@ function parseEntity(raw: unknown): Entity {
       slots: list(value.slots, 'building.slots').map((slot) => text(slot, 'building.slot')),
       upgrades: integer(value.upgrades, 'building.upgrades', 0, MAX_UPGRADES),
       upgrading: integer(value.upgrading, 'building.upgrading', 0),
-      upgradeGift: boolean(value.upgradeGift, 'building.upgradeGift'),
+      gift: text(value.gift, 'building.gift'),
     };
   }
 
@@ -417,6 +419,7 @@ function parsePlayer(raw: unknown): SnapshotPlayer {
     'alive',
     'allies',
     'income',
+    'altarLevel',
   ], 'player');
   const tech = list(value.tech, 'player.tech').map((entry) => text(entry, 'technology'));
   unique(tech, (entry) => entry, 'technology');
@@ -449,6 +452,7 @@ function parsePlayer(raw: unknown): SnapshotPlayer {
       integer(ally, 'player.ally', 1, MAX_PLAYERS)
     ),
     income: finite(value.income, 'player.income'),
+    altarLevel: integer(value.altarLevel, 'player.altarLevel', 1, MAX_ALTAR_UPGRADES + 1),
   };
 }
 
@@ -525,6 +529,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     'killReward',
     'geyserStock',
     'anyCapture',
+    'multiplayer',
     'geysers',
     'terrain',
     'owner',
@@ -569,6 +574,7 @@ export function parseSnapshot(raw: unknown): WorldSnapshot {
     killReward: choice(value.killReward, KILL_REWARDS, 'snapshot.killReward'),
     geyserStock: choice(value.geyserStock, GEYSER_STOCKS, 'snapshot.geyserStock'),
     anyCapture: boolean(value.anyCapture, 'snapshot.anyCapture'),
+    multiplayer: boolean(value.multiplayer, 'snapshot.multiplayer'),
     geysers: parseGeysers(value.geysers),
     terrain: grid(value.terrain, 'terrain', Terrain.HardBridge),
     owner: grid(value.owner, 'owner', MAX_PLAYERS),

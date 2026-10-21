@@ -22,6 +22,7 @@ const REJECTIONS: Record<string, () => string> = {
   'not in production': m.rejected_not_in_production,
   'no free slot': m.rejected_no_free_slot,
   'fully upgraded': m.rejected_fully_upgraded,
+  'already known': m.rejected_already_known,
   'cannot build': m.rejected_cannot_build,
   'not ready': m.rejected_not_ready,
   casting: m.rejected_casting,

@@ -65,6 +65,7 @@ import {
   type Crystal,
   type Geyser,
   type GeyserState,
+  GIFT_STORM,
   type Obelisk,
   type Flyer,
   type Entity,
@@ -135,6 +136,9 @@ export class World {
   geyserStock: number = GEYSER_STOCK;
   /** `allowAnyCapture` of a mission: a transport may carry off a friendly Priest, to save him. */
   anyCapture = false;
+  /** A battle of multiplayer rather than of the campaign: the Sacrifice's gift window, the ban on
+   * an early Sacrifice. */
+  multiplayer = false;
   /** New geysers during the battle: their options, pool and timer. */
   geysers: GeyserState = campaignGeysers();
 
@@ -157,6 +161,7 @@ export class World {
     world.killReward = snapshot.killReward;
     world.geyserStock = snapshot.geyserStock;
     world.anyCapture = snapshot.anyCapture;
+    world.multiplayer = snapshot.multiplayer;
     world.geysers = snapshot.geysers;
     world.terrain.set(snapshot.terrain);
     world.owner.set(snapshot.owner);
@@ -218,6 +223,7 @@ export class World {
       killReward: this.killReward,
       geyserStock: this.geyserStock,
       anyCapture: this.anyCapture,
+      multiplayer: this.multiplayer,
       geysers: structuredClone(this.geysers),
     };
   }
@@ -248,6 +254,7 @@ export class World {
     tech: string[],
     allies: number[] = [],
     income = 0,
+    altarLevel = 1,
   ): Player {
     const p: Player = {
       id,
@@ -262,6 +269,7 @@ export class World {
       alive: true,
       allies: [...allies].sort((a, b) => a - b),
       income,
+      altarLevel,
     };
     this.players.set(id, p);
     return p;
@@ -368,7 +376,7 @@ export class World {
       slots: [],
       upgrades: 0,
       upgrading: 0,
-      upgradeGift: false,
+      gift: GIFT_STORM,
     };
     this.entities.set(b.id, b);
     this.forFoot(b, (i) => {
