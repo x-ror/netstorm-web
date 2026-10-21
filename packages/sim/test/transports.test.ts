@@ -1,7 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { World, loadDefs, TPS, CRYSTAL_VALUE, type Crystal } from '../src/index.js';
+import {
+  World,
+  aiAlignment,
+  aiMove,
+  loadDefs,
+  TPS,
+  CRYSTAL_VALUE,
+  type Crystal,
+} from '../src/index.js';
 
 const defs = loadDefs(
   JSON.parse(readFileSync(new URL('../../../data/units.json', import.meta.url), 'utf8')),
@@ -129,4 +137,32 @@ test('a unit goes up on an ally’s island that his ground joins to the player�
   const order = (x: number, y: number) => world.canBuild({ player: 1, type: 'sunblocker', x, y });
   assert.equal(order(42, 15), null);
   assert.equal(order(44, 42), 'blocked');
+});
+
+test('a computer’s Temple gives one Energy, a player’s two; its Knowledge is one of 16 alignments', () => {
+  const world = new World(defs, 1);
+  world.addPlayer(1, 'Blue', 'wind', 9000, ['windarcher'], [], 0, 1, true);
+  world.addIsland(10, 10, 30, 20, 1);
+  world.spawnBuilding('windvortex', 1, 12, 12);
+  world.spawnBuilding('windfactory', 1, 30, 22).slots.push('windarcher');
+  // A Crossbow needs `ws`: two Energy, where the computer's Temple gives one.
+  const order = { player: 1, type: 'windarcher', x: 22, y: 14 } as const;
+  assert.equal(world.canBuild(order), 'no energy');
+  world.players.get(1)!.ai = false;
+  assert.equal(world.canBuild(order), null);
+
+  assert.equal(aiAlignment(1).name, 'Summer');
+  assert.ok(aiAlignment(1).tech.includes('windballoon'));
+  assert.equal(aiAlignment(16).name, 'Sun');
+  assert.equal(aiAlignment(150).name, 'Sun');
+});
+
+test('in multiplayer an idle computer Priest prays for the Devastation', () => {
+  const world = mk();
+  world.multiplayer = true;
+  world.addPriest(1, 30, 30);
+  const orders = aiMove(world, { player: 1, collect: false });
+  assert.ok(orders.some((c) => c.t === 'pray' && c.spell === 'bombspecialone'));
+  world.multiplayer = false;
+  assert.ok(!aiMove(world, { player: 1, collect: false }).some((c) => c.t === 'pray'));
 });

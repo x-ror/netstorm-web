@@ -34,6 +34,8 @@ export interface MissionPlayer {
   income?: number;
   /** The Level of its Altar kept from the battles before. */
   altarLevel?: number;
+  /** Played by the computer. */
+  ai?: boolean;
 }
 
 /* oxlint-disable no-magic-numbers -- the frame table of the original's bridge type */
@@ -124,7 +126,7 @@ export function createMission(
     const theme = templeTheme(defs, map, id) ?? settings.theme;
     const tech = settings.tech?.filter((type) => defs.has(type)) ?? skirmishTech(defs, theme);
     w.addPlayer(id, settings.name, theme, settings.storm, tech, settings.allies, settings.income,
-      settings.altarLevel);
+      settings.altarLevel, settings.ai);
   }
 
   const specs: IslandSpec[] = map.islands.map(([shape, cx, cy, grain]) => ({

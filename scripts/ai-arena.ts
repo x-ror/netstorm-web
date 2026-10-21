@@ -10,6 +10,9 @@ import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+  AI_ALIGNMENTS,
+  MULTIPLAYER_TECH,
+  aiAlignment,
   aiMove,
   createAiMemory,
   createMission,
@@ -23,7 +26,6 @@ import {
 
 const SIDES = [1, 2] as const;
 const ISLANDS = 4;
-const GEYSERS = 8;
 const STORM = 2000;
 const MINUTE = 60 * TPS;
 const defs = loadDefs(
@@ -55,14 +57,20 @@ if (seeds.length > 1) {
 for (const seed of seeds) {
   const map = generateMap(seed, {
     islands: ISLANDS,
-    geysers: GEYSERS,
     sides: [{ id: 1, theme: 'wind' }, { id: 2, theme: 'rain' }],
   });
+  // A skirmish as the menu makes one: a multiplayer battle's geysers and start, each computer
+  // side knowing the start and one of the original's alignments.
   const world = createMission(defs, seed, map, (id) => ({
     name: `S${id}`,
     theme: id === 1 ? 'wind' : 'rain',
     storm: STORM,
-  }));
+    tech: [
+      ...MULTIPLAYER_TECH,
+      ...aiAlignment(1 + ((seed * 7 + id * 3) % AI_ALIGNMENTS.length)).tech,
+    ],
+    ai: !(idle && id === 2),
+  }), { multiplayer: {} });
   const memories = new Map(SIDES.map((p) => [p, createAiMemory(seed + p)]));
   const stats = Object.fromEntries(SIDES.map((p) => [p, {
     moves: 0,

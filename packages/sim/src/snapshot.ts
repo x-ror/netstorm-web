@@ -37,8 +37,8 @@ import {
   text,
 } from './validation.js';
 
-export const SNAPSHOT_VERSION = 39;
-export const RULES_VERSION = 73;
+export const SNAPSHOT_VERSION = 40;
+export const RULES_VERSION = 74;
 
 export type SnapshotPlayer = Omit<Player, 'tech'> & { tech: string[]; };
 
@@ -429,6 +429,7 @@ function parsePlayer(raw: unknown): SnapshotPlayer {
     'allies',
     'income',
     'altarLevel',
+    'ai',
   ], 'player');
   const tech = list(value.tech, 'player.tech').map((entry) => text(entry, 'technology'));
   unique(tech, (entry) => entry, 'technology');
@@ -462,6 +463,7 @@ function parsePlayer(raw: unknown): SnapshotPlayer {
     ),
     income: finite(value.income, 'player.income'),
     altarLevel: integer(value.altarLevel, 'player.altarLevel', 1, MAX_ALTAR_UPGRADES + 1),
+    ai: boolean(value.ai, 'player.ai'),
   };
 }
 

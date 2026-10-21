@@ -265,6 +265,7 @@ export class World {
     allies: number[] = [],
     income = 0,
     altarLevel = 1,
+    ai = false,
   ): Player {
     const p: Player = {
       id,
@@ -280,6 +281,7 @@ export class World {
       allies: [...allies].sort((a, b) => a - b),
       income,
       altarLevel,
+      ai,
     };
     this.players.set(id, p);
     return p;

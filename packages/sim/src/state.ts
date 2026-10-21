@@ -442,6 +442,8 @@ export interface Player {
   /** The Level of the player's Altar, kept between battles: an Altar built on the home island is
    * of it (player +0x71 of the original's core data). */
   altarLevel: number;
+  /** Played by the computer: its Temple gives one Energy, not two (FUN_00404e10). */
+  ai: boolean;
 }
 
 export interface Building {

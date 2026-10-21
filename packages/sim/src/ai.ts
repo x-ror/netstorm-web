@@ -25,6 +25,7 @@ import { DIFFICULTY, type AiParams, type Difficulty } from './ai/params.js';
 import { skyCosts, threatMap, type ThreatMap } from './ai/threat.js';
 import { flies, upgradeCost, type UnitDef, type UnitGroup } from './defs.js';
 import {
+  DEVASTATION,
   DIRS,
   ENERGY_RANGE,
   MAX_FACING,
@@ -45,6 +46,7 @@ import {
 } from './state.js';
 import { joins } from './rules/bridges.js';
 import { takesSlot } from './rules/building.js';
+import { prayable } from './rules/spells.js';
 import { facesWhenLaid } from './rules/combat.js';
 import type { DeepReadonly, WorldView } from './view.js';
 import type { Building, Crystal, Entity, Geyser, Living, Priest, Transport } from './state.js';
@@ -411,6 +413,9 @@ function aiMoveOn(
       explain(`  the Priest (at ${priest.x},${priest.y}) has no order this move: ${why}`);
     }
   }
+
+  prayForDevastation(world, move);
+  because('nothing else for the Priest in a multiplayer battle: he prays for the Devastation');
 
   let target: Target | undefined;
   let head: Head | null = null;
@@ -1055,6 +1060,7 @@ const SPELL_USE: Readonly<Record<string, (r: Reach) => boolean>> = {
   bomblightingwave: STRIKE,
   bomblightingzap: STRIKE,
   bombmeteor: STRIKE,
+  bombspecialone: STRIKE,
   bombgraviton: (r) => r.foesAir >= 1 && r.friendsAir === 0,
   bombheal: (r) => r.hurt >= 2 && r.foes + r.foesAir === 0,
   bombparalyze: (r) => r.foes + r.foesAir >= 2 && r.friends + r.friendsAir === 0,
@@ -1068,8 +1074,31 @@ const SPELL_USE: Readonly<Record<string, (r: Reach) => boolean>> = {
 };
 /* oxlint-enable no-magic-numbers */
 
+/** A transport, or the Priest, that may hold and cast a Spell. */
+type Caster = View<Transport> | View<Priest>;
+
+/**
+ * In multiplayer the Priest prays for the Devastation when he has nothing else to do (the
+ * original's prayer menu, FUN_004bdf20): the AI keeps it for enemies that come near him.
+ * Invented when: only with no building to raise and no ritual.
+ */
+function prayForDevastation(world: WorldView, move: Move): void {
+  const p = world.priestOf(move.me);
+
+  if (
+    !p || !prayable(world).includes(DEVASTATION) || p.state !== 'normal' || p.praying > 0
+    || p.casting > 0 || p.spell !== null || p.path.length > 0 || p.goal !== 'idle'
+    || move.ritual || priestBusy(world, move)
+    || move.commands.some((c) => c.t === 'movePriest' || ('transport' in c && c.transport === p.id))
+  ) {
+    return;
+  }
+
+  move.commands.push({ t: 'pray', player: move.me, spell: DEVASTATION });
+}
+
 /** Whether a unit stands within `range` cells of a caster, as rules/spells.ts measures it. */
-function inReach(t: View<Transport>, e: View<Living>, range: number): boolean {
+function inReach(t: Caster, e: View<Living>, range: number): boolean {
   const [fx, fy] = e.kind === 'building' ? [e.fx, e.fy] : [1, 1];
   const dx = Math.max(e.x - t.x, 0, t.x - (e.x + fx - 1));
   const dy = Math.max(e.y - t.y, 0, t.y - (e.y + fy - 1));
@@ -1077,7 +1106,7 @@ function inReach(t: View<Transport>, e: View<Living>, range: number): boolean {
 }
 
 /** What stands around a caster within the range of its Spell. */
-function inRange(world: WorldView, t: View<Transport>, range: number): Reach {
+function inRange(world: WorldView, t: Caster, range: number): Reach {
   const reach: Reach = { foes: 0, friends: 0, foesAir: 0, friendsAir: 0, hurt: 0 };
 
   for (const e of world.entities.values()) {
@@ -1100,7 +1129,13 @@ function inRange(world: WorldView, t: View<Transport>, range: number): Reach {
 
 /** Cast the Spell of each transport that has one, where it stands, when it is worth it. */
 function castSpells(world: WorldView, move: Move, transports: View<Transport>[]): void {
-  for (const t of transports) {
+  const priest = world.priestOf(move.me);
+  // The Priest casts what he prayed for like a transport, standing on his feet.
+  const casters: Caster[] = priest?.state === 'normal' && priest.praying === 0
+    ? [...transports, priest]
+    : transports;
+
+  for (const t of casters) {
     const def = t.spell === null ? undefined : world.defs.get(t.spell);
     const wanted = t.spell === null ? undefined : SPELL_USE[t.spell];
 

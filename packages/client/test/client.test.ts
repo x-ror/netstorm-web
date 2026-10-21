@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { ARM_BUILT, discSpin, homeIsland, loadDefs } from '@netstorm/sim';
+import { AI_ALIGNMENTS, ARM_BUILT, discSpin, homeIsland, loadDefs } from '@netstorm/sim';
 import {
   happened,
   hotFeet,
@@ -165,6 +165,11 @@ test('a skirmish starts with the Sun basics and what the Furies granted in the b
   assert.ok(me.tech.has('suncannon') && me.tech.has('thunderfence'));
   assert.ok(!me.tech.has('thundercannon') && !me.tech.has('sunfence'));
   assert.equal(me.altarLevel, 2);
+  // The computer knows the same start and one of the original's sixteen alignments.
+  const enemy = world.players.get(ENEMY)!;
+  assert.ok(!me.ai && enemy.ai);
+  assert.ok(AI_ALIGNMENTS.some((a) => a.tech.every((id) => enemy.tech.has(id))));
+  assert.ok(enemy.tech.has('suncannon'));
 });
 
 test('without a map, geysers that would cut into a home island are dropped', () => {

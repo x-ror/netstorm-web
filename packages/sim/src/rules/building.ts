@@ -395,9 +395,9 @@ function transportSiteError(
 /** The letter of a Fury's Energy; Sun's stands for any. */
 const LETTERS: Record<Theme, string> = { wind: 'w', rain: 'r', thunder: 't', sun: 's' };
 const ANY = 's';
-/** "Temples now provide 2 themed mana" (DevLog 415); the original gives a computer's Temple 1
- * (FUN_00404e10), which the simulation, knowing no computers, leaves out. */
+/** "Temples now provide 2 themed mana" (DevLog 415); a computer's Temple 1 (FUN_00404e10). */
 const TEMPLE_ENERGY = 2;
+const AI_TEMPLE_ENERGY = 1;
 
 /**
  * The Energy a unit needs, one letter an icon on its card (FUN_004c6250): of level 1 its Fury's,
@@ -447,7 +447,8 @@ function hasEnergy(world: WorldView, player: number, def: UnitDef, x: number, y:
     }
 
     const source = world.def(b.type);
-    const count = source.cls === 'Energy' ? TEMPLE_ENERGY : Number(source.group === 'battery');
+    const temple = world.players.get(b.owner)?.ai ? AI_TEMPLE_ENERGY : TEMPLE_ENERGY;
+    const count = source.cls === 'Energy' ? temple : Number(source.group === 'battery');
     const dx = b.x + b.fx / 2 - (x + def.footX / 2);
     const dy = b.y + b.fy / 2 - (y + def.footY / 2);
 

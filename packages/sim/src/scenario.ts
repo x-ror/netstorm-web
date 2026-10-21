@@ -108,6 +108,78 @@ export const MULTIPLAYER_TECH: readonly string[] = [
   DEVASTATION,
 ];
 
+/**
+ * What a computer player knows in a multiplayer battle: one of these alignments, drawn at random
+ * (FUN_00405d00, "%s of Summer" and so on). A draw past the fifteen gives the Sun one.
+ */
+export const AI_ALIGNMENTS: readonly { name: string; tech: readonly string[]; }[] = [
+  [
+    'Summer',
+    'sunWalker;sunCannon;sunArcher;windBattery;windWalker;windBalloon;windBlocker;windAviary',
+  ],
+  [
+    'Spring',
+    'sunWalker;sunCannon;sunArcher;rainBattery;rainWalker;rainBalloon;rainBlocker;rainAviary',
+  ],
+  [
+    'Power',
+    'sunWalker;sunBalloon;sunCannon;sunAviary;thunderBattery;bulf;thunderArcher;thunderBlocker',
+  ],
+  [
+    'Deserts',
+    'sunWalker;windBattery;windArcher;windWalker;sunBalloon;sunCannon;sunBlocker;sunAviary',
+  ],
+  [
+    'Wind',
+    'sunWalker;sunCannon;windBattery;windArcher;windWalker;windBlocker;windAviary;windBalloon',
+  ],
+  [
+    'Typhoons',
+    'sunWalker;windBattery;windArcher;windWalker;rainBattery;rainBalloon;rainCannon;rainBlocker;rainAviary',
+  ],
+  [
+    'Hurricanes',
+    'sunWalker;windBattery;windArcher;windWalker;windBalloon;windAviary;thunderBattery;thunderCannon;thunderBlocker',
+  ],
+  [
+    'Rainbows',
+    'sunWalker;rainBattery;rainCannon;rainWalker;sunBalloon;sunArcher;sunBlocker;sunAviary',
+  ],
+  [
+    'Blizzards',
+    'sunWalker;rainBattery;rainCannon;rainWalker;windBattery;windArcher;windBlocker;windAviary;windBalloon',
+  ],
+  [
+    'Rain',
+    'sunWalker;sunArcher;rainBattery;rainCannon;rainWalker;rainBlocker;rainAviary;rainBalloon',
+  ],
+  [
+    'the Monsoon',
+    'sunWalker;rainBattery;rainWalker;rainBalloon;rainCannon;rainAviary;thunderBattery;thunderArcher;thunderBlocker',
+  ],
+  ['Rays', 'sunWalker;thunderBattery;bulf;thunderCannon;sunBalloon;sunArcher;sunBlocker;sunAviary'],
+  [
+    'Gales',
+    'sunWalker;thunderBattery;bulf;thunderCannon;windBattery;windArcher;windBlocker;windAviary',
+  ],
+  [
+    'Hail',
+    'sunWalker;thunderBattery;bulf;thunderCannon;thunderArcher;rainBattery;rainBalloon;rainBlocker;rainAviary',
+  ],
+  [
+    'Thunder',
+    'sunWalker;thunderBattery;thunderCannon;thunderArcher;bulf;thunderBlocker;sunAviary;sunBalloon',
+  ],
+  ['Sun', 'sunWalker;sunBattery;sunCannon;sunArcher;sunBlocker;sunAviary;sunBalloon'],
+].map(([name, tech]) => ({ name: name!, tech: tech!.toLowerCase().split(';') }));
+
+/** The alignment of a draw from 1: the AI Difficulty sets how many there are to draw from. The
+ * lowest draws 1 to 150, the next 1 to 25, the rest 1 to 16, so the weaker the computer, the
+ * likelier it is all Sun. */
+export function aiAlignment(draw: number): { name: string; tech: readonly string[]; } {
+  return AI_ALIGNMENTS[Math.min(draw, AI_ALIGNMENTS.length) - 1]!;
+}
+
 const BASE_TECH = [
   'sunwalker',
   'suncannon',
