@@ -69,7 +69,16 @@ import {
 import { StreamBatch } from './stream-batch.js';
 import { anchorsOf, burn, pixelsOf, rise, sparkColour, streaksOf, type Spark } from './burning.js';
 import { Growth } from './growth.js';
-import { PIECE, scatter, shatter, type Piece } from './shrapnel.js';
+import { blow, makeSmoke, puffColour, type Smoke } from './smoke.js';
+import {
+  BOLT_LIFE,
+  SPELL_BOLT_LIFE,
+  boltLines,
+  makeBolt,
+  tremble,
+  type Bolt,
+} from './lightning.js';
+import { PIECE, crumble, scatter, shatter, type Piece } from './shrapnel.js';
 import { MUZZLES } from './muzzles.js';
 
 const SPRITE_ANCHOR_X = 0.5;
@@ -91,8 +100,9 @@ const CLIFF_HEIGHT = 6; // rock face drawn under an island's southern rim
 const SCATTER_X = 7;
 const SCATTER_Y = 13;
 const BAR_GAP = 2; // pixels between a sprite's top and its health bar
-const BEAM_LENGTH = 154; // pixels of the Lightning picture
-const BEAM_TICKS = 2;
+/** The white core of a bolt and its pale-cyan edge (palette 0xc3 and 0x55 of the original). */
+const BOLT_CORE = 0xffffff;
+const BOLT_EDGE = 0x81c0b9;
 const ICE_IMPACTS = 4;
 /** A Whirligig's bomb falls four rows of the board (flyer.cpp: `y + 9t² + 10t` to `y + 4`). */
 const BOMB_ROWS = 4;
@@ -122,9 +132,6 @@ const COLOR = {
   barGood: 0x7bd36b,
   barLow: 0xff5a4a,
   tracer: 0xfff2b0,
-  sunField: 0xffd166,
-  acidField: 0x8ee06b,
-  arcField: 0x9fd8ff,
   stream: 0xbfe9ff,
 } as const;
 const SIDES: ReadonlyArray<readonly [number, number, number]> = [
@@ -171,8 +178,6 @@ const STREAK_STROKES = [STREAK_GLOW, STREAK_CORE];
 const HALF_CELL = 0.5;
 const OVERLAY_Z = 0.5; // an overlay lies just over its own entity, a shadow just under
 const SHADOW_ALPHA = 0.45; // the original draws shadows translucent; how much is not read (`?`)
-const FIELD_WIDTH = 2;
-const FIELD_ALPHA = 0.7;
 /** At most this many tenths of a second of sparks at once, after a stall or a hidden tab. */
 const MAX_SPARK_STEP = 5;
 const RAISE_SOUNDS = 9;
@@ -190,11 +195,19 @@ const TAIL_LIFE = 4;
 const PLACE_TICKS = 3;
 const MAX_PLACE_CELLS = 64;
 const PROGRESS_COLOR = 0xbfe9ff;
-const FIELD_COLOR: Readonly<Record<string, number>> = {
-  sunfence: COLOR.sunField,
-  rainfence: COLOR.acidField,
-  thunderfence: COLOR.arcField,
+/** Ticks between two bursts of an Ice Cannon, the four shots of one being within a second. */
+const SMOKE_GAP = 10;
+/* oxlint-disable no-magic-numbers -- slots of fenceshield.type and range.type */
+/** The picture of a cell of a barrier's field, by the way it runs and the tick. An Acid
+ * Barricade's wide group F along the board's x and tall group D along its y is read off the
+ * pictures' shapes (`?`). */
+const FIELD_SLOTS: Readonly<
+  Record<string, (along: 'x' | 'y', tick: number) => readonly [string, number]>
+> = {
+  sunfence: (along) => ['fenceshield', along === 'y' ? 0 : 1],
+  rainfence: (along, tick) => ['range', (along === 'x' ? 50 : 38) + (Math.floor(tick / 5) % 5)],
 };
+/* oxlint-enable no-magic-numbers */
 
 /** What a building has left of its construction, or of an Upgrade: a Workshop being Upgraded is
  * built anew over itself, so it shows the same progress. */
@@ -723,6 +736,12 @@ export function createWorldRenderer(
       fireG.rect(Math.round(x), Math.round(y), PIECE, PIECE).fill(colour);
     }
 
+    for (const smoke of smokes) {
+      for (const { x, y, life } of smoke.puffs) {
+        fireG.rect(Math.round(x), Math.round(y), 2, 1).fill(puffColour(life));
+      }
+    }
+
     for (const { x, y, life } of sparks) {
       // Five pixels of one colour: a square of two by two and one over it.
       fireG.rect(Math.round(x), Math.round(y) - 1, 2, 2).rect(Math.round(x), Math.round(y) - 2, 1,
@@ -897,6 +916,7 @@ export function createWorldRenderer(
         centres.delete(id);
         rising.delete(id);
         stopGrowing(id);
+        smoked.delete(id);
         headings.delete(id);
         glides.delete(id);
         scene.aims.delete(id);
@@ -1172,18 +1192,26 @@ export function createWorldRenderer(
 
       if (show.bolt && !flying) {
         const at = middle(e);
-        beam(show.bolt === 'sky' ? { x: at.x, y: at.y - SKY_BOLT } : middle(by), at);
+        beam(show.bolt === 'sky' ? { x: at.x, y: at.y - SKY_BOLT } : middle(by), at, 'thundercrack',
+          SPELL_BOLT_LIFE);
       }
     }
   }
 
-  /** A line between every two fence posts that are joined into a barrier. */
+  /**
+   * The field between every two posts joined into a barrier, a picture a cell. A Sun Barricade's
+   * is a Force Field cell, north-south or east-west (fence.cpp, FUN_00464660); an Acid
+   * Barricade's a cell of the range type, its five frames turning every 0.5 s (RainFenceProcess).
+   * An Arc Spire has no standing field: its pulse is a bolt from post to post.
+   */
   function drawBarriers(): void {
+    for (const field of fields.splice(0)) {
+      field.destroy();
+    }
+
     for (const { from, to } of barriers(world)) {
       const a = sprites.get(from.id);
       const b = sprites.get(to.id);
-
-      // An Arc Spire's pulse is a bolt between its two posts.
       const pulsed = from.type === 'thunderfence'
         && from.cooldown > (cooldowns.get(from.id) ?? Infinity);
 
@@ -1191,10 +1219,31 @@ export function createWorldRenderer(
         beam({ x: a.x, y: a.y - a.height / 2 }, { x: b.x, y: b.y - b.height / 2 });
       }
 
-      if (a && b) {
-        bars.moveTo(a.x, a.y - a.height / 2)
-          .lineTo(b.x, b.y - b.height / 2)
-          .stroke({ color: FIELD_COLOR[from.type], width: FIELD_WIDTH, alpha: FIELD_ALPHA });
+      const along = from.x === to.x ? 'y' : 'x';
+      const slot = FIELD_SLOTS[from.type]?.(along, world.tick);
+
+      if (slot === undefined) {
+        continue;
+      }
+
+      const [x0, y0] = along === 'x'
+        ? [from.x + from.fx, from.y + (from.fy >> 1)]
+        : [from.x + (from.fx >> 1), from.y + from.fy];
+      const end = along === 'x' ? to.x : to.y;
+
+      for (let at = along === 'x' ? x0 : y0; at < end; at++) {
+        const [x, y] = along === 'x' ? [at, y0] : [x0, at];
+        const texture = textures.get(`slot:${slot[0]}:${slot[1]}`);
+        const spot = texture && hotSpots.get(texture);
+
+        if (texture && spot) {
+          const cell = new Sprite(texture);
+          cell.anchor.set(spot.x, spot.y);
+          const { sx, sy } = project(x, y);
+          cell.position.set(sx + TW - 1, sy + TH - 1);
+          fieldLayer.addChild(cell);
+          fields.push(cell);
+        }
       }
     }
   }
@@ -1209,7 +1258,15 @@ export function createWorldRenderer(
     ticks: number;
     blocked: boolean;
   }[] = [];
-  const beams: { sprite: Sprite; until: number; }[] = [];
+  const fields: Sprite[] = [];
+  const smokes: Smoke[] = [];
+  /** The tick each Ice Cannon last blew smoke, so that a burst of four shots blows it once. */
+  const smoked = new Map<number, number>();
+  // The fields of barriers stand over the units, as zoFLARES does.
+  const fieldLayer = barsLayer.addChild(new Container());
+  const strikes: Bolt[] = [];
+  // Over every unit, as the bolt of a Vander Tower is: with the bars, above the entities.
+  const strikeG = barsLayer.addChild(new Graphics());
   /**
    * A Sun Cannon's shells: no picture, but a fiery tail of sparks (FieryTail of netstorm.game)
    * along their way, and the small explosion where they land.
@@ -1297,6 +1354,15 @@ export function createWorldRenderer(
           cannon && entity.kind === 'building' ? entity.facing : -1);
         const point = project(px, py);
         endpoint = { x: point.sx, y: point.sy };
+      }
+
+      // An Ice Cannon blows smoke out of its muzzle as its burst begins (Smoke, FUN_004d6e30).
+      if (
+        entity.kind === 'building' && entity.type === 'raincannon'
+        && world.tick - (smoked.get(entity.id) ?? -Infinity) > SMOKE_GAP
+      ) {
+        smoked.set(entity.id, world.tick);
+        smokes.push(makeSmoke(start.x, start.y));
       }
 
       // A cannon fires along its barrel, not at the middle of its target.
@@ -1434,24 +1500,39 @@ export function createWorldRenderer(
     }
   }
 
-  /** A bolt of lightning between two points: the Lightning type is one picture of a bolt, which
-   * is turned and stretched to fit and shown for a moment. */
-  function beam(from: Point, to: Point, sound = 'thundercrack'): void {
-    const lightning = textures.get('slot:lightning:0');
-    const far = Math.hypot(to.x - from.x, to.y - from.y);
-
-    if (!lightning || far === 0) {
+  /** A bolt of lightning between two points, built as the original builds it (lightning.ts). */
+  function beam(from: Point, to: Point, sound = 'thundercrack', life = BOLT_LIFE): void {
+    if (from.x === to.x && from.y === to.y) {
       return;
     }
 
     sounds.play(sound, to);
-    const sprite = entityLayer.addChild(new Sprite(lightning));
-    sprite.anchor.set(0, SPRITE_ANCHOR_X);
-    sprite.position.set(from.x, from.y);
-    sprite.rotation = Math.atan2(to.y - from.y, to.x - from.x);
-    sprite.scale.x = far / BEAM_LENGTH;
-    sprite.zIndex = AIR_Z;
-    beams.push({ sprite, until: world.tick + BEAM_TICKS });
+    strikes.push(makeBolt(from, to, presentationTick, life));
+  }
+
+  /** The bolts of lightning, trembling, and gone when their points are. */
+  function drawStrikes(dt: number): void {
+    strikeG.clear();
+
+    for (let i = strikes.length - 1; i >= 0; i--) {
+      const strike = strikes[i]!;
+      const lines = boltLines(strike, presentationTick);
+
+      if (!lines.length) {
+        strikes.splice(i, 1);
+        continue;
+      }
+
+      tremble(strike, dt);
+
+      for (const edge of [true, false]) {
+        for (const line of lines.filter((l) => l.edge === edge)) {
+          strikeG.moveTo(line.x0, line.y0).lineTo(line.x1, line.y1);
+        }
+
+        strikeG.stroke({ color: edge ? BOLT_EDGE : BOLT_CORE, width: 1 });
+      }
+    }
   }
 
   function fly(): void {
@@ -1505,13 +1586,6 @@ export function createWorldRenderer(
         shells.splice(i, 1);
       }
     }
-
-    for (let i = beams.length - 1; i >= 0; i--) {
-      if (world.tick >= beams[i]!.until) {
-        beams[i]!.sprite.destroy();
-        beams.splice(i, 1);
-      }
-    }
   }
 
   /** Play the explosion of a unit where it stands; call before the next sync removes it. */
@@ -1533,6 +1607,18 @@ export function createWorldRenderer(
       burst(explosionFor(widths.get(id) ?? 1), at, (groups.get(id)?.zIndex ?? target.zIndex) + 1);
       sounds.play('explosion', at);
       breakUp(target, false);
+    }
+  }
+
+  /** A cell of bridge that falls rains down in its pixels (Fall); `bridgeFall.wav` is the event's. */
+  function fell(cell: { x: number; y: number; }): void {
+    const plank = textures.get('slot:bridge:0');
+    const hang = plank && hotSpots.get(plank);
+
+    if (plank && hang) {
+      const { sx, sy } = project(cell.x, cell.y);
+      crumble(pieces, plank, sx + TW - 1 - hang.x * plank.width,
+        sy + BRIDGE_DROP - hang.y * plank.height);
     }
   }
 
@@ -1565,6 +1651,7 @@ export function createWorldRenderer(
   return {
     explode,
     collapse,
+    fell,
     ricochet,
     cast,
     placed,
@@ -1593,7 +1680,7 @@ export function createWorldRenderer(
         })),
         bolts: bolts.length,
         streams: streams.size,
-        beams: beams.length,
+        beams: strikes.length,
         accents: placementsAccent.length,
       };
     },
@@ -1615,6 +1702,14 @@ export function createWorldRenderer(
       sparkTick = presentationTick;
       rise(sparks, dt);
       scatter(pieces, dt);
+
+      for (let i = smokes.length - 1; i >= 0; i--) {
+        if (!blow(smokes[i]!, dt)) {
+          smokes.splice(i, 1);
+        }
+      }
+
+      drawStrikes(dt);
 
       for (const { from, to, start, land } of shells) {
         const done = Math.min(1, Math.max(0, (presentationTick - start) / (land - start)));

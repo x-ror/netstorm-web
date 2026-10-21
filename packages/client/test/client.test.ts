@@ -42,6 +42,8 @@ import {
   slotOf,
 } from '../src/animations.js';
 import { Growth } from '../src/growth.js';
+import { boltLines, makeBolt } from '../src/lightning.js';
+import { blow, makeSmoke, puffColour } from '../src/smoke.js';
 import { VisualStates } from '../src/presentation.js';
 import {
   alongBarrel,
@@ -993,4 +995,31 @@ test('a building going up shows its pixels from the base up, as many as the work
   growth.step(1, 1);
   growth.step(20, 1);
   assert.deepEqual([...growth.out], [...rgba]);
+});
+
+test('a bolt runs crooked from one point exactly to the other, with twigs, and is gone in 0.4 s', () => {
+  let seed = 1;
+  const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const bolt = makeBolt({ x: 0, y: 0 }, { x: 100, y: 0 }, 0, 3, random);
+  const main = bolt.points.filter((p) => p.intensity === 1);
+  assert.deepEqual([main.at(-1)!.x, main.at(-1)!.y], [100, 0]);
+  assert.ok(main.length >= 8 && main.length <= 14, `${main.length}`);
+  assert.ok(bolt.points.some((p) => p.intensity === 0.125));
+  // It grows within the first tenth, and its lines are gone after its life.
+  assert.ok(boltLines(bolt, 0.05).length < boltLines(bolt, 1).length);
+  assert.equal(boltLines(bolt, 4).length, 0);
+});
+
+test('an Ice Cannon’s smoke blows ten puffs and fades from pale to deep blue-green', () => {
+  const smoke = makeSmoke(0, 0);
+  let alive = true;
+
+  for (let t = 0; t < 40 && alive; t++) {
+    alive = blow(smoke, 1, () => 0.5);
+  }
+
+  assert.equal(smoke.left, 0);
+  assert.ok(smoke.puffs.every((p) => p.x < 0 && p.y < 0)); // up and to the left
+  assert.equal(puffColour(100), 0x9bd2ce);
+  assert.equal(puffColour(0), 0x366482);
 });

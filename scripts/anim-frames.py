@@ -68,6 +68,8 @@ SLOTS = {
     "rainfence": 3,  # the post of an Acid Barricade, spinning while it is joined
     "residence": 24,  # six frames, lit and unlit, for each of Sun, Thunder, Wind and Rain
     "edgefarm": 173,  # the frames of isle.type, a farm on each rim frame, for each Fury
+    "fenceshield": 2,  # a cell of a Sun Barricade's field: north-south, east-west
+    "range": 55,  # its groups D (38-42) and F (50-54) are the cells of an Acid Barricade's field
 }
 
 

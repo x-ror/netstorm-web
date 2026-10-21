@@ -423,6 +423,8 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
         renderer.explode(event.data.id);
       } else if (event.what === 'salvaged') {
         renderer.collapse(event.data.id);
+      } else if (event.what === 'bridge fell') {
+        renderer.fell(event.data);
       } else if (event.what === 'ricochet') {
         renderer.ricochet(event.data.hit, event.data.to);
       } else if (event.what === 'cast') {

@@ -65,6 +65,50 @@ export function shatter(
   }
 }
 
+/** A cell of bridge that drops breaks into its pixels and rains down (Fall, FUN_00472ae0): from
+ * rest, drifting right by their row's share of the height a tenth, falling 1.2 faster each tenth;
+ * the top rows last longest, up to 2.55 s, the bottom ones go first. */
+const FALL = { gravity: 1.2, least: 3.5, top: 12.5, spread: 12 } as const;
+
+export function crumble(
+  pieces: Piece[],
+  texture: Texture,
+  left: number,
+  top: number,
+  random: () => number = Math.random,
+): void {
+  const picture = pixelsOf(texture);
+
+  if (!picture) {
+    return;
+  }
+
+  const { width, height, rgba } = picture;
+
+  for (let y = 0; y < height; y += PIECE) {
+    const row = y / height;
+    const most = FALL.top + FALL.spread * (1 - row);
+
+    for (let x = 0; x < width; x += PIECE) {
+      const at = (y * width + x) * 4;
+
+      if (rgba[at + 3] === 0) {
+        continue;
+      }
+
+      pieces.push({
+        x: left + x,
+        y: top + y,
+        vx: row,
+        vy: 0,
+        fall: FALL.gravity,
+        life: random() + FALL.least + random() * (most - FALL.least),
+        colour: (rgba[at]! << 16) | (rgba[at + 1]! << 8) | rgba[at + 2]!,
+      });
+    }
+  }
+}
+
 /** Move the pieces on by `dt` tenths of a second; the spent ones go. */
 export function scatter(pieces: Piece[], dt: number): void {
   let kept = 0;
