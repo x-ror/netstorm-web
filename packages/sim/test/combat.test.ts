@@ -807,8 +807,12 @@ test('a Whirlibase sends up a Whirligig that bombs buildings, never transports, 
   assert.equal(tower.hpMax - tower.hp, 60);
   assert.equal(golem.hp, golem.hpMax);
   assert.equal(far.hp, far.hpMax);
-  // After 75 s in the air it flies home, and the base sends it up anew.
-  run(world, 75);
+  // After 75 s in the air it flies home, and the base sends it up anew. On the way home it has no
+  // time left: never less than none, which a snapshot would refuse.
+  run(world, 63);
+  run(world, 1);
+  assert.deepEqual([gig.returning, gig.life], [true, 0]);
+  run(world, 11);
   assert.ok(!world.entities.has(gig.id));
   run(world, 6);
   assert.ok(flyerOf(world, base));

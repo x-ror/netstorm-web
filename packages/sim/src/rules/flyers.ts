@@ -221,7 +221,8 @@ function sweep(world: World, f: Flyer): void {
 export function tickFlyer(world: World, f: Flyer): void {
   const base = f.home === null ? undefined : world.entities.get(f.home);
   const home = base?.kind === 'building' && base.hp > 0;
-  f.life--;
+  // A Whirligig on its way home has no time left to count down.
+  f.life = Math.max(0, f.life - 1);
 
   // A Whirligig goes home to refuel, where its base sends it up again whole. Without a base it
   // has "no place to refuel"; the others simply live their time.
