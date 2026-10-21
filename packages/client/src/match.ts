@@ -41,6 +41,8 @@ const HUD_REFRESH_TICKS = 5;
 const ALTAR = 'altar';
 const HALF_CELL = 0.5;
 /** Seconds after the last rune that the Furies are heard (dais.cpp, FUN_004558e0). */
+/** The four Fury tracks of the battle music, in the order they follow each other. */
+const FURY_TRACKS = ['wind22', 'rain22', 'thu22', 'sun22'] as const;
 const UPGRADE_CRY = 1.5;
 const SACRIFICE_CRY = 4;
 const SACRIFICE_THUNDER = 2.8;
@@ -309,6 +311,43 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
 
   /** The sound of an event of the battle. Spells and transports sound as their .type files say;
    * the rest are matched to the events by the names of the original's sound files (ours). */
+  /**
+   * The battle's music, as the original plays it (FUN_00480850, FUN_00480790 of netstorm.game): one
+   * of the four Fury tracks to start with, at random, then round them in turn, Wind, Rain, Thunder,
+   * Sun; when a track ends while the player's Altar is at a Sacrifice, sacrifice.mus.
+   */
+  function playFury(at: number): void {
+    data.sounds.music(FURY_TRACKS[at]!, false, () => {
+      if (ended) {
+        return;
+      }
+
+      if (sacrificing()) {
+        data.sounds.music('sacrifice', false, () => playFury((at + 1) % FURY_TRACKS.length));
+      } else {
+        playFury((at + 1) % FURY_TRACKS.length);
+      }
+    });
+  }
+
+  /** Whether the player's Altar holds a captive with a rune warded (FUN_00454cb0). */
+  function sacrificing(): boolean {
+    for (const e of world.entities.values()) {
+      const altar = e.kind === 'priest' && e.chainedAt !== null
+        ? world.entities.get(e.chainedAt)
+        : undefined;
+
+      if (
+        altar?.kind === 'building' && altar.owner === ui.viewer && e.kind === 'priest'
+        && e.runes > 0
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   /** Sounds due a while after what made them, by the tick they are due. */
   const echoes: { tick: number; name: string; }[] = [];
 
@@ -571,6 +610,7 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
       ended = true;
       renderLog();
       const won = result === 'won';
+      data.sounds.music(won ? 'fanfare' : 'defeat');
       const page = mission?.pages[won ? 'succeeded' : 'failed'];
       show(won ? m.page_victory() : m.page_defeat(), {
         text: page?.text
@@ -581,8 +621,10 @@ export async function runMatch(root: HTMLElement, data: GameData, options: Match
   });
 
   data.sounds.ambience(true);
+  playFury(Math.floor(Math.random() * FURY_TRACKS.length));
   const next = await left;
   data.sounds.ambience(false);
+  data.sounds.music(null);
   controls.dispose();
   minimap.dispose();
   hud.dispose();

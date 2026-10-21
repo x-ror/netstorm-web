@@ -32,7 +32,11 @@ async function main() {
   const game = document.getElementById('game')!;
 
   const texts = { en: missions, uk: translated };
-  const menuOf = () => showMenu(menu, texts, data.defs, data.atlas);
+  // The menus play ser22.mus over and over, as the original's do (FUN_00480850).
+  const menuOf = () => {
+    data.sounds.music('ser22', true);
+    return showMenu(menu, texts, data.defs, data.atlas);
+  };
   let options = await menuOf();
 
   for (;;) {

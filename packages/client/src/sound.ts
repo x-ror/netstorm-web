@@ -43,6 +43,9 @@ export interface Sounds {
   unit(type: string, what: UnitSound, at?: Place): void;
   /** Start or stop the air of the place: a wind that loops, and far-off sounds now and then. */
   ambience(on: boolean): void;
+  /** Play a track of the original's music (music/<name>.mp3), in place of the one playing; null
+   * stops it. `ended` is told when the track has played to its end; a looping one never ends. */
+  music(name: string | null, loop?: boolean, ended?: () => void): void;
   muted: boolean;
   /** The sounds there are, and those of each unit type. */
   index: SoundIndex;
@@ -87,6 +90,7 @@ export function createSounds(index: SoundIndex): Sounds {
    * after it was started again, is not played. */
   let airs = 0;
   let farOff: ReturnType<typeof setTimeout> | undefined;
+  let track: HTMLAudioElement | undefined;
 
   /** The audio of the page, made on first need. A browser keeps it silent until the player has
    * touched the page; the first press or key wakes it. Without Web Audio (tests), none. */
@@ -213,6 +217,35 @@ export function createSounds(index: SoundIndex): Sounds {
     },
     unit(type, what, at) {
       sounds.play(unitSound(index, type, what), at);
+    },
+    music(name, loop = false, ended) {
+      track?.pause();
+      track = undefined;
+      const ctx = audio();
+
+      if (name === null || !ctx || !master || typeof Audio === 'undefined') {
+        return;
+      }
+
+      // A track is streamed, not decoded whole: it goes through the same switch as every sound.
+      const playing = new Audio(`music/${name}.mp3`);
+      playing.loop = loop;
+      playing.addEventListener('ended', () => {
+        if (track === playing) {
+          ended?.();
+        }
+      });
+      ctx.createMediaElementSource(playing).connect(master);
+      track = playing;
+      // Until the player has touched the page the browser refuses to play; the first touch does.
+      const start = () => {
+        if (track === playing) {
+          void playing.play().catch(() => undefined);
+        }
+      };
+      void playing.play().catch(() => {
+        window.addEventListener('pointerdown', start, { once: true, capture: true });
+      });
     },
   };
   return sounds;

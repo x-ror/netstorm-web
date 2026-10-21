@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
@@ -125,6 +125,15 @@ function gameAssets(): Plugin {
           type: 'asset',
           fileName: file,
           source: readFileSync(new URL(`./public/${file}`, import.meta.url)),
+        });
+      }
+
+      // The music, as scripts/music.py left it in `public`.
+      for (const track of readdirSync(new URL('./public/music', import.meta.url))) {
+        this.emitFile({
+          type: 'asset',
+          fileName: `music/${track}`,
+          source: readFileSync(new URL(`./public/music/${track}`, import.meta.url)),
         });
       }
 
